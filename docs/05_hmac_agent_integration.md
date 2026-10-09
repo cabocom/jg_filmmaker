@@ -34,6 +34,7 @@ $signature = hash_hmac('sha256', $canonicalString, $this->secret);
 - `X-Signature`: Firma hexadecimal generada con la clave compartida (`JG_AGENTE_SECRET`).
 - `X-Timestamp`: Marca de tiempo Unix en segundos (ventana de aceptación: ±300s para mitigar ataques de repetición).
 - `X-Correlation-ID`: Identificador UUIDv4 para trazabilidad distribuida en los logs del agente.
+- `X-Agent-ID`: Identificador canónico del emisor (e.g. `jg_filmmaker`).
 
 ---
 

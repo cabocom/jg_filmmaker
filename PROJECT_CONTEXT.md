@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 2.0.0  
-**Fecha de consolidación:** 9 de octubre de 2026  
+**Versión del documento:** 2.1.0  
+**Fecha de consolidación:** 10 de octubre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 3/4, Tailwind CSS v4, PHP 8.4, PostgreSQL / SQLite, FFmpeg, PHPUnit 12, Laravel Pint  
-**Estado:** Fases 1 a 6 implementadas al 100% (Arquitectura UUIDs, UI Reactiva Livewire 3 con tema claro/oscuro, Conexión HMAC-SHA256 con jg_agente, Rodaje/Takes con subida física, NLE Rough Cut Timeline con ensamble FFmpeg y documentación viva).
+**Estado:** Fases 1 a 7 implementadas al 100% (Arquitectura UUIDs, UI Reactiva Livewire 3 con tema claro/oscuro, Conexión HMAC-SHA256 con jg_agente, Rodaje/Takes con subida física, NLE Rough Cut Timeline con ensamble FFmpeg, Inferencia Cognitiva Real con LLM y Aislamiento Mock Determinista en Tests).
 
 ---
 
@@ -12,7 +12,7 @@
 
 Dentro del ecosistema `javiergalvez-ia`, `jg_filmmaker` cumple el rol de **suite web de producción cinematográfica integral y asistida por agentes cognitivos**. Su propósito primordial es desacoplar el proceso de escritura y producción en etapas discretas, transformables y controlables por el cineasta:
 1. **Desacoplamiento Estricto:** Es una aplicación web independiente. No se conecta a las bases de datos de otros servicios (`jg_agente`, `jg_dashboard`, `jg_hub`).
-2. **Asistencia Cognitiva No Destructiva:** Consume las capacidades de análisis dramático de `jg_agente` mediante peticiones HTTP firmadas criptográficamente.
+2. **Asistencia Cognitiva No Destructiva:** Consume las capacidades de análisis dramático de `jg_agente` mediante peticiones HTTP firmadas criptográficamente (`/api/v1/tools/{tool_name}`) e identificadas con `X-Agent-ID: jg_filmmaker`.
 3. **Cero Pérdida de Control Humano:** El autor puede fijar términos o editar cualquier texto sin temor a que regeneraciones posteriores de la IA sobreescriban sus modificaciones manuales.
 
 ---

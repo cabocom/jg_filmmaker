@@ -41,6 +41,7 @@ class AgentClientService
             'X-Signature' => $signature,
             'X-Timestamp' => (string) $timestamp,
             'X-Correlation-ID' => Str::uuid()->toString(),
+            'X-Agent-ID' => 'jg_filmmaker',
             'Content-Type' => 'application/json',
             'Accept' => 'application/json',
         ];
