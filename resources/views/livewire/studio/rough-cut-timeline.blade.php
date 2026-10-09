@@ -42,8 +42,43 @@
                 <span>⬇️</span>
                 <span>Exportar EDL / JSON</span>
             </button>
+
+            <!-- Botón Renderizar Pre-corte (FFmpeg) -->
+            <button wire:click="assembleRoughCut"
+                    wire:loading.attr="disabled"
+                    type="button"
+                    class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-lg shadow-indigo-600/20 disabled:opacity-50">
+                <span wire:loading.remove wire:target="assembleRoughCut">🎬</span>
+                <svg wire:loading wire:target="assembleRoughCut" class="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                <span>Renderizar Pre-corte (FFmpeg)</span>
+            </button>
         </div>
     </div>
+
+    <!-- Mensajes Flash y Enlace de Vídeo Ensamblado -->
+    @if(session()->has('success'))
+        <div class="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 text-xs flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span>✓</span>
+                <span>{{ session('success') }}</span>
+            </div>
+            @if($renderedVideoUrl)
+                <a href="{{ $renderedVideoUrl }}" target="_blank" class="px-3 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition">
+                    Ver Vídeo Ensamblado ➜
+                </a>
+            @endif
+        </div>
+    @endif
+
+    @if(session()->has('error'))
+        <div class="p-3.5 rounded-xl bg-rose-950/40 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+            <span>⚠️</span>
+            <span>{{ session('error') }}</span>
+        </div>
+    @endif
 
     <!-- Monitor Central de Edición & Datos del Corte -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">

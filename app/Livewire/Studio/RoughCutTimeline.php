@@ -4,6 +4,7 @@ namespace App\Livewire\Studio;
 
 use App\Models\Project;
 use App\Models\Take;
+use App\Services\RoughCutAssemblyService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
@@ -18,6 +19,20 @@ class RoughCutTimeline extends Component
     public ?string $filterSceneId = null;
 
     public ?string $currentPlayingTakeId = null;
+
+    public ?string $renderedVideoUrl = null;
+
+    public function assembleRoughCut(RoughCutAssemblyService $assemblyService): void
+    {
+        try {
+            $result = $assemblyService->assemble($this->project, $this->filterSceneId);
+            $this->renderedVideoUrl = $result['video_url'];
+
+            session()->flash('success', "Pre-corte ensamblado con éxito ({$result['total_takes']} tomas, {$result['total_duration_seconds']}s).");
+        } catch (\RuntimeException $e) {
+            session()->flash('error', $e->getMessage());
+        }
+    }
 
     public function mount(Project $project, ?string $activeSceneId = null): void
     {
