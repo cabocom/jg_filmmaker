@@ -891,8 +891,8 @@
 
     <!-- ================= MODAL DE TRAZABILIDAD E INSPECCIÓN DE IA (ESTILO JG_HUB & JG_DASHBOARD) ================= -->
     @if($showAiTraceModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md transition">
-            <div class="w-full max-w-4xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-slate-950/80 backdrop-blur-md transition">
+            <div class="w-full lg:w-1/2 max-w-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] mx-auto">
                 <!-- Modal Header -->
                 <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex items-center justify-between gap-4">
                     <div class="flex items-center gap-3">
@@ -938,7 +938,7 @@
                 <div class="px-6 pt-3 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-2">
                     <button wire:click="switchAiTraceTab('steps')" type="button"
                             class="px-4 py-2 border-b-2 text-xs font-semibold transition {{ $aiTraceActiveTab === 'steps' ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
-                        ⚡ Grafo & Saltos Cognitivos
+                        ⚡ Grafo & Saltos
                     </button>
                     <button wire:click="switchAiTraceTab('prompt')" type="button"
                             class="px-4 py-2 border-b-2 text-xs font-semibold transition {{ $aiTraceActiveTab === 'prompt' ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
@@ -964,14 +964,14 @@
                                     <span class="absolute -left-8 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-indigo-50 border-2 border-indigo-600 text-indigo-700 dark:bg-slate-900 dark:border-indigo-400 dark:text-indigo-400 text-xs font-bold">
                                         {{ $step['number'] ?? 1 }}
                                     </span>
-                                    <div class="p-4 rounded-xl bg-slate-50/80 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 shadow-xs">
+                                    <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-xs">
                                         <div class="flex items-center justify-between mb-1">
-                                            <h4 class="text-sm font-bold text-slate-900 dark:text-white">{{ $step['title'] }}</h4>
-                                            <span class="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold">
+                                            <h4 class="text-xs font-bold text-slate-900 dark:text-white">{{ $step['title'] }}</h4>
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold border border-emerald-500/30">
                                                 {{ $step['status'] ?? 'COMPLETED' }}
                                             </span>
                                         </div>
-                                        <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{{ $step['detail'] }}</p>
+                                        <p class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-mono">{{ $step['detail'] }}</p>
                                     </div>
                                 </div>
                             @endforeach
@@ -982,7 +982,7 @@
                                 <span class="block text-xs font-mono uppercase font-bold text-slate-500 dark:text-slate-400 mb-1.5">
                                     ⚙️ System Prompt Inyectado (Biblia de Proyecto + Reglas)
                                 </span>
-                                <div class="p-4 rounded-xl bg-slate-950 text-slate-200 font-mono text-xs whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto border border-slate-800">
+                                <div class="p-4 rounded-xl bg-slate-900 text-slate-100 dark:bg-slate-950 dark:text-slate-100 font-mono text-xs whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto border border-slate-700 dark:border-slate-800 shadow-inner">
                                     {{ $aiTraceData['system_prompt'] ?? 'Sin prompt de sistema disponible.' }}
                                 </div>
                             </div>
@@ -990,7 +990,7 @@
                                 <span class="block text-xs font-mono uppercase font-bold text-slate-500 dark:text-slate-400 mb-1.5">
                                     📝 Entrada del Autor / Texto Suministrado
                                 </span>
-                                <div class="p-4 rounded-xl bg-slate-100 dark:bg-slate-950/80 text-slate-800 dark:text-slate-200 text-xs whitespace-pre-wrap leading-relaxed border border-slate-200 dark:border-slate-800">
+                                <div class="p-4 rounded-xl bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100 font-mono text-xs whitespace-pre-wrap leading-relaxed border border-slate-200 dark:border-slate-800 shadow-inner">
                                     {{ $aiTraceData['user_prompt'] ?? $aiTraceData['input_text'] ?? 'Sin entrada registrada.' }}
                                 </div>
                             </div>
@@ -1000,7 +1000,7 @@
                             <span class="block text-xs font-mono uppercase font-bold text-slate-500 dark:text-slate-400 mb-1.5">
                                 🎬 Salida Cinematográfica Generada
                             </span>
-                            <div class="p-5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 font-mono text-xs text-slate-900 dark:text-slate-100 whitespace-pre-wrap leading-relaxed">
+                            <div class="p-5 rounded-xl bg-slate-900 text-amber-300 dark:bg-slate-950 dark:text-amber-200 font-mono text-xs border border-slate-700 dark:border-slate-800 whitespace-pre-wrap leading-relaxed shadow-inner">
                                 {{ $aiTraceData['output'] ?? $aiTraceData['raw_response'] ?? 'Sin salida registrada.' }}
                             </div>
                         </div>
@@ -1009,7 +1009,7 @@
                             <span class="block text-xs font-mono uppercase font-bold text-slate-500 dark:text-slate-400 mb-1.5">
                                 { } Payload & Telemetría Completa
                             </span>
-                            <pre class="p-4 rounded-xl bg-slate-950 text-emerald-400 font-mono text-xs overflow-x-auto border border-slate-800 max-h-96">{{ json_encode($aiTraceData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</pre>
+                            <pre class="p-4 rounded-xl bg-[#0f172a] text-slate-100 font-mono text-xs overflow-x-auto border border-slate-800 max-h-96 shadow-inner"><code class="language-json text-slate-100 leading-relaxed">{{ json_encode($aiTraceData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</code></pre>
                         </div>
                     @endif
                 </div>

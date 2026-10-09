@@ -7,10 +7,15 @@
 
     <title>{{ $title ?? 'Estudio Cinematográfico' }} — jG Filmmaker</title>
 
-    <!-- Google Fonts: Inter & Courier Prime for Screenplay standard -->
+    <!-- Google Fonts: Inter & JetBrains Mono (Tipografía idéntica a jg_hub) + Courier Prime para Guión -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Resaltador de Sintaxis para JSON y Código (Highlight.js estilo jg_hub) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js"></script>
 
     <script>
         (function() {
@@ -30,15 +35,42 @@
     @livewireStyles
 
     <style>
-        .font-screenplay {
-            font-family: 'Courier Prime', Courier, monospace;
+        body, button, input, select, textarea, h1, h2, h3, h4, h5, h6, p, span, a, table, th, td {
+            font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+            font-size: 13px;
+            line-height: 1.6;
         }
-        .font-mono-code {
-            font-family: 'JetBrains Mono', monospace;
+        code, kbd, samp, pre, .font-mono {
+            font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+        }
+        .font-screenplay {
+            font-family: 'Courier Prime', Courier, monospace !important;
+        }
+        pre {
+            background-color: #0f172a !important;
+            border: 1px solid #1e293b !important;
+            border-radius: 8px !important;
+        }
+        pre code {
+            background-color: transparent !important;
+            border: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+            font-size: 12px !important;
+            line-height: 1.65 !important;
+        }
+        pre code::before,
+        pre code::after {
+            display: none !important;
+        }
+        .hljs {
+            background: transparent !important;
         }
     </style>
 </head>
-<body class="h-full flex flex-col font-sans bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-200 antialiased selection:bg-amber-500/30 selection:text-amber-900 dark:selection:text-amber-200 transition-colors duration-150">
+<body class="h-full flex flex-col font-mono bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased selection:bg-amber-500/30 selection:text-amber-900 dark:selection:text-amber-200 transition-colors duration-150">
     <!-- Navbar Superior de Estudio -->
     <header class="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/90 dark:border-slate-800 dark:bg-slate-950/80 backdrop-blur-md px-4 sm:px-6 py-3 transition-colors">
         <div class="flex items-center justify-between gap-4 max-w-7xl mx-auto">
@@ -224,11 +256,21 @@
             localStorage.setItem('console_theme', newTheme);
         }
 
-        // Atajo global de teclado Cmd+B / Ctrl+B para el Drawer
-        document.addEventListener('keydown', function (e) {
-            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') {
-                e.preventDefault();
-                Livewire.dispatch('toggle-bible-drawer');
+        // Resaltado de código con Highlight.js sincronizado con Livewire (estilo jg_hub)
+        function applyCodeHighlighting() {
+            if (typeof hljs !== 'undefined') {
+                document.querySelectorAll('pre code').forEach((block) => {
+                    hljs.highlightElement(block);
+                });
+            }
+        }
+        document.addEventListener('DOMContentLoaded', applyCodeHighlighting);
+        document.addEventListener('livewire:navigated', applyCodeHighlighting);
+        document.addEventListener('livewire:initialized', () => {
+            if (window.Livewire) {
+                Livewire.hook('morph.updated', () => {
+                    applyCodeHighlighting();
+                });
             }
         });
     </script>
