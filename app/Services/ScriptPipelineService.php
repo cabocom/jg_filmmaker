@@ -47,8 +47,14 @@ class ScriptPipelineService
             userLocks: $userLocks
         );
 
+        $telemetry = $this->agentClient->getLastTelemetry();
+        if ($telemetry) {
+            $userLocks['ai_telemetry']['structured'] = $telemetry;
+        }
+
         $block->update([
             'structured_text' => $structuredText,
+            'user_locks' => $userLocks,
             'stage' => 'structured',
         ]);
 
@@ -89,8 +95,14 @@ class ScriptPipelineService
             location: $location
         );
 
+        $telemetry = $this->agentClient->getLastTelemetry();
+        if ($telemetry) {
+            $userLocks['ai_telemetry']['screenplay'] = $telemetry;
+        }
+
         $block->update([
             'screenplay_content' => $screenplayContent,
+            'user_locks' => $userLocks,
             'stage' => 'screenplay',
         ]);
 
@@ -143,7 +155,14 @@ class ScriptPipelineService
             $createdShots->push($shot);
         }
 
+        $userLocks = $block->user_locks ?? [];
+        $telemetry = $this->agentClient->getLastTelemetry();
+        if ($telemetry) {
+            $userLocks['ai_telemetry']['shots'] = $telemetry;
+        }
+
         $block->update([
+            'user_locks' => $userLocks,
             'stage' => 'shots',
         ]);
 

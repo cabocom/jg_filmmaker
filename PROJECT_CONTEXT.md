@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 2.1.0  
+**Versión del documento:** 2.2.0  
 **Fecha de consolidación:** 10 de octubre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 3/4, Tailwind CSS v4, PHP 8.4, PostgreSQL / SQLite, FFmpeg, PHPUnit 12, Laravel Pint  
-**Estado:** Fases 1 a 7 implementadas al 100% (Arquitectura UUIDs, UI Reactiva Livewire 3 con tema claro/oscuro, Conexión HMAC-SHA256 con jg_agente, Rodaje/Takes con subida física, NLE Rough Cut Timeline con ensamble FFmpeg, Inferencia Cognitiva Real con LLM y Aislamiento Mock Determinista en Tests).
+**Estado:** Fases 1 a 8 implementadas al 100% (Arquitectura UUIDs, UI Reactiva Livewire 3 con tema claro/oscuro, Conexión HMAC-SHA256 con jg_agente, Rodaje/Takes con subida física, NLE Rough Cut Timeline con ensamble FFmpeg, Inferencia Cognitiva Real con LLM en Groq openai/gpt-oss-120b, Navegación de Etapas por Pestañas Completadas por Bloque y Modal de Trazabilidad e Inspección Cognitiva IA estilo jg_hub / jg_dashboard).
 
 ---
 
@@ -186,6 +186,9 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
 - Dispone de pipeline CI/CD en `.gitlab-ci.yml` con etapas de pruebas (`test:phpunit`) y construcción de contenedor Docker limpio sin ofuscación (`build:docker`).
 - Soporta el ciclo completo desde la creación del proyecto hasta el renderizado de vídeo concatenado con FFmpeg.
 - Dispone de interfaz adaptativa en tema Claro (blanco puro estilo `jg_hub`/`jg_dashboard`) y tema Oscuro con selector interactivo y persistencia en `localStorage`.
+- **Inferencia Cognitiva Real:** Integra llamada semántica en vivo al modelo `openai/gpt-oss-120b` en Groq, resolviendo transformaciones narrativas complejas (estilo indirecto a diálogos canónicos Fountain con acotaciones y personajes en mayúsculas). En entorno de pruebas y CI/CD opera bajo aislamiento mock determinista estricto con consumo zero de tokens.
+- **Limpieza de Interfaz y Navegación por Pestañas:** Cada bloque de guion renderiza una sola etapa a la vez. El cambio entre etapas se realiza mediante pestañas en la cabecera que muestran **únicamente aquellas etapas que hayan sido completadas** (`raw` siempre; `structured` si tiene tratamiento; `screenplay` si tiene guión; `shots` si tiene planos).
+- **Modal de Trazabilidad e Inspección Cognitiva IA:** Cada etapa generada por IA dispone de un botón de inspección que abre un modal con el diseño y formato premium de `jg_hub` y `jg_dashboard`. Presenta 4 vistas: Grafo de saltos cognitivos en timeline vertical, System Prompt inyectado con la Biblia de proyecto junto a la entrada del autor, salida cinematográfica generada, y JSON técnico completo de telemetría (modelo, latencia en ms, proveedor, timestamp).
 
 ### 7.2. Deudas Técnicas Conocidas
 1. **Autenticación y Multiusuario:**
@@ -200,6 +203,3 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
 4. **Almacenamiento Distribuido en la Nube:**
    - Los vídeos se almacenan en el sistema de archivos local (`storage/app/public/media/...`).
    - *Mejora pendiente:* Desacoplar el driver de almacenamiento para soportar proveedores compatibles con S3 (AWS S3, MinIO, Cloudflare R2) para despliegues en clúster y alta concurrencia.
-5. **Conexión Real con Modelos LLM:**
-   - Aunque la arquitectura HTTP y el plugin satélite en Python están desplegados y validados, las transformaciones operan bajo fallbacks deterministas de heurística de texto.
-   - *Mejora pendiente:* Activar el endpoint de inferencia en `jg_agente` enlazado con modelos LLM reales (OpenAI / Anthropic / Ollama) a través del grafo de LangGraph.

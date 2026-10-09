@@ -119,22 +119,52 @@
                         @endphp
 
                     <div class="rounded-2xl bg-white dark:bg-slate-900/90 border {{ $hasLocks ? 'border-amber-400 dark:border-amber-500/40 shadow-amber-950/10' : 'border-slate-200 dark:border-slate-800' }} shadow-sm dark:shadow-xl overflow-hidden transition">
-                        <!-- Cabecera del Bloque: Orden, Etapa, Indicador de Candado -->
+                        @php
+                            $activeTab = $this->getActiveTabForBlock($block);
+                        @endphp
+
+                        <!-- Cabecera del Bloque: Orden, Pestañas de Etapas Completadas, Indicador de Candado y Acciones -->
                         <div class="bg-slate-50/90 dark:bg-slate-950/70 border-b border-slate-200 dark:border-slate-800 px-5 py-3 flex flex-wrap items-center justify-between gap-3">
                             <div class="flex items-center gap-3">
                                 <span class="text-xs font-mono font-bold text-slate-800 dark:text-slate-300">
                                     BLOQUE #{{ $block->block_order }}
                                 </span>
 
-                                <!-- Selector de Etapa -->
-                                <div class="flex items-center gap-1">
-                                    @foreach(['raw' => 'Bruto', 'structured' => 'Tratamiento', 'screenplay' => 'Guión'] as $stageKey => $stageLabel)
-                                        <button wire:click="setBlockStage('{{ $block->id }}', '{{ $stageKey }}')"
+                                <!-- Pestañas de Etapas del Pipeline (SOLO las Completadas) -->
+                                <div class="inline-flex items-center gap-1 bg-slate-200/70 dark:bg-slate-900/90 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
+                                    <!-- Pestaña 1: Bruto (Siempre Completada) -->
+                                    <button wire:click="setBlockTab('{{ $block->id }}', 'raw')"
+                                            type="button"
+                                            class="px-3 py-1 rounded-lg text-xs font-semibold transition {{ $activeTab === 'raw' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                                        Bruto
+                                    </button>
+
+                                    <!-- Pestaña 2: Tratamiento (Solo si Completada) -->
+                                    @if(!empty($block->structured_text))
+                                        <button wire:click="setBlockTab('{{ $block->id }}', 'structured')"
                                                 type="button"
-                                                class="px-2 py-0.5 rounded text-[10px] font-mono transition {{ $block->stage === $stageKey ? 'bg-amber-500/10 text-amber-700 border border-amber-500/30 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/40 font-bold' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
-                                            {{ $stageLabel }}
+                                                class="px-3 py-1 rounded-lg text-xs font-semibold transition {{ $activeTab === 'structured' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 font-bold shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                                            Tratamiento
                                         </button>
-                                    @endforeach
+                                    @endif
+
+                                    <!-- Pestaña 3: Guión (Solo si Completada) -->
+                                    @if(!empty($block->screenplay_content))
+                                        <button wire:click="setBlockTab('{{ $block->id }}', 'screenplay')"
+                                                type="button"
+                                                class="px-3 py-1 rounded-lg text-xs font-semibold transition {{ $activeTab === 'screenplay' ? 'bg-white dark:bg-slate-800 text-amber-600 dark:text-amber-400 font-bold shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                                            Guión
+                                        </button>
+                                    @endif
+
+                                    <!-- Pestaña 4: Planos (Solo si Completada) -->
+                                    @if($block->shots->isNotEmpty())
+                                        <button wire:click="setBlockTab('{{ $block->id }}', 'shots')"
+                                                type="button"
+                                                class="px-3 py-1 rounded-lg text-xs font-semibold transition {{ $activeTab === 'shots' ? 'bg-white dark:bg-slate-800 text-cyan-600 dark:text-cyan-400 font-bold shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                                            Planos ({{ $block->shots->count() }})
+                                        </button>
+                                    @endif
                                 </div>
 
                                 <!-- Indicador de Candado User Locks -->
@@ -268,51 +298,89 @@
                                     </div>
                                 </div>
                             @else
-                                <!-- Modo Visualización -->
-                                @if($viewMode === 'all')
-                                    <!-- Pipeline en Paralelo (Bruto -> Estructurado -> Guión) -->
-                                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                                        <!-- Fase 1: Bruto -->
-                                        <div class="p-4 rounded-xl bg-slate-50/80 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800">
-                                            <span class="block text-[10px] font-mono uppercase text-slate-500 font-bold mb-2">1. Bruto (Autor)</span>
-                                            <p class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line">
-                                                {{ $block->raw_text ?: 'Sin contenido bruto.' }}
-                                            </p>
+                                <!-- Modo Visualización: SOLO UNA ETAPA A LA VEZ SEGÚN LA PESTAÑA ACTIVA -->
+                                @if($activeTab === 'raw')
+                                    <!-- Vista Etapa 1: Bruto -->
+                                    <div class="space-y-3">
+                                        <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800/60">
+                                            <span class="text-[11px] font-mono uppercase tracking-wider font-bold text-slate-500">
+                                                1. Bruto (Texto del Autor)
+                                            </span>
+                                            <span class="text-[10px] text-slate-400 font-mono">Entrada original</span>
                                         </div>
-
-                                        <!-- Fase 2: Estructurado -->
-                                        <div class="p-4 rounded-xl bg-slate-50/80 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800">
-                                            <span class="block text-[10px] font-mono uppercase text-slate-500 font-bold mb-2">2. Tratamiento / Acciones</span>
-                                            <p class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line">
-                                                {{ $block->structured_text ?: 'Sin procesar a tratamiento estructurado todavía.' }}
-                                            </p>
+                                        <p class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-line py-1">
+                                            {{ $block->raw_text ?: 'Sin contenido bruto.' }}
+                                        </p>
+                                    </div>
+                                @elseif($activeTab === 'structured')
+                                    <!-- Vista Etapa 2: Tratamiento -->
+                                    <div class="space-y-3">
+                                        <div class="flex items-center justify-between pb-2 border-b border-indigo-100 dark:border-indigo-950/60">
+                                            <span class="text-[11px] font-mono uppercase tracking-wider font-bold text-indigo-600 dark:text-indigo-400">
+                                                2. Tratamiento Dramático / Acciones
+                                            </span>
+                                            <button wire:click="openAiTrace('{{ $block->id }}', 'structured')"
+                                                    type="button"
+                                                    title="Ver trazabilidad de inferencia de IA y pasos seguidos"
+                                                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/50 dark:hover:bg-indigo-900/60 dark:text-indigo-300 dark:border-indigo-800/60 transition shadow-xs">
+                                                <span>⚡</span>
+                                                <span>Trazabilidad IA</span>
+                                            </button>
                                         </div>
-
-                                        <!-- Fase 3: Guión Literario -->
-                                        <div class="p-4 rounded-xl bg-amber-50/40 dark:bg-slate-950 border border-amber-300/50 dark:border-amber-500/20">
-                                            <span class="block text-[10px] font-mono uppercase text-amber-700 dark:text-amber-500/80 font-bold mb-2">3. Guión Literario</span>
-                                            <div class="font-screenplay text-xs text-slate-900 dark:text-amber-100 leading-relaxed whitespace-pre-wrap">
-                                                {{ $block->screenplay_content ?: 'Guión pendiente de formateo.' }}
+                                        <p class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-line py-1">
+                                            {{ $block->structured_text }}
+                                        </p>
+                                    </div>
+                                @elseif($activeTab === 'screenplay')
+                                    <!-- Vista Etapa 3: Guión Literario (Fountain) -->
+                                    <div class="space-y-3">
+                                        <div class="flex items-center justify-between pb-2 border-b border-amber-100 dark:border-amber-950/60">
+                                            <span class="text-[11px] font-mono uppercase tracking-wider font-bold text-amber-600 dark:text-amber-400">
+                                                3. Guión Literario (Fountain / Courier)
+                                            </span>
+                                            <button wire:click="openAiTrace('{{ $block->id }}', 'screenplay')"
+                                                    type="button"
+                                                    title="Ver trazabilidad de inferencia de IA y pasos seguidos"
+                                                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 dark:bg-amber-950/50 dark:hover:bg-amber-900/60 dark:text-amber-300 dark:border-amber-800/60 transition shadow-xs">
+                                                <span>⚡</span>
+                                                <span>Trazabilidad IA</span>
+                                            </button>
+                                        </div>
+                                        <div class="bg-amber-50/20 dark:bg-slate-950 p-6 rounded-xl border border-amber-200/50 dark:border-amber-500/20 shadow-xs">
+                                            <div class="font-screenplay text-sm text-slate-900 dark:text-amber-100 leading-relaxed whitespace-pre-wrap max-w-2xl mx-auto">
+                                                {{ $block->screenplay_content }}
                                             </div>
                                         </div>
                                     </div>
-                                @elseif($viewMode === 'raw')
-                                    <div class="p-4 rounded-xl bg-slate-50/80 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800">
-                                        <p class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-line">
-                                            {{ $block->raw_text }}
-                                        </p>
-                                    </div>
-                                @elseif($viewMode === 'structured')
-                                    <div class="p-4 rounded-xl bg-slate-50/80 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800">
-                                        <p class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-line">
-                                            {{ $block->structured_text ?: 'No hay tratamiento generado para este bloque aún.' }}
-                                        </p>
-                                    </div>
-                                @elseif($viewMode === 'screenplay')
-                                    <!-- Renderizado Tipográfico Cinematográfico Courier Prime -->
-                                    <div class="p-6 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 shadow-xs dark:shadow-inner">
-                                        <div class="font-screenplay text-sm text-slate-900 dark:text-slate-100 leading-relaxed whitespace-pre-wrap max-w-2xl mx-auto">
-                                            {{ $block->screenplay_content ?: $block->raw_text }}
+                                @elseif($activeTab === 'shots')
+                                    <!-- Vista Etapa 4: Planos Asociados al Bloque -->
+                                    <div class="space-y-4">
+                                        <div class="flex items-center justify-between pb-2 border-b border-cyan-100 dark:border-cyan-950/60">
+                                            <span class="text-[11px] font-mono uppercase tracking-wider font-bold text-cyan-600 dark:text-cyan-400">
+                                                4. Planos Técnicos del Bloque ({{ $block->shots->count() }})
+                                            </span>
+                                            <button wire:click="openAiTrace('{{ $block->id }}', 'shots')"
+                                                    type="button"
+                                                    title="Ver trazabilidad del desglose de planos con IA"
+                                                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-cyan-50 hover:bg-cyan-100 text-cyan-700 border border-cyan-200 dark:bg-cyan-950/50 dark:hover:bg-cyan-900/60 dark:text-cyan-300 dark:border-cyan-800/60 transition shadow-xs">
+                                                <span>⚡</span>
+                                                <span>Trazabilidad IA</span>
+                                            </button>
+                                        </div>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            @foreach($block->shots as $shot)
+                                                <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 flex items-start justify-between gap-3">
+                                                    <div>
+                                                        <div class="flex items-center gap-2 mb-1">
+                                                            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30">
+                                                                PLANO #{{ $shot->shot_number }} · {{ $shot->shot_type }}
+                                                            </span>
+                                                        </div>
+                                                        <p class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">{{ $shot->description }}</p>
+                                                    </div>
+                                                    <span class="text-[11px] text-slate-400 font-mono shrink-0">{{ $shot->takes->count() }} tomas</span>
+                                                </div>
+                                            @endforeach
                                         </div>
                                     </div>
                                 @endif
@@ -640,6 +708,141 @@
                         <button wire:click="$set('showNewShotModal', false)" class="px-3 py-1.5 text-xs text-slate-500 dark:text-slate-400">Cancelar</button>
                         <button wire:click="addShot" class="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-md">Guardar Plano</button>
                     </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- ================= MODAL DE TRAZABILIDAD E INSPECCIÓN DE IA (ESTILO JG_HUB & JG_DASHBOARD) ================= -->
+    @if($showAiTraceModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md transition">
+            <div class="w-full max-w-4xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                <!-- Modal Header -->
+                <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <span class="text-xl">🔍</span>
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                <span>Trazabilidad Cognitiva IA</span>
+                                <span class="px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30">
+                                    {{ $aiTraceData['tool'] ?? 'pipeline_step' }}
+                                </span>
+                            </h3>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                Bloque #{{ $aiTraceData['block_order'] ?? '1' }} · Escena #{{ $aiTraceData['scene_order'] ?? '1' }} ({{ $aiTraceData['scene_slugline'] ?? '' }})
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <span class="px-2.5 py-1 rounded-md text-[11px] font-mono font-bold bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700">
+                            {{ strtoupper($aiTraceData['provider'] ?? 'GROQ') }} / {{ $aiTraceData['model'] ?? 'openai/gpt-oss-120b' }}
+                        </span>
+                        <span class="px-2.5 py-1 rounded-md text-[11px] font-mono font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                            200 OK
+                        </span>
+                        <button wire:click="closeAiTraceModal" type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-white text-xl px-2 py-1 rounded-lg transition leading-none">
+                            &times;
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Meta info banner -->
+                <div class="px-6 py-2.5 bg-slate-100/60 dark:bg-slate-950/60 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
+                    <div class="flex items-center gap-4">
+                        <span>⏱️ Latencia: <strong class="text-slate-800 dark:text-slate-200 font-mono">{{ $aiTraceData['duration_ms'] ?? 0 }} ms</strong></span>
+                        <span>📅 Invocado: <strong class="text-slate-800 dark:text-slate-200 font-mono">{{ $aiTraceData['executed_at'] ?? $aiTraceData['timestamp'] ?? now()->toIso8601String() }}</strong></span>
+                    </div>
+                    <div>
+                        <span>🎭 Personajes en biblia: <strong class="text-slate-800 dark:text-slate-200">{{ count($aiTraceData['characters_context'] ?? []) }}</strong></span>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs inside Modal -->
+                <div class="px-6 pt-3 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-2">
+                    <button wire:click="switchAiTraceTab('steps')" type="button"
+                            class="px-4 py-2 border-b-2 text-xs font-semibold transition {{ $aiTraceActiveTab === 'steps' ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                        ⚡ Grafo & Saltos Cognitivos
+                    </button>
+                    <button wire:click="switchAiTraceTab('prompt')" type="button"
+                            class="px-4 py-2 border-b-2 text-xs font-semibold transition {{ $aiTraceActiveTab === 'prompt' ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                        💬 System Prompt & Entrada
+                    </button>
+                    <button wire:click="switchAiTraceTab('output')" type="button"
+                            class="px-4 py-2 border-b-2 text-xs font-semibold transition {{ $aiTraceActiveTab === 'output' ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                        📄 Salida Cinematográfica
+                    </button>
+                    <button wire:click="switchAiTraceTab('json')" type="button"
+                            class="px-4 py-2 border-b-2 text-xs font-semibold transition {{ $aiTraceActiveTab === 'json' ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                        { } JSON Técnico
+                    </button>
+                </div>
+
+                <!-- Modal Body Content -->
+                <div class="p-6 overflow-y-auto flex-1 bg-white dark:bg-slate-900">
+                    @if($aiTraceActiveTab === 'steps')
+                        <!-- Timeline con diseño idéntico a jg_dashboard -->
+                        <div class="relative pl-8 space-y-6 before:content-[''] before:absolute before:left-3.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-800">
+                            @foreach($aiTraceData['steps'] ?? [] as $step)
+                                <div class="relative group">
+                                    <span class="absolute -left-8 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-indigo-50 border-2 border-indigo-600 text-indigo-700 dark:bg-slate-900 dark:border-indigo-400 dark:text-indigo-400 text-xs font-bold">
+                                        {{ $step['number'] ?? 1 }}
+                                    </span>
+                                    <div class="p-4 rounded-xl bg-slate-50/80 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 shadow-xs">
+                                        <div class="flex items-center justify-between mb-1">
+                                            <h4 class="text-sm font-bold text-slate-900 dark:text-white">{{ $step['title'] }}</h4>
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold">
+                                                {{ $step['status'] ?? 'COMPLETED' }}
+                                            </span>
+                                        </div>
+                                        <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{{ $step['detail'] }}</p>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @elseif($aiTraceActiveTab === 'prompt')
+                        <div class="space-y-4">
+                            <div>
+                                <span class="block text-xs font-mono uppercase font-bold text-slate-500 dark:text-slate-400 mb-1.5">
+                                    ⚙️ System Prompt Inyectado (Biblia de Proyecto + Reglas)
+                                </span>
+                                <div class="p-4 rounded-xl bg-slate-950 text-slate-200 font-mono text-xs whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto border border-slate-800">
+                                    {{ $aiTraceData['system_prompt'] ?? 'Sin prompt de sistema disponible.' }}
+                                </div>
+                            </div>
+                            <div>
+                                <span class="block text-xs font-mono uppercase font-bold text-slate-500 dark:text-slate-400 mb-1.5">
+                                    📝 Entrada del Autor / Texto Suministrado
+                                </span>
+                                <div class="p-4 rounded-xl bg-slate-100 dark:bg-slate-950/80 text-slate-800 dark:text-slate-200 text-xs whitespace-pre-wrap leading-relaxed border border-slate-200 dark:border-slate-800">
+                                    {{ $aiTraceData['user_prompt'] ?? $aiTraceData['input_text'] ?? 'Sin entrada registrada.' }}
+                                </div>
+                            </div>
+                        </div>
+                    @elseif($aiTraceActiveTab === 'output')
+                        <div>
+                            <span class="block text-xs font-mono uppercase font-bold text-slate-500 dark:text-slate-400 mb-1.5">
+                                🎬 Salida Cinematográfica Generada
+                            </span>
+                            <div class="p-5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 font-mono text-xs text-slate-900 dark:text-slate-100 whitespace-pre-wrap leading-relaxed">
+                                {{ $aiTraceData['output'] ?? $aiTraceData['raw_response'] ?? 'Sin salida registrada.' }}
+                            </div>
+                        </div>
+                    @elseif($aiTraceActiveTab === 'json')
+                        <div>
+                            <span class="block text-xs font-mono uppercase font-bold text-slate-500 dark:text-slate-400 mb-1.5">
+                                { } Payload & Telemetría Completa
+                            </span>
+                            <pre class="p-4 rounded-xl bg-slate-950 text-emerald-400 font-mono text-xs overflow-x-auto border border-slate-800 max-h-96">{{ json_encode($aiTraceData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</pre>
+                        </div>
+                    @endif
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="px-6 py-4 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end">
+                    <button wire:click="closeAiTraceModal" type="button" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-200 hover:bg-slate-300 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-white transition">
+                        Cerrar
+                    </button>
                 </div>
             </div>
         </div>
