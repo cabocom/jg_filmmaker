@@ -120,12 +120,14 @@ class AgentClientService
     public function formatScreenplay(
         string $structuredText,
         array $characters = [],
-        array $userLocks = []
+        array $userLocks = [],
+        ?array $location = null
     ): string {
         $payload = [
             'structured_text' => $structuredText,
             'characters_context' => $characters,
             'user_locks' => $userLocks,
+            'location_context' => $location,
         ];
 
         $result = $this->callTool('screenplay_formatter', $payload);
@@ -289,41 +291,80 @@ class AgentClientService
         if ($toolName === 'screenplay_formatter') {
             $structuredText = trim((string) ($payload['structured_text'] ?? ''));
             $characters = (array) ($payload['characters_context'] ?? []);
+            $location = $payload['location_context'] ?? null;
             $userLocks = (array) ($payload['user_locks'] ?? []);
 
             if (empty($structuredText)) {
                 return ['success' => true, 'output' => '', 'metadata' => ['stage' => 'screenplay']];
             }
 
-            $paragraphs = array_values(array_filter(array_map('trim', explode("\n", $structuredText))));
+            $rawParagraphs = array_values(array_filter(array_map('trim', explode("\n", $structuredText))));
             $lines = [];
 
-            // Añadir encabezado estándar si no tiene ya INT/EXT
-            $firstPara = $paragraphs[0] ?? '';
-            if (! preg_match('/^(INT|EXT)\./i', $firstPara)) {
-                $lines[] = 'INT. LOCALIZACION - DIA';
+            // 1. Construir encabezado canónico de escena si procede
+            $locName = ! empty($location['name']) ? strtoupper($location['name']) : 'LOCALIZACION';
+            $locType = ! empty($location['type']) ? strtoupper($location['type']) : 'INT';
+            $timeOfDay = ! empty($location['time_of_day']) ? strtoupper($location['time_of_day']) : 'DIA';
+            $slugline = "{$locType}. {$locName} - {$timeOfDay} 1";
+
+            $firstPara = $rawParagraphs[0] ?? '';
+            if (! preg_match('/^(INT|EXT|INT\/EXT)\./i', $firstPara)) {
+                $lines[] = $slugline;
                 $lines[] = '';
             }
 
-            foreach ($paragraphs as $para) {
-                // Detectar si el párrafo empieza por el nombre de un personaje seguido de dos puntos o acción
-                $matchedChar = null;
-                foreach ($characters as $char) {
-                    if (is_array($char) && ! empty($char['name'])) {
-                        $cname = $char['name'];
-                        if (preg_match('/^'.preg_quote($cname, '/').':?\s*(.*)$/i', $para, $m)) {
-                            $matchedChar = strtoupper($cname);
-                            $speech = trim($m[1]);
-                            $lines[] = $matchedChar;
-                            $lines[] = $speech !== '' ? $speech : '...';
-                            $lines[] = '';
-                            break;
-                        }
-                    }
+            // 2. Procesar párrafos (diálogos explícitos vs acciones)
+            foreach ($rawParagraphs as $para) {
+                // Si ya es un encabezado
+                if (preg_match('/^(INT|EXT|INT\/EXT)\./i', $para)) {
+                    $lines[] = strtoupper($para);
+                    $lines[] = '';
+
+                    continue;
                 }
 
-                if (! $matchedChar) {
-                    $lines[] = $para;
+                // Limpiar prefijos redundantes de tratamiento como "En BAR CENTRAL (INT): "
+                $cleanPara = preg_replace('/^En\s+[^:]+:\s*/iu', '', $para);
+
+                $dialogueMatched = false;
+
+                // Formato A: "PERSONAJE: Diálogo" o "PERSONAJE (acotación): Diálogo"
+                if (preg_match('/^([a-záéíóúñ\s]+?)(?:\s*\(([^)]+)\))?:\s*(.+)$/iu', $cleanPara, $m)) {
+                    $speaker = strtoupper(trim($m[1]));
+                    $parenthetical = ! empty($m[2]) ? trim($m[2]) : null;
+                    $speech = trim($m[3]);
+
+                    $lines[] = $speaker;
+                    if ($parenthetical) {
+                        $lines[] = '('.strtolower($parenthetical).')';
+                    }
+                    $lines[] = $speech;
+                    $lines[] = '';
+                    $dialogueMatched = true;
+                }
+                // Formato B: "Personaje dice/pregunta: \"Diálogo\""
+                elseif (preg_match('/^([a-záéíóúñ\s]+?)\s+(?:dice|responde|susurra|grita|pregunta|afirma)\s*:\s*["«]([^"»]+)["»]$/iu', $cleanPara, $m)) {
+                    $speaker = strtoupper(trim($m[1]));
+                    $speech = trim($m[2]);
+
+                    $lines[] = $speaker;
+                    $lines[] = $speech;
+                    $lines[] = '';
+                    $dialogueMatched = true;
+                }
+
+                // Si no es un diálogo explícito, es un bloque de ACCIÓN cinematográfica
+                if (! $dialogueMatched) {
+                    $actionLine = $cleanPara;
+                    foreach ($characters as $char) {
+                        if (is_array($char) && ! empty($char['name'])) {
+                            $cname = $char['name'];
+                            $pattern = '/\b'.preg_quote($cname, '/').'\b/iu';
+                            $actionLine = preg_replace($pattern, strtoupper($cname), $actionLine);
+                        }
+                    }
+
+                    $lines[] = $actionLine;
                     $lines[] = '';
                 }
             }

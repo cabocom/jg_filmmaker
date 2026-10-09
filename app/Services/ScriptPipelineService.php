@@ -60,7 +60,7 @@ class ScriptPipelineService
      */
     public function transitionToScreenplay(ScriptBlock $block): ScriptBlock
     {
-        $block->loadMissing('scene.project.characters');
+        $block->loadMissing('scene.project.characters', 'scene.location');
 
         $project = $block->scene?->project;
         $characters = $project ? $project->characters->map(fn ($c) => [
@@ -69,13 +69,24 @@ class ScriptPipelineService
             'personality_notes' => $c->personality_notes,
         ])->toArray() : [];
 
+        $location = null;
+        if ($block->scene?->location) {
+            $location = [
+                'name' => $block->scene->location->name,
+                'type' => $block->scene->location->type,
+                'lighting_notes' => $block->scene->location->lighting_notes,
+                'time_of_day' => $block->scene->time_of_day ?? 'DÍA',
+            ];
+        }
+
         $sourceText = ! empty($block->structured_text) ? $block->structured_text : (string) $block->raw_text;
         $userLocks = $block->user_locks ?? [];
 
         $screenplayContent = $this->agentClient->formatScreenplay(
             structuredText: $sourceText,
             characters: $characters,
-            userLocks: $userLocks
+            userLocks: $userLocks,
+            location: $location
         );
 
         $block->update([
