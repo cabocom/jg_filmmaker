@@ -87,9 +87,9 @@ Para levantar y explorar la aplicación interactivamente:
 1. **Terminal 1 — Servidor de Aplicación Laravel:**
    ```bash
    cd /Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_filmmaker
-   php artisan serve
+   php artisan serve --port=8010
    ```
-   *Acceso web:* **`http://localhost:8000`** (o `http://127.0.0.1:8000`)
+   *Acceso web:* **`http://localhost:8010`** (o `http://127.0.0.1:8010`)
    - El sistema te autenticará de forma automática con el usuario demo `filmmaker@cabocom.net` (Plan PRO, 5 slots).
    - Accederás directamente al **Dashboard de Proyectos**, donde verás *"El Susurro del Viento"*.
    - Pulsa en **"Entrar al Estudio"** para acceder a la vista interactiva `/projects/{uuid}`.
