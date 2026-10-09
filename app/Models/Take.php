@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 class Take extends Model
 {
@@ -42,10 +43,47 @@ class Take extends Model
     }
 
     /**
+     * Boot the model and register deletion cleanup.
+     */
+    protected static function booted(): void
+    {
+        static::deleting(function (Take $take): void {
+            if ($take->file_path && Storage::disk('public')->exists($take->file_path)) {
+                Storage::disk('public')->delete($take->file_path);
+            }
+        });
+    }
+
+    /**
      * Shot to which this take belongs.
      */
     public function shot(): BelongsTo
     {
         return $this->belongsTo(Shot::class);
+    }
+
+    /**
+     * URL pública directa al archivo de vídeo (si existe).
+     */
+    public function getVideoUrlAttribute(): ?string
+    {
+        if (empty($this->file_path)) {
+            return null;
+        }
+
+        return Storage::disk('public')->url($this->file_path);
+    }
+
+    /**
+     * Genera la ruta física particionada canónica por UUID.
+     */
+    public function generateStoragePath(string $extension = 'mp4'): string
+    {
+        $this->loadMissing('shot.scene');
+        $projectId = $this->shot?->scene?->project_id ?? 'unknown_project';
+        $sceneId = $this->shot?->scene_id ?? 'unknown_scene';
+        $cleanExt = ltrim(strtolower($extension), '.');
+
+        return "media/projects/{$projectId}/scenes/{$sceneId}/takes/{$this->id}.{$cleanExt}";
     }
 }

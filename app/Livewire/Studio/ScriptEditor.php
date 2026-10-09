@@ -8,18 +8,32 @@ use App\Models\ScriptBlock;
 use App\Models\Shot;
 use App\Models\Take;
 use App\Services\ScriptPipelineService;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 #[Layout('layouts.app')]
 class ScriptEditor extends Component
 {
+    use WithFileUploads;
+
     public Project $project;
 
     public ?string $activeSceneId = null;
 
-    // Pestaña visual activa global para los bloques: 'all', 'raw', 'structured', 'screenplay', 'shots'
+    // Pestaña visual activa global para los bloques: 'all', 'raw', 'structured', 'screenplay', 'shots', 'timeline'
     public string $viewMode = 'all';
+
+    // Subida de archivo de vídeo para toma
+    public $videoUpload = null;
+
+    public ?string $uploadingTakeId = null;
+
+    // Edición de notas editoriales por toma
+    public ?string $editingTakeNotesId = null;
+
+    public string $editingTakeNotesText = '';
 
     // Estado de edición de un bloque específico
     public ?string $editingBlockId = null;
@@ -269,6 +283,92 @@ class ScriptEditor extends Component
 
         $this->reset(['addingTakeShotId', 'newTakeEditorialNotes', 'newTakeIsGood']);
         session()->flash('success', "Toma añadida al Plano {$shot->shot_number}.");
+    }
+
+    public function startUploadVideo(string $takeId): void
+    {
+        $this->uploadingTakeId = $takeId;
+        $this->videoUpload = null;
+    }
+
+    public function uploadTakeVideo(): void
+    {
+        if (! $this->uploadingTakeId) {
+            return;
+        }
+
+        $this->validate([
+            'videoUpload' => 'required|file|mimes:mp4,mov,webm,m4v,quicktime|max:102400',
+        ]);
+
+        $take = Take::with('shot.scene')->findOrFail($this->uploadingTakeId);
+
+        // Si ya existía un archivo previo, eliminarlo físicamente
+        if ($take->file_path && Storage::disk('public')->exists($take->file_path)) {
+            Storage::disk('public')->delete($take->file_path);
+        }
+
+        $extension = $this->videoUpload->getClientOriginalExtension() ?: 'mp4';
+        $storagePath = $take->generateStoragePath($extension);
+
+        $this->videoUpload->storeAs('', $storagePath, 'public');
+
+        $currentMeta = $take->technical_meta ?? [];
+        if (empty($currentMeta['duration_seconds'])) {
+            $currentMeta['duration_seconds'] = 5.0;
+        }
+        if (empty($currentMeta['resolution'])) {
+            $currentMeta['resolution'] = '1920x1080';
+        }
+        if (empty($currentMeta['fps'])) {
+            $currentMeta['fps'] = 24.0;
+        }
+        if (empty($currentMeta['codec'])) {
+            $currentMeta['codec'] = strtolower($extension) === 'mov' ? 'prores' : 'h264';
+        }
+
+        $take->update([
+            'file_path' => $storagePath,
+            'technical_meta' => $currentMeta,
+        ]);
+
+        $takeNumber = $take->take_number;
+        $this->reset(['videoUpload', 'uploadingTakeId']);
+        session()->flash('success', "Vídeo de la Toma {$takeNumber} subido correctamente.");
+    }
+
+    public function deleteTake(string $takeId): void
+    {
+        $take = Take::findOrFail($takeId);
+        $shotNumber = $take->shot?->shot_number ?? 1;
+        $takeNumber = $take->take_number;
+
+        $take->delete();
+
+        session()->flash('success', "Toma {$takeNumber} del Plano {$shotNumber} eliminada.");
+    }
+
+    public function startEditTakeNotes(string $takeId): void
+    {
+        $take = Take::findOrFail($takeId);
+        $this->editingTakeNotesId = $take->id;
+        $this->editingTakeNotesText = (string) ($take->editorial_notes ?? '');
+    }
+
+    public function saveTakeNotes(): void
+    {
+        if (! $this->editingTakeNotesId) {
+            return;
+        }
+
+        $take = Take::findOrFail($this->editingTakeNotesId);
+        $take->update([
+            'editorial_notes' => $this->editingTakeNotesText ?: null,
+        ]);
+
+        $takeNumber = $take->take_number;
+        $this->reset(['editingTakeNotesId', 'editingTakeNotesText']);
+        session()->flash('success', "Notas editoriales de la Toma {$takeNumber} guardadas.");
     }
 
     public function render()

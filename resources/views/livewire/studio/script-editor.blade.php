@@ -49,6 +49,11 @@
                         class="px-2.5 py-1 rounded-lg transition {{ $viewMode === 'shots' ? 'bg-slate-800 text-amber-300 font-semibold' : 'text-slate-400 hover:text-white' }}">
                     Planos / Tomas
                 </button>
+                <button wire:click="$set('viewMode', 'timeline')"
+                        type="button"
+                        class="px-2.5 py-1 rounded-lg transition {{ $viewMode === 'timeline' ? 'bg-slate-800 text-amber-300 font-semibold' : 'text-slate-400 hover:text-white' }}">
+                    🎬 Montaje
+                </button>
             </div>
 
             <button wire:click="addBlock"
@@ -100,14 +105,18 @@
             </div>
         </div>
 
-        <!-- ================= SECCIÓN DE BLOQUES Y PIPELINE ================= -->
-        @if($viewMode !== 'shots')
-            <div class="space-y-6">
-                @forelse($activeScene->scriptBlocks as $block)
-                    @php
-                        $userLocks = $block->user_locks ?? [];
-                        $hasLocks = !empty($userLocks['locked_fields']) || !empty($userLocks['pinned_terms']) || !empty($userLocks['manual_diffs']);
-                    @endphp
+        @if($viewMode === 'timeline')
+            <!-- Subvista de Montaje / Pre-corte de Edición (RoughCutTimeline) -->
+            <livewire:studio.rough-cut-timeline :project="$project" :active-scene-id="$activeSceneId" :key="'timeline-'.$activeSceneId" />
+        @else
+            <!-- ================= SECCIÓN DE BLOQUES Y PIPELINE ================= -->
+            @if($viewMode !== 'shots')
+                <div class="space-y-6">
+                    @forelse($activeScene->scriptBlocks as $block)
+                        @php
+                            $userLocks = $block->user_locks ?? [];
+                            $hasLocks = !empty($userLocks['locked_fields']) || !empty($userLocks['pinned_terms']) || !empty($userLocks['manual_diffs']);
+                        @endphp
 
                     <div class="rounded-2xl bg-slate-900/90 border {{ $hasLocks ? 'border-amber-500/40 shadow-amber-950/20' : 'border-slate-800' }} shadow-xl overflow-hidden transition">
                         <!-- Cabecera del Bloque: Orden, Etapa, Indicador de Candado -->
@@ -400,24 +409,99 @@
                                     @foreach($shot->takes as $take)
                                         <div class="p-3.5 rounded-xl bg-slate-950/80 border {{ $take->is_good_take ? 'border-emerald-500/40 shadow-emerald-950/20' : 'border-slate-800/80' }} flex flex-col justify-between gap-3">
                                             <div>
-                                                <div class="flex items-center justify-between gap-2 mb-1.5">
+                                                <!-- Cabecera de la toma: Número, Toggle Buena y Eliminar -->
+                                                <div class="flex items-center justify-between gap-2 mb-2">
                                                     <span class="font-mono text-xs font-bold text-slate-200">
                                                         TOMA {{ $take->take_number }}
                                                     </span>
 
-                                                    <!-- Botón reactivo toggle toma buena -->
-                                                    <button wire:click="toggleGoodTake('{{ $take->id }}')"
-                                                            type="button"
-                                                            class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase transition flex items-center gap-1 {{ $take->is_good_take ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-slate-200' }}">
-                                                        <span>{{ $take->is_good_take ? '✓ TOMA BUENA' : '○ Descarte' }}</span>
-                                                    </button>
+                                                    <div class="flex items-center gap-1.5">
+                                                        <!-- Botón reactivo toggle toma buena -->
+                                                        <button wire:click="toggleGoodTake('{{ $take->id }}')"
+                                                                type="button"
+                                                                class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase transition flex items-center gap-1 {{ $take->is_good_take ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-slate-200' }}">
+                                                            <span>{{ $take->is_good_take ? '✓ TOMA BUENA' : '○ Descarte' }}</span>
+                                                        </button>
+
+                                                        <!-- Eliminar toma -->
+                                                        <button wire:click="deleteTake('{{ $take->id }}')"
+                                                                wire:confirm="¿Seguro que deseas eliminar la Toma {{ $take->take_number }} y su archivo de vídeo si existe?"
+                                                                type="button"
+                                                                class="text-slate-500 hover:text-rose-400 p-1 text-xs transition"
+                                                                title="Eliminar Toma">
+                                                            ✕
+                                                        </button>
+                                                    </div>
                                                 </div>
 
-                                                @if($take->editorial_notes)
-                                                    <p class="text-xs text-slate-300 italic mb-2">
-                                                        "{{ $take->editorial_notes }}"
-                                                    </p>
-                                                @endif
+                                                <!-- Archivo de Vídeo -->
+                                                <div class="mb-2">
+                                                    @if($uploadingTakeId === $take->id)
+                                                        <div class="p-2.5 rounded-lg bg-slate-900 border border-amber-500/30 space-y-2">
+                                                            <label class="block text-[10px] font-bold text-amber-400 uppercase">
+                                                                Seleccionar Vídeo (MP4, MOV, WEBM)
+                                                            </label>
+                                                            <input type="file"
+                                                                   wire:model="videoUpload"
+                                                                   accept="video/mp4,video/quicktime,video/webm,video/x-m4v"
+                                                                   class="w-full text-[11px] text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:bg-amber-500 file:text-slate-950 file:font-bold">
+                                                            <div wire:loading wire:target="videoUpload" class="text-amber-400 text-[10px] flex items-center gap-1">
+                                                                <span>⏳ Subiendo vídeo a memoria...</span>
+                                                            </div>
+                                                            <div class="flex justify-end gap-1.5 pt-1">
+                                                                <button wire:click="$set('uploadingTakeId', null)" type="button" class="px-2 py-0.5 text-slate-400 text-[10px]">Cancelar</button>
+                                                                <button wire:click="uploadTakeVideo" wire:loading.attr="disabled" type="button" class="px-2.5 py-0.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded text-[10px]">
+                                                                    Guardar Vídeo
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    @elseif($take->file_path)
+                                                        <div class="flex items-center justify-between gap-2 p-2 rounded-lg bg-slate-900/90 border border-slate-800 text-xs">
+                                                            <a href="{{ $take->video_url }}" target="_blank" class="text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5 font-mono text-[11px] truncate" title="{{ $take->file_path }}">
+                                                                <span>🎥</span>
+                                                                <span class="truncate">{{ basename($take->file_path) }}</span>
+                                                            </a>
+                                                            <button wire:click="startUploadVideo('{{ $take->id }}')" type="button" class="text-[10px] text-slate-400 hover:text-slate-200 underline">
+                                                                Cambiar
+                                                            </button>
+                                                        </div>
+                                                    @else
+                                                        <button wire:click="startUploadVideo('{{ $take->id }}')"
+                                                                type="button"
+                                                                class="w-full py-1.5 px-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-dashed border-slate-700 hover:border-slate-600 text-slate-400 hover:text-slate-200 text-[11px] flex items-center justify-center gap-1.5 transition">
+                                                            <span>📤</span>
+                                                            <span>Subir Archivo de Vídeo</span>
+                                                        </button>
+                                                    @endif
+                                                </div>
+
+                                                <!-- Notas Editoriales -->
+                                                <div class="mb-2">
+                                                    @if($editingTakeNotesId === $take->id)
+                                                        <div class="space-y-1.5">
+                                                            <textarea wire:model="editingTakeNotesText"
+                                                                      rows="2"
+                                                                      class="w-full p-2 text-xs rounded-lg bg-slate-900 border border-slate-700 text-white placeholder-slate-500"
+                                                                      placeholder="Anotaciones de dirección y posproducción..."></textarea>
+                                                            <div class="flex justify-end gap-1.5">
+                                                                <button wire:click="$set('editingTakeNotesId', null)" type="button" class="px-2 py-0.5 text-slate-400 text-[10px]">Cancelar</button>
+                                                                <button wire:click="saveTakeNotes" type="button" class="px-2.5 py-0.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[10px] font-bold">Guardar</button>
+                                                            </div>
+                                                        </div>
+                                                    @else
+                                                        <div class="flex items-start justify-between gap-1 group">
+                                                            <p class="text-xs text-slate-300 italic leading-relaxed">
+                                                                {{ $take->editorial_notes ? '"'.$take->editorial_notes.'"' : 'Sin notas editoriales.' }}
+                                                            </p>
+                                                            <button wire:click="startEditTakeNotes('{{ $take->id }}')"
+                                                                    type="button"
+                                                                    class="text-slate-500 hover:text-amber-400 text-[10px] opacity-0 group-hover:opacity-100 transition"
+                                                                    title="Editar Notas">
+                                                                ✏️
+                                                            </button>
+                                                        </div>
+                                                    @endif
+                                                </div>
                                             </div>
 
                                             <!-- Metadatos Técnicos (JSONB) -->
@@ -456,6 +540,7 @@
                 </div>
             </div>
         @endif
+    @endif
     @else
         <div class="text-center py-20 bg-slate-900/30 rounded-2xl border border-slate-800">
             <span class="text-4xl">🎬</span>
