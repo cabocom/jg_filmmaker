@@ -68,7 +68,7 @@ class LivewireScriptEditorTest extends TestCase
         $response->assertSee('INT. BAR CENTRAL - NOCHE 1');
         $response->assertSee('BAR CENTRAL');
         $response->assertSee('BLOQUE #1');
-        $response->assertSee('Candados Activos');
+        $response->assertSee('Términos Fijos:');
         $response->assertSee('Javi ➜ Javier');
         $response->assertSee('--- shot 1 (PM) ---');
         $response->assertSee('TOMA 1');

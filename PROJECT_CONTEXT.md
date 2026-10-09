@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 2.2.0  
+**Versión del documento:** 2.3.0  
 **Fecha de consolidación:** 10 de octubre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 3/4, Tailwind CSS v4, PHP 8.4, PostgreSQL / SQLite, FFmpeg, PHPUnit 12, Laravel Pint  
-**Estado:** Fases 1 a 8 implementadas al 100% (Arquitectura UUIDs, UI Reactiva Livewire 3 con tema claro/oscuro, Conexión HMAC-SHA256 con jg_agente, Rodaje/Takes con subida física, NLE Rough Cut Timeline con ensamble FFmpeg, Inferencia Cognitiva Real con LLM en Groq openai/gpt-oss-120b, Navegación de Etapas por Pestañas Completadas por Bloque y Modal de Trazabilidad e Inspección Cognitiva IA estilo jg_hub / jg_dashboard).
+**Estado:** Fases 1 a 9 implementadas al 100% (Arquitectura UUIDs, UI Reactiva Livewire 3 con tema claro/oscuro, Conexión HMAC-SHA256 con jg_agente, Rodaje/Takes con subida física, NLE Rough Cut Timeline con ensamble FFmpeg, Inferencia Cognitiva Real con LLM en Groq openai/gpt-oss-120b, Navegación de Etapas por Pestañas Completadas por Bloque, Modal de Trazabilidad e Inspección Cognitiva IA estilo jg_hub / jg_dashboard, Botones de Acción Contextuales por Etapa Activa con Conmutación Automática, Desglose Técnico Completo Embebido en Pestaña de Planos, Menú de Usuario con Contador de Slots estilo jg_hub).
 
 ---
 
@@ -188,6 +188,10 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
 - Dispone de interfaz adaptativa en tema Claro (blanco puro estilo `jg_hub`/`jg_dashboard`) y tema Oscuro con selector interactivo y persistencia en `localStorage`.
 - **Inferencia Cognitiva Real:** Integra llamada semántica en vivo al modelo `openai/gpt-oss-120b` en Groq, resolviendo transformaciones narrativas complejas (estilo indirecto a diálogos canónicos Fountain con acotaciones y personajes en mayúsculas). En entorno de pruebas y CI/CD opera bajo aislamiento mock determinista estricto con consumo zero de tokens.
 - **Limpieza de Interfaz y Navegación por Pestañas:** Cada bloque de guion renderiza una sola etapa a la vez. El cambio entre etapas se realiza mediante pestañas en la cabecera que muestran **únicamente aquellas etapas que hayan sido completadas** (`raw` siempre; `structured` si tiene tratamiento; `screenplay` si tiene guión; `shots` si tiene planos).
+- **Botones de Acción Contextuales y Conmutación Automática:** En la cabecera de cada bloque de guion se renderiza de forma exclusiva el botón correspondiente a la etapa actualmente activa en la pestaña (`raw` ➔ `⚡ Estructurar`; `structured` ➔ `🎬 Convertir a Guión`; `screenplay` ➔ `📹 Desglosar Planos`; `shots` ➔ `📹 Desglosar Planos` / `+ Añadir Plano`). Al accionar dicho botón, el sistema procesa el siguiente paso con IA y conmuta de forma automática e inmediata la vista a dicha pestaña resultante.
+- **Desglose Técnico de Planos y Tomas Embebido:** El desglose completo de planos (con sintaxis canónica `--- shot N (tipo) ---`), formularios de registro de tomas, control reactivo de tomas buenas/descartes, subida/reproducción de archivos de vídeo y anotaciones de dirección reside de forma natural dentro de la pestaña `Planos` de cada bloque, eliminando la duplicación inferior que saturaba la vista general de la escena.
+- **Mini Menú de Usuario con Contador de Slots (Estilo jg_hub):** Integrado en el extremo superior derecho del layout con tarjeta de perfil desplegable vía Alpine.js, estado de plan PRO, selector de tema claro/oscuro y monitor interactivo de slots de proyectos usados frente a la cuota contratada (`X / Y slots usados`) con barra visual de capacidad.
+- **Optimización de Bloqueos y Términos Fijos:** Simplificación de la cabecera eliminando el badge redundante de candados activos y resaltando la sección de términos fijos bajo un icono de candado visual (`🔒 Términos Fijos:`).
 - **Modal de Trazabilidad e Inspección Cognitiva IA:** Cada etapa generada por IA dispone de un botón de inspección que abre un modal con el diseño y formato premium de `jg_hub` y `jg_dashboard`. Presenta 4 vistas: Grafo de saltos cognitivos en timeline vertical, System Prompt inyectado con la Biblia de proyecto junto a la entrada del autor, salida cinematográfica generada, y JSON técnico completo de telemetría (modelo, latencia en ms, proveedor, timestamp).
 
 ### 7.2. Deudas Técnicas Conocidas

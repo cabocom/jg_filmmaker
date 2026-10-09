@@ -236,6 +236,12 @@ class ScriptEditor extends Component
         $this->activeBlockTabs[$blockId] = $tab;
     }
 
+    public function startNewShotForBlock(string $blockId): void
+    {
+        $this->newShotBlockId = $blockId;
+        $this->showNewShotModal = true;
+    }
+
     public function getActiveTabForBlock(ScriptBlock $block): string
     {
         if (isset($this->activeBlockTabs[$block->id])) {
@@ -243,6 +249,9 @@ class ScriptEditor extends Component
         }
 
         // Por defecto activar la etapa más avanzada que esté completada
+        if ($block->shots->isNotEmpty()) {
+            return 'shots';
+        }
         if (! empty($block->screenplay_content)) {
             return 'screenplay';
         }
@@ -538,7 +547,7 @@ class ScriptEditor extends Component
         if ($this->activeSceneId) {
             $activeScene = Scene::with([
                 'location',
-                'scriptBlocks',
+                'scriptBlocks.shots.takes',
                 'shots.takes',
             ])->find($this->activeSceneId);
         }
