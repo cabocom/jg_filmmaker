@@ -144,7 +144,54 @@
                             </div>
 
                             <!-- Acciones del Bloque -->
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                @if($editingBlockId !== $block->id)
+                                    <!-- Botón Estructurar -->
+                                    <button wire:click="structureBlock('{{ $block->id }}')"
+                                            wire:loading.attr="disabled"
+                                            wire:target="structureBlock('{{ $block->id }}')"
+                                            type="button"
+                                            title="Normalizar texto bruto a tratamiento dramático con IA"
+                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 transition disabled:opacity-50">
+                                        <span wire:loading.remove wire:target="structureBlock('{{ $block->id }}')">⚡</span>
+                                        <svg wire:loading wire:target="structureBlock('{{ $block->id }}')" class="animate-spin h-3 w-3 text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        <span>Estructurar</span>
+                                    </button>
+
+                                    <!-- Botón Convertir a Guion -->
+                                    <button wire:click="formatBlockToScreenplay('{{ $block->id }}')"
+                                            wire:loading.attr="disabled"
+                                            wire:target="formatBlockToScreenplay('{{ $block->id }}')"
+                                            type="button"
+                                            title="Convertir tratamiento a formato estándar de guion Fountain con IA"
+                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition disabled:opacity-50">
+                                        <span wire:loading.remove wire:target="formatBlockToScreenplay('{{ $block->id }}')">🎬</span>
+                                        <svg wire:loading wire:target="formatBlockToScreenplay('{{ $block->id }}')" class="animate-spin h-3 w-3 text-amber-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        <span>Convertir a Guion</span>
+                                    </button>
+
+                                    <!-- Botón Desglosar Planos -->
+                                    <button wire:click="breakdownBlockShots('{{ $block->id }}')"
+                                            wire:loading.attr="disabled"
+                                            wire:target="breakdownBlockShots('{{ $block->id }}')"
+                                            type="button"
+                                            title="Generar planos técnicos canónicos --- shot N (tipo) --- con IA"
+                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 transition disabled:opacity-50">
+                                        <span wire:loading.remove wire:target="breakdownBlockShots('{{ $block->id }}')">📹</span>
+                                        <svg wire:loading wire:target="breakdownBlockShots('{{ $block->id }}')" class="animate-spin h-3 w-3 text-cyan-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        <span>Desglosar Planos</span>
+                                    </button>
+                                @endif
+
                                 @if($editingBlockId === $block->id)
                                     <button wire:click="saveBlock"
                                             type="button"

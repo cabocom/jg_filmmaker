@@ -7,6 +7,7 @@ use App\Models\Scene;
 use App\Models\ScriptBlock;
 use App\Models\Shot;
 use App\Models\Take;
+use App\Services\ScriptPipelineService;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -133,13 +134,23 @@ class ScriptEditor extends Component
         $this->editStage = $block->stage ?? 'raw';
     }
 
-    public function saveBlock(): void
+    public function saveBlock(ScriptPipelineService $pipelineService): void
     {
         if (! $this->editingBlockId) {
             return;
         }
 
         $block = ScriptBlock::findOrFail($this->editingBlockId);
+
+        // Retener modificaciones manuales en user_locks si el usuario editó etapas ya procesadas
+        if (! empty($block->structured_text) && $this->editStructuredText !== $block->structured_text) {
+            $pipelineService->recordManualOverride($block, 'structured', $block->structured_text, $this->editStructuredText);
+        }
+
+        if (! empty($block->screenplay_content) && $this->editScreenplayContent !== $block->screenplay_content) {
+            $pipelineService->recordManualOverride($block, 'screenplay', $block->screenplay_content, $this->editScreenplayContent);
+        }
+
         $block->update([
             'raw_text' => $this->editRawText,
             'structured_text' => $this->editStructuredText ?: null,
@@ -148,7 +159,41 @@ class ScriptEditor extends Component
         ]);
 
         $this->editingBlockId = null;
-        session()->flash('success', "Bloque {$block->block_order} actualizado.");
+        session()->flash('success', "Bloque {$block->block_order} actualizado y bloqueos retenidos.");
+    }
+
+    public function structureBlock(string $blockId, ScriptPipelineService $pipelineService): void
+    {
+        $block = ScriptBlock::findOrFail($blockId);
+        $pipelineService->transitionToStructured($block);
+
+        if ($this->editingBlockId === $block->id) {
+            $this->editStructuredText = (string) $block->fresh()->structured_text;
+            $this->editStage = 'structured';
+        }
+
+        session()->flash('success', "Bloque {$block->block_order} estructurado a tratamiento cinematográfico.");
+    }
+
+    public function formatBlockToScreenplay(string $blockId, ScriptPipelineService $pipelineService): void
+    {
+        $block = ScriptBlock::findOrFail($blockId);
+        $pipelineService->transitionToScreenplay($block);
+
+        if ($this->editingBlockId === $block->id) {
+            $this->editScreenplayContent = (string) $block->fresh()->screenplay_content;
+            $this->editStage = 'screenplay';
+        }
+
+        session()->flash('success', "Bloque {$block->block_order} formateado a guion literario.");
+    }
+
+    public function breakdownBlockShots(string $blockId, ScriptPipelineService $pipelineService): void
+    {
+        $block = ScriptBlock::findOrFail($blockId);
+        $createdShots = $pipelineService->generateShotsBreakdown($block);
+
+        session()->flash('success', "Bloque {$block->block_order} desglosado: {$createdShots->count()} planos sincronizados.");
     }
 
     public function setBlockStage(string $blockId, string $stage): void
