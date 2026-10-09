@@ -59,6 +59,13 @@ class AgentClientService
             return $this->executeDeterministicFallback($toolName, $payload);
         }
 
+        // 1. Intentar inferencia directa con proveedor LLM si hay API Key configurada
+        $directResult = $this->callDirectLlm($toolName, $payload);
+        if ($directResult !== null) {
+            return $directResult;
+        }
+
+        // 2. Intentar llamar a microservicio jg_agente si está levantado
         $path = "/api/v1/tools/{$toolName}";
         $url = "{$this->baseUrl}{$path}";
         $rawBody = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '{}';
@@ -77,10 +84,9 @@ class AgentClientService
                 }
             }
 
-            // Si jg_agente devuelve error o 404/500, fallback determinista si se requiere resiliencia
+            // Fallback determinista limpio
             return $this->executeDeterministicFallback($toolName, $payload);
         } catch (ConnectionException $e) {
-            // En caso de que el microservicio jg_agente no esté corriendo localmente
             return $this->executeDeterministicFallback($toolName, $payload);
         } catch (Exception $e) {
             return $this->executeDeterministicFallback($toolName, $payload);
@@ -242,24 +248,19 @@ class AgentClientService
         if ($toolName === 'treatment_structuring') {
             $rawText = trim((string) ($payload['raw_text'] ?? ''));
             $characters = (array) ($payload['characters_context'] ?? []);
-            $location = $payload['location_context'] ?? null;
             $userLocks = (array) ($payload['user_locks'] ?? []);
 
             if (empty($rawText)) {
                 return ['success' => true, 'output' => '', 'metadata' => ['stage' => 'structured']];
             }
 
-            $prefix = '';
-            if (is_array($location) && ! empty($location['name'])) {
-                $locType = ! empty($location['type']) ? " ({$location['type']})" : '';
-                $prefix = "En {$location['name']}{$locType}: ";
-            }
-
             $paragraphs = array_values(array_filter(array_map('trim', explode("\n", $rawText))));
             $structured = [];
 
-            foreach ($paragraphs as $i => $para) {
-                $cleaned = preg_replace('/\s+/', ' ', $para);
+            foreach ($paragraphs as $para) {
+                // Purgar cualquier residuo previo de "En LOCALIZACIÓN:" para mantener prosa pura
+                $cleaned = preg_replace('/^En [^:]+:\s*/i', '', $para);
+                $cleaned = trim((string) preg_replace('/\s+/', ' ', (string) $cleaned));
 
                 foreach ($characters as $char) {
                     if (is_array($char) && ! empty($char['name'])) {
@@ -269,11 +270,9 @@ class AgentClientService
                     }
                 }
 
-                if ($i === 0 && $prefix !== '' && ! str_starts_with($cleaned, 'En ')) {
-                    $cleaned = $prefix.$cleaned;
+                if ($cleaned !== '') {
+                    $structured[] = $cleaned;
                 }
-
-                $structured[] = $cleaned;
             }
 
             $output = implode("\n\n", $structured);
@@ -431,5 +430,202 @@ class AgentClientService
         }
 
         return ['success' => false, 'output' => '', 'error' => "Herramienta desconocida: {$toolName}"];
+    }
+
+    /**
+     * Inferencia semántica directa con proveedor LLM configurado (Groq / OpenAI / Gemini).
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>|null
+     */
+    protected function callDirectLlm(string $toolName, array $payload): ?array
+    {
+        $apiKey = (string) config('services.llm.api_key', '');
+        if (empty($apiKey)) {
+            return null;
+        }
+
+        $provider = (string) config('services.llm.provider', 'groq');
+        $model = (string) config('services.llm.model', 'llama-3.3-70b-versatile');
+        $timeout = (int) config('services.llm.timeout', 45);
+
+        $systemPrompt = $this->buildSystemPrompt($toolName, $payload);
+        $userPrompt = $this->buildUserPrompt($toolName, $payload);
+
+        if (empty($systemPrompt) || empty($userPrompt)) {
+            return null;
+        }
+
+        try {
+            $endpoint = match ($provider) {
+                'openai' => 'https://api.openai.com/v1/chat/completions',
+                default => 'https://api.groq.com/openai/v1/chat/completions',
+            };
+
+            $response = Http::withToken($apiKey)
+                ->timeout($timeout)
+                ->post($endpoint, [
+                    'model' => $model,
+                    'messages' => [
+                        ['role' => 'system', 'content' => $systemPrompt],
+                        ['role' => 'user', 'content' => $userPrompt],
+                    ],
+                    'temperature' => 0.7,
+                ]);
+
+            if (! $response->successful()) {
+                Log::warning("Direct LLM call failed ({$response->status()}): {$response->body()}");
+
+                return null;
+            }
+
+            $content = trim((string) ($response->json('choices.0.message.content') ?? ''));
+            if (empty($content)) {
+                return null;
+            }
+
+            if ($toolName === 'treatment_structuring') {
+                $clean = preg_replace('/^En [^:]+:\s*/i', '', $content);
+                $clean = $this->applyUserLocks((string) $clean, (array) ($payload['user_locks'] ?? []), 'structured');
+
+                return [
+                    'success' => true,
+                    'output' => $clean,
+                    'metadata' => ['stage' => 'structured', 'provider' => $provider, 'model' => $model],
+                ];
+            }
+
+            if ($toolName === 'screenplay_formatter') {
+                $clean = $this->applyUserLocks($content, (array) ($payload['user_locks'] ?? []), 'screenplay');
+
+                return [
+                    'success' => true,
+                    'output' => $clean,
+                    'metadata' => ['stage' => 'screenplay', 'format' => 'fountain', 'provider' => $provider, 'model' => $model],
+                ];
+            }
+
+            if ($toolName === 'shot_breakdown_detector') {
+                $shots = $this->parseShotsFromText($content);
+
+                return [
+                    'success' => true,
+                    'output' => $content,
+                    'metadata' => ['stage' => 'shots', 'shots' => $shots, 'total_shots' => count($shots), 'provider' => $provider, 'model' => $model],
+                ];
+            }
+        } catch (\Throwable $e) {
+            Log::warning("Direct LLM exception: {$e->getMessage()}");
+
+            return null;
+        }
+
+        return null;
+    }
+
+    /**
+     * Construye el system prompt cinematográfico profesional según la herramienta.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    protected function buildSystemPrompt(string $toolName, array $payload): ?string
+    {
+        $characters = (array) ($payload['characters_context'] ?? []);
+        $charsDesc = empty($characters) ? 'Sin personajes específicos definidos.' : implode("\n", array_map(function ($c) {
+            $name = $c['name'] ?? 'Personaje';
+            $role = $c['role'] ?? 'personaje';
+
+            return "- {$name} (Rol: {$role})";
+        }, $characters));
+
+        $location = $payload['location_context'] ?? null;
+        $locDesc = 'Sin localización específica.';
+        if (is_array($location) && ! empty($location['name'])) {
+            $lname = $location['name'];
+            $ltype = $location['type'] ?? 'INT';
+            $locDesc = "{$lname} ({$ltype})";
+        }
+
+        $userLocks = (array) ($payload['user_locks'] ?? []);
+        $pinned = (array) ($userLocks['pinned_terms'] ?? []);
+        $locksDesc = empty($pinned) ? 'Ningún término fijado.' : implode("\n", array_map(fn ($k, $v) => "- Sustituir '{$k}' siempre por '{$v}'", array_keys($pinned), $pinned));
+
+        if ($toolName === 'treatment_structuring') {
+            return "Eres un consultor y analista cinematográfico profesional.\n"
+                ."Tu misión es transformar notas dispersas, ideas en bruto o borradores de un autor en un TRATAMIENTO CINEMATOGRÁFICO NARRATIVO formal.\n\n"
+                ."DIRECTRICES Y REGLAS ESTRICTAS:\n"
+                ."1. TIEMPO VERBAL: Redacta exclusivamente en tiempo PRESENTE DE INDICATIVO continuo (ej: 'Javier camina', 'el viento abre la ventana').\n"
+                ."2. ACCIONES OBSERVABLES: Describe acciones físicas visibles, dinámicas espaciales y tensión dramática sin juicios de valor abstractos.\n"
+                ."3. CONTEXTO DE PERSONAJES:\n{$charsDesc}\n"
+                ."4. CONTEXTO DE LOCALIZACIÓN:\n{$locDesc}\n"
+                ."Integra la atmósfera de este entorno dentro de la narración, pero NUNCA antepongas un encabezado o prefijo como 'En LOCALIZACIÓN: ' ni sluglines de guion.\n"
+                ."5. CANDADOS Y TÉRMINOS FIJADOS (REGLA INMUTABLE):\n{$locksDesc}\n"
+                ."6. PROHIBICIONES Y FORMATO DE SALIDA:\n"
+                ."- NO incluyas encabezados de escena (sluglines como 'INT. BAR - DIA'), ni títulos, ni prefijos como 'En BAR CENTRAL:', ni metadatos.\n"
+                .'- Devuelve ÚNICAMENTE la prosa narrativa dramática en párrafos limpios, sin preámbulos ni conclusiones.';
+        }
+
+        if ($toolName === 'screenplay_formatter') {
+            $locSlug = is_array($location) && ! empty($location['name']) ? strtoupper($location['name']) : 'LOCALIZACION';
+            $locType = is_array($location) && ! empty($location['type']) ? strtoupper($location['type']) : 'INT';
+            $timeOfDay = is_array($location) && ! empty($location['time_of_day']) ? strtoupper($location['time_of_day']) : 'DIA';
+            $slugline = "{$locType}. {$locSlug} - {$timeOfDay} 1";
+
+            return "Eres un guionista cinematográfico profesional.\n"
+                ."Tu misión es transformar el tratamiento dramático en un GUION CINEMATOGRÁFICO ESTÁNDAR (Fountain / Courier 12pt).\n\n"
+                ."DIRECTRICES ESTRICTAS:\n"
+                ."1. ENCABEZADO DE ESCENA: Inicia con el slugline estándar: {$slugline}\n"
+                ."2. RESOLUCIÓN DE ESTILO INDIRECTO: Transforma cualquier narración indirecta en acción descriptiva y bloque de diálogo tipificado:\n"
+                ."   Ejemplo: 'Javier mira a Juan con miedo y le dice que ya están llegando.' ->\n"
+                ."   Javier mira fijamente a Juan con angustia contenida.\n\n"
+                ."   JAVIER\n"
+                ."   Ya están llegando.\n"
+                ."3. INFERENCIA DE PERSONAJES: Detecta a todos los interlocutores (como JUAN) e infiere sus parlamentos en mayúsculas centradas aunque no estuviesen en la biblia previa.\n"
+                ."4. FORMATO FOUNTAIN:\n"
+                ."   NOMBRE PERSONAJE\n"
+                ."   (acotación opcional en minúsculas)\n"
+                ."   Línea de diálogo.\n"
+                ."5. Párrafos de acción concisos (2-3 líneas máximo).\n"
+                .'6. Devuelve ÚNICAMENTE el guion literario, sin preámbulos ni metadatos.';
+        }
+
+        if ($toolName === 'shot_breakdown_detector') {
+            return "Eres un director de fotografía cinematográfico.\n"
+                ."Analiza el guion literario y propón una cobertura técnica de planos de cámara para rodaje evaluando la tensión dramática.\n\n"
+                ."DELIMITADOR OBLIGATORIO: Utiliza estrictamente la sintaxis canónica:\n"
+                ."--- shot N (tipo) ---\n"
+                ."Tipos admitidos: PG (Plano General), PM (Plano Medio), PP (Primer Plano), PD (Plano Detalle), PA (Plano Americano).\n"
+                .'Intercala los delimitadores antes de cada bloque de acción o diálogo del guion.';
+        }
+
+        return null;
+    }
+
+    /**
+     * Construye el user prompt con los datos brutos del autor.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    protected function buildUserPrompt(string $toolName, array $payload): ?string
+    {
+        if ($toolName === 'treatment_structuring') {
+            $raw = trim((string) ($payload['raw_text'] ?? ''));
+
+            return "NOTAS / TEXTO BRUTO DEL AUTOR:\n{$raw}";
+        }
+
+        if ($toolName === 'screenplay_formatter') {
+            $structured = trim((string) ($payload['structured_text'] ?? ''));
+
+            return "TRATAMIENTO DRAMÁTICO:\n{$structured}";
+        }
+
+        if ($toolName === 'shot_breakdown_detector') {
+            $screenplay = trim((string) ($payload['screenplay_text'] ?? ''));
+
+            return "GUIÓN LITERARIO:\n{$screenplay}";
+        }
+
+        return null;
     }
 }

@@ -23,6 +23,9 @@ services:
       JG_AGENTE_URL: "${JG_AGENTE_URL:-http://127.0.0.1:8001}"
       JG_AGENTE_SECRET: "${JG_AGENTE_SECRET:-test-secret-ecosystem-2026}"
     volumes:
+      - ./app:/var/www/html/app
+      - ./resources:/var/www/html/resources
+      - ./routes:/var/www/html/routes
       - jg_filmmaker_storage:/var/www/html/storage
       - jg_filmmaker_database:/var/www/html/database
     ports:

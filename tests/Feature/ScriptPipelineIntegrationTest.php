@@ -46,8 +46,9 @@ class ScriptPipelineIntegrationTest extends TestCase
         $this->assertNotEmpty($updatedBlock->structured_text);
         // Debe contener el nombre fijado por el candado ('Javier' en lugar de 'Javi')
         $this->assertStringContainsString('Javier', $updatedBlock->structured_text);
-        // Debe incorporar el prefijo de localización
-        $this->assertStringContainsString('BAR CENTRAL', $updatedBlock->structured_text);
+        // No debe forzar prefijos de localización en el tratamiento (la localización pertenece a la escena y slugline)
+        $this->assertStringNotContainsString('En BAR CENTRAL', $updatedBlock->structured_text);
+        $this->assertStringContainsString('entra por la puerta', $updatedBlock->structured_text);
     }
 
     public function test_pipeline_transitions_block_to_screenplay_format(): void
