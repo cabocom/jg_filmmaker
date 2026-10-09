@@ -182,7 +182,8 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
 ## 7. Estado Actual y Deudas Técnicas / Puntos de Mejora
 
 ### 7.1. Estado Operativo Real
-- La aplicación es plenamente funcional en local (`http://127.0.0.1:8010`).
+- La aplicación es plenamente funcional en local y desplegable mediante contenedor autónomo Docker (`http://127.0.0.1:8010`).
+- Dispone de pipeline CI/CD en `.gitlab-ci.yml` con etapas de pruebas (`test:phpunit`) y construcción de contenedor Docker limpio sin ofuscación (`build:docker`).
 - Soporta el ciclo completo desde la creación del proyecto hasta el renderizado de vídeo concatenado con FFmpeg.
 - Dispone de interfaz adaptativa en tema Claro (blanco puro estilo `jg_hub`/`jg_dashboard`) y tema Oscuro con selector interactivo y persistencia en `localStorage`.
 

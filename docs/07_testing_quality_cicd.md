@@ -48,7 +48,24 @@ bash scripts/check.sh --cicd
 
 ---
 
-## 4. Deudas Técnicas Identificadas
+## 4. Pipeline GitLab CI/CD y Despliegue con Docker
+
+El proyecto dispone de un pipeline de integración continua configurado en `.gitlab-ci.yml` con dos etapas estandarizadas:
+1. **Stage `test` (`test:phpunit`):** Imagen `composer:2`, instalación determinista de dependencias (`composer install --prefer-dist`) y ejecución de la suite de 28 pruebas automatizadas.
+2. **Stage `build` (`build:docker`):** Construcción multi-stage de contenedor Docker limpio (sin ofuscación) con PHP 8.4-FPM, Nginx, FFmpeg y Node 22 (Vite), publicando etiquetas `:clean`, `:latest` y la rama de trabajo.
+
+### Despliegue Local con `docker-compose.yml`
+```bash
+# Levantar el servicio en el puerto 8010
+docker-compose up -d --build
+
+# Comprobar salud del contenedor
+curl -f http://127.0.0.1:8010/up
+```
+
+---
+
+## 5. Deudas Técnicas Identificadas
 
 Para preservar la transparencia operativa y orientar evoluciones futuras:
 1. **Autenticación Centralizada:** Reemplazar el middleware demo local `EnsureDemoUserAuthenticated` por la pasarela SSO unificada de `jg_hub` o Laravel Fortify con pasarela de pago para cuotas de slots de proyectos (`paid_project_slots`).

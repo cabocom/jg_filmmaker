@@ -1,0 +1,67 @@
+stages:
+  - test
+  - build
+
+# ==========================================
+# STAGE: TEST
+# ==========================================
+
+test:phpunit:
+  stage: test
+  image: composer:2
+  cache:
+    key: "php-composer-${CI_COMMIT_REF_SLUG}"
+    paths:
+      - vendor/
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
+  before_script:
+    - mkdir -p storage/framework/views storage/framework/cache/data storage/framework/sessions storage/logs bootstrap/cache
+    - chmod -R 777 storage bootstrap/cache
+    - cp .env.example .env
+    - composer install --no-interaction --prefer-dist
+    - php artisan key:generate
+  script:
+    - echo "🐘 Ejecutando suite de pruebas automatizadas PHPUnit de jg_filmmaker..."
+    - ./vendor/bin/phpunit
+
+# ==========================================
+# STAGE: BUILD (Publicación en registry de contenedores)
+# ==========================================
+
+build:docker:
+  stage: build
+  image: docker:24.0.7
+  services:
+    - name: docker:24.0.7-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: never
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_COMMIT_TAG
+  before_script:
+    - USER_NAME="${REGISTRY_USER:-$CI_REGISTRY_USER}"
+    - PASS_WORD="${REGISTRY_PASSWORD:-$CI_REGISTRY_PASSWORD}"
+    - HOST_NAME="${REGISTRY_HOST:-$CI_REGISTRY}"
+    - '[ -n "$USER_NAME" ] && [ -n "$PASS_WORD" ] || (echo "❌ ERROR - Variables de autenticacion del registro no encontradas." && exit 1)'
+    - echo "🔑 Iniciando sesión en el registro $HOST_NAME con usuario $USER_NAME..."
+    - echo "$PASS_WORD" | docker login "$HOST_NAME" -u "$USER_NAME" --password-stdin
+  script:
+    - HOST_NAME="${REGISTRY_HOST:-$CI_REGISTRY}"
+    - IMAGE_BASE="$HOST_NAME/$CI_PROJECT_PATH"
+    - BRANCH_NAME="${CI_COMMIT_BRANCH:-$CI_COMMIT_REF_SLUG}"
+    - SAFE_TAG=$(echo "$BRANCH_NAME" | tr '/' '-')
+    - IMAGE_TAG="$IMAGE_BASE:$SAFE_TAG"
+    - echo "🛠️ Construyendo imagen Docker limpia de jg_filmmaker (código plano sin ofuscación) -> $IMAGE_BASE:clean..."
+    - docker build -t "$IMAGE_BASE:clean" -t "$IMAGE_BASE:latest" -t "$IMAGE_TAG" -f Dockerfile .
+    - echo "🚀 Publicando imagen limpia en $HOST_NAME..."
+    - docker push "$IMAGE_BASE:clean"
+    - if [ "$CI_COMMIT_BRANCH" = "main" ] || [ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ]; then docker push "$IMAGE_BASE:latest"; fi
+    - docker push "$IMAGE_TAG"
+    - if [ -n "$CI_COMMIT_TAG" ]; then docker tag "$IMAGE_BASE:clean" "$IMAGE_BASE:$CI_COMMIT_TAG" && docker push "$IMAGE_BASE:$CI_COMMIT_TAG"; fi
+    - echo "✅ Imágenes de jg_filmmaker publicadas con éxito en $HOST_NAME (clean, $SAFE_TAG, latest)."
