@@ -129,14 +129,28 @@ class ScriptBlock extends Model
     }
 
     /**
-     * Comprueba si una etapa tiene modificaciones manuales registradas en manual_diffs.
+     * Comprueba si una etapa tiene modificaciones manuales activas registradas en manual_diffs.
+     * Solo retorna true si el texto modificado realmente se encuentra presente en el contenido actual.
      */
     public function hasManualOverride(string $stage): bool
     {
         $locks = $this->user_locks ?? [];
+        $currentText = match ($stage) {
+            'structured' => (string) ($this->structured_text ?? ''),
+            'screenplay' => (string) ($this->screenplay_content ?? ''),
+            default => null,
+        };
+
+        if (empty($currentText)) {
+            return false;
+        }
+
         foreach ($locks['manual_diffs'] ?? [] as $diff) {
             if (($diff['stage'] ?? null) === $stage) {
-                return true;
+                $override = trim((string) ($diff['user_override'] ?? ''));
+                if (! empty($override) && str_contains($currentText, $override)) {
+                    return true;
+                }
             }
         }
 
@@ -144,10 +158,30 @@ class ScriptBlock extends Model
     }
 
     /**
-     * Comprueba si el bloque tiene un agujero de guión detectado.
+     * Comprueba si el bloque tiene un agujero de guión detectado activo.
      */
     public function hasPlotHole(): bool
     {
         return filled($this->plot_hole);
+    }
+
+    /**
+     * Obtiene el listado de agujeros de guión justificados por el autor para este bloque.
+     *
+     * @return array<int, array{id: string, hole_reason: string, justification: string, justified_at: string}>
+     */
+    public function getJustifiedPlotHoles(): array
+    {
+        $locks = $this->user_locks ?? [];
+
+        return (array) ($locks['justified_plot_holes'] ?? []);
+    }
+
+    /**
+     * Comprueba si el bloque tiene agujeros justificados registrados.
+     */
+    public function hasJustifiedPlotHoles(): bool
+    {
+        return ! empty($this->getJustifiedPlotHoles());
     }
 }

@@ -195,12 +195,12 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
 - `TakeMediaManagementTest.php`: Verifica subida física de vídeo, validaciones y tomas válidas (5 tests).
 - `RoughCutAssemblyTest.php`: Verifica ordenación de timeline, renderizado con FFmpeg y fallbacks (4 tests).
 - `LivewirePipelineReactiveTest.php`: Verifica flujo end-to-end entre etapas y candados (4 tests).
-- `LivewireScriptEditorTest.php`: Verifica renderizado del slugline, feed de bloques, inserción Gutenberg, drawer lateral, tomas y auditoría determinista de borrado seguro de personajes y localizaciones (11 tests).
+- `LivewireScriptEditorTest.php`: Verifica renderizado del slugline, feed de bloques, inserción Gutenberg, drawer lateral, tomas, auditoría determinista de borrado seguro de personajes y localizaciones, protocolo de 3 iteraciones de agujeros de guión, justificación de inconsistencias archivadas y limpieza de manual overrides al regenerar (19 tests).
 - `PasswordlessAuthTest.php`: Verifica generación y envío de OTP, banner en localhost, un solo uso y detección de replay attacks en `security_breach_logs` (6 tests).
 - `AdminPanelAndTelemetryTest.php`: Verifica middleware `admin` 403, auditoría sin filtrar textos, persistencia de `agent_request_logs` con costes USD y actualización de tarifas (5 tests).
 - `ProjectTransferAdminTest.php`: Verifica permisos 403, privacidad sin filtrar textos y reasignación/transferencia atómica de obras entre usuarios tanto desde `UserDetail` como desde `ProjectManager` (4 tests).
 - `ScriptPipelineIntegrationTest.php`: Verifica transiciones entre etapas, inyección semántica de biblia de proyecto y normalización estricta de `user_locks` ante valores serializados o malformados (6 tests).
-- **Total:** 53 tests PHPUnit pasando al 100% (284 aserciones).
+- **Total:** 64 tests PHPUnit pasando al 100% (394 aserciones).
 
 ---
 
@@ -313,6 +313,22 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
     - **Pipeline Gutenberg:** Tarjeta de advertencia (`🕳️ Agujero de Guión Detectado`) con el motivo detallado bajo el texto del bloque, además del distintivo `🕳️ Agujero` junto a `Detalles`.
     - **Panel Lateral (Drawer al 60%):** Banner explicativo en la parte superior del cuerpo del drawer al inspeccionar el bloque.
     - **Consolidado Continuo:** Bloque de advertencia con el motivo bajo el texto del bloque en las vistas de lectura continua (`Idea`, `Tratamiento`, `Guion`, `Planos/Tomas`).
+- **Protocolo Anti-Falsos Positivos de 3 Iteraciones, Justificación de Agujeros y Desbloqueo Reactivo de Pipeline (Fase 22):**
+  - **Protocolo de 3 Iteraciones contra Falsos Positivos:** El detector de agujeros de guión (`plot_hole_detector`) ejecuta un procedimiento de triple verificación:
+    1. *Iteración 1: Detección Preliminar:* Mapeo de inconsistencias cronológicas y dramáticas.
+    2. *Iteración 2: Cotejo Literal de Evidencia Textual:* Cotejo riguroso entre el motivo imputado y las palabras literales del bloque analizado. Si el motivo menciona la presencia o acción de un personaje de la biblia (e.g., Pedro) y dicho personaje no figura textualmente en la escena o bloque, el agujero se descarta automáticamente como alucinación de la IA.
+    3. *Iteración 3: Consenso Crítico y Validación Dramática Final:* Validación de causalidad narrativa antes de confirmar la alerta.
+  - **Justificación y Retiro de Agujeros de Guión (`justified_plot_holes`):**
+    - Se habilita un botón `✅ Justificar` en las tarjetas de alerta de agujero (Pipeline, Consolidado y Drawer).
+    - Despliega un modal interactivo donde el usuario introduce una explicación de por qué no es una inconsistencia.
+    - Al confirmar, el agujero se retira del bloque (`plot_hole` = null), se descuenta del contador global y se archiva en `user_locks['justified_plot_holes']` (almacenando motivo de la IA, texto del autor y fecha).
+    - El panel lateral (Drawer al 60%) incluye la sección permanente **"Agujeros justificados"**, donde se consulta el historial de aclaraciones dramáticas del autor.
+    - Las subsiguientes ejecuciones de la herramienta respetan las justificaciones y no vuelven a marcar incongruencias ya descartadas.
+  - **Desbloqueo Reactivo en el Drawer ("Convertir a Guión"):**
+    - Se aisló el estado `isProcessing` en Alpine.js con `wire:key` únicos por etapa y reseteo reactivo en el watch de la pestaña (`$watch('$wire.detailActiveTab', ...)`), eliminando el bloqueo que dejaba desactivado "Convertir a Guión" tras estructurar el tratamiento desde el bruto.
+  - **Corrección de Detección de Modificaciones Manuales:**
+    - `ScriptBlock::hasManualOverride` ahora verifica si el texto modificado manualmente (`user_override`) está realmente presente en el contenido actual (`structured_text` o `screenplay_content`), evitando avisos falsos por registros residuales.
+    - Al regenerar limpiamente una etapa con IA (`transitionToStructured` o `transitionToScreenplay`), los diffs obsoletos se purgan automáticamente de `manual_diffs` y `locked_fields`.
 
 ### 7.2. Deudas Técnicas Conocidas
 1. **Actualización Dinámica de Tarifas de Tokens:**

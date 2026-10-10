@@ -439,18 +439,27 @@
                                                     @endif
                                                 @endif
 
-                                                <!-- Aviso de Agujero de Guión (Persistente hasta nuevo análisis) -->
+                                                <!-- Aviso de Agujero de Guión (Persistente hasta nuevo análisis o justificación) -->
                                                 @if($block->hasPlotHole())
-                                                    <div class="mt-2.5 p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/80 text-rose-800 dark:text-rose-200 text-xs flex items-start gap-2.5 shadow-2xs">
-                                                        <span class="text-sm shrink-0">🕳️</span>
-                                                        <div class="space-y-0.5">
-                                                            <span class="font-bold uppercase tracking-wider text-[10px] text-rose-900 dark:text-rose-300">
-                                                                Agujero de Guión Detectado
-                                                            </span>
-                                                            <p class="leading-relaxed font-sans text-xs text-rose-800 dark:text-rose-200">
-                                                                {{ $block->plot_hole }}
-                                                            </p>
+                                                    <div class="mt-2.5 p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/80 text-rose-800 dark:text-rose-200 text-xs flex items-start justify-between gap-2.5 shadow-2xs">
+                                                        <div class="flex items-start gap-2.5 min-w-0">
+                                                            <span class="text-sm shrink-0">🕳️</span>
+                                                            <div class="space-y-0.5">
+                                                                <span class="font-bold uppercase tracking-wider text-[10px] text-rose-900 dark:text-rose-300">
+                                                                    Agujero de Guión Detectado
+                                                                </span>
+                                                                <p class="leading-relaxed font-sans text-xs text-rose-800 dark:text-rose-200">
+                                                                    {{ $block->plot_hole }}
+                                                                </p>
+                                                            </div>
                                                         </div>
+                                                        <button wire:click.stop="openJustifyModal('{{ $block->id }}')"
+                                                                type="button"
+                                                                class="px-2 py-1 rounded text-[11px] font-bold bg-white hover:bg-rose-100 text-rose-800 dark:bg-rose-900/80 dark:hover:bg-rose-800 dark:text-rose-100 border border-rose-300 dark:border-rose-700 transition shadow-2xs cursor-pointer flex items-center gap-1 shrink-0"
+                                                                title="Justificar por qué no es un agujero de guión y retirarlo">
+                                                            <span>✅</span>
+                                                            <span>Justificar</span>
+                                                        </button>
                                                     </div>
                                                 @endif
                                             </div>
@@ -681,12 +690,21 @@
 
                                         <!-- Aviso de Agujero de Guión en Consolidado -->
                                         @if($block->hasPlotHole())
-                                            <div class="mt-2.5 p-2 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/80 text-rose-800 dark:text-rose-200 text-xs flex items-start gap-2 shadow-2xs">
-                                                <span class="text-sm shrink-0">🕳️</span>
-                                                <div>
-                                                    <span class="font-bold text-[10px] uppercase tracking-wide text-rose-900 dark:text-rose-300">Agujero de guión:</span>
-                                                    <span class="font-sans text-xs text-rose-800 dark:text-rose-200 ml-1">{{ $block->plot_hole }}</span>
+                                            <div class="mt-2.5 p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/80 text-rose-800 dark:text-rose-200 text-xs flex items-start justify-between gap-2 shadow-2xs">
+                                                <div class="flex items-start gap-2 min-w-0">
+                                                    <span class="text-sm shrink-0">🕳️</span>
+                                                    <div>
+                                                        <span class="font-bold text-[10px] uppercase tracking-wide text-rose-900 dark:text-rose-300">Agujero de guión:</span>
+                                                        <span class="font-sans text-xs text-rose-800 dark:text-rose-200 ml-1">{{ $block->plot_hole }}</span>
+                                                    </div>
                                                 </div>
+                                                <button wire:click="openJustifyModal('{{ $block->id }}')"
+                                                        type="button"
+                                                        class="px-2 py-0.5 rounded text-[10px] font-bold bg-white hover:bg-rose-100 text-rose-800 dark:bg-rose-900 dark:hover:bg-rose-800 dark:text-rose-100 border border-rose-300 dark:border-rose-700 transition cursor-pointer flex items-center gap-1 shrink-0"
+                                                        title="Justificar por qué no es un agujero de guión y retirarlo">
+                                                    <span>✅</span>
+                                                    <span>Justificar</span>
+                                                </button>
                                             </div>
                                         @endif
                                     </div>
@@ -793,15 +811,51 @@
                     <div class="flex-1 overflow-y-auto p-6 space-y-6">
                         <!-- Alerta de Agujero de Guión si está marcado -->
                         @if($detailBlock->hasPlotHole())
-                            <div class="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/80 text-rose-800 dark:text-rose-200 text-xs flex items-start gap-3 shadow-xs">
-                                <span class="text-xl shrink-0">🕳️</span>
-                                <div class="space-y-1">
-                                    <span class="font-bold tracking-wide uppercase text-[11px] block text-rose-900 dark:text-rose-300">
-                                        Agujero de Guión Detectado
+                            <div class="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/80 text-rose-800 dark:text-rose-200 text-xs flex items-start justify-between gap-3 shadow-xs">
+                                <div class="flex items-start gap-3 min-w-0">
+                                    <span class="text-xl shrink-0">🕳️</span>
+                                    <div class="space-y-1">
+                                        <span class="font-bold tracking-wide uppercase text-[11px] block text-rose-900 dark:text-rose-300">
+                                            Agujero de Guión Detectado
+                                        </span>
+                                        <p class="leading-relaxed font-sans text-rose-800 dark:text-rose-200">
+                                            {{ $detailBlock->plot_hole }}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button wire:click="openJustifyModal('{{ $detailBlock->id }}')"
+                                        type="button"
+                                        class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-white hover:bg-rose-100 text-rose-800 dark:bg-rose-900/80 dark:hover:bg-rose-800 dark:text-rose-100 border border-rose-300 dark:border-rose-700 transition shadow-2xs cursor-pointer flex items-center gap-1.5 shrink-0"
+                                        title="Justificar por qué no es un agujero de guión y retirarlo">
+                                    <span>✅</span>
+                                    <span>Justificar</span>
+                                </button>
+                            </div>
+                        @endif
+
+                        <!-- Sección de Agujeros Justificados -->
+                        @if($detailBlock->hasJustifiedPlotHoles())
+                            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 space-y-3 shadow-2xs">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-mono font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                                        <span>✅</span>
+                                        <span>Agujeros justificados ({{ count($detailBlock->getJustifiedPlotHoles()) }})</span>
                                     </span>
-                                    <p class="leading-relaxed font-sans text-rose-800 dark:text-rose-200">
-                                        {{ $detailBlock->plot_hole }}
-                                    </p>
+                                </div>
+                                <div class="space-y-2.5">
+                                    @foreach($detailBlock->getJustifiedPlotHoles() as $jHole)
+                                        <div class="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs space-y-1.5">
+                                            <div class="text-slate-500 dark:text-slate-400 font-mono text-[10px] flex items-center justify-between">
+                                                <span>🕳️ Motivo IA original:</span>
+                                                <span>{{ \Carbon\Carbon::parse($jHole['justified_at'])->format('d/m/Y H:i') }}</span>
+                                            </div>
+                                            <p class="text-slate-600 dark:text-slate-400 italic">"{{ $jHole['hole_reason'] }}"</p>
+                                            <div class="pt-1.5 border-t border-slate-100 dark:border-slate-800 text-emerald-800 dark:text-emerald-300">
+                                                <span class="font-bold uppercase text-[10px] block">Motivo por el que no es un agujero:</span>
+                                                <p class="text-slate-900 dark:text-slate-100 font-sans mt-0.5">{{ $jHole['justification'] }}</p>
+                                            </div>
+                                        </div>
+                                    @endforeach
                                 </div>
                             </div>
                         @endif
@@ -903,9 +957,11 @@
                                                     <span>Tratamiento Protegido</span>
                                                 </button>
                                             @else
-                                                <button wire:click="structureBlock('{{ $detailBlock->id }}')"
+                                                <button wire:key="btn-action-structure-{{ $detailBlock->id }}"
+                                                        wire:click="structureBlock('{{ $detailBlock->id }}')"
                                                         x-data="{ isProcessing: false }"
-                                                        @click="isProcessing = true; $el.disabled = true; $el.classList.add('opacity-50', 'pointer-events-none');"
+                                                        x-init="$watch('$wire.detailActiveTab', () => isProcessing = false)"
+                                                        @click="isProcessing = true; $wire.structureBlock('{{ $detailBlock->id }}').then(() => { isProcessing = false; })"
                                                         :disabled="isProcessing"
                                                         :class="{ 'opacity-50 cursor-not-allowed pointer-events-none': isProcessing }"
                                                         wire:loading.delay.0ms.attr="disabled"
@@ -932,9 +988,11 @@
                                                     <span>Guión Protegido</span>
                                                 </button>
                                             @else
-                                                <button wire:click="formatBlockToScreenplay('{{ $detailBlock->id }}')"
+                                                <button wire:key="btn-action-screenplay-{{ $detailBlock->id }}"
+                                                        wire:click="formatBlockToScreenplay('{{ $detailBlock->id }}')"
                                                         x-data="{ isProcessing: false }"
-                                                        @click="isProcessing = true; $el.disabled = true; $el.classList.add('opacity-50', 'pointer-events-none');"
+                                                        x-init="$watch('$wire.detailActiveTab', () => isProcessing = false)"
+                                                        @click="isProcessing = true; $wire.formatBlockToScreenplay('{{ $detailBlock->id }}').then(() => { isProcessing = false; })"
                                                         :disabled="isProcessing"
                                                         :class="{ 'opacity-50 cursor-not-allowed pointer-events-none': isProcessing }"
                                                         wire:loading.delay.0ms.attr="disabled"
@@ -949,9 +1007,11 @@
                                                 </button>
                                             @endif
                                         @elseif($detailActiveTab === 'screenplay')
-                                            <button wire:click="breakdownBlockShots('{{ $detailBlock->id }}')"
+                                            <button wire:key="btn-action-shots-{{ $detailBlock->id }}"
+                                                    wire:click="breakdownBlockShots('{{ $detailBlock->id }}')"
                                                     x-data="{ isProcessing: false }"
-                                                    @click="isProcessing = true; $el.disabled = true; $el.classList.add('opacity-50', 'pointer-events-none');"
+                                                    x-init="$watch('$wire.detailActiveTab', () => isProcessing = false)"
+                                                    @click="isProcessing = true; $wire.breakdownBlockShots('{{ $detailBlock->id }}').then(() => { isProcessing = false; })"
                                                     :disabled="isProcessing"
                                                     :class="{ 'opacity-50 cursor-not-allowed pointer-events-none': isProcessing }"
                                                     wire:loading.delay.0ms.attr="disabled"
@@ -1425,6 +1485,77 @@
                             class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:hover:bg-slate-200 dark:text-slate-900 transition shadow-sm cursor-pointer ml-auto">
                         Cerrar (Esc)
                     </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- ================= MODAL PARA JUSTIFICAR Y DESCARTAR AGUJERO DE GUIÓN ================= -->
+    @if($showJustifyModal)
+        <div class="fixed inset-0 z-50 overflow-y-auto"
+             x-data
+             @keydown.escape.window="$wire.closeJustifyModal()">
+            <!-- Backdrop -->
+            <div class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm transition-opacity cursor-pointer"
+                 wire:click="closeJustifyModal"></div>
+
+            <!-- Modal Dialog -->
+            <div class="flex min-h-full items-center justify-center p-4">
+                <div class="relative w-full max-w-xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-5"
+                     @click.stop>
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+                        <div class="flex items-center gap-2.5">
+                            <span class="text-xl">✅</span>
+                            <div>
+                                <h3 class="text-sm font-bold text-slate-900 dark:text-white">
+                                    Justificar Agujero de Guión
+                                </h3>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">
+                                    Explica el motivo por el cual no es una inconsistencia para retirarlo y archivarlo en Agujeros justificados.
+                                </p>
+                            </div>
+                        </div>
+                        <button wire:click="closeJustifyModal" type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg cursor-pointer">
+                            ✕
+                        </button>
+                    </div>
+
+                    <!-- Motivo detectado por la IA -->
+                    <div class="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/80 text-xs text-rose-800 dark:text-rose-200 space-y-1">
+                        <span class="font-bold uppercase tracking-wider text-[10px] text-rose-900 dark:text-rose-300 block">
+                            Inconsistencia reportada por la IA:
+                        </span>
+                        <p class="font-sans leading-relaxed">
+                            {{ $justifyingHoleReason }}
+                        </p>
+                    </div>
+
+                    <!-- Campo de justificación del usuario -->
+                    <div class="space-y-1.5">
+                        <label for="justificationText" class="block text-xs font-bold font-mono text-slate-800 dark:text-slate-200 uppercase">
+                            Motivo por el que no es un agujero de guión (Obligatorio):
+                        </label>
+                        <textarea id="justificationText"
+                                  wire:model="justificationText"
+                                  rows="4"
+                                  placeholder="Ejemplo: Pedro no está en el bar porque sigue en el coche esperando a Javier, como se describe en la acción previa..."
+                                  class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-white text-xs leading-relaxed focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"></textarea>
+                    </div>
+
+                    <!-- Botones de Acción -->
+                    <div class="flex items-center justify-end gap-2.5 pt-2">
+                        <button wire:click="closeJustifyModal"
+                                type="button"
+                                class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 transition cursor-pointer">
+                            Cancelar
+                        </button>
+                        <button wire:click="savePlotHoleJustification"
+                                type="button"
+                                class="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                            <span>✅</span>
+                            <span>Confirmar Justificación</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

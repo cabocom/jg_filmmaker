@@ -11,6 +11,7 @@ use App\Services\JgAgente\AgentClientService;
 use App\Services\ScriptPipelineService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -86,6 +87,15 @@ class ScriptEditor extends Component
     public string $editScreenplayContent = '';
 
     public string $editStage = 'raw';
+
+    // Modal para justificar y descartar un agujero de guión
+    public bool $showJustifyModal = false;
+
+    public ?string $justifyingBlockId = null;
+
+    public string $justifyingHoleReason = '';
+
+    public string $justificationText = '';
 
     // Formulario para nueva escena
     public bool $showNewSceneModal = false;
@@ -1180,6 +1190,19 @@ class ScriptEditor extends Component
         $markedCount = 0;
         foreach ($blocksById as $id => $block) {
             $reason = $holesByBlockId[(string) $id] ?? null;
+
+            // Si el autor ya justificó este agujero en el bloque, no volver a marcarlo
+            if ($reason !== null) {
+                $justified = $block->getJustifiedPlotHoles();
+                foreach ($justified as $j) {
+                    $jReason = trim((string) ($j['hole_reason'] ?? $j['original_reason'] ?? ''));
+                    if (! empty($jReason) && (str_contains(mb_strtolower($reason), mb_strtolower($jReason)) || str_contains(mb_strtolower($jReason), mb_strtolower($reason)))) {
+                        $reason = null;
+                        break;
+                    }
+                }
+            }
+
             $block->update([
                 'plot_hole' => $reason,
             ]);
@@ -1193,6 +1216,56 @@ class ScriptEditor extends Component
         } else {
             session()->flash('success', 'Filtro de agujeros de guión: No se han detectado incongruencias.');
         }
+    }
+
+    public function openJustifyModal(string $blockId): void
+    {
+        $block = ScriptBlock::findOrFail($blockId);
+        $this->justifyingBlockId = $block->id;
+        $this->justifyingHoleReason = (string) ($block->plot_hole ?? '');
+        $this->justificationText = '';
+        $this->showJustifyModal = true;
+    }
+
+    public function closeJustifyModal(): void
+    {
+        $this->showJustifyModal = false;
+        $this->justifyingBlockId = null;
+        $this->justifyingHoleReason = '';
+        $this->justificationText = '';
+    }
+
+    public function savePlotHoleJustification(): void
+    {
+        if (! $this->justifyingBlockId || empty(trim($this->justificationText))) {
+            session()->flash('error', 'Debes introducir una explicación para justificar y retirar el agujero de guión.');
+
+            return;
+        }
+
+        $block = ScriptBlock::findOrFail($this->justifyingBlockId);
+        $userLocks = $block->user_locks ?? [];
+        $justifiedHoles = (array) ($userLocks['justified_plot_holes'] ?? []);
+
+        $reason = $this->justifyingHoleReason ?: (string) $block->plot_hole;
+        $justifiedHoles[] = [
+            'id' => Str::uuid()->toString(),
+            'hole_reason' => $reason,
+            'original_reason' => $reason,
+            'justification' => trim($this->justificationText),
+            'justified_at' => now()->toIso8601String(),
+        ];
+
+        $userLocks['justified_plot_holes'] = $justifiedHoles;
+
+        $block->update([
+            'plot_hole' => null,
+            'user_locks' => $userLocks,
+        ]);
+
+        $blockOrder = $block->block_order;
+        $this->closeJustifyModal();
+        session()->flash('success', "Agujero de guión justificado y retirado del Bloque #{$blockOrder}. Ahora figura en 'Agujeros justificados'.");
     }
 
     public function render()

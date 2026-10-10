@@ -12,6 +12,7 @@ use App\Models\ScriptBlock;
 use App\Models\Shot;
 use App\Models\Take;
 use App\Models\User;
+use App\Services\ScriptPipelineService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -618,5 +619,133 @@ class LivewireScriptEditorTest extends TestCase
         $this->assertNull($blockWithHole->fresh()->plot_hole);
         $this->assertFalse($blockWithHole->fresh()->hasPlotHole());
         $testRerun->assertDontSee('Carlos desaparece sin explicación');
+    }
+
+    public function test_user_can_justify_and_dismiss_plot_hole_with_reason(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create([
+            'project_id' => $project->id,
+            'slugline' => 'INT. BAR CENTRAL - NOCHE',
+            'scene_order' => 1,
+        ]);
+
+        $block = ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'block_order' => 1,
+            'raw_text' => 'Javier conversa con el camarero.',
+            'structured_text' => 'Javier pide una copa de vino.',
+            'plot_hole' => 'Pedro aparece en el bar sin haber llegado previamente.',
+        ]);
+
+        $this->assertTrue($block->hasPlotHole());
+        $this->assertFalse($block->hasJustifiedPlotHoles());
+
+        Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->assertSee('Pedro aparece en el bar sin haber llegado previamente.')
+            ->call('openJustifyModal', $block->id)
+            ->assertSet('showJustifyModal', true)
+            ->assertSet('justifyingBlockId', $block->id)
+            ->assertSet('justifyingHoleReason', 'Pedro aparece en el bar sin haber llegado previamente.')
+            ->set('justificationText', 'Pedro no está en el bar, está esperando en el coche fuera.')
+            ->call('savePlotHoleJustification')
+            ->assertSet('showJustifyModal', false);
+
+        $fresh = $block->fresh();
+        $this->assertNull($fresh->plot_hole);
+        $this->assertFalse($fresh->hasPlotHole());
+        $this->assertTrue($fresh->hasJustifiedPlotHoles());
+
+        $justified = $fresh->getJustifiedPlotHoles();
+        $this->assertCount(1, $justified);
+        $this->assertEquals('Pedro aparece en el bar sin haber llegado previamente.', $justified[0]['original_reason']);
+        $this->assertEquals('Pedro no está en el bar, está esperando en el coche fuera.', $justified[0]['justification']);
+
+        // Al abrir detalles del bloque, debe verse en la sección de Agujeros justificados
+        Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->call('openBlockDetails', $block->id, 'structured')
+            ->assertSee('Agujeros justificados')
+            ->assertSee('Pedro no está en el bar, está esperando en el coche fuera.');
+    }
+
+    public function test_reanalyzing_plot_holes_does_not_remark_justified_holes(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create([
+            'project_id' => $project->id,
+            'slugline' => 'INT. BAR CENTRAL - NOCHE',
+            'scene_order' => 1,
+        ]);
+
+        $block = ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'block_order' => 1,
+            'raw_text' => '[AGUJERO: Pedro entra de repente]',
+            'structured_text' => '[AGUJERO: Pedro entra de repente]',
+            'plot_hole' => null,
+            'user_locks' => [
+                'justified_plot_holes' => [
+                    [
+                        'original_reason' => 'Pedro entra de repente',
+                        'justification' => 'Es una alucinación del protagonista explicada en la escena siguiente',
+                        'justified_at' => now()->toIso8601String(),
+                    ],
+                ],
+            ],
+        ]);
+
+        $this->assertTrue($block->hasJustifiedPlotHoles());
+
+        // Al ejecutar el análisis, como ya está justificado, no debe marcarse
+        Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->call('analyzePlotHoles');
+
+        $this->assertNull($block->fresh()->plot_hole);
+    }
+
+    public function test_transition_to_structured_clears_outdated_manual_overrides(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create([
+            'project_id' => $project->id,
+            'slugline' => 'INT. DESPACHO - DIA',
+            'scene_order' => 1,
+        ]);
+
+        $block = ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'block_order' => 1,
+            'raw_text' => 'Texto bruto original sin cambios.',
+            'structured_text' => 'Texto estructurado viejo.',
+            'stage' => 'raw',
+            'user_locks' => [
+                'manual_diffs' => [
+                    [
+                        'stage' => 'structured',
+                        'field' => 'structured_text',
+                        'user_override' => 'Texto manual viejo que ya no existe',
+                        'timestamp' => now()->toIso8601String(),
+                    ],
+                ],
+                'locked_fields' => ['structured_text'],
+            ],
+        ]);
+
+        // Dado que el override ya no existe en el texto, hasManualOverride debe dar false
+        $this->assertFalse($block->hasManualOverride('structured'));
+
+        // Al ejecutar transición a structured con el servicio
+        $pipelineService = app(ScriptPipelineService::class);
+        $updatedBlock = $pipelineService->transitionToStructured($block);
+
+        $this->assertFalse($updatedBlock->hasManualOverride('structured'));
+        $locks = $updatedBlock->user_locks ?? [];
+        $this->assertEmpty($locks['manual_diffs'] ?? []);
     }
 }

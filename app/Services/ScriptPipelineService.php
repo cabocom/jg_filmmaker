@@ -73,6 +73,20 @@ class ScriptPipelineService
             );
         }
 
+        // Purgar diffs y bloqueos manuales obsoletos de 'structured' ya que ha sido regenerado por la IA desde el bruto
+        if (! empty($userLocks['manual_diffs'])) {
+            $userLocks['manual_diffs'] = array_values(array_filter(
+                $userLocks['manual_diffs'],
+                fn ($diff) => ($diff['stage'] ?? null) !== 'structured'
+            ));
+        }
+        if (! empty($userLocks['locked_fields'])) {
+            $userLocks['locked_fields'] = array_values(array_filter(
+                $userLocks['locked_fields'],
+                fn ($field) => $field !== 'structured'
+            ));
+        }
+
         $block->update([
             'structured_text' => $structuredText,
             'user_locks' => $userLocks,
@@ -137,6 +151,20 @@ class ScriptPipelineService
                 outputPayload: $screenplayContent,
                 telemetry: $telemetry
             );
+        }
+
+        // Purgar diffs y bloqueos manuales obsoletos de 'screenplay' ya que ha sido regenerado por la IA
+        if (! empty($userLocks['manual_diffs'])) {
+            $userLocks['manual_diffs'] = array_values(array_filter(
+                $userLocks['manual_diffs'],
+                fn ($diff) => ($diff['stage'] ?? null) !== 'screenplay'
+            ));
+        }
+        if (! empty($userLocks['locked_fields'])) {
+            $userLocks['locked_fields'] = array_values(array_filter(
+                $userLocks['locked_fields'],
+                fn ($field) => $field !== 'screenplay'
+            ));
         }
 
         $block->update([

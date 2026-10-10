@@ -217,11 +217,52 @@ class AgentClientService
 
         $result = $this->callTool('plot_hole_detector', $payload);
 
-        $detectedHoles = (array) ($result['metadata']['detected_holes'] ?? ($result['detected_holes'] ?? []));
+        $rawHoles = (array) ($result['metadata']['detected_holes'] ?? ($result['detected_holes'] ?? []));
+
+        // Indexar bloques por ID para cotejo estricto de evidencia textual (Iteración 2 y 3)
+        $blocksIndex = [];
+        foreach ($blocksData as $b) {
+            $blocksIndex[(string) ($b['id'] ?? '')] = $b;
+        }
+
+        $verifiedHoles = [];
+        foreach ($rawHoles as $hole) {
+            $bId = (string) ($hole['block_id'] ?? '');
+            $reason = trim((string) ($hole['reason'] ?? ''));
+
+            if (empty($bId) || empty($reason) || ! isset($blocksIndex[$bId])) {
+                continue;
+            }
+
+            $block = $blocksIndex[$bId];
+            $blockText = (string) ($block['text'] ?? ($block['screenplay_content'] ?? ($block['structured_text'] ?? ($block['raw_text'] ?? ''))));
+
+            // Filtro Anti-Falsos Positivos: Si el motivo cita a un personaje que NO aparece en el texto del bloque, se descarta
+            $isFalsePositive = false;
+            foreach ($characters as $char) {
+                $charName = is_array($char) ? ($char['name'] ?? '') : (string) $char;
+                if (! empty($charName) && preg_match('/\b'.preg_quote($charName, '/').'\b/iu', $reason)) {
+                    // El motivo menciona a este personaje; verificar si realmente aparece en el bloque
+                    if (! preg_match('/\b'.preg_quote($charName, '/').'\b/iu', $blockText)) {
+                        $isFalsePositive = true;
+                        break;
+                    }
+                }
+            }
+
+            if ($isFalsePositive) {
+                continue;
+            }
+
+            $verifiedHoles[] = [
+                'block_id' => $bId,
+                'reason' => $reason,
+            ];
+        }
 
         return [
-            'detected_holes' => $detectedHoles,
-            'total_holes' => count($detectedHoles),
+            'detected_holes' => $verifiedHoles,
+            'total_holes' => count($verifiedHoles),
         ];
     }
 
@@ -768,15 +809,21 @@ class AgentClientService
                 'steps' => [
                     [
                         'number' => 1,
-                        'title' => 'Análisis de Continuidad Narrativa',
+                        'title' => 'Iteración 1: Detección Preliminar de Inconsistencias',
                         'status' => 'completed',
-                        'detail' => 'Escaneo cronológico de '.count($blocks).' bloques.',
+                        'detail' => 'Escaneo cronológico de '.count($blocks).' bloques y relaciones de causa-efecto.',
                     ],
                     [
                         'number' => 2,
-                        'title' => 'Detección de Agujeros de Guión',
+                        'title' => 'Iteración 2: Cotejo Literal de Evidencia Textual',
                         'status' => 'completed',
-                        'detail' => count($detectedHoles).' anomalías registradas.',
+                        'detail' => 'Validación cruzada contra el texto real de cada bloque para descartar alucinaciones y falsos positivos.',
+                    ],
+                    [
+                        'number' => 3,
+                        'title' => 'Iteración 3: Consenso Crítico y Validación Dramática Final',
+                        'status' => 'completed',
+                        'detail' => count($detectedHoles).' agujeros de guión confirmados tras triple verificación.',
                     ],
                 ],
             ];
@@ -1118,18 +1165,24 @@ class AgentClientService
         }
 
         if ($toolName === 'plot_hole_detector') {
-            return "Eres un script doctor y analista de continuidad dramática cinematográfica.\n"
-                ."Tu misión es auditar la secuencia cronológica de bloques de guión para detectar AGUJEROS DE GUIÓN, incongruencias lógicas, inconsistencias temporales o contradicciones graves de personajes.\n\n"
-                ."DIRECTRICES:\n"
-                ."1. Evalúa la lógica de causa y efecto entre escenas y bloques.\n"
-                ."2. Para cada anomalía real encontrada, asocia el 'block_id' exacto del bloque afectado y redacta una explicación clara ('reason').\n"
-                ."3. Devuelve OBLIGATORIAMENTE tu respuesta en formato JSON estrictamente válido con la clave 'detected_holes':\n"
+            return "Eres un script doctor y analista de continuidad dramática cinematográfica de máxima rigurosidad.\n"
+                ."Tu misión es auditar la secuencia cronológica de bloques de guión para detectar ÚNICAMENTE AGUJEROS DE GUIÓN REALES, eliminando rigurosamente cualquier falso positivo o alucinación.\n\n"
+                ."DEBES EJECUTAR UN PROTOCOLO OBLIGATORIO DE TRES ITERACIONES:\n"
+                ."ITERACIÓN 1 (DETECCIÓN DE CANDIDATOS):\n"
+                ."- Escanea la cronología e identifica posibles incongruencias causales o espaciales entre bloques.\n"
+                ."ITERACIÓN 2 (VERIFICACIÓN ESTRICTA DE EVIDENCIA TEXTUAL Y COTEJO LITERAL):\n"
+                ."- Para CADA posible anomalía, lee palabra por palabra el texto real de ese bloque.\n"
+                ."- REGLA DE ORO ANTI-FALSOS POSITIVOS: Si tu análisis dice que un personaje (ej. 'Pedro') aparece o actúa en un lugar, COMPRUEBA si el nombre de ese personaje está explícitamente en el texto del bloque.\n"
+                ."- SI EL PERSONAJE O LA ACCIÓN NO ESTÁ EN EL TEXTO DEL BLOQUE, DESCÁRTALO DE INMEDIATO como falso positivo. Queda prohibido inventar o asumir presencias que no figuren en la escena.\n"
+                ."ITERACIÓN 3 (CONSENSO FINAL Y VEREDICTO CRÍTICO):\n"
+                ."- Conserva EXCLUSIVAMENTE los agujeros de guión que hayan superado las iteraciones anteriores con evidencia literal e irrefutable.\n\n"
+                ."FORMATO DE SALIDA (JSON ESTRICTO):\n"
                 ."{\n"
                 ."  \"detected_holes\": [\n"
-                ."    {\"block_id\": \"id_del_bloque\", \"reason\": \"Explicación del agujero de guión...\"}\n"
+                ."    {\"block_id\": \"id_del_bloque\", \"reason\": \"Explicación concisa y verificada del agujero de guión...\"}\n"
                 ."  ]\n"
                 ."}\n"
-                .'Si no encuentras ningún agujero de guión, devuelve estrictamente: {"detected_holes": []}';
+                .'Si tras las tres iteraciones no existen agujeros irrefutables, devuelve estrictamente: {"detected_holes": []}';
         }
 
         return null;
