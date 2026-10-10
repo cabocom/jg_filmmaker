@@ -383,13 +383,13 @@ class AgentClientService
                 // Asegurar primera letra en mayúscula
                 $cleaned = mb_strtoupper(mb_substr($cleaned, 0, 1)).mb_substr($cleaned, 1);
 
-                // Normalizar nombres de personajes del contexto con capitalización canónica de cada palabra
+                // Normalizar nombres de personajes del contexto COMPLETAMENTE EN MAYÚSCULAS
                 foreach ($characters as $char) {
                     if (is_array($char) && ! empty($char['name'])) {
                         $cname = trim($char['name']);
-                        $canonicalTitle = mb_convert_case($cname, MB_CASE_TITLE, 'UTF-8');
+                        $canonicalUpper = mb_strtoupper($cname, 'UTF-8');
                         $pattern = '/\b'.preg_quote($cname, '/').'\b/iu';
-                        $cleaned = preg_replace($pattern, $canonicalTitle, $cleaned);
+                        $cleaned = preg_replace($pattern, $canonicalUpper, $cleaned);
                     }
                 }
 
@@ -622,9 +622,9 @@ class AgentClientService
                     foreach ($characters as $char) {
                         if (is_array($char) && ! empty($char['name'])) {
                             $cname = trim($char['name']);
-                            $canonicalTitle = mb_convert_case($cname, MB_CASE_TITLE, 'UTF-8');
+                            $canonicalUpper = mb_strtoupper($cname, 'UTF-8');
                             $pattern = '/\b'.preg_quote($cname, '/').'\b/iu';
-                            $actionLine = preg_replace($pattern, $canonicalTitle, $actionLine);
+                            $actionLine = preg_replace($pattern, $canonicalUpper, $actionLine);
                         }
                     }
 
@@ -990,8 +990,20 @@ class AgentClientService
             if ($toolName === 'treatment_structuring') {
                 $clean = preg_replace('/^En [^:]+:\s*/i', '', $content);
                 $output = $this->applyUserLocks((string) $clean, (array) ($payload['user_locks'] ?? []), 'structured');
+                foreach (($payload['characters_context'] ?? []) as $char) {
+                    $cName = is_array($char) ? ($char['name'] ?? '') : (string) $char;
+                    if (! empty(trim($cName))) {
+                        $output = preg_replace('/\b'.preg_quote(trim($cName), '/').'\b/iu', mb_strtoupper(trim($cName), 'UTF-8'), $output);
+                    }
+                }
             } elseif ($toolName === 'screenplay_formatter') {
                 $output = $this->applyUserLocks($content, (array) ($payload['user_locks'] ?? []), 'screenplay');
+                foreach (($payload['characters_context'] ?? []) as $char) {
+                    $cName = is_array($char) ? ($char['name'] ?? '') : (string) $char;
+                    if (! empty(trim($cName))) {
+                        $output = preg_replace('/\b'.preg_quote(trim($cName), '/').'\b/iu', mb_strtoupper(trim($cName), 'UTF-8'), $output);
+                    }
+                }
             }
 
             // Registrar telemetría de invocación IA
@@ -1136,7 +1148,7 @@ class AgentClientService
                 ."4. CONTEXTO DE LOCALIZACIÓN:\n{$locDesc}\n"
                 ."Integra la atmósfera de este entorno dentro de la narración, pero NUNCA antepongas un encabezado o prefijo como 'En LOCALIZACIÓN: ' ni sluglines de guion.\n"
                 ."5. CANDADOS Y TÉRMINOS FIJADOS (REGLA INMUTABLE):\n{$locksDesc}\n"
-                ."6. CAPITALIZACIÓN OBLIGATORIA DE PERSONAJES: Escribe SIEMPRE los nombres propios de los personajes con la inicial de cada palabra en mayúscula (ej: 'Estrella Casilda', 'Juan Pedro') en todas las menciones narrativas.\n"
+                ."6. PERSONAJES SIEMPRE EN MAYÚSCULAS: Escribe SIEMPRE los nombres propios de los personajes TOTALMENTE EN MAYÚSCULAS (ej: 'ESTRELLA CASILDA', 'JUAN PEDRO', 'JAVIER') en todas las menciones y oraciones del tratamiento narrativo.\n"
                 ."7. PROHIBICIONES Y FORMATO DE SALIDA:\n"
                 ."- NO incluyas encabezados de escena (sluglines como 'INT. BAR - DIA'), ni títulos, ni prefijos como 'En BAR CENTRAL:', ni metadatos.\n"
                 .'- Devuelve ÚNICAMENTE la prosa narrativa dramática en párrafos limpios, sin preámbulos ni conclusiones.';
@@ -1166,7 +1178,7 @@ class AgentClientService
                 ."   (susurrando al oído)\n"
                 ."   Tienes que volverte conmigo.\n"
                 ."3. INFERENCIA DE PERSONAJES: Detecta a todos los interlocutores (como JUAN) e infiere sus parlamentos en mayúsculas centradas aunque no estuviesen en la biblia previa.\n"
-                ."4. CAPITALIZACIÓN OBLIGATORIA: En las acciones descriptivas, escribe SIEMPRE los nombres propios de personajes capitalizados (ej: 'Estrella Casilda'). En los encabezados de diálogo, escríbelos SIEMPRE en mayúsculas completas (ej: 'ESTRELLA CASILDA').\n"
+                ."4. PERSONAJES SIEMPRE EN MAYÚSCULAS: Escribe SIEMPRE los nombres propios de los personajes TOTALMENTE EN MAYÚSCULAS (ej: 'ESTRELLA CASILDA', 'JUAN') tanto en las descripciones de acción como en los encabezados de diálogo.\n"
                 ."5. FORMATO FOUNTAIN:\n"
                 ."   NOMBRE PERSONAJE\n"
                 ."   (acotación opcional en minúsculas)\n"

@@ -355,7 +355,8 @@ class ScriptPipelineService
     }
 
     /**
-     * Capitaliza siempre los nombres de los personajes en todas las etapas generadas automáticamente.
+     * Asegura que los nombres de los personajes aparezcan COMPLETAMENTE EN MAYÚSCULAS
+     * en todas las etapas generadas por la IA.
      *
      * @param  array<int, array<string, mixed>>  $characters
      */
@@ -372,29 +373,9 @@ class ScriptPipelineService
                 continue;
             }
 
-            $canonicalTitle = mb_convert_case($name, MB_CASE_TITLE, 'UTF-8');
-
-            if ($stage === 'screenplay') {
-                $canonicalUpper = mb_strtoupper($name, 'UTF-8');
-                $lines = explode("\n", $text);
-                $newLines = [];
-                foreach ($lines as $line) {
-                    $trimmed = trim($line);
-                    // Si la línea es exclusivamente el nombre del personaje (con o sin acotación de diálogo)
-                    if (preg_match('/^'.preg_quote($name, '/').'(\s*\(.*\))?$/iu', $trimmed, $m)) {
-                        $newLines[] = $canonicalUpper.($m[1] ?? '');
-                    } else {
-                        // En acotaciones y descripciones de acción, capitalización canónica (Title Case)
-                        $pattern = '/\b'.preg_quote($name, '/').'\b/iu';
-                        $newLines[] = preg_replace($pattern, $canonicalTitle, $line);
-                    }
-                }
-                $text = implode("\n", $newLines);
-            } else {
-                // En tratamiento narrativo y otras etapas: capitalización canónica de cada palabra
-                $pattern = '/\b'.preg_quote($name, '/').'\b/iu';
-                $text = preg_replace($pattern, $canonicalTitle, $text);
-            }
+            $canonicalUpper = mb_strtoupper($name, 'UTF-8');
+            $pattern = '/\b'.preg_quote($name, '/').'\b/iu';
+            $text = preg_replace($pattern, $canonicalUpper, $text);
         }
 
         return $text;

@@ -45,8 +45,8 @@ class ScriptPipelineIntegrationTest extends TestCase
 
         $this->assertSame('structured', $updatedBlock->stage);
         $this->assertNotEmpty($updatedBlock->structured_text);
-        // Debe contener el nombre fijado por el candado ('Javier' en lugar de 'Javi')
-        $this->assertStringContainsString('Javier', $updatedBlock->structured_text);
+        // Debe contener el nombre fijado por el candado en mayúsculas ('JAVIER' en lugar de 'Javi')
+        $this->assertStringContainsString('JAVIER', $updatedBlock->structured_text);
         // No debe forzar prefijos de localización en el tratamiento (la localización pertenece a la escena y slugline)
         $this->assertStringNotContainsString('En BAR CENTRAL', $updatedBlock->structured_text);
         $this->assertStringContainsString('entra por la puerta', $updatedBlock->structured_text);

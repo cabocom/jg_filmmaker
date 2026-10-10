@@ -930,25 +930,25 @@ class LivewireScriptEditorTest extends TestCase
             ['name' => 'Juan Pedro'],
         ];
 
-        // 1. Etapa structured (Tratamiento)
+        // 1. Etapa structured (Tratamiento) - nombres siempre en mayúsculas
         $rawStructured = 'en la penumbra, estrella casilda se acerca lentamente mientras juan pedro la observa con desconcierto.';
         $capitalizedStructured = $pipelineService->capitalizeCharacterNames($rawStructured, $characters, 'structured');
 
-        $this->assertStringContainsString('Estrella Casilda', $capitalizedStructured);
-        $this->assertStringContainsString('Juan Pedro', $capitalizedStructured);
+        $this->assertStringContainsString('ESTRELLA CASILDA', $capitalizedStructured);
+        $this->assertStringContainsString('JUAN PEDRO', $capitalizedStructured);
         $this->assertStringNotContainsString('estrella casilda', $capitalizedStructured);
         $this->assertStringNotContainsString('juan pedro', $capitalizedStructured);
 
-        // 2. Etapa screenplay (Guión literario)
+        // 2. Etapa screenplay (Guión literario) - nombres siempre en mayúsculas
         $rawScreenplay = "estrella casilda camina hacia la puerta.\n\nestrella casilda\n(susurrando)\nNo hagas ruido.\n\njuan pedro se gira alarmado.";
         $capitalizedScreenplay = $pipelineService->capitalizeCharacterNames($rawScreenplay, $characters, 'screenplay');
 
-        $this->assertStringContainsString('Estrella Casilda camina', $capitalizedScreenplay);
+        $this->assertStringContainsString('ESTRELLA CASILDA camina', $capitalizedScreenplay);
         $this->assertStringContainsString("ESTRELLA CASILDA\n(susurrando)", $capitalizedScreenplay);
-        $this->assertStringContainsString('Juan Pedro se gira', $capitalizedScreenplay);
+        $this->assertStringContainsString('JUAN PEDRO se gira', $capitalizedScreenplay);
     }
 
-    public function test_plot_hole_menu_has_ver_ocultar_y_borrar_compact_options(): void
+    public function test_plot_hole_menu_toggles_between_ocultar_and_ver_dynamically(): void
     {
         $user = User::factory()->create();
         $project = Project::factory()->create(['user_id' => $user->id]);
@@ -969,23 +969,57 @@ class LivewireScriptEditorTest extends TestCase
         $livewire = Livewire::actingAs($user)
             ->test(ScriptEditor::class, ['project' => $project])
             ->assertSee('Agujeros')
-            ->assertSee('Ver')
+            ->assertSet('showPlotHoleAlerts', true)
             ->assertSee('Ocultar')
             ->assertSee('Borrar');
 
-        // Probar acción "Ocultar"
-        $livewire->call('hidePlotHoleAlerts')
+        // Conmutar a Ocultar: ahora debe mostrar 'Ver' y ya no 'Ocultar'
+        $livewire->call('togglePlotHoleAlerts')
             ->assertSet('showPlotHoleAlerts', false)
+            ->assertSee('Ver')
             ->assertDontSee('Agujero de Guión Detectado');
 
-        // Probar acción "Ver"
-        $livewire->call('showPlotHoleAlerts')
+        // Conmutar a Ver: ahora debe volver a mostrar 'Ocultar'
+        $livewire->call('togglePlotHoleAlerts')
             ->assertSet('showPlotHoleAlerts', true)
+            ->assertSee('Ocultar')
             ->assertSee('Agujero de Guión Detectado');
 
         // Probar acción "Borrar"
         $livewire->call('clearPlotHoles');
         $this->assertNull($block->fresh()->plot_hole);
         $livewire->assertDontSee('Agujero de Guión Detectado');
+    }
+
+    public function test_can_edit_scene_name_and_metadata(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create([
+            'project_id' => $project->id,
+            'slugline' => 'INT. BAR CENTRAL - NOCHE',
+            'scene_order' => 1,
+            'time_of_day' => 'NOCHE',
+        ]);
+
+        $livewire = Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->assertSee('INT. BAR CENTRAL - NOCHE');
+
+        // Abrir modal de edición para la escena
+        $livewire->call('openEditSceneModal', $scene->id)
+            ->assertSet('showEditSceneModal', true)
+            ->assertSet('editingSceneId', $scene->id)
+            ->assertSet('editingSceneSlugline', 'INT. BAR CENTRAL - NOCHE')
+            ->assertSet('editingSceneTimeOfDay', 'NOCHE')
+            // Cambiar el nombre / slugline de la escena
+            ->set('editingSceneSlugline', 'EXT. CALLEJON OSCURO - NOCHE 1')
+            ->set('editingSceneTimeOfDay', 'CONTINUO')
+            ->call('updateScene')
+            ->assertSet('showEditSceneModal', false)
+            ->assertSee('EXT. CALLEJON OSCURO - NOCHE 1');
+
+        $this->assertEquals('EXT. CALLEJON OSCURO - NOCHE 1', $scene->fresh()->slugline);
+        $this->assertEquals('CONTINUO', $scene->fresh()->time_of_day);
     }
 }

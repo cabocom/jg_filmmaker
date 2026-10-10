@@ -113,27 +113,23 @@
                          class="absolute left-0 top-full mt-1 w-32 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl p-1 z-50 space-y-0.5 font-mono text-xs"
                          style="display: none;">
                         
-                        <!-- 1. Ver -->
-                        <button wire:click="showPlotHoleAlerts"
-                                @click="holeMenuOpen = false"
-                                type="button"
-                                class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left {{ $showPlotHoleAlerts ? 'bg-amber-500/10 text-amber-900 dark:text-amber-300 font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }} transition cursor-pointer">
-                            <span>Ver</span>
-                            @if($showPlotHoleAlerts)
-                                <span class="text-amber-600 dark:text-amber-400 font-bold text-[11px]">✓</span>
-                            @endif
-                        </button>
-
-                        <!-- 2. Ocultar -->
-                        <button wire:click="hidePlotHoleAlerts"
-                                @click="holeMenuOpen = false"
-                                type="button"
-                                class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left {{ ! $showPlotHoleAlerts ? 'bg-amber-500/10 text-amber-900 dark:text-amber-300 font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }} transition cursor-pointer">
-                            <span>Ocultar</span>
-                            @if(! $showPlotHoleAlerts)
-                                <span class="text-amber-600 dark:text-amber-400 font-bold text-[11px]">✓</span>
-                            @endif
-                        </button>
+                        @if($showPlotHoleAlerts)
+                            <!-- 1. Ocultar (cuando están visibles) -->
+                            <button wire:click="togglePlotHoleAlerts"
+                                    @click="holeMenuOpen = false"
+                                    type="button"
+                                    class="w-full flex items-center px-2.5 py-1.5 rounded-lg text-left text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">
+                                <span>Ocultar</span>
+                            </button>
+                        @else
+                            <!-- 1. Ver (cuando están ocultos) -->
+                            <button wire:click="togglePlotHoleAlerts"
+                                    @click="holeMenuOpen = false"
+                                    type="button"
+                                    class="w-full flex items-center px-2.5 py-1.5 rounded-lg text-left text-amber-600 dark:text-amber-400 font-bold hover:bg-amber-500/10 transition cursor-pointer">
+                                <span>Ver</span>
+                            </button>
+                        @endif
 
                         <div class="border-t border-slate-100 dark:border-slate-800 my-0.5"></div>
 
@@ -325,6 +321,16 @@
                                         </span>
                                     @endif
                                 </div>
+                            </button>
+
+                            <!-- Botón de Edición Rápida de Escena -->
+                            <button wire:click="openEditSceneModal('{{ $scene->id }}')"
+                                    type="button"
+                                    title="Editar nombre y datos de la Escena {{ $scene->scene_order }}"
+                                    class="p-1 rounded text-slate-400 hover:text-amber-500 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 transition cursor-pointer shrink-0">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                </svg>
                             </button>
                         </div>
 
@@ -665,8 +671,18 @@
                         <section class="space-y-4 pt-6 first:pt-0 border-t first:border-t-0 border-slate-200 dark:border-slate-800/80">
                             <!-- ENCABEZADO DE LA ESCENA (STORY ARCHITECT SLUGLINE) -->
                             <div class="py-2.5 px-3 rounded-lg bg-slate-50 dark:bg-slate-950/60 border-l-4 border-amber-500 dark:border-amber-400 flex items-center justify-between flex-wrap gap-2">
-                                <div class="font-mono font-black text-sm uppercase tracking-wide text-slate-950 dark:text-amber-400">
-                                    {{ $scene->scene_order }}. {{ $scene->slugline }}
+                                <div class="flex items-center gap-2">
+                                    <span class="font-mono font-black text-sm uppercase tracking-wide text-slate-950 dark:text-amber-400">
+                                        {{ $scene->scene_order }}. {{ $scene->slugline }}
+                                    </span>
+                                    <button wire:click="openEditSceneModal('{{ $scene->id }}')"
+                                            type="button"
+                                            title="Editar nombre y datos de la Escena {{ $scene->scene_order }}"
+                                            class="p-1 rounded text-slate-400 hover:text-amber-500 hover:bg-slate-200 dark:hover:bg-slate-800 transition cursor-pointer">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                        </svg>
+                                    </button>
                                 </div>
                                 <div class="flex items-center gap-2 text-xs font-mono text-slate-500 dark:text-slate-400">
                                     @if($scene->location)
@@ -1386,6 +1402,72 @@
                     <div class="pt-3 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
                         <button wire:click="$set('showNewSceneModal', false)" class="px-3 py-1.5 text-xs text-slate-500 dark:text-slate-400">Cancelar</button>
                         <button wire:click="createScene" class="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-md">Guardar Escena</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- ================= MODAL EDITAR ESCENA ================= -->
+    @if($showEditSceneModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs"
+             x-data
+             @keydown.escape.window="$wire.closeEditSceneModal()"
+             wire:click.self="closeEditSceneModal">
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 w-full max-w-md space-y-4"
+                 @click.stop>
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <div class="flex items-center gap-2">
+                        <span class="text-base">🎬</span>
+                        <h3 class="text-sm font-bold text-slate-900 dark:text-white">
+                            Editar Escena #{{ $editingSceneOrder }}
+                        </h3>
+                    </div>
+                    <button wire:click="closeEditSceneModal" class="text-slate-400 hover:text-slate-600 dark:hover:text-white text-xs font-bold cursor-pointer">✕</button>
+                </div>
+
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-mono font-bold text-slate-700 dark:text-slate-300 mb-1">
+                            Nombre de la Escena / Encabezado (Slugline) *
+                        </label>
+                        <input type="text"
+                               wire:model="editingSceneSlugline"
+                               placeholder="INT. DESPACHO - DÍA 1"
+                               class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono uppercase focus:ring-2 focus:ring-amber-500 focus:outline-hidden">
+                        @error('editingSceneSlugline') <span class="text-rose-500 text-xs">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-xs font-mono font-bold text-slate-700 dark:text-slate-300 mb-1">
+                            Momento del Día *
+                        </label>
+                        <select wire:model="editingSceneTimeOfDay" class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono">
+                            <option value="DÍA">DÍA</option>
+                            <option value="NOCHE">NOCHE</option>
+                            <option value="ATARDECER">ATARDECER</option>
+                            <option value="AMANECER">AMANECER</option>
+                            <option value="CONTINUO">CONTINUO</option>
+                        </select>
+                        @error('editingSceneTimeOfDay') <span class="text-rose-500 text-xs">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-xs font-mono font-bold text-slate-700 dark:text-slate-300 mb-1">
+                            Localización de la Biblia (Opcional)
+                        </label>
+                        <select wire:model="editingSceneLocationId" class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono">
+                            <option value="">-- Sin asignar --</option>
+                            @foreach($locations as $loc)
+                                <option value="{{ $loc->id }}">{{ $loc->name }} ({{ $loc->type }})</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="pt-3 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
+                        <button wire:click="closeEditSceneModal" type="button" class="px-3.5 py-1.5 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer">
+                            Cancelar
+                        </button>
+                        <button wire:click="updateScene" type="button" class="px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-md transition cursor-pointer">
+                            Guardar Cambios
+                        </button>
                     </div>
                 </div>
             </div>

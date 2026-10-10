@@ -111,6 +111,19 @@ class ScriptEditor extends Component
 
     public ?string $newSceneLocationId = null;
 
+    // Formulario para editar escena existente
+    public bool $showEditSceneModal = false;
+
+    public ?string $editingSceneId = null;
+
+    public int $editingSceneOrder = 1;
+
+    public string $editingSceneSlugline = '';
+
+    public string $editingSceneTimeOfDay = 'DÍA';
+
+    public ?string $editingSceneLocationId = null;
+
     /**
      * IDs de escenas expandidas en el acordeón vertical (Modo StoryArchitect).
      *
@@ -478,6 +491,53 @@ class ScriptEditor extends Component
         $this->newSceneSlugline = 'INT. NUEVA LOCALIZACIÓN - DÍA 1';
 
         session()->flash('success', "Escena {$scene->scene_order} creada.");
+    }
+
+    /**
+     * Abre el modal de edición de la escena especificada.
+     */
+    public function openEditSceneModal(string $sceneId): void
+    {
+        $scene = Scene::findOrFail($sceneId);
+        $this->editingSceneId = $scene->id;
+        $this->editingSceneOrder = $scene->scene_order;
+        $this->editingSceneSlugline = $scene->slugline;
+        $this->editingSceneTimeOfDay = $scene->time_of_day ?: 'DÍA';
+        $this->editingSceneLocationId = $scene->location_id;
+        $this->showEditSceneModal = true;
+    }
+
+    /**
+     * Cierra el modal de edición de escena y resetea las propiedades.
+     */
+    public function closeEditSceneModal(): void
+    {
+        $this->reset(['showEditSceneModal', 'editingSceneId', 'editingSceneSlugline', 'editingSceneLocationId']);
+    }
+
+    /**
+     * Actualiza el encabezado canónico, momento del día y localización de la escena.
+     */
+    public function updateScene(): void
+    {
+        if (! $this->editingSceneId) {
+            return;
+        }
+
+        $this->validate([
+            'editingSceneSlugline' => 'required|min:3|max:120',
+            'editingSceneTimeOfDay' => 'required',
+        ]);
+
+        $scene = Scene::findOrFail($this->editingSceneId);
+        $scene->update([
+            'slugline' => strtoupper(trim($this->editingSceneSlugline)),
+            'time_of_day' => strtoupper(trim($this->editingSceneTimeOfDay)),
+            'location_id' => $this->editingSceneLocationId ?: null,
+        ]);
+
+        $this->closeEditSceneModal();
+        session()->flash('success', "Escena #{$scene->scene_order} actualizada correctamente.");
     }
 
     public function addBlock(): void
