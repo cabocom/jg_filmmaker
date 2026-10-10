@@ -2,7 +2,7 @@
     <!-- ================= BARRA SUPERIOR STICKY: TÍTULO DEL PROYECTO ================= -->
     <div class="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 shadow-xs backdrop-blur-md px-4 sm:px-6 lg:px-8 py-2.5 transition-colors">
         <div class="max-w-7xl mx-auto flex items-center justify-between gap-3">
-            <!-- Título del Proyecto y Recuento -->
+            <!-- Título del Proyecto y Recuento de Escenas -->
             <div class="flex items-center gap-3">
                 <span class="text-sm font-bold font-mono uppercase tracking-wider text-slate-900 dark:text-white">
                     {{ $project->title }}
@@ -11,15 +11,6 @@
                     {{ $scenes->count() }} {{ $scenes->count() === 1 ? 'escena' : 'escenas' }}
                 </span>
             </div>
-
-            <!-- Botón Nueva Escena al Final del Guión -->
-            <button wire:click="openNewSceneModal()"
-                    type="button"
-                    class="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition flex items-center gap-1 shadow-2xs cursor-pointer"
-                    title="Añadir Escena al final del guión">
-                <span>+</span>
-                <span>Nueva Escena</span>
-            </button>
         </div>
     </div>
 
@@ -35,163 +26,184 @@
             </div>
         @endif
 
-        @if($pipelineStage === 'timeline')
-            <!-- Subvista de Montaje / RoughCutTimeline -->
-            <livewire:studio.rough-cut-timeline :project="$project" :active-scene-id="$activeSceneId" :key="'timeline-'.$activeSceneId" />
-        @else
-            <!-- ================= FLUJO VERTICAL CONTINUO DE ESCENAS (MODO STORYARCHITECT) ================= -->
-            <div class="space-y-4">
-                @forelse($scenes as $scene)
-                    @php
-                        $isExpanded = in_array($scene->id, $expandedSceneIds);
-                    @endphp
+        <!-- ================= FLUJO VERTICAL CONTINUO DE ESCENAS (MODO STORYARCHITECT) ================= -->
+        <div class="space-y-4">
+            <!-- Divisor Gutenberg Inicial por encima de la Escena 1 (+ Nueva Escena al inicio) -->
+            <div x-data="{ isTopScenePlusHovered: false }"
+                 @mouseenter="isTopScenePlusHovered = true"
+                 @mouseleave="isTopScenePlusHovered = false"
+                 class="relative py-2.5 my-1 flex items-center justify-center cursor-pointer z-10">
+                <div class="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[2px] bg-amber-500 dark:bg-amber-400 transition-opacity duration-150 pointer-events-none"
+                     :class="isTopScenePlusHovered ? 'opacity-100' : 'opacity-0'"></div>
+                <button wire:click="openNewSceneModal(0)"
+                        type="button"
+                        title="Insertar nueva escena al inicio del guión"
+                        :class="isTopScenePlusHovered ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-75 pointer-events-none'"
+                        class="relative z-10 px-3 py-1 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md hover:scale-105 transition-all duration-150 flex items-center gap-1.5 cursor-pointer">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+                    </svg>
+                    <span>+ Nueva Escena</span>
+                </button>
+            </div>
 
-                    <!-- Tarjeta de Escena con Soporte Drag & Drop y Acordeón -->
-                    <div id="scene-card-{{ $scene->id }}"
-                         x-data="{ isDraggingScene: false, isOverScene: false, isSceneHovered: false }"
-                         @mouseenter="isSceneHovered = true"
-                         @mouseleave="isSceneHovered = false"
-                         @dragover.prevent="isOverScene = true"
-                         @dragleave="isOverScene = false"
-                         @drop.prevent="
-                             isOverScene = false;
-                             const srcSceneId = event.dataTransfer.getData('scene-id');
-                             if (srcSceneId && srcSceneId !== '{{ $scene->id }}') {
-                                 $wire.reorderScene(srcSceneId, {{ $scene->scene_order }});
-                             }
-                         "
-                         :class="{
-                             'opacity-40 scale-[0.99]': isDraggingScene,
-                             'border-amber-500 ring-2 ring-amber-500/50 bg-amber-500/5': isOverScene
-                         }"
-                         class="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-xs transition-all overflow-hidden mb-5">
+            @forelse($scenes as $scene)
+                @php
+                    $isExpanded = in_array($scene->id, $expandedSceneIds);
+                    $sceneStage = $this->getScenePipelineStage($scene->id);
+                @endphp
 
-                        <!-- Cabecera de la Escena (Slugline Compacto a la Izquierda, Pipeline a la Derecha) -->
-                        <div class="px-3.5 py-2 bg-slate-100/75 dark:bg-slate-800/60 border-b border-slate-200/80 dark:border-slate-700/60 flex items-center justify-between gap-3">
-                            <div class="flex items-center gap-2 min-w-0">
-                                <!-- Tirador Drag & Drop de Escena con draggable=true directo -->
-                                <div draggable="true"
-                                     @dragstart.stop="
-                                         event.dataTransfer.setData('scene-id', '{{ $scene->id }}');
-                                         event.dataTransfer.effectAllowed = 'move';
-                                         const sceneEl = document.getElementById('scene-card-{{ $scene->id }}');
-                                         if (event.dataTransfer.setDragImage && sceneEl) {
-                                             event.dataTransfer.setDragImage(sceneEl, 20, 20);
-                                         }
-                                         isDraggingScene = true;
-                                     "
-                                     @dragend="isDraggingScene = false"
-                                     title="Arrastrar para mover toda esta escena"
-                                     :class="isSceneHovered ? 'opacity-100' : 'opacity-0'"
-                                     class="shrink-0 w-4 h-5 rounded flex items-center justify-center text-slate-400 hover:text-amber-500 dark:text-slate-500 dark:hover:text-amber-400 cursor-grab active:cursor-grabbing transition-opacity duration-150 select-none">
-                                    <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-                                        <circle cx="7" cy="4" r="1.5" />
-                                        <circle cx="13" cy="4" r="1.5" />
-                                        <circle cx="7" cy="10" r="1.5" />
-                                        <circle cx="13" cy="10" r="1.5" />
-                                        <circle cx="7" cy="16" r="1.5" />
-                                        <circle cx="13" cy="16" r="1.5" />
+                <!-- Tarjeta de Escena con Soporte Drag & Drop y Acordeón -->
+                <div id="scene-card-{{ $scene->id }}"
+                     x-data="{ isDraggingScene: false, isOverScene: false, isSceneHovered: false }"
+                     @mouseenter="isSceneHovered = true"
+                     @mouseleave="isSceneHovered = false"
+                     @dragover.prevent="isOverScene = true"
+                     @dragleave="isOverScene = false"
+                     @drop.prevent="
+                         isOverScene = false;
+                         const srcSceneId = event.dataTransfer.getData('scene-id');
+                         if (srcSceneId && srcSceneId !== '{{ $scene->id }}') {
+                             $wire.reorderScene(srcSceneId, {{ $scene->scene_order }});
+                         }
+                     "
+                     :class="{
+                         'opacity-40 scale-[0.99]': isDraggingScene,
+                         'border-amber-500 ring-2 ring-amber-500/50 bg-amber-500/5': isOverScene
+                     }"
+                     class="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-xs transition-all overflow-hidden mb-5">
+
+                    <!-- Cabecera de la Escena (Slugline a la Izquierda, Pipeline individual a la Derecha) -->
+                    <div class="px-3.5 py-2 bg-slate-100/75 dark:bg-slate-800/60 border-b border-slate-200/80 dark:border-slate-700/60 flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <!-- Tirador Drag & Drop de Escena con draggable=true directo -->
+                            <div draggable="true"
+                                 @dragstart.stop="
+                                     event.dataTransfer.setData('scene-id', '{{ $scene->id }}');
+                                     event.dataTransfer.effectAllowed = 'move';
+                                     const sceneEl = document.getElementById('scene-card-{{ $scene->id }}');
+                                     if (event.dataTransfer.setDragImage && sceneEl) {
+                                         event.dataTransfer.setDragImage(sceneEl, 20, 20);
+                                     }
+                                     isDraggingScene = true;
+                                 "
+                                 @dragend="isDraggingScene = false"
+                                 title="Arrastrar para mover toda esta escena"
+                                 :class="isSceneHovered ? 'opacity-100' : 'opacity-0'"
+                                 class="shrink-0 w-4 h-5 rounded flex items-center justify-center text-slate-400 hover:text-amber-500 dark:text-slate-500 dark:hover:text-amber-400 cursor-grab active:cursor-grabbing transition-opacity duration-150 select-none">
+                                <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                    <circle cx="7" cy="4" r="1.5" />
+                                    <circle cx="13" cy="4" r="1.5" />
+                                    <circle cx="7" cy="10" r="1.5" />
+                                    <circle cx="13" cy="10" r="1.5" />
+                                    <circle cx="7" cy="16" r="1.5" />
+                                    <circle cx="13" cy="16" r="1.5" />
+                                </svg>
+                            </div>
+
+                            <!-- Botón Toggle de Acordeón con Icono Dinámico (Cambia de forma según esté expandida o colapsada) -->
+                            <button wire:click="toggleScene('{{ $scene->id }}')"
+                                    type="button"
+                                    class="flex items-center gap-2 text-left truncate cursor-pointer group/btn">
+                                @if($isExpanded)
+                                    <!-- Icono Abierto (Flecha hacia abajo) -->
+                                    <svg class="w-3.5 h-3.5 shrink-0 text-amber-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
                                     </svg>
-                                </div>
+                                @else
+                                    <!-- Icono Cerrado / Colapsado (Flecha hacia la derecha) -->
+                                    <svg class="w-3.5 h-3.5 shrink-0 text-slate-400 group-hover/btn:text-amber-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                @endif
 
-                                <!-- Botón Toggle de Acordeón con Icono Dinámico (Cambia de forma según esté expandida o colapsada) -->
-                                <button wire:click="toggleScene('{{ $scene->id }}')"
-                                        type="button"
-                                        class="flex items-center gap-2 text-left truncate cursor-pointer group/btn">
-                                    @if($isExpanded)
-                                        <!-- Icono Abierto (Flecha hacia abajo) -->
-                                        <svg class="w-3.5 h-3.5 shrink-0 text-amber-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
-                                        </svg>
-                                    @else
-                                        <!-- Icono Cerrado / Colapsado (Flecha hacia la derecha) -->
-                                        <svg class="w-3.5 h-3.5 shrink-0 text-slate-400 group-hover/btn:text-amber-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
-                                        </svg>
+                                <div class="flex items-center gap-1.5 flex-wrap font-mono">
+                                    <span class="text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                                        ESC. {{ $scene->scene_order }}
+                                    </span>
+                                    <span class="text-slate-300 dark:text-slate-600 font-bold">·</span>
+                                    <span class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide truncate">
+                                        {{ $scene->slugline }}
+                                    </span>
+                                    @if($scene->time_of_day)
+                                        <span class="text-[10px] text-slate-400 dark:text-slate-500">
+                                            ({{ $scene->time_of_day }})
+                                        </span>
                                     @endif
-
-                                    <div class="flex items-center gap-1.5 flex-wrap font-mono">
-                                        <span class="text-[11px] font-bold text-amber-600 dark:text-amber-400">
-                                            ESC. {{ $scene->scene_order }}
-                                        </span>
-                                        <span class="text-slate-300 dark:text-slate-600 font-bold">·</span>
-                                        <span class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide truncate">
-                                            {{ $scene->slugline }}
-                                        </span>
-                                        @if($scene->time_of_day)
-                                            <span class="text-[10px] text-slate-400 dark:text-slate-500">
-                                                ({{ $scene->time_of_day }})
-                                            </span>
-                                        @endif
-                                    </div>
-                                </button>
-                            </div>
-
-                            <!-- Cabecera del Pipeline Integrada dentro de la Escena (Alineada a la Derecha) -->
-                            <div class="flex items-center gap-2 shrink-0">
-                                <span class="text-[11px] text-slate-400 dark:text-slate-500 font-mono hidden md:inline">
-                                    {{ $scene->scriptBlocks->count() }} {{ $scene->scriptBlocks->count() === 1 ? 'bloque' : 'bloques' }}
-                                </span>
-
-                                <div class="inline-flex rounded-lg bg-white/90 dark:bg-slate-900/90 p-0.5 border border-slate-200 dark:border-slate-700/80 text-[11px] shadow-2xs">
-                                    <!-- 1. Idea -->
-                                    <button wire:click="setPipelineStage('idea')"
-                                            type="button"
-                                            title="Listado de textos originales en bruto"
-                                            class="px-2 py-0.5 rounded transition font-mono cursor-pointer {{ $pipelineStage === 'idea' ? 'bg-amber-500 text-slate-950 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
-                                        Idea
-                                    </button>
-
-                                    <!-- 2. Tratamiento -->
-                                    <button wire:click="setPipelineStage('structured')"
-                                            type="button"
-                                            title="Listado de textos estructurados a tratamiento"
-                                            class="px-2 py-0.5 rounded transition font-mono cursor-pointer {{ $pipelineStage === 'structured' ? 'bg-amber-500 text-slate-950 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
-                                        Tratamiento
-                                    </button>
-
-                                    <!-- 3. Guión -->
-                                    <button wire:click="setPipelineStage('screenplay')"
-                                            type="button"
-                                            title="Listado de textos formateados a guión canónico Fountain"
-                                            class="px-2 py-0.5 rounded transition font-mono cursor-pointer {{ $pipelineStage === 'screenplay' ? 'bg-amber-500 text-slate-950 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
-                                        Guión
-                                    </button>
-
-                                    <!-- 4. Planos / Tomas -->
-                                    <button wire:click="setPipelineStage('shots')"
-                                            type="button"
-                                            title="Desglose técnico de planos de cámara y tomas"
-                                            class="px-2 py-0.5 rounded transition font-mono cursor-pointer {{ $pipelineStage === 'shots' ? 'bg-amber-500 text-slate-950 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
-                                        Planos / Tomas
-                                    </button>
-
-                                    <!-- 5. Montaje -->
-                                    <button wire:click="setPipelineStage('timeline')"
-                                            type="button"
-                                            title="Línea de tiempo y pre-corte de edición"
-                                            class="px-2 py-0.5 rounded transition font-mono cursor-pointer {{ $pipelineStage === 'timeline' ? 'bg-amber-500 text-slate-950 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
-                                        🎬 Montaje
-                                    </button>
                                 </div>
-                            </div>
+                            </button>
                         </div>
 
-                        <!-- Contenido de Bloques de la Escena (Acordeón expandible) -->
-                        @if($isExpanded)
+                        <!-- Cabecera del Pipeline Integrada dentro de la Escena (Exclusiva para esta escena) -->
+                        <div class="flex items-center gap-2 shrink-0">
+                            <span class="text-[11px] text-slate-400 dark:text-slate-500 font-mono hidden md:inline">
+                                {{ $scene->scriptBlocks->count() }} {{ $scene->scriptBlocks->count() === 1 ? 'bloque' : 'bloques' }}
+                            </span>
+
+                            <div class="inline-flex rounded-lg bg-white/90 dark:bg-slate-900/90 p-0.5 border border-slate-200 dark:border-slate-700/80 text-[11px] shadow-2xs">
+                                <!-- 1. Idea -->
+                                <button wire:click="setScenePipelineStage('{{ $scene->id }}', 'idea')"
+                                        type="button"
+                                        title="Listado de textos originales en bruto para esta escena"
+                                        class="px-2 py-0.5 rounded transition font-mono cursor-pointer {{ $sceneStage === 'idea' ? 'bg-amber-500 text-slate-950 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                                    Idea
+                                </button>
+
+                                <!-- 2. Tratamiento -->
+                                <button wire:click="setScenePipelineStage('{{ $scene->id }}', 'structured')"
+                                        type="button"
+                                        title="Listado de textos estructurados a tratamiento para esta escena"
+                                        class="px-2 py-0.5 rounded transition font-mono cursor-pointer {{ $sceneStage === 'structured' ? 'bg-amber-500 text-slate-950 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                                    Tratamiento
+                                </button>
+
+                                <!-- 3. Guión -->
+                                <button wire:click="setScenePipelineStage('{{ $scene->id }}', 'screenplay')"
+                                        type="button"
+                                        title="Listado de textos formateados a guión canónico Fountain para esta escena"
+                                        class="px-2 py-0.5 rounded transition font-mono cursor-pointer {{ $sceneStage === 'screenplay' ? 'bg-amber-500 text-slate-950 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                                    Guión
+                                </button>
+
+                                <!-- 4. Planos / Tomas -->
+                                <button wire:click="setScenePipelineStage('{{ $scene->id }}', 'shots')"
+                                        type="button"
+                                        title="Desglose técnico de planos de cámara y tomas para esta escena"
+                                        class="px-2 py-0.5 rounded transition font-mono cursor-pointer {{ $sceneStage === 'shots' ? 'bg-amber-500 text-slate-950 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                                    Planos / Tomas
+                                </button>
+
+                                <!-- 5. Montaje -->
+                                <button wire:click="setScenePipelineStage('{{ $scene->id }}', 'timeline')"
+                                        type="button"
+                                        title="Línea de tiempo y pre-corte de edición para esta escena"
+                                        class="px-2 py-0.5 rounded transition font-mono cursor-pointer {{ $sceneStage === 'timeline' ? 'bg-amber-500 text-slate-950 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                                    🎬 Montaje
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contenido de Bloques de la Escena (Acordeón expandible) -->
+                    @if($isExpanded)
+                        @if($sceneStage === 'timeline')
+                            <div class="p-3 sm:p-5">
+                                <livewire:studio.rough-cut-timeline :project="$project" :active-scene-id="$scene->id" :key="'timeline-'.$scene->id" />
+                            </div>
+                        @else
                             <div class="p-3 sm:p-5 space-y-0.5">
                                 <!-- Divisor Inicial de Bloque: Gutenberg (Invisible en reposo, revelado al pasar el ratón) -->
                                 <div x-data="{ isInitPlusHovered: false }"
                                      @mouseenter="isInitPlusHovered = true"
                                      @mouseleave="isInitPlusHovered = false"
-                                     class="h-6 my-0.5 relative flex items-center justify-center cursor-pointer z-10">
-                                    <div :class="isInitPlusHovered ? 'bg-amber-500 dark:bg-amber-400 opacity-100' : 'bg-transparent opacity-0'"
-                                         class="w-full h-0.5 transition-all duration-150"></div>
+                                     class="relative py-2.5 my-0.5 flex items-center justify-center cursor-pointer z-10">
+                                    <div class="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[2px] bg-amber-500 dark:bg-amber-400 transition-opacity duration-150 pointer-events-none"
+                                         :class="isInitPlusHovered ? 'opacity-100' : 'opacity-0'"></div>
                                     <button wire:click="openNewBlockModal(0, '{{ $scene->id }}')"
                                             type="button"
                                             title="Insertar bloque al inicio de la escena"
                                             :class="isInitPlusHovered ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-75 pointer-events-none'"
-                                            class="absolute z-20 w-7 h-7 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center justify-center shadow-md hover:scale-110 transition-all duration-150 cursor-pointer">
+                                            class="relative z-10 w-7 h-7 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center justify-center shadow-md hover:scale-110 transition-all duration-150 cursor-pointer">
                                         <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                                             <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
                                         </svg>
@@ -251,12 +263,12 @@
                                                 </svg>
                                             </div>
 
-                                            <!-- Texto de la Historia según la etapa del menú de la escena -->
+                                            <!-- Texto de la Historia según la etapa del menú de la escena individual -->
                                             <div class="flex-1 min-w-0">
-                                                @if($pipelineStage === 'idea')
+                                                @if($sceneStage === 'idea')
                                                     <!-- Etapa 1: Idea / Original / Texto Bruto -->
                                                     <div class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed font-sans whitespace-pre-line text-left">{{ trim($block->raw_text ?: 'Sin notas o texto en bruto.') }}</div>
-                                                @elseif($pipelineStage === 'structured')
+                                                @elseif($sceneStage === 'structured')
                                                     <!-- Etapa 2: Tratamiento Cinematográfico -->
                                                     @if(!empty($block->structured_text))
                                                         <div class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed font-sans whitespace-pre-line text-left">{{ trim($block->structured_text) }}</div>
@@ -268,7 +280,7 @@
                                                             </button>
                                                         </div>
                                                     @endif
-                                                @elseif($pipelineStage === 'screenplay')
+                                                @elseif($sceneStage === 'screenplay')
                                                     <!-- Etapa 3: Guión Literario (Fountain) -->
                                                     @if(!empty($block->screenplay_content))
                                                         <div class="font-screenplay text-sm text-slate-900 dark:text-amber-100 leading-relaxed whitespace-pre-wrap max-w-2xl text-left">{{ trim($block->screenplay_content) }}</div>
@@ -280,7 +292,7 @@
                                                             </button>
                                                         </div>
                                                     @endif
-                                                @elseif($pipelineStage === 'shots')
+                                                @elseif($sceneStage === 'shots')
                                                     <!-- Etapa 4: Planos y Tomas -->
                                                     @if($block->shots->isNotEmpty())
                                                         <div class="space-y-1.5">
@@ -325,14 +337,14 @@
                                     <div x-data="{ isPlusHovered: false }"
                                          @mouseenter="isPlusHovered = true"
                                          @mouseleave="isPlusHovered = false"
-                                         class="h-6 my-0.5 relative flex items-center justify-center cursor-pointer z-10">
-                                        <div :class="isPlusHovered ? 'bg-amber-500 dark:bg-amber-400 opacity-100' : 'bg-transparent opacity-0'"
-                                             class="w-full h-0.5 transition-all duration-150"></div>
+                                         class="relative py-2.5 my-0.5 flex items-center justify-center cursor-pointer z-10">
+                                        <div class="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[2px] bg-amber-500 dark:bg-amber-400 transition-opacity duration-150 pointer-events-none"
+                                             :class="isPlusHovered ? 'opacity-100' : 'opacity-0'"></div>
                                         <button wire:click="openNewBlockModal({{ $block->block_order }}, '{{ $scene->id }}')"
                                                 type="button"
                                                 title="Añadir bloque aquí"
                                                 :class="isPlusHovered ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-75 pointer-events-none'"
-                                                class="absolute z-20 w-7 h-7 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center justify-center shadow-md hover:scale-110 transition-all duration-150 cursor-pointer">
+                                                class="relative z-10 w-7 h-7 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center justify-center shadow-md hover:scale-110 transition-all duration-150 cursor-pointer">
                                             <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                                                 <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
                                             </svg>
@@ -348,37 +360,37 @@
                                 @endforelse
                             </div>
                         @endif
-                    </div>
+                    @endif
+                </div>
 
-                    <!-- Divisor Gutenberg entre Escenas (+ Nueva Escena: Revelado al pasar el ratón) -->
-                    <div x-data="{ isScenePlusHovered: false }"
-                         @mouseenter="isScenePlusHovered = true"
-                         @mouseleave="isScenePlusHovered = false"
-                         class="h-8 my-1 relative flex items-center justify-center cursor-pointer z-10">
-                        <div :class="isScenePlusHovered ? 'bg-amber-500 dark:bg-amber-400 opacity-100' : 'bg-transparent opacity-0'"
-                             class="w-full h-0.5 transition-all duration-150"></div>
-                        <button wire:click="openNewSceneModal({{ $scene->scene_order }})"
-                                type="button"
-                                :class="isScenePlusHovered ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-75 pointer-events-none'"
-                                class="absolute z-20 px-3 py-1 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md hover:scale-105 transition-all duration-150 flex items-center gap-1.5 cursor-pointer">
-                            <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
-                            </svg>
-                            <span>Nueva Escena</span>
-                        </button>
-                    </div>
-                @empty
-                    <div class="text-center py-16 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 space-y-4">
-                        <span class="text-4xl">🎬</span>
-                        <h3 class="text-base font-bold text-slate-900 dark:text-white">No hay escenas en este proyecto todavía</h3>
-                        <p class="text-xs text-slate-500 max-w-md mx-auto">Crea la primera escena para redactar tu guión al estilo StoryArchitect.</p>
-                        <button wire:click="openNewSceneModal()" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-md">
-                            + Crear Primera Escena
-                        </button>
-                    </div>
-                @endforelse
-            </div>
-        @endif
+                <!-- Divisor Gutenberg entre Escenas (+ Nueva Escena: Revelado al pasar el ratón) -->
+                <div x-data="{ isScenePlusHovered: false }"
+                     @mouseenter="isScenePlusHovered = true"
+                     @mouseleave="isScenePlusHovered = false"
+                     class="relative py-3 my-1 flex items-center justify-center cursor-pointer z-10">
+                    <div class="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[2px] bg-amber-500 dark:bg-amber-400 transition-opacity duration-150 pointer-events-none"
+                         :class="isScenePlusHovered ? 'opacity-100' : 'opacity-0'"></div>
+                    <button wire:click="openNewSceneModal({{ $scene->scene_order }})"
+                            type="button"
+                            :class="isScenePlusHovered ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-75 pointer-events-none'"
+                            class="relative z-10 px-3 py-1 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md hover:scale-105 transition-all duration-150 flex items-center gap-1.5 cursor-pointer">
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+                        </svg>
+                        <span>Nueva Escena</span>
+                    </button>
+                </div>
+            @empty
+                <div class="text-center py-16 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 space-y-4">
+                    <span class="text-4xl">🎬</span>
+                    <h3 class="text-base font-bold text-slate-900 dark:text-white">No hay escenas en este proyecto todavía</h3>
+                    <p class="text-xs text-slate-500 max-w-md mx-auto">Crea la primera escena para redactar tu guión al estilo StoryArchitect.</p>
+                    <button wire:click="openNewSceneModal()" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-md">
+                        + Crear Primera Escena
+                    </button>
+                </div>
+            @endforelse
+        </div>
     </div>
 
     <!-- ================= MODAL LATERAL DERECHO AL 60% (DETALLES Y EDICIÓN DE BLOQUE) ================= -->

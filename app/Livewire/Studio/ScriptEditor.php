@@ -100,6 +100,13 @@ class ScriptEditor extends Component
      */
     public array $expandedSceneIds = [];
 
+    /**
+     * Etapa de pipeline activa para cada escena individualmente (Modo StoryArchitect).
+     *
+     * @var array<string, string>
+     */
+    public array $scenePipelineStages = [];
+
     // Formulario para nuevo plano técnico
     public bool $showNewShotModal = false;
 
@@ -128,7 +135,27 @@ class ScriptEditor extends Component
         }
 
         // Por defecto, todas las escenas expandidas para lectura continua vertical estilo StoryArchitect
-        $this->expandedSceneIds = $this->project->scenes()->pluck('id')->toArray();
+        $scenes = $this->project->scenes()->get();
+        $this->expandedSceneIds = $scenes->pluck('id')->toArray();
+
+        foreach ($scenes as $sc) {
+            $this->scenePipelineStages[$sc->id] = 'idea';
+        }
+    }
+
+    public function getScenePipelineStage(string $sceneId): string
+    {
+        return $this->scenePipelineStages[$sceneId] ?? 'idea';
+    }
+
+    public function setScenePipelineStage(string $sceneId, string $stage): void
+    {
+        $this->scenePipelineStages[$sceneId] = $stage;
+        $this->activeSceneId = $sceneId;
+
+        if ($this->selectedBlockId) {
+            $this->dispatch('scroll-to-selected-block', blockId: $this->selectedBlockId);
+        }
     }
 
     public function selectScene(string $sceneId): void

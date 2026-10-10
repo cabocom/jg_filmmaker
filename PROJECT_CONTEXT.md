@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 2.9.0  
+**Versión del documento:** 2.10.0  
 **Fecha de consolidación:** 10 de octubre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 3/4, Tailwind CSS v4, PHP 8.4, PostgreSQL / SQLite, FFmpeg, PHPUnit 12, Laravel Pint  
-**Estado:** Fases 1 a 14 implementadas al 100% (Modo StoryArchitect con escenas en acordeón vertical continuo agrupando bloques, Drag & Drop y botón '+' Gutenberg entre escenas, tiradores físicos de arrastre siempre visibles, eliminación de botón superfluo de bloque, refinamiento de diálogos a estilo directo teatral iterando sobre la salida, limpieza de slots en menú de usuario).
+**Estado:** Fases 1 a 15 implementadas al 100% (Pipeline desacoplado por escena individual sin afección global, inserción de escena inicial con Gutenberg superior previo a Escena 1, barra superior limpia con eliminación de título redundante junto al logo, línea horizontal ámbar visible continua en divisores Gutenberg).
 
 ---
 
@@ -227,6 +227,11 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
   - **Eliminación Definitiva de Botones Superfluos de Bloque:** Eliminado cualquier botón residual `+ Bloque` de la cabecera de la escena, delegando la creación a los divisores Gutenberg.
   - **Limpieza de Slots en Cabecera:** Eliminado el texto de cuota residual bajo el nombre de usuario y suprimida la frase explicativa del menú dropdown.
   - **Refinamiento de Diálogos a Estilo Directo Teatral (Iteración Dramática):** Implementado el motor iterativo `refineDialogueToDirectSpeech` (en `AgentClientService.php` de Laravel y `formatting.py` de Python) que transforma automáticamente construcciones de tratamiento narrativo en 3ª persona subordinada (e.g. *"que no se ha comportado bien y tiene que volverse con él para recibir su castigo"*) en parlamentos directos canónicos de segunda/primera persona (e.g. *"No te has comportado bien. Tienes que volverte conmigo para recibir tu castigo."*).
+- **Control de Pipeline por Escena Individual y Pulido Gutenberg (Fase 15):**
+  - **Pipeline Independiente por Escena:** El selector de etapas (`Idea | Tratamiento | Guión | Planos / Tomas | Montaje`) en la cabecera de cada escena opera de manera individual (`$scenePipelineStages[$scene->id]`), garantizando que conmutar la vista o etapa en una escena concreta no afecte a las demás escenas del guión.
+  - **Divisor Gutenberg Superior (Previo a Escena 1):** Se retiró el botón `+ Nueva Escena` de la barra superior derecha y se habilitó un divisor interactivo horizontal previo a la Escena 1 (`openNewSceneModal(0)`). Al pulsarlo, crea una nueva escena en la primera posición (`scene_order = 1`) y desplaza el orden del resto atómicamente.
+  - **Limpieza de Identidad en Barra de Navegación Principal:** En `resources/views/layouts/app.blade.php`, se eliminó el título del proyecto y el badge de estado que aparecían tras la barra `/` junto al logotipo institucional, dejando el branding limpio y despejado.
+  - **Línea Horizontal Continua en Divisores Gutenberg:** Se rediseñó el contenedor de hover con posicionamiento absoluto (`absolute inset-x-0 top-1/2 -translate-y-1/2 h-[2px] bg-amber-500`) y botón centrado `relative z-10`, resolviendo el problema de colapso de altura en flexbox y garantizando que la línea ámbar continua sea visible de lado a lado por debajo del botón `+` en hover.
 
 ### 7.2. Deudas Técnicas Conocidas
 1. **Autenticación y Multiusuario:**

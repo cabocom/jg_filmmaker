@@ -88,18 +88,6 @@
                         <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-none">Pipeline Cinematográfico IA</p>
                     </div>
                 </a>
-
-                @if(isset($currentProject))
-                    <span class="text-slate-400 dark:text-slate-600">/</span>
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs sm:text-sm font-semibold text-amber-700 dark:text-amber-300 truncate max-w-[200px] sm:max-w-xs">
-                            {{ $currentProject->title }}
-                        </span>
-                        <span class="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
-                            {{ $currentProject->status }}
-                        </span>
-                    </div>
-                @endif
             </div>
 
             <!-- Acciones y Usuario -->
