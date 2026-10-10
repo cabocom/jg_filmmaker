@@ -505,20 +505,8 @@ class AgentClientService
                         // Limpiar nexos anidados 'y que '
                         $dialogueRest = preg_replace('/\s+y\s+que\s+/iu', ' y ', $dialogueRest);
 
-                        // Formatear diálogo canónico
-                        if (str_contains($verb, 'pregunta')) {
-                            if (preg_match('/^(?:quien|quién)\s+(.+)$/iu', $dialogueRest, $mQ)) {
-                                $dialogue = '¿Quién '.$mQ[1].'?';
-                            } elseif (preg_match('/^(?:está|esta|llega|vienen|es|pasa)\b/iu', $dialogueRest)) {
-                                $dialogue = '¿Quién '.$dialogueRest.'?';
-                            } else {
-                                $dialogue = '¿'.ucfirst($dialogueRest).'?';
-                            }
-                        } elseif (str_contains($verb, 'grita')) {
-                            $dialogue = '¡'.ucfirst($dialogueRest).'!';
-                        } else {
-                            $dialogue = ucfirst($dialogueRest).'.';
-                        }
+                        // Iteración y refinamiento dramático a estilo directo (segunda persona)
+                        $dialogue = $this->refineDialogueToDirectSpeech($dialogueRest, $verb);
 
                         if (! empty($actionPart)) {
                             $lines[] = rtrim($actionPart, '.?!').'.';
@@ -699,6 +687,64 @@ class AgentClientService
         }
 
         return ['success' => false, 'output' => '', 'error' => "Herramienta desconocida: {$toolName}"];
+    }
+
+    /**
+     * Nodo de refinamiento dramático iterativo: convierte tercera persona narrativa a interlocución directa en segunda/primera persona.
+     */
+    protected function refineDialogueToDirectSpeech(string $text, string $verb): string
+    {
+        $res = trim($text);
+        $res = preg_replace('/^que\s+/iu', '', $res);
+
+        // Iteración 1: Pronombres y conjugaciones de 3ª persona del destinatario a 2ª persona y 1ª persona
+        $replacements = [
+            '/\bse\s+ha\s+comportado\b/iu' => 'te has comportado',
+            '/\bse\s+ha\s+portado\b/iu' => 'te has portado',
+            '/\bse\s+comportó\b/iu' => 'te comportaste',
+            '/\bvolverse\s+con\s+él\b/iu' => 'volverte conmigo',
+            '/\birse\s+con\s+él\b/iu' => 'irte conmigo',
+            '/\bvenirse\s+con\s+él\b/iu' => 'venirte conmigo',
+            '/\bcon\s+él\b/iu' => 'conmigo',
+            '/\bcon\s+ella\b/iu' => 'conmigo',
+            '/\btiene\s+que\b/iu' => 'tienes que',
+            '/\bdebe\b/iu' => 'debes',
+            '/\bsu\s+castigo\b/iu' => 'tu castigo',
+            '/\bsu\s+culpa\b/iu' => 'tu culpa',
+            '/\bpara\s+recibir\s+su\b/iu' => 'para recibir tu',
+        ];
+
+        foreach ($replacements as $pat => $rep) {
+            $res = preg_replace($pat, $rep, $res);
+        }
+
+        // Iteración 2: Segmentar oraciones compuestas en parlamentos directos punzantes
+        $res = preg_replace('/\s+y\s+que\s+/iu', '. ', $res);
+        $res = preg_replace('/\s+y\s+(tienes|debes|ahora|no|vas)\b/iu', '. $1', $res);
+
+        // Iteración 3: Mayúsculas y puntuación canónica
+        if (str_contains($verb, 'pregunta')) {
+            if (preg_match('/^(?:quien|quién)\s+(.+)$/iu', $res, $mQ)) {
+                return '¿Quién '.$mQ[1].'?';
+            } elseif (preg_match('/^(?:está|esta|llega|vienen|es|pasa)\b/iu', $res)) {
+                return '¿Quién '.$res.'?';
+            }
+
+            return '¿'.ucfirst(rtrim($res, '.?!')).'?';
+        }
+
+        if (str_contains($verb, 'grita')) {
+            return '¡'.ucfirst(rtrim($res, '.?!')).'!';
+        }
+
+        $sentences = preg_split('/(?<=[.?!])\s+/u', $res);
+        $sentences = array_map(function ($s) {
+            $s = trim($s);
+
+            return ucfirst($s);
+        }, $sentences);
+
+        return rtrim(implode(' ', $sentences), '.?!').'.';
     }
 
     /**

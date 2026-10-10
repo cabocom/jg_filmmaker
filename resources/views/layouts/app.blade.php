@@ -139,12 +139,6 @@
                                     {{ strtoupper(auth()->user()->plan_tier ?? 'PRO') }}
                                 </span>
                             </div>
-                            <div class="flex items-center justify-end gap-1 text-[10px] font-mono text-slate-500 dark:text-slate-400 leading-none">
-                                <span>Slots:</span>
-                                <span class="font-bold text-emerald-600 dark:text-emerald-400">{{ auth()->user()->projects()->count() ?? 1 }}</span>
-                                <span>/</span>
-                                <span>{{ auth()->user()->paid_project_slots ?? 5 }}</span>
-                            </div>
                         </div>
 
                         <div class="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center font-bold text-xs text-amber-600 dark:text-amber-300 shadow-inner">
@@ -191,9 +185,6 @@
                             <div class="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                                 <div class="h-full bg-emerald-500 rounded-full transition-all" style="width: {{ min(100, ((auth()->user()->projects()->count() ?? 1) / (auth()->user()->paid_project_slots ?? 5)) * 100) }}%"></div>
                             </div>
-                            <p class="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
-                                Tienes {{ max(0, (auth()->user()->paid_project_slots ?? 5) - (auth()->user()->projects()->count() ?? 1)) }} slots disponibles en tu suscripción.
-                            </p>
                         </div>
 
                         <!-- Opciones Rápidas -->

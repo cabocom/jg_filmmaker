@@ -1,30 +1,20 @@
 <div class="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors">
-    <!-- ================= BARRA SUPERIOR STICKY: ESCENAS Y PIPELINE ================= -->
+    <!-- ================= BARRA SUPERIOR STICKY: MODO STORYARCHITECT Y PIPELINE ================= -->
     <div class="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 shadow-sm backdrop-blur-md px-4 sm:px-6 lg:px-8 py-3 transition-colors">
         <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <!-- Selector de Escena Activa -->
-            <div class="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-thin">
-                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 shrink-0">Escenas:</span>
-                <div class="flex items-center gap-1.5">
-                    @forelse($scenes as $scene)
-                        <button wire:click="selectScene('{{ $scene->id }}')"
-                                type="button"
-                                class="px-2.5 py-1 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 border {{ $activeSceneId === $scene->id ? 'bg-amber-500 text-slate-950 font-bold border-amber-400 shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:border-slate-700' }}">
-                            <span>#{{ $scene->scene_order }}</span>
-                            <span class="truncate max-w-[120px] sm:max-w-[180px]">{{ $scene->slugline }}</span>
-                        </button>
-                    @empty
-                        <span class="text-xs text-slate-400 italic">No hay escenas creadas.</span>
-                    @endforelse
-
-                    <button wire:click="$set('showNewSceneModal', true)"
-                            type="button"
-                            class="px-2 py-1 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-amber-700 border border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-amber-400 dark:border-slate-700 transition flex items-center gap-1 shrink-0"
-                            title="Añadir Escena">
-                        <span>+</span>
-                        <span class="hidden sm:inline">Nueva Escena</span>
-                    </button>
-                </div>
+            <!-- Título y Acción de Escenas -->
+            <div class="flex items-center gap-3">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Escenas:</span>
+                <span class="px-2 py-0.5 rounded-lg text-xs font-bold font-mono bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                    {{ $scenes->count() }} en guión
+                </span>
+                <button wire:click="openNewSceneModal()"
+                        type="button"
+                        class="px-2.5 py-1 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition flex items-center gap-1 shadow-xs cursor-pointer"
+                        title="Añadir Escena al final del guión">
+                    <span>+</span>
+                    <span>Nueva Escena</span>
+                </button>
             </div>
 
             <!-- Menú del Pipeline Ordenado Estrictamente: Idea > Tratamiento > Guión > Planos/Tomas > Montaje -->
@@ -70,19 +60,11 @@
                         🎬 Montaje
                     </button>
                 </div>
-
-                <!-- Botón Añadir Bloque en Barra Superior -->
-                <button wire:click="openNewBlockModal"
-                        type="button"
-                        class="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-xs transition flex items-center gap-1 shrink-0">
-                    <span>+</span>
-                    <span>Añadir Bloque</span>
-                </button>
             </div>
         </div>
     </div>
 
-    <!-- ================= CONTENEDOR PRINCIPAL (ALINEADO AL LOGOTIPO CON MAX-W-7XL) ================= -->
+    <!-- ================= CONTENEDOR PRINCIPAL STORYARCHITECT ================= -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         <!-- Mensajes Flash -->
         @if(session()->has('success'))
@@ -94,80 +76,45 @@
             </div>
         @endif
 
-        @if($activeScene)
-            <!-- Encabezado de la Escena Activa (Slugline) -->
-            <div class="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition">
-                <div>
-                    <div class="flex items-center gap-2 text-xs font-mono text-amber-600 dark:text-amber-400 mb-1">
-                        <span class="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 font-bold">ESCENA {{ $activeScene->scene_order }}</span>
-                        <span>•</span>
-                        <span class="text-slate-500 dark:text-slate-400">{{ $activeScene->time_of_day }}</span>
-                        @if($activeScene->location)
-                            <span>•</span>
-                            <span class="text-slate-700 dark:text-slate-300 font-bold">{{ $activeScene->location->name }} ({{ $activeScene->location->type }})</span>
-                        @endif
-                    </div>
-                    <h2 class="text-lg sm:text-xl font-bold font-mono tracking-tight text-slate-900 dark:text-white uppercase">
-                        {{ $activeScene->slugline }}
-                    </h2>
-                </div>
+        @if($pipelineStage === 'timeline')
+            <!-- Subvista de Montaje / RoughCutTimeline -->
+            <livewire:studio.rough-cut-timeline :project="$project" :active-scene-id="$activeSceneId" :key="'timeline-'.$activeSceneId" />
+        @else
+            <!-- ================= FLUJO VERTICAL CONTINUO DE ESCENAS (MODO STORYARCHITECT) ================= -->
+            <div class="space-y-4">
+                @forelse($scenes as $scene)
+                    @php
+                        $isExpanded = in_array($scene->id, $expandedSceneIds);
+                    @endphp
 
-                <div class="text-xs text-slate-500 dark:text-slate-400 font-mono">
-                    <span>{{ $activeScene->scriptBlocks->count() }} bloques en escena</span>
-                </div>
-            </div>
+                    <!-- Tarjeta de Escena con Soporte Drag & Drop y Acordeón -->
+                    <div id="scene-card-{{ $scene->id }}"
+                         x-data="{ isDraggingScene: false, isOverScene: false }"
+                         @dragover.prevent="isOverScene = true"
+                         @dragleave="isOverScene = false"
+                         @drop.prevent="
+                             isOverScene = false;
+                             const srcSceneId = event.dataTransfer.getData('scene-id');
+                             if (srcSceneId && srcSceneId !== '{{ $scene->id }}') {
+                                 $wire.reorderScene(srcSceneId, {{ $scene->scene_order }});
+                             }
+                         "
+                         :class="{
+                             'opacity-40': isDraggingScene,
+                             'border-amber-500 ring-2 ring-amber-500/50 bg-amber-500/5': isOverScene
+                         }"
+                         class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm transition-all overflow-hidden mb-5">
 
-            @if($pipelineStage === 'timeline')
-                <!-- Subvista de Montaje / RoughCutTimeline -->
-                <livewire:studio.rough-cut-timeline :project="$project" :active-scene-id="$activeSceneId" :key="'timeline-'.$activeSceneId" />
-            @else
-                <!-- ================= FEED CONTINUO DE BLOQUES DE LA HISTORIA ================= -->
-                <div class="py-1 space-y-0.5">
-                    <!-- Botón Gutenberg Inicial (Insertar antes del primer bloque, visible en hover) -->
-                    <div class="relative group h-8 -my-2 flex items-center justify-center cursor-pointer z-20">
-                        <div class="absolute inset-x-0 h-0.5 bg-amber-500 dark:bg-amber-400 opacity-0 group-hover:opacity-100 transition-all duration-150 pointer-events-none shadow-xs" aria-hidden="true"></div>
-                        <button wire:click="openNewBlockModal(0)"
-                                type="button"
-                                title="Insertar bloque al inicio"
-                                class="relative z-10 opacity-0 group-hover:opacity-100 transform scale-75 group-hover:scale-100 inline-flex items-center justify-center w-8 h-8 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-md shadow-amber-500/40 border-2 border-white dark:border-slate-900 transition-all duration-150 hover:scale-110 cursor-pointer">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                            </svg>
-                        </button>
-                    </div>
-
-                    @forelse($activeScene->scriptBlocks as $block)
-                        @php
-                            $isSelected = ($selectedBlockId === $block->id);
-                        @endphp
-
-                        <!-- Elemento Continuo de Bloque con soporte Drag & Drop y lectura fluida -->
-                        <div id="block-{{ $block->id }}"
-                             x-data="{ isDragging: false, isOver: false }"
-                             @dragover.prevent="isOver = true"
-                             @dragleave="isOver = false"
-                             @drop.prevent="
-                                 isOver = false;
-                                 const srcId = event.dataTransfer.getData('text/plain');
-                                 if (srcId && srcId !== '{{ $block->id }}') {
-                                     $wire.reorderBlock(srcId, {{ $block->block_order }});
-                                 }
-                             "
-                             :class="{
-                                 'opacity-40': isDragging,
-                                 'border-amber-500 ring-2 ring-amber-500/50 bg-amber-50/50 dark:bg-amber-950/30': isOver
-                             }"
-                             wire:click="selectBlock('{{ $block->id }}')"
-                             class="group relative rounded-xl px-3 py-1.5 transition-all cursor-pointer border-l-2 {{ $isSelected ? 'bg-amber-500/10 dark:bg-amber-400/10 border-amber-500 shadow-2xs' : 'border-transparent hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700' }}">
-
-                            <div class="flex items-start gap-2.5">
-                                <!-- Handle para Drag & Drop (Visible y evidente para reordenar bloques) -->
+                        <!-- Cabecera de la Escena (Slugline, Acordeón y Drag Handle) -->
+                        <div class="px-4 py-3 bg-slate-50/90 dark:bg-slate-950/80 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <!-- Tirador Drag & Drop de la Escena (Físico, visible y claro) -->
                                 <div draggable="true"
-                                     @dragstart.stop="event.dataTransfer.setData('text/plain', '{{ $block->id }}'); event.dataTransfer.effectAllowed = 'move'; isDragging = true"
-                                     @dragend="isDragging = false"
-                                     title="Arrastrar para mover este bloque de posición"
-                                     class="shrink-0 p-1 -ml-1 rounded opacity-50 group-hover:opacity-100 hover:!opacity-100 transition-all cursor-grab active:cursor-grabbing text-slate-400 dark:text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-500/10 select-none flex items-center justify-center">
-                                    <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                                     @dragstart.stop="event.dataTransfer.setData('scene-id', '{{ $scene->id }}'); event.dataTransfer.effectAllowed = 'move'; isDraggingScene = true"
+                                     @dragend="isDraggingScene = false"
+                                     title="Arrastrar para mover de posición esta escena"
+                                     class="shrink-0 w-6 h-6 rounded-md bg-slate-200/80 hover:bg-amber-500 dark:bg-slate-800 dark:hover:bg-amber-500 text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-slate-950 border border-slate-300 dark:border-slate-700 flex items-center justify-center cursor-grab active:cursor-grabbing transition shadow-2xs select-none">
+                                    <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                                         <circle cx="7" cy="4" r="1.5" />
                                         <circle cx="13" cy="4" r="1.5" />
                                         <circle cx="7" cy="10" r="1.5" />
@@ -177,106 +124,207 @@
                                     </svg>
                                 </div>
 
-                                <!-- Texto de la Historia según la etapa del menú superior -->
-                                <div class="flex-1 min-w-0">
-                                    @if($pipelineStage === 'idea')
-                                        <!-- Etapa 1: Idea / Original / Texto Bruto -->
-                                        <div class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed font-sans whitespace-pre-line text-left">{{ trim($block->raw_text ?: 'Sin notas o texto en bruto.') }}</div>
-                                    @elseif($pipelineStage === 'structured')
-                                        <!-- Etapa 2: Tratamiento Cinematográfico -->
-                                        @if(!empty($block->structured_text))
-                                            <div class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed font-sans whitespace-pre-line text-left">{{ trim($block->structured_text) }}</div>
-                                        @else
-                                            <div class="py-0.5 flex items-center justify-between text-xs italic text-slate-400 dark:text-slate-500">
-                                                <span>[Tratamiento pendiente de estructurar para este bloque]</span>
-                                                <button wire:click.stop="openBlockDetails('{{ $block->id }}', 'structured')" class="text-indigo-600 dark:text-indigo-400 font-semibold hover:underline cursor-pointer">
-                                                    ⚡ Abrir detalles para estructurar ➔
-                                                </button>
-                                            </div>
-                                        @endif
-                                    @elseif($pipelineStage === 'screenplay')
-                                        <!-- Etapa 3: Guión Literario (Fountain) -->
-                                        @if(!empty($block->screenplay_content))
-                                            <div class="font-screenplay text-sm text-slate-900 dark:text-amber-100 leading-relaxed whitespace-pre-wrap max-w-2xl text-left">{{ trim($block->screenplay_content) }}</div>
-                                        @else
-                                            <div class="py-0.5 flex items-center justify-between text-xs italic text-slate-400 dark:text-slate-500">
-                                                <span>[Guión literario pendiente de formatear para este bloque]</span>
-                                                <button wire:click.stop="openBlockDetails('{{ $block->id }}', 'screenplay')" class="text-amber-600 dark:text-amber-400 font-semibold hover:underline cursor-pointer">
-                                                    🎬 Abrir detalles para convertir a guión ➔
-                                                </button>
-                                            </div>
-                                        @endif
-                                    @elseif($pipelineStage === 'shots')
-                                        <!-- Etapa 4: Planos y Tomas -->
-                                        @if($block->shots->isNotEmpty())
-                                            <div class="space-y-1.5">
-                                                @foreach($block->shots as $shot)
-                                                    <div class="p-2 rounded-lg bg-slate-50/80 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
-                                                        <div class="flex items-center gap-2">
-                                                            <span class="font-mono font-bold text-cyan-700 bg-cyan-50 dark:text-cyan-300 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-800/50 px-1.5 py-0.5 rounded text-[11px]">
-                                                                --- shot {{ $shot->shot_number }} ({{ $shot->shot_type }}) ---
-                                                            </span>
-                                                            <span class="text-slate-700 dark:text-slate-300">{{ $shot->description }}</span>
-                                                        </div>
-                                                        <span class="text-[11px] text-slate-500 font-mono">{{ $shot->takes->count() }} tomas</span>
-                                                    </div>
-                                                @endforeach
-                                            </div>
-                                        @else
-                                            <div class="py-0.5 flex items-center justify-between text-xs italic text-slate-400 dark:text-slate-500">
-                                                <span>[Sin planos técnicos desglosados en este bloque]</span>
-                                                <button wire:click.stop="openBlockDetails('{{ $block->id }}', 'shots')" class="text-cyan-600 dark:text-cyan-400 font-semibold hover:underline cursor-pointer">
-                                                    📹 Abrir detalles para desglosar planos ➔
-                                                </button>
-                                            </div>
-                                        @endif
-                                    @endif
-                                </div>
+                                <!-- Botón Toggle de Acordeón -->
+                                <button wire:click="toggleScene('{{ $scene->id }}')"
+                                        type="button"
+                                        class="flex items-center gap-2.5 text-left truncate cursor-pointer group">
+                                    <svg class="w-4 h-4 text-slate-400 group-hover:text-amber-500 transition-transform duration-200 {{ $isExpanded ? 'rotate-90 text-amber-500' : '' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+                                    </svg>
 
-                                <!-- Botón de Detalles flotando a la derecha a la misma altura que la primera línea de texto -->
-                                <div class="shrink-0 pt-0.5 opacity-25 group-hover:opacity-100 transition-opacity">
-                                    <button wire:click.stop="openBlockDetails('{{ $block->id }}')"
-                                            type="button"
-                                            title="Abrir detalles y etapas en panel lateral"
-                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-700 dark:hover:text-amber-300 transition shadow-2xs cursor-pointer">
-                                        <span class="text-xs">📑</span>
-                                        <span class="text-[11px] font-bold">Detalles</span>
-                                    </button>
-                                </div>
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                                            ESCENA {{ $scene->scene_order }}
+                                        </span>
+                                        <span class="text-xs text-slate-500 font-mono">{{ $scene->time_of_day }}</span>
+                                        @if($scene->location)
+                                            <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 font-mono">{{ $scene->location->name }} ({{ $scene->location->type }})</span>
+                                        @endif
+                                        <span class="text-sm font-mono font-bold text-slate-900 dark:text-white uppercase truncate">
+                                            {{ $scene->slugline }}
+                                        </span>
+                                    </div>
+                                </button>
+                            </div>
+
+                            <div class="flex items-center gap-3 shrink-0">
+                                <span class="text-xs text-slate-400 font-mono">{{ $scene->scriptBlocks->count() }} bloques</span>
+                                <button wire:click="openNewBlockModal(null, '{{ $scene->id }}')"
+                                        type="button"
+                                        title="Añadir bloque a esta escena"
+                                        class="px-2 py-1 rounded-lg text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-amber-400 hover:text-amber-600 transition shadow-2xs cursor-pointer flex items-center gap-1">
+                                    <span>+</span>
+                                    <span class="hidden sm:inline">Bloque</span>
+                                </button>
                             </div>
                         </div>
 
-                        <!-- Divisor Gutenberg Intermedio (Línea horizontal continua y botón central SOLO en hover) -->
-                        <div class="relative group h-8 -my-2.5 flex items-center justify-center cursor-pointer z-20">
-                            <div class="absolute inset-x-0 h-0.5 bg-amber-500 dark:bg-amber-400 opacity-0 group-hover:opacity-100 transition-all duration-150 pointer-events-none shadow-xs" aria-hidden="true"></div>
-                            <button wire:click="openNewBlockModal({{ $block->block_order }})"
-                                    type="button"
-                                    title="Añadir bloque aquí"
-                                    class="relative z-10 opacity-0 group-hover:opacity-100 transform scale-75 group-hover:scale-100 inline-flex items-center justify-center w-8 h-8 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-md shadow-amber-500/40 border-2 border-white dark:border-slate-900 transition-all duration-150 hover:scale-110 cursor-pointer">
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                                </svg>
-                            </button>
-                        </div>
-                    @empty
-                        <div class="text-center py-12 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 p-6 space-y-3">
-                            <span class="text-3xl">📝</span>
-                            <p class="text-sm text-slate-600 dark:text-slate-400 font-medium">No hay bloques en esta escena todavía.</p>
-                            <button wire:click="openNewBlockModal" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-sm">
-                                + Crear Primer Bloque
-                            </button>
-                        </div>
-                    @endforelse
-                </div>
-            @endif
-        @else
-            <div class="text-center py-16 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 space-y-4">
-                <span class="text-4xl">🎬</span>
-                <h3 class="text-base font-bold text-slate-900 dark:text-white">Selecciona o crea una escena para comenzar</h3>
-                <p class="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">Cada escena organiza la acción dramática mediante bloques encadenados a través del pipeline cinematográfico.</p>
-                <button wire:click="$set('showNewSceneModal', true)" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-md">
-                    + Crear Escena
-                </button>
+                        <!-- Contenido de Bloques de la Escena (Acordeón expandible) -->
+                        @if($isExpanded)
+                            <div class="p-3 sm:p-5 space-y-1">
+                                <!-- Divisor Inicial de Bloque (Con línea visible y botón central +) -->
+                                <div class="relative group py-2 my-0.5 flex items-center justify-center cursor-pointer">
+                                    <div class="w-full border-t border-dashed border-slate-200 dark:border-slate-800 group-hover:border-solid group-hover:border-amber-500 group-hover:border-t-2 transition-all"></div>
+                                    <button wire:click="openNewBlockModal(0, '{{ $scene->id }}')"
+                                            type="button"
+                                            title="Insertar bloque al inicio de la escena"
+                                            class="absolute z-10 w-6 h-6 group-hover:w-8 group-hover:h-8 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-amber-500 text-slate-600 group-hover:text-slate-950 font-bold text-xs flex items-center justify-center border border-slate-300 dark:border-slate-700 group-hover:border-amber-400 shadow-2xs group-hover:shadow-md transition-all cursor-pointer">
+                                        +
+                                    </button>
+                                </div>
+
+                                @forelse($scene->scriptBlocks as $block)
+                                    @php
+                                        $isSelected = ($selectedBlockId === $block->id);
+                                    @endphp
+
+                                    <!-- Elemento Continuo de Bloque con Drag & Drop y lectura fluida -->
+                                    <div id="block-{{ $block->id }}"
+                                         x-data="{ isDragging: false, isOver: false }"
+                                         @dragover.prevent="isOver = true"
+                                         @dragleave="isOver = false"
+                                         @drop.prevent="
+                                             isOver = false;
+                                             const srcId = event.dataTransfer.getData('text/plain');
+                                             if (srcId && srcId !== '{{ $block->id }}') {
+                                                 $wire.reorderBlock(srcId, {{ $block->block_order }}, '{{ $scene->id }}');
+                                             }
+                                         "
+                                         :class="{
+                                             'opacity-40': isDragging,
+                                             'border-amber-500 ring-2 ring-amber-500/50 bg-amber-50/50 dark:bg-amber-950/30': isOver
+                                         }"
+                                         wire:click="selectBlock('{{ $block->id }}')"
+                                         class="group relative rounded-xl px-3 py-1.5 transition-all cursor-pointer border-l-2 {{ $isSelected ? 'bg-amber-500/10 dark:bg-amber-400/10 border-amber-500 shadow-2xs' : 'border-transparent hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700' }}">
+
+                                        <div class="flex items-start gap-2.5">
+                                            <!-- Handle para Drag & Drop (Totalmente visible con botón físico) -->
+                                            <div draggable="true"
+                                                 @dragstart.stop="event.dataTransfer.setData('text/plain', '{{ $block->id }}'); event.dataTransfer.effectAllowed = 'move'; isDragging = true"
+                                                 @dragend="isDragging = false"
+                                                 title="Arrastrar para mover este bloque de posición"
+                                                 class="shrink-0 w-6 h-7 rounded-md bg-slate-100 hover:bg-amber-500 dark:bg-slate-800 dark:hover:bg-amber-500 text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-slate-950 border border-slate-200/90 dark:border-slate-700/90 flex items-center justify-center cursor-grab active:cursor-grabbing transition shadow-2xs select-none">
+                                                <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                                    <circle cx="7" cy="4" r="1.5" />
+                                                    <circle cx="13" cy="4" r="1.5" />
+                                                    <circle cx="7" cy="10" r="1.5" />
+                                                    <circle cx="13" cy="10" r="1.5" />
+                                                    <circle cx="7" cy="16" r="1.5" />
+                                                    <circle cx="13" cy="16" r="1.5" />
+                                                </svg>
+                                            </div>
+
+                                            <!-- Texto de la Historia según la etapa del menú superior -->
+                                            <div class="flex-1 min-w-0">
+                                                @if($pipelineStage === 'idea')
+                                                    <!-- Etapa 1: Idea / Original / Texto Bruto -->
+                                                    <div class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed font-sans whitespace-pre-line text-left">{{ trim($block->raw_text ?: 'Sin notas o texto en bruto.') }}</div>
+                                                @elseif($pipelineStage === 'structured')
+                                                    <!-- Etapa 2: Tratamiento Cinematográfico -->
+                                                    @if(!empty($block->structured_text))
+                                                        <div class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed font-sans whitespace-pre-line text-left">{{ trim($block->structured_text) }}</div>
+                                                    @else
+                                                        <div class="py-0.5 flex items-center justify-between text-xs italic text-slate-400 dark:text-slate-500">
+                                                            <span>[Tratamiento pendiente de estructurar para este bloque]</span>
+                                                            <button wire:click.stop="openBlockDetails('{{ $block->id }}', 'structured')" class="text-indigo-600 dark:text-indigo-400 font-semibold hover:underline cursor-pointer">
+                                                                ⚡ Abrir detalles para estructurar ➔
+                                                            </button>
+                                                        </div>
+                                                    @endif
+                                                @elseif($pipelineStage === 'screenplay')
+                                                    <!-- Etapa 3: Guión Literario (Fountain) -->
+                                                    @if(!empty($block->screenplay_content))
+                                                        <div class="font-screenplay text-sm text-slate-900 dark:text-amber-100 leading-relaxed whitespace-pre-wrap max-w-2xl text-left">{{ trim($block->screenplay_content) }}</div>
+                                                    @else
+                                                        <div class="py-0.5 flex items-center justify-between text-xs italic text-slate-400 dark:text-slate-500">
+                                                            <span>[Guión literario pendiente de formatear para este bloque]</span>
+                                                            <button wire:click.stop="openBlockDetails('{{ $block->id }}', 'screenplay')" class="text-amber-600 dark:text-amber-400 font-semibold hover:underline cursor-pointer">
+                                                                🎬 Abrir detalles para convertir a guión ➔
+                                                            </button>
+                                                        </div>
+                                                    @endif
+                                                @elseif($pipelineStage === 'shots')
+                                                    <!-- Etapa 4: Planos y Tomas -->
+                                                    @if($block->shots->isNotEmpty())
+                                                        <div class="space-y-1.5">
+                                                            @foreach($block->shots as $shot)
+                                                                <div class="p-2 rounded-lg bg-slate-50/80 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+                                                                    <div class="flex items-center gap-2">
+                                                                        <span class="font-mono font-bold text-cyan-700 bg-cyan-50 dark:text-cyan-300 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-800/50 px-1.5 py-0.5 rounded text-[11px]">
+                                                                            --- shot {{ $shot->shot_number }} ({{ $shot->shot_type }}) ---
+                                                                        </span>
+                                                                        <span class="text-slate-700 dark:text-slate-300">{{ $shot->description }}</span>
+                                                                    </div>
+                                                                    <span class="text-[11px] text-slate-500 font-mono">{{ $shot->takes->count() }} tomas</span>
+                                                                </div>
+                                                            @endforeach
+                                                        </div>
+                                                    @else
+                                                        <div class="py-0.5 flex items-center justify-between text-xs italic text-slate-400 dark:text-slate-500">
+                                                            <span>[Sin planos técnicos desglosados en este bloque]</span>
+                                                            <button wire:click.stop="openBlockDetails('{{ $block->id }}', 'shots')" class="text-cyan-600 dark:text-cyan-400 font-semibold hover:underline cursor-pointer">
+                                                                📹 Abrir detalles para desglosar planos ➔
+                                                            </button>
+                                                        </div>
+                                                    @endif
+                                                @endif
+                                            </div>
+
+                                            <!-- Botón de Detalles flotando a la derecha -->
+                                            <div class="shrink-0 pt-0.5 opacity-25 group-hover:opacity-100 transition-opacity">
+                                                <button wire:click.stop="openBlockDetails('{{ $block->id }}')"
+                                                        type="button"
+                                                        title="Abrir detalles y etapas en panel lateral"
+                                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-700 dark:hover:text-amber-300 transition shadow-2xs cursor-pointer">
+                                                    <span class="text-xs">📑</span>
+                                                    <span class="text-[11px] font-bold">Detalles</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Divisor Gutenberg Intermedio (Línea visible + botón central) -->
+                                    <div class="relative group py-2.5 my-1 flex items-center justify-center cursor-pointer">
+                                        <div class="w-full border-t border-slate-200 dark:border-slate-800 group-hover:border-amber-500 group-hover:border-t-2 transition-all"></div>
+                                        <button wire:click="openNewBlockModal({{ $block->block_order }}, '{{ $scene->id }}')"
+                                                type="button"
+                                                title="Añadir bloque aquí"
+                                                class="absolute z-10 w-6 h-6 group-hover:w-8 group-hover:h-8 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-amber-500 text-slate-700 group-hover:text-slate-950 font-bold text-xs flex items-center justify-center border border-slate-300 dark:border-slate-700 group-hover:border-amber-400 shadow-2xs group-hover:shadow-md transition-all cursor-pointer">
+                                            +
+                                        </button>
+                                    </div>
+                                @empty
+                                    <div class="text-center py-8 bg-slate-50 dark:bg-slate-950 rounded-xl border border-dashed border-slate-300 dark:border-slate-800 p-4 space-y-2">
+                                        <p class="text-xs text-slate-500 font-medium">No hay bloques en esta escena todavía.</p>
+                                        <button wire:click="openNewBlockModal(null, '{{ $scene->id }}')" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-lg shadow-2xs cursor-pointer">
+                                            + Crear Primer Bloque
+                                        </button>
+                                    </div>
+                                @endforelse
+                            </div>
+                        @endif
+                    </div>
+
+                    <!-- Divisor Gutenberg entre Escenas (+ Nueva Escena Aquí) -->
+                    <div class="my-6 relative group flex items-center justify-center cursor-pointer">
+                        <div class="w-full border-t-2 border-dashed border-slate-300 dark:border-slate-800 group-hover:border-solid group-hover:border-amber-500 transition-all"></div>
+                        <button wire:click="openNewSceneModal({{ $scene->scene_order }})"
+                                type="button"
+                                class="absolute z-10 px-3 py-1 rounded-full bg-white dark:bg-slate-900 group-hover:bg-amber-500 text-slate-700 dark:text-slate-200 group-hover:text-slate-950 border border-slate-300 dark:border-slate-700 group-hover:border-amber-400 font-bold text-xs shadow-xs transition-all flex items-center gap-1 cursor-pointer">
+                            <span>+</span>
+                            <span>Nueva Escena Aquí</span>
+                        </button>
+                    </div>
+                @empty
+                    <div class="text-center py-16 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 space-y-4">
+                        <span class="text-4xl">🎬</span>
+                        <h3 class="text-base font-bold text-slate-900 dark:text-white">No hay escenas en este proyecto todavía</h3>
+                        <p class="text-xs text-slate-500 max-w-md mx-auto">Crea la primera escena para redactar tu guión al estilo StoryArchitect.</p>
+                        <button wire:click="openNewSceneModal()" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-md">
+                            + Crear Primera Escena
+                        </button>
+                    </div>
+                @endforelse
             </div>
         @endif
     </div>

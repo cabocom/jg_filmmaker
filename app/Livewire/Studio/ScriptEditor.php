@@ -85,11 +85,20 @@ class ScriptEditor extends Component
     // Formulario para nueva escena
     public bool $showNewSceneModal = false;
 
+    public ?int $insertSceneAfterOrder = null;
+
     public string $newSceneSlugline = 'INT. NUEVA LOCALIZACIÓN - DÍA 1';
 
     public string $newSceneTimeOfDay = 'DÍA';
 
     public ?string $newSceneLocationId = null;
+
+    /**
+     * IDs de escenas expandidas en el acordeón vertical (Modo StoryArchitect).
+     *
+     * @var array<int, string>
+     */
+    public array $expandedSceneIds = [];
 
     // Formulario para nuevo plano técnico
     public bool $showNewShotModal = false;
@@ -117,6 +126,9 @@ class ScriptEditor extends Component
             $this->activeSceneId = $firstScene->id;
             $this->selectedBlockId = null;
         }
+
+        // Por defecto, todas las escenas expandidas para lectura continua vertical estilo StoryArchitect
+        $this->expandedSceneIds = $this->project->scenes()->pluck('id')->toArray();
     }
 
     public function selectScene(string $sceneId): void
@@ -230,8 +242,11 @@ class ScriptEditor extends Component
         session()->flash('success', "Bloque #{$block->block_order} guardado correctamente.");
     }
 
-    public function openNewBlockModal(?int $afterOrder = null): void
+    public function openNewBlockModal(?int $afterOrder = null, ?string $sceneId = null): void
     {
+        if ($sceneId) {
+            $this->activeSceneId = $sceneId;
+        }
         $this->insertAfterOrder = $afterOrder;
         $this->newBlockRawText = '';
         $this->showNewBlockModal = true;
@@ -285,21 +300,27 @@ class ScriptEditor extends Component
         session()->flash('success', "Bloque #{$newBlock->block_order} creado e insertado en la escena.");
     }
 
-    public function reorderBlock(string $draggedBlockId, int $targetOrder): void
+    public function reorderBlock(string $draggedBlockId, int $targetOrder, ?string $sceneId = null): void
     {
-        if (! $this->activeSceneId) {
+        $sceneTargetId = $sceneId ?: $this->activeSceneId;
+        if (! $sceneTargetId) {
             return;
         }
 
-        DB::transaction(function () use ($draggedBlockId, $targetOrder) {
-            $blocks = ScriptBlock::where('scene_id', $this->activeSceneId)
-                ->orderBy('block_order')
-                ->get();
-
-            $dragged = $blocks->firstWhere('id', $draggedBlockId);
+        DB::transaction(function () use ($draggedBlockId, $targetOrder, $sceneTargetId) {
+            $dragged = ScriptBlock::find($draggedBlockId);
             if (! $dragged) {
                 return;
             }
+
+            if ($dragged->scene_id !== $sceneTargetId) {
+                $dragged->update(['scene_id' => $sceneTargetId]);
+                $dragged->refresh();
+            }
+
+            $blocks = ScriptBlock::where('scene_id', $sceneTargetId)
+                ->orderBy('block_order')
+                ->get();
 
             $remaining = $blocks->reject(fn ($b) => $b->id === $draggedBlockId)->values();
             $targetIndex = max(0, min($targetOrder - 1, $remaining->count()));
@@ -321,6 +342,52 @@ class ScriptEditor extends Component
         session()->flash('success', 'Bloque reordenado correctamente.');
     }
 
+    public function toggleScene(string $sceneId): void
+    {
+        if (in_array($sceneId, $this->expandedSceneIds, true)) {
+            $this->expandedSceneIds = array_values(array_diff($this->expandedSceneIds, [$sceneId]));
+        } else {
+            $this->expandedSceneIds[] = $sceneId;
+        }
+    }
+
+    public function openNewSceneModal(?int $afterOrder = null): void
+    {
+        $this->insertSceneAfterOrder = $afterOrder;
+        $this->newSceneSlugline = 'INT. NUEVA LOCALIZACIÓN - DÍA 1';
+        $this->newSceneTimeOfDay = 'DÍA';
+        $this->newSceneLocationId = null;
+        $this->showNewSceneModal = true;
+    }
+
+    public function reorderScene(string $draggedSceneId, int $targetOrder): void
+    {
+        DB::transaction(function () use ($draggedSceneId, $targetOrder) {
+            $scenes = $this->project->scenes()->orderBy('scene_order')->get();
+            $dragged = $scenes->firstWhere('id', $draggedSceneId);
+            if (! $dragged) {
+                return;
+            }
+
+            $remaining = $scenes->reject(fn ($s) => $s->id === $draggedSceneId)->values();
+            $targetIndex = max(0, min($targetOrder - 1, $remaining->count()));
+
+            $newScenes = $remaining->slice(0, $targetIndex)
+                ->concat([$dragged])
+                ->concat($remaining->slice($targetIndex))
+                ->values();
+
+            foreach ($newScenes as $idx => $sc) {
+                $order = $idx + 1;
+                if ($sc->scene_order !== $order) {
+                    $sc->update(['scene_order' => $order]);
+                }
+            }
+        });
+
+        session()->flash('success', 'Escena reordenada correctamente.');
+    }
+
     public function createScene(): void
     {
         $this->validate([
@@ -328,10 +395,18 @@ class ScriptEditor extends Component
             'newSceneTimeOfDay' => 'required',
         ]);
 
-        $maxOrder = $this->project->scenes()->max('scene_order') ?? 0;
+        if ($this->insertSceneAfterOrder !== null) {
+            $this->project->scenes()
+                ->where('scene_order', '>', $this->insertSceneAfterOrder)
+                ->increment('scene_order');
+            $newOrder = $this->insertSceneAfterOrder + 1;
+        } else {
+            $maxOrder = $this->project->scenes()->max('scene_order') ?? 0;
+            $newOrder = $maxOrder + 1;
+        }
 
         $scene = $this->project->scenes()->create([
-            'scene_order' => $maxOrder + 1,
+            'scene_order' => $newOrder,
             'slugline' => strtoupper(trim($this->newSceneSlugline)),
             'time_of_day' => strtoupper(trim($this->newSceneTimeOfDay)),
             'location_id' => $this->newSceneLocationId ?: null,
@@ -962,7 +1037,14 @@ class ScriptEditor extends Component
 
     public function render()
     {
-        $scenes = $this->project->scenes()->with('location')->orderBy('scene_order')->get();
+        $scenes = $this->project->scenes()
+            ->with([
+                'location',
+                'scriptBlocks' => fn ($q) => $q->orderBy('block_order'),
+                'scriptBlocks.shots.takes',
+            ])
+            ->orderBy('scene_order')
+            ->get();
 
         $activeScene = null;
         if ($this->activeSceneId) {

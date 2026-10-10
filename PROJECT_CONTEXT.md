@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 2.8.0  
+**Versión del documento:** 2.9.0  
 **Fecha de consolidación:** 10 de octubre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 3/4, Tailwind CSS v4, PHP 8.4, PostgreSQL / SQLite, FFmpeg, PHPUnit 12, Laravel Pint  
-**Estado:** Fases 1 a 13 implementadas al 100% (Línea continua horizontal Gutenberg y botón central emergente en hover para inserción exacta de bloques, Tirador visual permanente y reactivo de Drag & Drop para reordenar bloques, Motor robusto de Detección de Diálogos y Habla Indirecta con acotaciones circunstanciales y resolución de sujetos elípticos en PHP y Python, Sincronización y montaje del plugin `jg_plugin_filmmaker` en `jg_agente_conversacional`).
+**Estado:** Fases 1 a 14 implementadas al 100% (Modo StoryArchitect con escenas en acordeón vertical continuo agrupando bloques, Drag & Drop y botón '+' Gutenberg entre escenas, tiradores físicos de arrastre siempre visibles, eliminación de botón superfluo de bloque, refinamiento de diálogos a estilo directo teatral iterando sobre la salida, limpieza de slots en menú de usuario).
 
 ---
 
@@ -215,6 +215,14 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
   - **Eliminación de Sangrías en `<pre>` y Bloques de Texto:** Se eliminaron todos los espacios y saltos de línea residuales entre el cierre del tag Blade y la variable, asegurando que todos los textos, prompts y JSONs comiencen alineados a la izquierda (`text-left`) y desde arriba sin descuadres visuales.
   - **Unificación de Tarjetas en Drawer Lateral:** Los textos de las etapas de Bruto (`raw`), Tratamiento (`structured`) y Guión (`screenplay`) comparten exactamente el mismo contenedor (`p-5 rounded-xl bg-indigo-50/20 border border-indigo-200/50`), la misma tipografía y márgenes homogéneos.
   - **Limpieza de Badges Innecesarios:** Eliminación del badge superfluo `200 OK` en la cabecera del modal de trazabilidad.
+- **Modo StoryArchitect, Drag & Drop Ergonómico y Refinamiento Teatral Directo (Fase 14):**
+  - **Organización de Escenas en Acordeón Vertical (Estilo StoryArchitect):** Se reemplazaron las pestañas horizontales de escenas por un listado continuo vertical donde todas las escenas aparecen una tras otra. Cada escena actúa como un acordeón desplegable/colapsable (expandidas todas por defecto para lectura fluida) que agrupa sus bloques respectivos, permitiendo leer el guión de extremo a extremo sin saltar de pantalla.
+  - **Reordenación y Drag & Drop de Escenas:** Cada encabezado de escena cuenta con su tirador Drag & Drop nativo y soporta reordenación atómica `reorderScene` con transacciones de base de datos.
+  - **Inserción Intermedia de Escenas (+ Gutenberg):** Entre escena y escena se sitúa una línea divisoria horizontal con botón circular `+ Nueva Escena Aquí` para crear escenas intermedias asignando el orden secuencial automáticamente.
+  - **Tiradores Físicos y Líneas Gutenberg con Presencia Visual:** Se reemplazó la invisibilidad completa en reposo (`opacity-0`) por tiradores físicos visibles con contraste adecuado (`w-6 h-7 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-amber-600 hover:bg-amber-50 cursor-grab active:cursor-grabbing`) tanto para bloques como para escenas. Las líneas de inserción Gutenberg cuentan con borde horizontal visible para que el autor distinga con precisión milimétrica dónde se insertará el nuevo elemento.
+  - **Eliminación del Botón Superfluo "+ Añadir Bloque":** Eliminado el botón que se ubicaba arriba a la derecha de la escena, delegando la creación de bloques de forma contextual a los botones intermedios Gutenberg o al pie de cada escena.
+  - **Limpieza de Slots en Cabecera:** Eliminado el texto de cuota residual que aparecía bajo el nombre de usuario en la barra exterior y eliminada la frase explicativa en el menú dropdown, manteniendo una visualización limpia e integrada idéntica a `jg_hub`.
+  - **Refinamiento de Diálogos a Estilo Directo Teatral (Iteración Dramática):** Implementado el motor iterativo `refineDialogueToDirectSpeech` (en `AgentClientService.php` de Laravel y `formatting.py` de Python) que transforma automáticamente construcciones de tratamiento narrativo en 3ª persona subordinada (e.g. *"que no se ha comportado bien y tiene que volverse con él para recibir su castigo"*) en parlamentos directos canónicos de segunda/primera persona (e.g. *"No te has comportado bien. Tienes que volverte conmigo para recibir tu castigo."*).
 
 ### 7.2. Deudas Técnicas Conocidas
 1. **Autenticación y Multiusuario:**
