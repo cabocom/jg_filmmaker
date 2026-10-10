@@ -68,12 +68,12 @@
         @endif
 
         <!-- ================= FLUJO VERTICAL CONTINUO DE ESCENAS (MODO STORYARCHITECT) ================= -->
-        <div class="space-y-4">
+        <div class="space-y-1">
             <!-- Divisor Gutenberg Inicial por encima de la Escena 1 (+ Nueva Escena al inicio) -->
             <div x-data="{ isTopScenePlusHovered: false }"
                  @mouseenter="isTopScenePlusHovered = true"
                  @mouseleave="isTopScenePlusHovered = false"
-                 class="gutenberg-container relative py-2.5 my-1 flex items-center justify-center cursor-pointer z-10 w-full">
+                 class="gutenberg-container relative py-1 my-0.5 flex items-center justify-center cursor-pointer z-10 w-full">
                 <div class="gutenberg-divider-line"
                      :class="isTopScenePlusHovered ? 'is-visible' : ''"
                      style="height: 2px; background-color: #f59e0b;"></div>
@@ -113,7 +113,7 @@
                          'opacity-40 scale-[0.99]': isDraggingScene,
                          'border-amber-500 ring-2 ring-amber-500/50 bg-amber-500/5': isOverScene
                      }"
-                     class="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-xs transition-all overflow-hidden mb-5">
+                     class="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-xs transition-all overflow-hidden mb-0">
 
                     <!-- Cabecera de la Escena (Slugline a la Izquierda, Pipeline individual a la Derecha) -->
                     <div class="px-3.5 py-2 bg-slate-100/75 dark:bg-slate-800/60 border-b border-slate-200/80 dark:border-slate-700/60 flex items-center justify-between gap-3">
@@ -410,7 +410,7 @@
                 <div x-data="{ isScenePlusHovered: false }"
                      @mouseenter="isScenePlusHovered = true"
                      @mouseleave="isScenePlusHovered = false"
-                     class="gutenberg-container relative py-3 my-1 flex items-center justify-center cursor-pointer z-10 w-full">
+                     class="gutenberg-container relative py-0.5 my-0 flex items-center justify-center cursor-pointer z-10 w-full">
                     <div class="gutenberg-divider-line"
                          :class="isScenePlusHovered ? 'is-visible' : ''"
                          style="height: 2px; background-color: #f59e0b;"></div>
