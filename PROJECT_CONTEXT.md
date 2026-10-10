@@ -351,6 +351,9 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
     - Los system prompts de `treatment_structuring` y `screenplay_formatter` instruyen estrictamente a los modelos a redactar los nombres propios en mayúsculas completas en cada mención.
   - **Menú Desplegable Conmutable en Botón Agujeros ("Ocultar / Ver" y "Borrar"):**
     - El menú desplegable conmuta dinámicamente en cualquier momento entre **`Ocultar`** (cuando las alertas están visibles) y **`Ver`** (cuando están ocultas), manteniendo un listado limpio de sólo dos opciones junto a **`Borrar`** (`clearPlotHoles`).
+  - **Detección Automática de Roles Dramáticos y Sincronización en la Biblia de Proyecto:**
+    - `ScriptPipelineService::inferCharactersFromText` y `syncProjectCharacters` ahora detectan no solo nombres propios aislados, sino también roles dramáticos y oficios (e.g. *"el camarero"*, *"camarero"*, *"policía"*, *"médico"*, *"guardia"*, etc.) y nombres entre comillas (e.g. *"Estrella Casilda"*).
+    - Los personajes inferidos se sincronizan y registran automáticamente en la tabla `characters` del proyecto (`project->characters()`), garantizando que personajes que intervienen en una escena (como el Camarero en la Escena 2) formen parte permanente de la Biblia del proyecto y estén disponibles en todas las escenas posteriores (como la Escena 3).
   - **Edición y Renombrado de Escenas (`openEditSceneModal` / `updateScene`):**
     - Se incorporó la capacidad de cambiar el nombre y metadatos de las escenas cinematográficas:
       * Botón de acceso directo con icono de lápiz (✏️) en la cabecera de la escena tanto en la vista Pipeline Gutenberg como en la vista consolidada Story Architect.

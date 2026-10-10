@@ -1022,4 +1022,34 @@ class LivewireScriptEditorTest extends TestCase
         $this->assertEquals('EXT. CALLEJON OSCURO - NOCHE 1', $scene->fresh()->slugline);
         $this->assertEquals('CONTINUO', $scene->fresh()->time_of_day);
     }
+
+    public function test_pipeline_detects_camarero_role_and_syncs_to_bible_characters(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create([
+            'project_id' => $project->id,
+            'slugline' => 'INT. BAR CENTRAL - NOCHE',
+            'scene_order' => 1,
+        ]);
+
+        $block = ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'block_order' => 1,
+            'raw_text' => 'Juan saca a Javier del bar mientras el camarero le increpa y le persigue.',
+            'stage' => 'raw',
+        ]);
+
+        $pipeline = app(ScriptPipelineService::class);
+        $structuredBlock = $pipeline->transitionToStructured($block);
+
+        // El camarero debe haberse registrado en la base de datos de la Biblia del proyecto
+        $this->assertDatabaseHas('characters', [
+            'project_id' => $project->id,
+            'name' => 'Camarero',
+        ]);
+
+        // Y en el texto estructurado debe aparecer en mayúsculas CAMARERO
+        $this->assertStringContainsString('CAMARERO', $structuredBlock->structured_text);
+    }
 }

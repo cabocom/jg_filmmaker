@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Project;
 use App\Models\ScriptBlock;
 use App\Models\Shot;
 use App\Models\Take;
@@ -22,13 +23,17 @@ class ScriptPipelineService
      */
     public function transitionToStructured(ScriptBlock $block): ScriptBlock
     {
-        $block->loadMissing('scene.project.characters', 'scene.location');
+        $block->loadMissing('scene.project.characters', 'scene.project.scenes.scriptBlocks', 'scene.location');
 
         $project = $block->scene?->project;
-        $characters = $project ? $project->characters->map(fn ($c) => [
+        if ($project) {
+            $this->syncProjectCharacters($project);
+        }
+
+        $characters = $project ? $project->characters()->get()->map(fn ($c) => [
             'name' => $c->name,
-            'role' => $c->role,
-            'personality_notes' => $c->personality_notes,
+            'role' => $c->role ?? 'personaje',
+            'personality_notes' => $c->personality_notes ?? '',
         ])->toArray() : [];
 
         $location = null;
@@ -47,8 +52,8 @@ class ScriptPipelineService
         $userLocks = $this->resolveUserLocks($block);
         $rawText = $block->raw_text ?? '';
 
-        // Enriquecer contexto de personajes con nombres inferidos del texto (ej: Juan)
-        $characters = $this->inferCharactersFromText($rawText, $characters);
+        // Enriquecer contexto de personajes con nombres inferidos del texto (ej: Juan, Camarero)
+        $characters = $this->inferCharactersFromText($rawText, $characters, $project);
 
         $structuredText = $this->agentClient->structureTreatment(
             rawText: $rawText,
@@ -103,13 +108,17 @@ class ScriptPipelineService
      */
     public function transitionToScreenplay(ScriptBlock $block): ScriptBlock
     {
-        $block->loadMissing('scene.project.characters', 'scene.location');
+        $block->loadMissing('scene.project.characters', 'scene.project.scenes.scriptBlocks', 'scene.location');
 
         $project = $block->scene?->project;
-        $characters = $project ? $project->characters->map(fn ($c) => [
+        if ($project) {
+            $this->syncProjectCharacters($project);
+        }
+
+        $characters = $project ? $project->characters()->get()->map(fn ($c) => [
             'name' => $c->name,
-            'role' => $c->role,
-            'personality_notes' => $c->personality_notes,
+            'role' => $c->role ?? 'personaje',
+            'personality_notes' => $c->personality_notes ?? '',
         ])->toArray() : [];
 
         $location = null;
@@ -129,8 +138,8 @@ class ScriptPipelineService
         $sourceText = ! empty($block->structured_text) ? $block->structured_text : (string) $block->raw_text;
         $userLocks = $this->resolveUserLocks($block);
 
-        // Enriquecer contexto de personajes con nombres inferidos del texto (ej: Juan)
-        $characters = $this->inferCharactersFromText($sourceText, $characters);
+        // Enriquecer contexto de personajes con nombres inferidos del texto (ej: Juan, Camarero)
+        $characters = $this->inferCharactersFromText($sourceText, $characters, $project);
 
         $screenplayContent = $this->agentClient->formatScreenplay(
             structuredText: $sourceText,
@@ -322,33 +331,104 @@ class ScriptPipelineService
     }
 
     /**
-     * Extrae nombres de personajes adicionales presentes en el texto del autor (ej: Juan).
+     * Sincroniza y detecta personajes a lo largo de todas las escenas del proyecto y los guarda en la Biblia.
+     */
+    public function syncProjectCharacters(Project $project): void
+    {
+        $project->loadMissing('scenes.scriptBlocks', 'characters');
+
+        $fullText = '';
+        foreach ($project->scenes as $scene) {
+            foreach ($scene->scriptBlocks as $b) {
+                $fullText .= ' '.($b->raw_text ?? '').' '.($b->structured_text ?? '').' '.($b->screenplay_content ?? '');
+            }
+        }
+
+        $existing = $project->characters->map(fn ($c) => [
+            'name' => $c->name,
+            'role' => $c->role ?? 'personaje',
+            'personality_notes' => $c->personality_notes ?? '',
+        ])->toArray();
+
+        $this->inferCharactersFromText($fullText, $existing, $project);
+    }
+
+    /**
+     * Extrae nombres de personajes y roles dramáticos adicionales presentes en el texto (ej: Juan, Estrella Casilda, Camarero).
      *
      * @param  array<int, array<string, mixed>>  $existingCharacters
      * @return array<int, array<string, mixed>>
      */
-    protected function inferCharactersFromText(string $text, array $existingCharacters = []): array
+    public function inferCharactersFromText(string $text, array $existingCharacters = [], ?Project $project = null): array
     {
-        $existingLower = array_map(fn ($c) => strtolower((string) ($c['name'] ?? '')), $existingCharacters);
+        $existingLower = array_map(fn ($c) => mb_strtolower((string) ($c['name'] ?? ''), 'UTF-8'), $existingCharacters);
         $result = $existingCharacters;
 
-        // Detectar nombres comunes y nombres en mayúsculas
-        preg_match_all('/\b(Juan|Pedro|Carlos|Javi|Javier|Ana|María|Laura|Lucía|Elena|David|Pablo|Sofía|Marcos|Antonio|Manuel|Marta|Diego|Luis|Miguel|Andrés|Carmen|Raquel)\b/u', $text, $mCommon);
-        preg_match_all('/^[ \t]*([A-ZÁÉÍÓÚÑ]{2,20})(?:\s*\([^)]*\))?[ \t]*$/m', $text, $mFountain);
+        $candidates = [];
 
-        $candidates = array_merge($mCommon[1] ?? [], $mFountain[1] ?? []);
-        $reserved = ['INT', 'EXT', 'INT/EXT', 'CORTE', 'FADE', 'ESCENA', 'PLANO', 'DÍA', 'NOCHE', 'TARDE', 'MAÑANA', 'CONTINUA', 'TRANSICIÓN', 'VOZ', 'OFF'];
+        // 1. Roles dramáticos y oficios con artículo (ej: "el camarero", "la camarera", "el policía", "el médico", "el guardia")
+        $rolesRegex = '/\b(?:el|la|un|una)\s+(camarero|camarera|barman|polic[ií]a|agente|detective|inspector|m[eé]dico|doctor|doctora|enfermero|enfermera|cirujano|cirujana|guardia|vigilante|seguridad|portero|conserje|conductor|taxista|ch[oó]fer|cliente|cajero|cajera|dependiente|dependienta|juez|fiscal|abogado|abogada|sacerdote|cura|monja|mendigo|sicario|asesino|ladr[oó]n)\b/iu';
+        if (preg_match_all($rolesRegex, $text, $mRoles)) {
+            $candidates = array_merge($candidates, $mRoles[1]);
+        }
+
+        // Roles aislados que ejecutan acciones explícitas (ej: "camarero le increpa", "camarero intenta salir")
+        $standaloneRolesRegex = '/\b(camarero|camarera|barman|polic[ií]a|detective|m[eé]dico|doctor|doctora|enfermero|enfermera|guardia|portero|taxista|ch[oó]fer)\b/iu';
+        if (preg_match_all($standaloneRolesRegex, $text, $mStandalone)) {
+            $candidates = array_merge($candidates, $mStandalone[1]);
+        }
+
+        // 2. Nombres entre comillas con inicial mayúscula (ej: "Estrella Casilda")
+        if (preg_match_all('/["«]([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)*)["»]/u', $text, $mQuoted)) {
+            $candidates = array_merge($candidates, $mQuoted[1]);
+        }
+
+        // 3. Nombres propios comunes y compuestos
+        preg_match_all('/\b(Juan|Pedro|Carlos|Javi|Javier|Ana|María|Laura|Lucía|Elena|David|Pablo|Sofía|Marcos|Antonio|Manuel|Marta|Diego|Luis|Miguel|Andrés|Carmen|Raquel|Estrella\s+Casilda)\b/u', $text, $mCommon);
+        $candidates = array_merge($candidates, $mCommon[1] ?? []);
+
+        // 4. Encabezados de diálogo estilo Fountain (ej: CAMARERO, ESTRELLA CASILDA)
+        if (preg_match_all('/^[ \t]*([A-ZÁÉÍÓÚÑ\s]{2,25})(?:\s*\([^)]*\))?[ \t]*$/m', $text, $mFountain)) {
+            $candidates = array_merge($candidates, $mFountain[1]);
+        }
+
+        $reserved = [
+            'INT', 'EXT', 'INT/EXT', 'CORTE', 'FADE', 'ESCENA', 'PLANO', 'DÍA', 'DIA', 'NOCHE', 'TARDE', 'MAÑANA',
+            'CONTINUA', 'CONTINUO', 'TRANSICIÓN', 'TRANSICION', 'VOZ', 'OFF', 'FLASHBACK', 'FONDO', 'PRIMER',
+            'EL', 'LA', 'LOS', 'LAS', 'UN', 'UNA', 'UNOS', 'UNAS', 'DE', 'DEL', 'AL', 'EN', 'POR', 'PARA',
+            'CON', 'SIN', 'SOBRE', 'TRAS', 'DURANTE', 'MIENTRAS', 'CUANDO', 'DONDE', 'COMO', 'PERO', 'AUNQUE',
+            'LUEGO', 'DESPUES', 'DESPUÉS', 'ENTONCES', 'FINAL', 'INICIO', 'TODO', 'TODOS', 'NADA', 'NADIE',
+        ];
 
         foreach ($candidates as $name) {
-            $clean = ucfirst(strtolower(trim($name)));
-            if (strlen($clean) >= 3 && ! in_array(strtoupper($clean), $reserved) && ! in_array(strtolower($clean), $existingLower)) {
+            $clean = mb_convert_case(trim($name), MB_CASE_TITLE, 'UTF-8');
+            $upper = mb_strtoupper($clean, 'UTF-8');
+            $lower = mb_strtolower($clean, 'UTF-8');
+
+            if (mb_strlen($clean) >= 3 && ! in_array($upper, $reserved, true) && ! in_array($lower, $existingLower, true)) {
                 $result[] = [
                     'name' => $clean,
                     'role' => 'Personaje dramático detectado',
-                    'personality_notes' => 'Detectado en la acción narrativa por la IA.',
+                    'personality_notes' => 'Detectado automáticamente en la acción narrativa por la IA.',
                 ];
-                $existingLower[] = strtolower($clean);
+                $existingLower[] = $lower;
+
+                // Sincronizar y registrar en la base de datos del proyecto si procede
+                if ($project && $project->exists) {
+                    $existsInDb = $project->characters()->whereRaw('LOWER(name) = ?', [$lower])->exists();
+                    if (! $existsInDb) {
+                        $project->characters()->create([
+                            'name' => $clean,
+                            'bio' => 'Personaje dramático detectado automáticamente en la acción narrativa.',
+                            'psychology' => 'Interviene activamente en el desarrollo de la escena.',
+                        ]);
+                    }
+                }
             }
+        }
+
+        if ($project && $project->exists) {
+            $project->load('characters');
         }
 
         return $result;

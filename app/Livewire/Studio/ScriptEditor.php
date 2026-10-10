@@ -158,6 +158,9 @@ class ScriptEditor extends Component
     {
         $this->project = $project;
 
+        // Sincronizar y detectar automáticamente personajes del guión en la Biblia
+        app(ScriptPipelineService::class)->syncProjectCharacters($this->project);
+
         // Cargar primera escena disponible o dejar en null (sin auto-seleccionar bloque)
         $firstScene = $this->project->scenes()->first();
         if ($firstScene) {
