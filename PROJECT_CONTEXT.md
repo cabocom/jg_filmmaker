@@ -120,6 +120,7 @@ La coherencia narrativa del universo de la obra se gestiona mediante la Biblia d
 - **Capa Reactiva:** Livewire 3/4 con subidas en streaming (`WithFileUploads`).
 - **Diseño y Estilos:** Tailwind CSS v4 con selector dual de tema Claro/Oscuro y soporte `@custom-variant dark`.
 - **Motor Multimedia:** Integración directa con FFmpeg (`ffmpeg` binary en PATH) y demuxer concat.
+- **Aislamiento de Base de Datos en Testing:** `config/database.php` y `phpunit.xml` blindan la base de datos de desarrollo mediante `force="true"` y asignación estricta de `:memory:` cuando `APP_ENV === 'testing'`, garantizando que la ejecución de suites de prueba con `RefreshDatabase` jamás altere ni vacíe el archivo `database.sqlite` en el host o contenedor.
 
 ### 5.2. Seguridad Estricta Anti-IDOR (UUIDv4)
 - Todas las tablas de dominio (`users`, `projects`, `characters`, `locations`, `scenes`, `script_blocks`, `shots`, `takes`) utilizan identificadores primarios y foráneos UUIDv4 (`$table->uuid('id')->primary()`).
