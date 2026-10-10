@@ -1,65 +1,26 @@
 <div class="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors">
-    <!-- ================= BARRA SUPERIOR STICKY: MODO STORYARCHITECT Y PIPELINE ================= -->
-    <div class="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 shadow-sm backdrop-blur-md px-4 sm:px-6 lg:px-8 py-3 transition-colors">
-        <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3">
+    <!-- ================= BARRA SUPERIOR STICKY: NAVEGACIÓN Y RESUMEN DE GUIÓN ================= -->
+    <div class="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 shadow-xs backdrop-blur-md px-4 sm:px-6 lg:px-8 py-2.5 transition-colors">
+        <div class="max-w-7xl mx-auto flex items-center justify-between gap-3">
             <!-- Título y Acción de Escenas -->
             <div class="flex items-center gap-3">
                 <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Escenas:</span>
-                <span class="px-2 py-0.5 rounded-lg text-xs font-bold font-mono bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                <span class="px-2 py-0.5 rounded-md text-xs font-bold font-mono bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                     {{ $scenes->count() }} en guión
                 </span>
                 <button wire:click="openNewSceneModal()"
                         type="button"
-                        class="px-2.5 py-1 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition flex items-center gap-1 shadow-xs cursor-pointer"
+                        class="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition flex items-center gap-1 shadow-2xs cursor-pointer"
                         title="Añadir Escena al final del guión">
                     <span>+</span>
                     <span>Nueva Escena</span>
                 </button>
             </div>
 
-            <!-- Menú del Pipeline Ordenado Estrictamente: Idea > Tratamiento > Guión > Planos/Tomas > Montaje -->
-            <div class="flex items-center gap-2 shrink-0 self-end md:self-auto">
-                <div class="inline-flex rounded-xl bg-slate-100 dark:bg-slate-950 p-1 border border-slate-200 dark:border-slate-800 text-xs shadow-inner">
-                    <!-- 1. Idea (Original / Bruto) -->
-                    <button wire:click="setPipelineStage('idea')"
-                            type="button"
-                            title="Listado de textos originales en bruto"
-                            class="px-3 py-1 rounded-lg transition {{ $pipelineStage === 'idea' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
-                        Idea
-                    </button>
-
-                    <!-- 2. Tratamiento -->
-                    <button wire:click="setPipelineStage('structured')"
-                            type="button"
-                            title="Listado de textos estructurados a tratamiento"
-                            class="px-3 py-1 rounded-lg transition {{ $pipelineStage === 'structured' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
-                        Tratamiento
-                    </button>
-
-                    <!-- 3. Guión -->
-                    <button wire:click="setPipelineStage('screenplay')"
-                            type="button"
-                            title="Listado de textos formateados a guión canónico Fountain"
-                            class="px-3 py-1 rounded-lg transition {{ $pipelineStage === 'screenplay' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
-                        Guión
-                    </button>
-
-                    <!-- 4. Planos / Tomas -->
-                    <button wire:click="setPipelineStage('shots')"
-                            type="button"
-                            title="Desglose técnico de planos de cámara y tomas"
-                            class="px-3 py-1 rounded-lg transition {{ $pipelineStage === 'shots' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
-                        Planos / Tomas
-                    </button>
-
-                    <!-- 5. Montaje -->
-                    <button wire:click="setPipelineStage('timeline')"
-                            type="button"
-                            title="Línea de tiempo y pre-corte de edición"
-                            class="px-3 py-1 rounded-lg transition {{ $pipelineStage === 'timeline' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
-                        🎬 Montaje
-                    </button>
-                </div>
+            <!-- Identificador de Modo Story Architect -->
+            <div class="flex items-center gap-2 text-xs font-mono text-slate-400">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Modo Redacción · Story Architect</span>
             </div>
         </div>
     </div>
@@ -89,31 +50,43 @@
 
                     <!-- Tarjeta de Escena con Soporte Drag & Drop y Acordeón -->
                     <div id="scene-card-{{ $scene->id }}"
-                         x-data="{ isDraggingScene: false, isOverScene: false }"
+                         x-data="{ isDraggingScene: false, isOverScene: false, isSceneDraggable: false }"
+                         :draggable="isSceneDraggable"
+                         @dragstart="
+                             event.dataTransfer.setData('scene-id', '{{ $scene->id }}');
+                             event.dataTransfer.effectAllowed = 'move';
+                             isDraggingScene = true;
+                             if (event.dataTransfer.setDragImage) {
+                                 event.dataTransfer.setDragImage($el, 20, 20);
+                             }
+                         "
+                         @dragend="isDraggingScene = false; isSceneDraggable = false"
                          @dragover.prevent="isOverScene = true"
                          @dragleave="isOverScene = false"
                          @drop.prevent="
                              isOverScene = false;
+                             isSceneDraggable = false;
                              const srcSceneId = event.dataTransfer.getData('scene-id');
                              if (srcSceneId && srcSceneId !== '{{ $scene->id }}') {
                                  $wire.reorderScene(srcSceneId, {{ $scene->scene_order }});
                              }
                          "
                          :class="{
-                             'opacity-40': isDraggingScene,
+                             'opacity-40 scale-[0.99]': isDraggingScene,
                              'border-amber-500 ring-2 ring-amber-500/50 bg-amber-500/5': isOverScene
                          }"
-                         class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm transition-all overflow-hidden mb-5">
+                         class="group/scene bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-xs transition-all overflow-hidden mb-5">
 
-                        <!-- Cabecera de la Escena (Slugline, Acordeón y Drag Handle) -->
-                        <div class="px-4 py-3 bg-slate-50/90 dark:bg-slate-950/80 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3">
-                            <div class="flex items-center gap-3 min-w-0">
-                                <!-- Tirador Drag & Drop de la Escena (Físico, visible y claro) -->
-                                <div draggable="true"
-                                     @dragstart.stop="event.dataTransfer.setData('scene-id', '{{ $scene->id }}'); event.dataTransfer.effectAllowed = 'move'; isDraggingScene = true"
-                                     @dragend="isDraggingScene = false"
-                                     title="Arrastrar para mover de posición esta escena"
-                                     class="shrink-0 w-6 h-6 rounded-md bg-slate-200/80 hover:bg-amber-500 dark:bg-slate-800 dark:hover:bg-amber-500 text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-slate-950 border border-slate-300 dark:border-slate-700 flex items-center justify-center cursor-grab active:cursor-grabbing transition shadow-2xs select-none">
+                        <!-- Cabecera de la Escena (Estilo StoryArchitect: Slugline Compacto a la Izquierda, Pipeline a la Derecha) -->
+                        <div class="px-3.5 py-2 bg-slate-100/75 dark:bg-slate-800/60 border-b border-slate-200/80 dark:border-slate-700/60 flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <!-- Tirador Drag & Drop de Escena: Visible en hover -->
+                                <button type="button"
+                                        @mousedown="isSceneDraggable = true"
+                                        @mouseup="isSceneDraggable = false"
+                                        @mouseleave="if (!isDraggingScene) isSceneDraggable = false"
+                                        title="Arrastrar para mover toda esta escena"
+                                        class="shrink-0 w-4 h-5 rounded flex items-center justify-center text-slate-400 hover:text-amber-500 dark:text-slate-500 dark:hover:text-amber-400 cursor-grab active:cursor-grabbing opacity-0 group-hover/scene:opacity-100 transition-opacity select-none">
                                     <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                                         <circle cx="7" cy="4" r="1.5" />
                                         <circle cx="13" cy="4" r="1.5" />
@@ -122,54 +95,96 @@
                                         <circle cx="7" cy="16" r="1.5" />
                                         <circle cx="13" cy="16" r="1.5" />
                                     </svg>
-                                </div>
+                                </button>
 
-                                <!-- Botón Toggle de Acordeón -->
+                                <!-- Botón Toggle de Acordeón con Slugline Compacto estilo StoryArchitect -->
                                 <button wire:click="toggleScene('{{ $scene->id }}')"
                                         type="button"
-                                        class="flex items-center gap-2.5 text-left truncate cursor-pointer group">
-                                    <svg class="w-4 h-4 text-slate-400 group-hover:text-amber-500 transition-transform duration-200 {{ $isExpanded ? 'rotate-90 text-amber-500' : '' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        class="flex items-center gap-2 text-left truncate cursor-pointer group/btn">
+                                    <svg class="w-3.5 h-3.5 shrink-0 text-slate-400 group-hover/btn:text-amber-500 transition-transform duration-150 {{ $isExpanded ? 'rotate-90 text-amber-500' : '' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
                                     </svg>
 
-                                    <div class="flex items-center gap-2 flex-wrap">
-                                        <span class="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30">
-                                            ESCENA {{ $scene->scene_order }}
+                                    <div class="flex items-center gap-1.5 flex-wrap font-mono">
+                                        <span class="text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                                            ESC. {{ $scene->scene_order }}
                                         </span>
-                                        <span class="text-xs text-slate-500 font-mono">{{ $scene->time_of_day }}</span>
-                                        @if($scene->location)
-                                            <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 font-mono">{{ $scene->location->name }} ({{ $scene->location->type }})</span>
-                                        @endif
-                                        <span class="text-sm font-mono font-bold text-slate-900 dark:text-white uppercase truncate">
+                                        <span class="text-slate-300 dark:text-slate-600 font-bold">·</span>
+                                        <span class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide truncate">
                                             {{ $scene->slugline }}
                                         </span>
+                                        @if($scene->time_of_day)
+                                            <span class="text-[10px] text-slate-400 dark:text-slate-500">
+                                                ({{ $scene->time_of_day }})
+                                            </span>
+                                        @endif
                                     </div>
                                 </button>
                             </div>
 
-                            <div class="flex items-center gap-3 shrink-0">
-                                <span class="text-xs text-slate-400 font-mono">{{ $scene->scriptBlocks->count() }} bloques</span>
-                                <button wire:click="openNewBlockModal(null, '{{ $scene->id }}')"
-                                        type="button"
-                                        title="Añadir bloque a esta escena"
-                                        class="px-2 py-1 rounded-lg text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-amber-400 hover:text-amber-600 transition shadow-2xs cursor-pointer flex items-center gap-1">
-                                    <span>+</span>
-                                    <span class="hidden sm:inline">Bloque</span>
-                                </button>
+                            <!-- Cabecera del Pipeline Integrada dentro de la Escena (Alineada a la Derecha) -->
+                            <div class="flex items-center gap-2 shrink-0">
+                                <span class="text-[11px] text-slate-400 dark:text-slate-500 font-mono hidden md:inline">
+                                    {{ $scene->scriptBlocks->count() }} {{ $scene->scriptBlocks->count() === 1 ? 'bloque' : 'bloques' }}
+                                </span>
+
+                                <div class="inline-flex rounded-lg bg-white/90 dark:bg-slate-900/90 p-0.5 border border-slate-200 dark:border-slate-700/80 text-[11px] shadow-2xs">
+                                    <!-- 1. Idea -->
+                                    <button wire:click="setPipelineStage('idea')"
+                                            type="button"
+                                            title="Listado de textos originales en bruto"
+                                            class="px-2 py-0.5 rounded transition font-mono cursor-pointer {{ $pipelineStage === 'idea' ? 'bg-amber-500 text-slate-950 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                                        Idea
+                                    </button>
+
+                                    <!-- 2. Tratamiento -->
+                                    <button wire:click="setPipelineStage('structured')"
+                                            type="button"
+                                            title="Listado de textos estructurados a tratamiento"
+                                            class="px-2 py-0.5 rounded transition font-mono cursor-pointer {{ $pipelineStage === 'structured' ? 'bg-amber-500 text-slate-950 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                                        Tratamiento
+                                    </button>
+
+                                    <!-- 3. Guión -->
+                                    <button wire:click="setPipelineStage('screenplay')"
+                                            type="button"
+                                            title="Listado de textos formateados a guión canónico Fountain"
+                                            class="px-2 py-0.5 rounded transition font-mono cursor-pointer {{ $pipelineStage === 'screenplay' ? 'bg-amber-500 text-slate-950 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                                        Guión
+                                    </button>
+
+                                    <!-- 4. Planos / Tomas -->
+                                    <button wire:click="setPipelineStage('shots')"
+                                            type="button"
+                                            title="Desglose técnico de planos de cámara y tomas"
+                                            class="px-2 py-0.5 rounded transition font-mono cursor-pointer {{ $pipelineStage === 'shots' ? 'bg-amber-500 text-slate-950 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                                        Planos / Tomas
+                                    </button>
+
+                                    <!-- 5. Montaje -->
+                                    <button wire:click="setPipelineStage('timeline')"
+                                            type="button"
+                                            title="Línea de tiempo y pre-corte de edición"
+                                            class="px-2 py-0.5 rounded transition font-mono cursor-pointer {{ $pipelineStage === 'timeline' ? 'bg-amber-500 text-slate-950 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                                        🎬 Montaje
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
                         <!-- Contenido de Bloques de la Escena (Acordeón expandible) -->
                         @if($isExpanded)
-                            <div class="p-3 sm:p-5 space-y-1">
-                                <!-- Divisor Inicial de Bloque (Con línea visible y botón central +) -->
-                                <div class="relative group py-2 my-0.5 flex items-center justify-center cursor-pointer">
-                                    <div class="w-full border-t border-dashed border-slate-200 dark:border-slate-800 group-hover:border-solid group-hover:border-amber-500 group-hover:border-t-2 transition-all"></div>
+                            <div class="p-3 sm:p-5 space-y-0.5">
+                                <!-- Divisor Inicial de Bloque: Gutenberg (Invisible en reposo, revelado en hover) -->
+                                <div class="h-4 my-[-2px] relative flex items-center justify-center group/plus cursor-pointer z-10">
+                                    <div class="w-full h-px bg-amber-500/70 dark:bg-amber-400/70 opacity-0 group-hover/plus:opacity-100 transition-opacity duration-150"></div>
                                     <button wire:click="openNewBlockModal(0, '{{ $scene->id }}')"
                                             type="button"
                                             title="Insertar bloque al inicio de la escena"
-                                            class="absolute z-10 w-6 h-6 group-hover:w-8 group-hover:h-8 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-amber-500 text-slate-600 group-hover:text-slate-950 font-bold text-xs flex items-center justify-center border border-slate-300 dark:border-slate-700 group-hover:border-amber-400 shadow-2xs group-hover:shadow-md transition-all cursor-pointer">
-                                        +
+                                            class="absolute z-10 w-7 h-7 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center justify-center shadow-md hover:scale-110 opacity-0 group-hover/plus:opacity-100 transition-all duration-150 cursor-pointer">
+                                        <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+                                        </svg>
                                     </button>
                                 </div>
 
@@ -178,32 +193,44 @@
                                         $isSelected = ($selectedBlockId === $block->id);
                                     @endphp
 
-                                    <!-- Elemento Continuo de Bloque con Drag & Drop y lectura fluida -->
+                                    <!-- Elemento Continuo de Bloque con Drag & Drop Completo de Fila y Lectura Fluida -->
                                     <div id="block-{{ $block->id }}"
-                                         x-data="{ isDragging: false, isOver: false }"
+                                         x-data="{ isDragging: false, isOver: false, isDraggable: false }"
+                                         :draggable="isDraggable"
+                                         @dragstart="
+                                             event.dataTransfer.setData('text/plain', '{{ $block->id }}');
+                                             event.dataTransfer.effectAllowed = 'move';
+                                             isDragging = true;
+                                             if (event.dataTransfer.setDragImage) {
+                                                 event.dataTransfer.setDragImage($el, 20, 20);
+                                             }
+                                         "
+                                         @dragend="isDragging = false; isDraggable = false"
                                          @dragover.prevent="isOver = true"
                                          @dragleave="isOver = false"
                                          @drop.prevent="
                                              isOver = false;
+                                             isDraggable = false;
                                              const srcId = event.dataTransfer.getData('text/plain');
                                              if (srcId && srcId !== '{{ $block->id }}') {
                                                  $wire.reorderBlock(srcId, {{ $block->block_order }}, '{{ $scene->id }}');
                                              }
                                          "
                                          :class="{
-                                             'opacity-40': isDragging,
+                                             'opacity-40 scale-[0.99]': isDragging,
                                              'border-amber-500 ring-2 ring-amber-500/50 bg-amber-50/50 dark:bg-amber-950/30': isOver
                                          }"
                                          wire:click="selectBlock('{{ $block->id }}')"
-                                         class="group relative rounded-xl px-3 py-1.5 transition-all cursor-pointer border-l-2 {{ $isSelected ? 'bg-amber-500/10 dark:bg-amber-400/10 border-amber-500 shadow-2xs' : 'border-transparent hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700' }}">
+                                         class="group/block relative rounded-xl px-2.5 py-1.5 transition-all cursor-pointer border-l-2 {{ $isSelected ? 'bg-amber-500/10 dark:bg-amber-400/10 border-amber-500 shadow-2xs' : 'border-transparent hover:bg-slate-100/80 dark:hover:bg-slate-800/60' }}">
 
-                                        <div class="flex items-start gap-2.5">
-                                            <!-- Handle para Drag & Drop (Totalmente visible con botón físico) -->
-                                            <div draggable="true"
-                                                 @dragstart.stop="event.dataTransfer.setData('text/plain', '{{ $block->id }}'); event.dataTransfer.effectAllowed = 'move'; isDragging = true"
-                                                 @dragend="isDragging = false"
-                                                 title="Arrastrar para mover este bloque de posición"
-                                                 class="shrink-0 w-6 h-7 rounded-md bg-slate-100 hover:bg-amber-500 dark:bg-slate-800 dark:hover:bg-amber-500 text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-slate-950 border border-slate-200/90 dark:border-slate-700/90 flex items-center justify-center cursor-grab active:cursor-grabbing transition shadow-2xs select-none">
+                                        <div class="flex items-start gap-2">
+                                            <!-- Tirador Drag & Drop: Alineado con la primera línea, visible en hover o cuando está seleccionado -->
+                                            <button type="button"
+                                                    @mousedown="isDraggable = true"
+                                                    @mouseup="isDraggable = false"
+                                                    @mouseleave="if (!isDragging) isDraggable = false"
+                                                    title="Arrastrar para mover este bloque de posición"
+                                                    class="shrink-0 w-4 h-5 mt-0.5 rounded flex items-center justify-center text-slate-400 hover:text-amber-500 dark:text-slate-500 dark:hover:text-amber-400 cursor-grab active:cursor-grabbing transition-opacity duration-150 select-none {{ $isSelected ? 'opacity-100' : 'opacity-0 group-hover/block:opacity-100' }}">
                                                 <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                                                     <circle cx="7" cy="4" r="1.5" />
                                                     <circle cx="13" cy="4" r="1.5" />
@@ -212,9 +239,9 @@
                                                     <circle cx="7" cy="16" r="1.5" />
                                                     <circle cx="13" cy="16" r="1.5" />
                                                 </svg>
-                                            </div>
+                                            </button>
 
-                                            <!-- Texto de la Historia según la etapa del menú superior -->
+                                            <!-- Texto de la Historia según la etapa del menú de la escena -->
                                             <div class="flex-1 min-w-0">
                                                 @if($pipelineStage === 'idea')
                                                     <!-- Etapa 1: Idea / Original / Texto Bruto -->
@@ -271,7 +298,7 @@
                                             </div>
 
                                             <!-- Botón de Detalles flotando a la derecha -->
-                                            <div class="shrink-0 pt-0.5 opacity-25 group-hover:opacity-100 transition-opacity">
+                                            <div class="shrink-0 pt-0.5 opacity-25 group-hover/block:opacity-100 transition-opacity">
                                                 <button wire:click.stop="openBlockDetails('{{ $block->id }}')"
                                                         type="button"
                                                         title="Abrir detalles y etapas en panel lateral"
@@ -283,14 +310,16 @@
                                         </div>
                                     </div>
 
-                                    <!-- Divisor Gutenberg Intermedio (Línea visible + botón central) -->
-                                    <div class="relative group py-2.5 my-1 flex items-center justify-center cursor-pointer">
-                                        <div class="w-full border-t border-slate-200 dark:border-slate-800 group-hover:border-amber-500 group-hover:border-t-2 transition-all"></div>
+                                    <!-- Divisor Gutenberg Intermedio: Invisible en reposo, revelado en hover -->
+                                    <div class="h-4 my-[-2px] relative flex items-center justify-center group/plus cursor-pointer z-10">
+                                        <div class="w-full h-px bg-amber-500/70 dark:bg-amber-400/70 opacity-0 group-hover/plus:opacity-100 transition-opacity duration-150"></div>
                                         <button wire:click="openNewBlockModal({{ $block->block_order }}, '{{ $scene->id }}')"
                                                 type="button"
                                                 title="Añadir bloque aquí"
-                                                class="absolute z-10 w-6 h-6 group-hover:w-8 group-hover:h-8 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-amber-500 text-slate-700 group-hover:text-slate-950 font-bold text-xs flex items-center justify-center border border-slate-300 dark:border-slate-700 group-hover:border-amber-400 shadow-2xs group-hover:shadow-md transition-all cursor-pointer">
-                                            +
+                                                class="absolute z-10 w-7 h-7 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center justify-center shadow-md hover:scale-110 opacity-0 group-hover/plus:opacity-100 transition-all duration-150 cursor-pointer">
+                                            <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+                                            </svg>
                                         </button>
                                     </div>
                                 @empty
@@ -305,14 +334,16 @@
                         @endif
                     </div>
 
-                    <!-- Divisor Gutenberg entre Escenas (+ Nueva Escena Aquí) -->
-                    <div class="my-6 relative group flex items-center justify-center cursor-pointer">
-                        <div class="w-full border-t-2 border-dashed border-slate-300 dark:border-slate-800 group-hover:border-solid group-hover:border-amber-500 transition-all"></div>
+                    <!-- Divisor Gutenberg entre Escenas (+ Nueva Escena: Invisible en reposo, revelado en hover) -->
+                    <div class="h-6 my-1 relative flex items-center justify-center group/plusscene cursor-pointer z-10">
+                        <div class="w-full h-px bg-amber-500/70 dark:bg-amber-400/70 opacity-0 group-hover/plusscene:opacity-100 transition-opacity duration-150"></div>
                         <button wire:click="openNewSceneModal({{ $scene->scene_order }})"
                                 type="button"
-                                class="absolute z-10 px-3 py-1 rounded-full bg-white dark:bg-slate-900 group-hover:bg-amber-500 text-slate-700 dark:text-slate-200 group-hover:text-slate-950 border border-slate-300 dark:border-slate-700 group-hover:border-amber-400 font-bold text-xs shadow-xs transition-all flex items-center gap-1 cursor-pointer">
-                            <span>+</span>
-                            <span>Nueva Escena Aquí</span>
+                                class="absolute z-10 px-3 py-1 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md hover:scale-105 opacity-0 group-hover/plusscene:opacity-100 transition-all duration-150 flex items-center gap-1.5 cursor-pointer">
+                            <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+                            </svg>
+                            <span>Nueva Escena</span>
                         </button>
                     </div>
                 @empty
