@@ -28,6 +28,7 @@ class DemoProjectSeeder extends Seeder
                 'password' => Hash::make('secret1234'),
                 'plan_tier' => 'pro',
                 'paid_project_slots' => 5,
+                'is_admin' => true,
             ]
         );
 
