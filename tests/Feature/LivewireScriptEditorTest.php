@@ -749,7 +749,7 @@ class LivewireScriptEditorTest extends TestCase
         $this->assertEmpty($locks['manual_diffs'] ?? []);
     }
 
-    public function test_plot_hole_analysis_targets_active_view_consolidated_stage_and_indicates_step(): void
+    public function test_plot_hole_analysis_audits_each_consolidated_stage_and_marks_earliest_step(): void
     {
         $user = User::factory()->create();
         $project = Project::factory()->create(['user_id' => $user->id]);
@@ -759,45 +759,65 @@ class LivewireScriptEditorTest extends TestCase
             'scene_order' => 1,
         ]);
 
-        $block = ScriptBlock::factory()->create([
+        // Bloque 1: Agujero que nace en el bruto
+        $block1 = ScriptBlock::factory()->create([
             'scene_id' => $scene->id,
             'block_order' => 1,
-            'raw_text' => '[AGUJERO: Descuadre en idea bruta]',
-            'structured_text' => 'Texto de tratamiento limpio sin problemas.',
-            'screenplay_content' => '[AGUJERO: Descuadre en guion literario]',
+            'raw_text' => '[AGUJERO: Contradicción temporal en bruto]',
+            'structured_text' => '[AGUJERO: Contradicción temporal en bruto]',
+            'screenplay_content' => '[AGUJERO: Contradicción temporal en bruto]',
             'plot_hole' => null,
         ]);
 
-        // 1. Ejecución desde la vista 'pipeline': audita sobre raw_text
+        // Bloque 2: Segundo agujero que nace en el bruto
+        $block2 = ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'block_order' => 2,
+            'raw_text' => '[AGUJERO: Personaje misterioso en bruto]',
+            'structured_text' => '[AGUJERO: Personaje misterioso en bruto]',
+            'screenplay_content' => null,
+            'plot_hole' => null,
+        ]);
+
+        // Bloque 3: Bruto y tratamiento limpios, agujero introducido en guion
+        $block3 = ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'block_order' => 3,
+            'raw_text' => 'Javier pide una copa de vino.',
+            'structured_text' => 'Javier bebe tranquilamente en la barra.',
+            'screenplay_content' => '[AGUJERO: Inconsistencia introducida en guión]',
+            'plot_hole' => null,
+        ]);
+
+        // Ejecutar análisis de agujeros de guión
         $livewire = Livewire::actingAs($user)
             ->test(ScriptEditor::class, ['project' => $project])
-            ->set('activeView', 'pipeline')
             ->call('analyzePlotHoles');
 
-        $fresh = $block->fresh();
-        $this->assertNotNull($fresh->plot_hole);
-        $this->assertStringContainsString('Descuadre en idea bruta', $fresh->plot_hole);
-        $this->assertEquals('raw', $fresh->getPlotHoleStage());
-        $this->assertEquals('Idea (Bruto)', $fresh->getPlotHoleStageLabel());
-        $livewire->assertSee('Detectado en: Idea (Bruto)');
+        // Bloque 1: Debe quedar marcado como origen 'raw' (Idea)
+        $fresh1 = $block1->fresh();
+        $this->assertNotNull($fresh1->plot_hole);
+        $this->assertStringContainsString('Contradicción temporal en bruto', $fresh1->plot_hole);
+        $this->assertEquals('raw', $fresh1->getPlotHoleStage());
+        $this->assertEquals('Idea (Bruto)', $fresh1->getPlotHoleStageLabel());
 
-        // 2. Ejecución desde 'structured' (Tratamiento consolidado): texto limpio, se limpia el agujero
-        $livewire->call('setActiveView', 'structured')
-            ->call('analyzePlotHoles');
+        // Bloque 2: Debe quedar marcado como origen 'raw' (Idea)
+        $fresh2 = $block2->fresh();
+        $this->assertNotNull($fresh2->plot_hole);
+        $this->assertStringContainsString('Personaje misterioso en bruto', $fresh2->plot_hole);
+        $this->assertEquals('raw', $fresh2->getPlotHoleStage());
+        $this->assertEquals('Idea (Bruto)', $fresh2->getPlotHoleStageLabel());
 
-        $freshTreatment = $block->fresh();
-        $this->assertNull($freshTreatment->plot_hole);
-        $this->assertNull($freshTreatment->getPlotHoleStage());
+        // Bloque 3: Debe quedar marcado como origen 'screenplay' (Guion)
+        $fresh3 = $block3->fresh();
+        $this->assertNotNull($fresh3->plot_hole);
+        $this->assertStringContainsString('Inconsistencia introducida en guión', $fresh3->plot_hole);
+        $this->assertEquals('screenplay', $fresh3->getPlotHoleStage());
+        $this->assertEquals('Guion', $fresh3->getPlotHoleStageLabel());
 
-        // 3. Ejecución desde 'screenplay' (Guion consolidado): detecta incongruencia de guión
-        $livewire->call('setActiveView', 'screenplay')
-            ->call('analyzePlotHoles');
-
-        $freshScreenplay = $block->fresh();
-        $this->assertNotNull($freshScreenplay->plot_hole);
-        $this->assertStringContainsString('Descuadre en guion literario', $freshScreenplay->plot_hole);
-        $this->assertEquals('screenplay', $freshScreenplay->getPlotHoleStage());
-        $this->assertEquals('Guion', $freshScreenplay->getPlotHoleStageLabel());
-        $livewire->assertSee('Detectado en: Guion');
+        // En la interfaz se visualizan los badges distintivos de cada etapa
+        $livewire->assertSee('Detectado en: Idea (Bruto)')
+            ->assertSee('Detectado en: Guion')
+            ->assertSee('2 en Idea, 1 en Guion');
     }
 }

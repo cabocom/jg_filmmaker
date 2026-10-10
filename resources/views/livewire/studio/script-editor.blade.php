@@ -137,6 +137,14 @@
                 </div>
             </div>
         @endif
+        @if(session()->has('warning'))
+            <div class="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs flex items-center justify-between shadow-sm">
+                <div class="flex items-center gap-2">
+                    <span>🕳️</span>
+                    <span>{{ session('warning') }}</span>
+                </div>
+            </div>
+        @endif
         @if(session()->has('info'))
             <div class="p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-800 dark:text-indigo-300 text-xs flex items-center justify-between shadow-sm">
                 <div class="flex items-center gap-2">

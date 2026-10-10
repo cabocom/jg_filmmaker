@@ -1121,68 +1121,21 @@ class ScriptEditor extends Component
     }
 
     /**
-     * Audita y detecta agujeros de guión en los bloques del proyecto actual mediante el agente IA.
-     * Marca cada bloque con el motivo detectado y la etapa auditada, persistiendo hasta la próxima auditoría.
+     * Audita y detecta agujeros de guión pasando el análisis a cada consolidado por separado (Idea, Tratamiento, Guion).
+     * Si un bloque presenta inconsistencias en varias etapas, se marca como agujero el del paso más temprano.
      */
     public function analyzePlotHoles(?AgentClientService $agentClient = null): void
     {
         $agentClient = $agentClient ?? app(AgentClientService::class);
-
-        $targetStage = match ($this->activeView) {
-            'idea' => 'raw',
-            'structured' => 'structured',
-            'screenplay' => 'screenplay',
-            'shots' => 'screenplay',
-            'pipeline' => 'raw',
-            default => 'raw',
-        };
-
-        $targetStageLabel = match ($targetStage) {
-            'structured' => 'Tratamiento',
-            'screenplay' => 'Guion',
-            'raw' => 'Idea (Bruto)',
-            default => 'Idea (Bruto)',
-        };
 
         $scenes = $this->project->scenes()
             ->with(['scriptBlocks' => fn ($q) => $q->orderBy('block_order')])
             ->orderBy('scene_order')
             ->get();
 
-        $blocksData = [];
-        $blocksById = [];
+        $allBlocks = $scenes->flatMap(fn ($s) => $s->scriptBlocks);
 
-        foreach ($scenes as $scene) {
-            foreach ($scene->scriptBlocks as $block) {
-                $blocksById[(string) $block->id] = $block;
-
-                $blockText = match ($targetStage) {
-                    'structured' => (string) ($block->structured_text ?? ''),
-                    'screenplay' => (string) ($block->screenplay_content ?? ''),
-                    'raw' => (string) ($block->raw_text ?? ''),
-                    default => (string) ($block->raw_text ?? ''),
-                };
-
-                if (empty(trim($blockText))) {
-                    $blockText = (string) ($block->raw_text ?? '');
-                }
-
-                $blocksData[] = [
-                    'id' => (string) $block->id,
-                    'scene_id' => (string) $scene->id,
-                    'scene_order' => $scene->scene_order,
-                    'scene_slugline' => $scene->slugline,
-                    'block_order' => $block->block_order,
-                    'stage' => $targetStage,
-                    'raw_text' => (string) ($block->raw_text ?? ''),
-                    'structured_text' => (string) ($block->structured_text ?? ''),
-                    'screenplay_content' => (string) ($block->screenplay_content ?? ''),
-                    'text' => $blockText,
-                ];
-            }
-        }
-
-        if (empty($blocksData)) {
+        if ($allBlocks->isEmpty()) {
             session()->flash('warning', 'No hay bloques de guión en el proyecto para auditar.');
 
             return;
@@ -1200,50 +1153,136 @@ class ScriptEditor extends Component
             'description' => $l->description,
         ])->toArray();
 
-        $result = $agentClient->auditPlotHoles($blocksData, $characters, $locations);
+        // Secuencia estricta de consolidados de más temprano a más tardío
+        $stagesToAudit = [
+            'raw' => 'Idea (Bruto)',
+            'structured' => 'Tratamiento',
+            'screenplay' => 'Guion',
+        ];
 
-        $detectedHoles = (array) ($result['detected_holes'] ?? []);
-        $holesByBlockId = [];
-        foreach ($detectedHoles as $hole) {
-            if (isset($hole['block_id']) && ! empty($hole['reason'])) {
-                $holesByBlockId[(string) $hole['block_id']] = (string) $hole['reason'];
-            }
-        }
+        // Guardará el agujero detectado en el paso más temprano: block_id => ['reason' => string, 'stage' => string, 'stage_label' => string]
+        $earliestHoleByBlockId = [];
 
-        $markedCount = 0;
-        foreach ($blocksById as $id => $block) {
-            $reason = $holesByBlockId[(string) $id] ?? null;
+        foreach ($stagesToAudit as $stage => $stageLabel) {
+            $stageBlocksData = [];
 
-            // Si el autor ya justificó este agujero en el bloque, no volver a marcarlo
-            if ($reason !== null) {
-                $justified = $block->getJustifiedPlotHoles();
-                foreach ($justified as $j) {
-                    $jReason = trim((string) ($j['hole_reason'] ?? $j['original_reason'] ?? ''));
-                    if (! empty($jReason) && (str_contains(mb_strtolower($reason), mb_strtolower($jReason)) || str_contains(mb_strtolower($jReason), mb_strtolower($reason)))) {
-                        $reason = null;
-                        break;
+            foreach ($scenes as $scene) {
+                foreach ($scene->scriptBlocks as $block) {
+                    $text = match ($stage) {
+                        'raw' => (string) ($block->raw_text ?? ''),
+                        'structured' => (string) ($block->structured_text ?? ''),
+                        'screenplay' => (string) ($block->screenplay_content ?? ''),
+                    };
+
+                    // Solo enviar a auditar bloques que tengan contenido en esta etapa
+                    if (empty(trim($text))) {
+                        continue;
                     }
+
+                    $stageBlocksData[] = [
+                        'id' => (string) $block->id,
+                        'scene_id' => (string) $scene->id,
+                        'scene_order' => $scene->scene_order,
+                        'scene_slugline' => $scene->slugline,
+                        'block_order' => $block->block_order,
+                        'stage' => $stage,
+                        'raw_text' => (string) ($block->raw_text ?? ''),
+                        'structured_text' => (string) ($block->structured_text ?? ''),
+                        'screenplay_content' => (string) ($block->screenplay_content ?? ''),
+                        'text' => $text,
+                    ];
                 }
             }
 
-            $userLocks = $block->user_locks ?? [];
-            if ($reason !== null) {
-                $userLocks['plot_hole_stage'] = $targetStage;
-                $markedCount++;
-            } else {
-                unset($userLocks['plot_hole_stage']);
+            if (empty($stageBlocksData)) {
+                continue;
             }
 
-            $block->update([
-                'plot_hole' => $reason,
-                'user_locks' => $userLocks,
-            ]);
+            $result = $agentClient->auditPlotHoles($stageBlocksData, $characters, $locations);
+            $detectedHoles = (array) ($result['detected_holes'] ?? []);
+
+            foreach ($detectedHoles as $hole) {
+                $blockId = (string) ($hole['block_id'] ?? '');
+                $reason = trim((string) ($hole['reason'] ?? ''));
+
+                if (empty($blockId) || empty($reason)) {
+                    continue;
+                }
+
+                // Si este bloque ya tiene un agujero asignado de un paso más temprano, NO sobreescribir
+                if (isset($earliestHoleByBlockId[$blockId])) {
+                    continue;
+                }
+
+                // Comprobar si el autor ya justificó este agujero
+                $targetBlock = $allBlocks->firstWhere('id', $blockId);
+                if ($targetBlock) {
+                    $justified = $targetBlock->getJustifiedPlotHoles();
+                    $isJustified = false;
+                    foreach ($justified as $j) {
+                        $jReason = trim((string) ($j['hole_reason'] ?? $j['original_reason'] ?? ''));
+                        if (! empty($jReason) && (str_contains(mb_strtolower($reason), mb_strtolower($jReason)) || str_contains(mb_strtolower($jReason), mb_strtolower($reason)))) {
+                            $isJustified = true;
+                            break;
+                        }
+                    }
+                    if ($isJustified) {
+                        continue;
+                    }
+                }
+
+                // Asignar el agujero detectado en este paso temprano
+                $earliestHoleByBlockId[$blockId] = [
+                    'reason' => $reason,
+                    'stage' => $stage,
+                    'stage_label' => $stageLabel,
+                ];
+            }
         }
 
-        if ($markedCount > 0) {
-            session()->flash('warning', "Se han detectado {$markedCount} posibles agujeros de guión en {$targetStageLabel}.");
+        // Aplicar a cada bloque y persistir
+        $stageCounts = ['raw' => 0, 'structured' => 0, 'screenplay' => 0];
+
+        foreach ($allBlocks as $block) {
+            $userLocks = $block->user_locks ?? [];
+
+            if (isset($earliestHoleByBlockId[$block->id])) {
+                $holeInfo = $earliestHoleByBlockId[$block->id];
+                $userLocks['plot_hole_stage'] = $holeInfo['stage'];
+                $stageCounts[$holeInfo['stage']]++;
+
+                $block->update([
+                    'plot_hole' => $holeInfo['reason'],
+                    'user_locks' => $userLocks,
+                ]);
+            } else {
+                unset($userLocks['plot_hole_stage']);
+
+                $block->update([
+                    'plot_hole' => null,
+                    'user_locks' => $userLocks,
+                ]);
+            }
+        }
+
+        $totalMarked = array_sum($stageCounts);
+
+        if ($totalMarked > 0) {
+            $details = [];
+            if ($stageCounts['raw'] > 0) {
+                $details[] = "{$stageCounts['raw']} en Idea";
+            }
+            if ($stageCounts['structured'] > 0) {
+                $details[] = "{$stageCounts['structured']} en Tratamiento";
+            }
+            if ($stageCounts['screenplay'] > 0) {
+                $details[] = "{$stageCounts['screenplay']} en Guion";
+            }
+            $detailsStr = implode(', ', $details);
+
+            session()->flash('warning', "Se han detectado {$totalMarked} posibles agujeros de guión ({$detailsStr}). Marcado el origen más temprano.");
         } else {
-            session()->flash('success', "Filtro de agujeros de guión en {$targetStageLabel}: No se han detectado incongruencias.");
+            session()->flash('success', 'Filtro de agujeros de guión: No se han detectado incongruencias en ninguna de las etapas.');
         }
     }
 

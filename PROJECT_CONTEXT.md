@@ -195,12 +195,12 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
 - `TakeMediaManagementTest.php`: Verifica subida física de vídeo, validaciones y tomas válidas (5 tests).
 - `RoughCutAssemblyTest.php`: Verifica ordenación de timeline, renderizado con FFmpeg y fallbacks (4 tests).
 - `LivewirePipelineReactiveTest.php`: Verifica flujo end-to-end entre etapas y candados (4 tests).
-- `LivewireScriptEditorTest.php`: Verifica renderizado del slugline, feed de bloques, inserción Gutenberg, drawer lateral, tomas, auditoría determinista de borrado seguro de personajes y localizaciones, protocolo de 3 iteraciones de agujeros de guión, ejecución según consolidado activo (Pipeline/Idea -> raw, Tratamiento -> structured, Guion -> screenplay) con indicación de etapa y justificación archivada (20 tests).
+- `LivewireScriptEditorTest.php`: Verifica renderizado del slugline, feed de bloques, inserción Gutenberg, drawer lateral, tomas, auditoría determinista de borrado seguro de personajes y localizaciones, protocolo de 3 iteraciones de agujeros de guión, análisis multi-etapa independiente de consolidados (Idea, Tratamiento, Guion) con prioridad estricta al origen más temprano y justificación archivada (20 tests).
 - `PasswordlessAuthTest.php`: Verifica generación y envío de OTP, banner en localhost, un solo uso y detección de replay attacks en `security_breach_logs` (6 tests).
 - `AdminPanelAndTelemetryTest.php`: Verifica middleware `admin` 403, auditoría sin filtrar textos, persistencia de `agent_request_logs` con costes USD y actualización de tarifas (5 tests).
 - `ProjectTransferAdminTest.php`: Verifica permisos 403, privacidad sin filtrar textos y reasignación/transferencia atómica de obras entre usuarios tanto desde `UserDetail` como desde `ProjectManager` (4 tests).
 - `ScriptPipelineIntegrationTest.php`: Verifica transiciones entre etapas, inyección semántica de biblia de proyecto y normalización estricta de `user_locks` ante valores serializados o malformados (6 tests).
-- **Total:** 65 tests PHPUnit pasando al 100% (406 aserciones).
+- **Total:** 65 tests PHPUnit pasando al 100% (409 aserciones).
 
 ---
 
@@ -317,13 +317,13 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
   - **Protocolo de 3 Iteraciones contra Falsos Positivos:** El detector de agujeros de guión (`plot_hole_detector`) ejecuta un procedimiento de triple verificación:
     1. *Iteración 1: Detección Preliminar:* Mapeo de inconsistencias cronológicas y dramáticas.
     2. *Iteración 2: Cotejo Literal de Evidencia Textual:* Cotejo riguroso entre el motivo imputado y las palabras literales del bloque analizado. Si el motivo menciona la presencia o acción de un personaje de la biblia (e.g., Pedro) y dicho personaje no figura textualmente en la escena o bloque, el agujero se descarta automáticamente como alucinación de la IA.
-  - **Ejecución según Consolidado Activo e Indicación de Step:**
-    - El filtro se ejecuta estrictamente sobre el texto del consolidado que se encuentra abierto en pantalla (`$this->activeView`):
-      * Vista **`Pipeline`**: audita sobre el texto bruto original (`raw_text`).
-      * Vista **`Idea`**: audita sobre la idea consolidada (`raw_text`).
-      * Vista **`Tratamiento`**: audita sobre el tratamiento consolidado estructurado (`structured_text`).
-      * Vista **`Guion`**: audita sobre el guión consolidado literario (`screenplay_content`).
-    - **Registro e Indicación de Etapa:** Se almacena en `user_locks['plot_hole_stage']` y se visualiza un badge distintivo (`Detectado en: Idea (Bruto)`, `Detectado en: Tratamiento` o `Detectado en: Guion`) en las alertas del Pipeline, del Consolidado continuo, del Drawer lateral y en el archivo de "Agujeros justificados".
+  - **Auditoría Multi-Etapa de Consolidados con Prioridad al Paso Más Temprano:**
+    - Al accionar el botón de agujeros de guión, el sistema audita cada consolidado por separado en orden cronológico estricto:
+      1. Paso 1: **Idea / Bruto** (`raw_text`).
+      2. Paso 2: **Tratamiento** (`structured_text`).
+      3. Paso 3: **Guion Literario** (`screenplay_content`).
+    - **Regla del Paso Más Temprano:** Si una inconsistencia tiene su origen en el texto bruto, se marca y conserva como `Detectado en: Idea (Bruto)` aunque persista en el tratamiento o guion. Si nace en el tratamiento, se marca en `Tratamiento`. Y si aparece exclusivamente en el guión literario, se marca en `Guion`.
+    - **Registro e Indicación de Etapa:** Se almacena en `user_locks['plot_hole_stage']` y se visualiza un badge distintivo (`Detectado en: Idea (Bruto)`, `Detectado en: Tratamiento` o `Detectado en: Guion`) en las alertas del Pipeline, del Consolidado continuo, del Drawer lateral y en el archivo de "Agujeros justificados". El mensaje flash desglosa el cómputo (e.g., *2 en Idea, 1 en Guion*).
   - **Justificación y Retiro de Agujeros de Guión (`justified_plot_holes`):**
     - Se habilita un botón `✅ Justificar` en las tarjetas de alerta de agujero (Pipeline, Consolidado y Drawer).
     - Despliega un modal interactivo donde el usuario introduce una explicación de por qué no es una inconsistencia.
