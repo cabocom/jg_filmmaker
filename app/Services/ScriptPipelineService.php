@@ -28,6 +28,7 @@ class ScriptPipelineService
         $project = $block->scene?->project;
         if ($project) {
             $this->syncProjectCharacters($project);
+            $this->syncProjectLocations($project);
         }
 
         $characters = $project ? $project->characters()->get()->map(fn ($c) => [
@@ -113,6 +114,7 @@ class ScriptPipelineService
         $project = $block->scene?->project;
         if ($project) {
             $this->syncProjectCharacters($project);
+            $this->syncProjectLocations($project);
         }
 
         $characters = $project ? $project->characters()->get()->map(fn ($c) => [
@@ -459,5 +461,183 @@ class ScriptPipelineService
         }
 
         return $text;
+    }
+
+    /**
+     * Parsea un slugline (encabezado canónico) extrayendo tipo (INT/EXT), nombre de localización y momento del día.
+     *
+     * @return array{type: string, name: string, time_of_day: string}
+     */
+    public function parseSlugline(string $slugline): array
+    {
+        $slugline = trim($slugline);
+        if (empty($slugline)) {
+            return [
+                'type' => 'INT',
+                'name' => 'LOCALIZACIÓN',
+                'time_of_day' => 'DÍA',
+            ];
+        }
+
+        $type = 'INT';
+        $name = '';
+        $timeOfDay = 'DÍA';
+
+        // Detectar si empieza por INT/EXT, INT./EXT., I/E., INT., EXT., etc.
+        if (preg_match('/^(INT\/EXT|INT\.\/EXT\.|INT|EXT|I\/E)\.?\s*(.*?)(?:\s*[-–—]\s*([^\d\n\r]+?))?(?:\s+\d+)?$/iu', $slugline, $matches)) {
+            $rawType = strtoupper(trim($matches[1]));
+            if (str_contains($rawType, 'EXT') && str_contains($rawType, 'INT')) {
+                $type = 'INT/EXT';
+            } elseif (str_contains($rawType, 'EXT')) {
+                $type = 'EXT';
+            } else {
+                $type = 'INT';
+            }
+
+            $name = trim($matches[2] ?? '');
+            // Limpiar posibles guiones o puntos al inicio o final del nombre
+            $name = trim(preg_replace('/^[-–—\.\s]+|[-–—\.\s]+$/u', '', $name));
+
+            if (! empty($matches[3])) {
+                $timeOfDay = strtoupper(trim($matches[3]));
+            }
+        } else {
+            // Si no tiene el formato estándar INT./EXT., separar por guión si existe
+            $parts = preg_split('/[-–—]/u', $slugline, 2);
+            $headerPart = trim($parts[0] ?? '');
+            $timePart = trim($parts[1] ?? '');
+
+            if (preg_match('/^(INT\/EXT|INT|EXT)/i', $headerPart, $tm)) {
+                $rawType = strtoupper($tm[1]);
+                $type = str_contains($rawType, 'EXT') && str_contains($rawType, 'INT') ? 'INT/EXT' : $rawType;
+                $name = trim(preg_replace('/^(INT\/EXT|INT|EXT)[\.\s]*/i', '', $headerPart));
+            } else {
+                $name = $headerPart;
+            }
+
+            if (! empty($timePart)) {
+                $timeOfDay = strtoupper(trim(preg_replace('/\s+\d+$/', '', $timePart)));
+            }
+        }
+
+        $name = mb_strtoupper($name, 'UTF-8');
+        if (empty($name)) {
+            $name = 'LOCALIZACIÓN';
+        }
+
+        return [
+            'type' => $type,
+            'name' => $name,
+            'time_of_day' => $timeOfDay ?: 'DÍA',
+        ];
+    }
+
+    /**
+     * Sincroniza las localizaciones deducidas de los sluglines de las escenas con la tabla 'locations' de la Biblia del proyecto.
+     * Asocia automáticamente el location_id correspondiente a cada escena.
+     */
+    public function syncProjectLocations(Project $project): void
+    {
+        if (! $project->exists) {
+            return;
+        }
+
+        $scenes = $project->scenes()->orderBy('scene_order')->get();
+        if ($scenes->isEmpty()) {
+            return;
+        }
+
+        foreach ($scenes as $scene) {
+            if (empty($scene->slugline)) {
+                continue;
+            }
+
+            $parsed = $this->parseSlugline($scene->slugline);
+            $parsedName = $parsed['name'];
+            $parsedType = $parsed['type'];
+            $parsedTime = $parsed['time_of_day'];
+
+            // Actualizar time_of_day de la escena si estaba vacío
+            if (empty($scene->time_of_day) && ! empty($parsedTime)) {
+                $scene->update(['time_of_day' => $parsedTime]);
+            }
+
+            // Si la escena ya tiene una localización asociada
+            if ($scene->location_id) {
+                $currentLoc = $project->locations()->find($scene->location_id);
+                if ($currentLoc) {
+                    $currentName = mb_strtoupper($currentLoc->name, 'UTF-8');
+                    // Si el nombre en el slugline cambió respecto a la localización asociada
+                    if ($currentName !== $parsedName) {
+                        // Comprobar si ya existe una localización con el nuevo nombre en el proyecto
+                        $targetLoc = $project->locations()
+                            ->whereRaw('UPPER(name) = ?', [$parsedName])
+                            ->first();
+
+                        if ($targetLoc) {
+                            // Asociar la escena a la localización con el nuevo nombre
+                            $scene->update(['location_id' => $targetLoc->id]);
+
+                            // Si la localización antigua no la usa ninguna otra escena, la eliminamos
+                            $otherUsages = $project->scenes()
+                                ->where('id', '!=', $scene->id)
+                                ->where('location_id', $currentLoc->id)
+                                ->count();
+                            if ($otherUsages === 0) {
+                                $currentLoc->delete();
+                            }
+                        } else {
+                            // Si ninguna otra escena usa la localización antigua, la renombramos directamente
+                            $otherUsages = $project->scenes()
+                                ->where('id', '!=', $scene->id)
+                                ->where('location_id', $currentLoc->id)
+                                ->count();
+                            if ($otherUsages === 0) {
+                                $currentLoc->update([
+                                    'name' => $parsedName,
+                                    'type' => $parsedType,
+                                ]);
+                            } else {
+                                // Otras escenas siguen usando la antigua, creamos la nueva localización para esta escena
+                                $newLoc = $project->locations()->create([
+                                    'name' => $parsedName,
+                                    'type' => $parsedType,
+                                    'art_department_notes' => 'Localización detectada automáticamente en el guión.',
+                                ]);
+                                $scene->update(['location_id' => $newLoc->id]);
+                            }
+                        }
+                    } else {
+                        // El nombre coincide, asegurar tipo consistente si difiere
+                        if (empty($currentLoc->type) || $currentLoc->type !== $parsedType) {
+                            $currentLoc->update(['type' => $parsedType]);
+                        }
+                    }
+                } else {
+                    // El location_id apuntaba a una localización inexistente, resetear y buscar/crear
+                    $scene->update(['location_id' => null]);
+                }
+            }
+
+            // Si la escena NO tiene localización asociada (o se reseteó arriba)
+            if (! $scene->location_id) {
+                // Buscar si ya existe una localización con este nombre
+                $loc = $project->locations()
+                    ->whereRaw('UPPER(name) = ?', [$parsedName])
+                    ->first();
+
+                if (! $loc) {
+                    $loc = $project->locations()->create([
+                        'name' => $parsedName,
+                        'type' => $parsedType,
+                        'art_department_notes' => 'Localización detectada automáticamente en el guión.',
+                    ]);
+                }
+
+                $scene->update(['location_id' => $loc->id]);
+            }
+        }
+
+        $project->load('locations');
     }
 }

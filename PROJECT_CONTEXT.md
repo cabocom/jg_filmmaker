@@ -359,6 +359,15 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
       * Botón de acceso directo con icono de lápiz (✏️) en la cabecera de la escena tanto en la vista Pipeline Gutenberg como en la vista consolidada Story Architect.
       * Modal interactivo `showEditSceneModal` para modificar el encabezado canónico (*slugline*, e.g. `INT. BAR CENTRAL - NOCHE 1`), el momento del día (*time_of_day*) y la localización asociada de la Biblia.
       * Validación reactiva y persistencia inmediata en la tabla `scenes` con mensaje flash confirmatorio.
+  - **Sincronización Bidireccional de Localizaciones y Biblia de Proyecto (Fase 24):**
+    - **Deducción y Parsing Canónico de Sluglines (`parseSlugline`):**
+      * Extrae robustamente tipo de entorno (`INT`, `EXT`, `INT/EXT`), nombre de localización (`BAR`, `CALLE PUERTA BAR`, `BOSQUE`) y momento del día (`NOCHE`, `DÍA`, `CONTINUO`) desde cualquier formato estándar de slugline cinematográfico.
+    - **Sincronización y Creación Automática en Biblia (`syncProjectLocations`):**
+      * Al entrar al editor (`ScriptEditor::mount`), al crear una escena (`createScene`), al editar un slugline (`updateScene`) o al transicionar bloques en el pipeline (`transitionToStructured` / `transitionToScreenplay`), el sistema audita las escenas del proyecto.
+      * Si una escena incluye una nueva localización no registrada en la Biblia (e.g. `EXT. CALLE PUERTA BAR - NOCHE 1`), se crea inmediatamente la entidad en la tabla `locations` con su tipo deducido (`EXT`) y se asocia a la escena (`location_id`).
+      * Si el usuario renombra el slugline de una escena modificando la localización (e.g. de `BAR CENTRAL` a `BAR`), el sistema detecta el cambio, renombra la localización en la Biblia si era exclusiva de esa escena y actualiza la relación, manteniendo la coherencia sin obligar al usuario a crearlas manualmente en la Biblia.
+    - **Actualización Reactiva de la Biblia (`bible-updated`):**
+      * Emite el evento `bible-updated` al modificar o crear escenas, permitiendo que el panel lateral `ContextBibleDrawer` refresque de inmediato las entidades de personajes y localizaciones sin recarga de página.
 
 ### 7.2. Deudas Técnicas Conocidas
 1. **Actualización Dinámica de Tarifas de Tokens:**

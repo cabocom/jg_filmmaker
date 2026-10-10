@@ -158,8 +158,10 @@ class ScriptEditor extends Component
     {
         $this->project = $project;
 
-        // Sincronizar y detectar automáticamente personajes del guión en la Biblia
-        app(ScriptPipelineService::class)->syncProjectCharacters($this->project);
+        // Sincronizar y detectar automáticamente personajes y localizaciones del guión en la Biblia
+        $pipeline = app(ScriptPipelineService::class);
+        $pipeline->syncProjectCharacters($this->project);
+        $pipeline->syncProjectLocations($this->project);
 
         // Cargar primera escena disponible o dejar en null (sin auto-seleccionar bloque)
         $firstScene = $this->project->scenes()->first();
@@ -489,6 +491,10 @@ class ScriptEditor extends Component
             'user_locks' => [],
         ]);
 
+        // Sincronizar localizaciones del proyecto y notificar a la Biblia
+        app(ScriptPipelineService::class)->syncProjectLocations($this->project);
+        $this->dispatch('bible-updated');
+
         $this->activeSceneId = $scene->id;
         $this->reset(['showNewSceneModal', 'newSceneLocationId']);
         $this->newSceneSlugline = 'INT. NUEVA LOCALIZACIÓN - DÍA 1';
@@ -538,6 +544,10 @@ class ScriptEditor extends Component
             'time_of_day' => strtoupper(trim($this->editingSceneTimeOfDay)),
             'location_id' => $this->editingSceneLocationId ?: null,
         ]);
+
+        // Sincronizar localizaciones del proyecto y notificar a la Biblia
+        app(ScriptPipelineService::class)->syncProjectLocations($this->project);
+        $this->dispatch('bible-updated');
 
         $this->closeEditSceneModal();
         session()->flash('success', "Escena #{$scene->scene_order} actualizada correctamente.");

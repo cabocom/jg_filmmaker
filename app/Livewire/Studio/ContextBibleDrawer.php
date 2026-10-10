@@ -81,6 +81,12 @@ class ContextBibleDrawer extends Component
         $this->isOpen = true;
     }
 
+    #[On('bible-updated')]
+    public function refreshBible(): void
+    {
+        $this->project->refresh();
+    }
+
     public function close(): void
     {
         $this->isOpen = false;

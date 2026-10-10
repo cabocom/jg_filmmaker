@@ -1052,4 +1052,61 @@ class LivewireScriptEditorTest extends TestCase
         // Y en el texto estructurado debe aparecer en mayúsculas CAMARERO
         $this->assertStringContainsString('CAMARERO', $structuredBlock->structured_text);
     }
+
+    public function test_renaming_scene_slugline_updates_location_in_bible_and_creates_unlinked_locations(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+
+        // Localización existente BAR CENTRAL
+        $locBarCentral = $project->locations()->create([
+            'name' => 'BAR CENTRAL',
+            'type' => 'INT',
+        ]);
+
+        // Escena 2 asociada a BAR CENTRAL
+        $scene2 = Scene::factory()->create([
+            'project_id' => $project->id,
+            'scene_order' => 2,
+            'slugline' => 'INT. BAR CENTRAL - NOCHE 1',
+            'location_id' => $locBarCentral->id,
+        ]);
+
+        // Escena 3 con slugline nuevo sin localización previa
+        $scene3 = Scene::factory()->create([
+            'project_id' => $project->id,
+            'scene_order' => 3,
+            'slugline' => 'EXT. CALLE PUERTA BAR - NOCHE 1',
+            'location_id' => null,
+        ]);
+
+        // Al iniciar el componente ScriptEditor, debe sincronizar automáticamente
+        $livewire = Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project]);
+
+        // La escena 3 ahora debe tener creada y asignada la localización CALLE PUERTA BAR (EXT)
+        $this->assertDatabaseHas('locations', [
+            'project_id' => $project->id,
+            'name' => 'CALLE PUERTA BAR',
+            'type' => 'EXT',
+        ]);
+        $this->assertEquals('CALLE PUERTA BAR', $scene3->fresh()->location->name);
+
+        // Ahora el usuario edita la Escena 2 cambiando el slugline de BAR CENTRAL a BAR
+        $livewire->call('openEditSceneModal', $scene2->id)
+            ->set('editingSceneSlugline', 'INT. BAR - NOCHE 1')
+            ->call('updateScene');
+
+        // La localización debe haberse renombrado en la Biblia a BAR y la escena estar vinculada
+        $this->assertDatabaseHas('locations', [
+            'project_id' => $project->id,
+            'name' => 'BAR',
+            'type' => 'INT',
+        ]);
+        $this->assertDatabaseMissing('locations', [
+            'project_id' => $project->id,
+            'name' => 'BAR CENTRAL',
+        ]);
+        $this->assertEquals('BAR', $scene2->fresh()->location->name);
+    }
 }
