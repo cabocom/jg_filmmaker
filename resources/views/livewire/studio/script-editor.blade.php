@@ -1,27 +1,25 @@
 <div class="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors">
-    <!-- ================= BARRA SUPERIOR STICKY: NAVEGACIÓN Y RESUMEN DE GUIÓN ================= -->
+    <!-- ================= BARRA SUPERIOR STICKY: TÍTULO DEL PROYECTO ================= -->
     <div class="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 shadow-xs backdrop-blur-md px-4 sm:px-6 lg:px-8 py-2.5 transition-colors">
         <div class="max-w-7xl mx-auto flex items-center justify-between gap-3">
-            <!-- Título y Acción de Escenas -->
+            <!-- Título del Proyecto y Recuento -->
             <div class="flex items-center gap-3">
-                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Escenas:</span>
-                <span class="px-2 py-0.5 rounded-md text-xs font-bold font-mono bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                    {{ $scenes->count() }} en guión
+                <span class="text-sm font-bold font-mono uppercase tracking-wider text-slate-900 dark:text-white">
+                    {{ $project->title }}
                 </span>
-                <button wire:click="openNewSceneModal()"
-                        type="button"
-                        class="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition flex items-center gap-1 shadow-2xs cursor-pointer"
-                        title="Añadir Escena al final del guión">
-                    <span>+</span>
-                    <span>Nueva Escena</span>
-                </button>
+                <span class="px-2 py-0.5 rounded-md text-xs font-bold font-mono bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                    {{ $scenes->count() }} {{ $scenes->count() === 1 ? 'escena' : 'escenas' }}
+                </span>
             </div>
 
-            <!-- Identificador de Modo Story Architect -->
-            <div class="flex items-center gap-2 text-xs font-mono text-slate-400">
-                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>Modo Redacción · Story Architect</span>
-            </div>
+            <!-- Botón Nueva Escena al Final del Guión -->
+            <button wire:click="openNewSceneModal()"
+                    type="button"
+                    class="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition flex items-center gap-1 shadow-2xs cursor-pointer"
+                    title="Añadir Escena al final del guión">
+                <span>+</span>
+                <span>Nueva Escena</span>
+            </button>
         </div>
     </div>
 
@@ -50,22 +48,13 @@
 
                     <!-- Tarjeta de Escena con Soporte Drag & Drop y Acordeón -->
                     <div id="scene-card-{{ $scene->id }}"
-                         x-data="{ isDraggingScene: false, isOverScene: false, isSceneDraggable: false }"
-                         :draggable="isSceneDraggable"
-                         @dragstart="
-                             event.dataTransfer.setData('scene-id', '{{ $scene->id }}');
-                             event.dataTransfer.effectAllowed = 'move';
-                             isDraggingScene = true;
-                             if (event.dataTransfer.setDragImage) {
-                                 event.dataTransfer.setDragImage($el, 20, 20);
-                             }
-                         "
-                         @dragend="isDraggingScene = false; isSceneDraggable = false"
+                         x-data="{ isDraggingScene: false, isOverScene: false, isSceneHovered: false }"
+                         @mouseenter="isSceneHovered = true"
+                         @mouseleave="isSceneHovered = false"
                          @dragover.prevent="isOverScene = true"
                          @dragleave="isOverScene = false"
                          @drop.prevent="
                              isOverScene = false;
-                             isSceneDraggable = false;
                              const srcSceneId = event.dataTransfer.getData('scene-id');
                              if (srcSceneId && srcSceneId !== '{{ $scene->id }}') {
                                  $wire.reorderScene(srcSceneId, {{ $scene->scene_order }});
@@ -75,18 +64,26 @@
                              'opacity-40 scale-[0.99]': isDraggingScene,
                              'border-amber-500 ring-2 ring-amber-500/50 bg-amber-500/5': isOverScene
                          }"
-                         class="group/scene bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-xs transition-all overflow-hidden mb-5">
+                         class="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-xs transition-all overflow-hidden mb-5">
 
-                        <!-- Cabecera de la Escena (Estilo StoryArchitect: Slugline Compacto a la Izquierda, Pipeline a la Derecha) -->
+                        <!-- Cabecera de la Escena (Slugline Compacto a la Izquierda, Pipeline a la Derecha) -->
                         <div class="px-3.5 py-2 bg-slate-100/75 dark:bg-slate-800/60 border-b border-slate-200/80 dark:border-slate-700/60 flex items-center justify-between gap-3">
                             <div class="flex items-center gap-2 min-w-0">
-                                <!-- Tirador Drag & Drop de Escena: Visible en hover -->
-                                <button type="button"
-                                        @mousedown="isSceneDraggable = true"
-                                        @mouseup="isSceneDraggable = false"
-                                        @mouseleave="if (!isDraggingScene) isSceneDraggable = false"
-                                        title="Arrastrar para mover toda esta escena"
-                                        class="shrink-0 w-4 h-5 rounded flex items-center justify-center text-slate-400 hover:text-amber-500 dark:text-slate-500 dark:hover:text-amber-400 cursor-grab active:cursor-grabbing opacity-0 group-hover/scene:opacity-100 transition-opacity select-none">
+                                <!-- Tirador Drag & Drop de Escena con draggable=true directo -->
+                                <div draggable="true"
+                                     @dragstart.stop="
+                                         event.dataTransfer.setData('scene-id', '{{ $scene->id }}');
+                                         event.dataTransfer.effectAllowed = 'move';
+                                         const sceneEl = document.getElementById('scene-card-{{ $scene->id }}');
+                                         if (event.dataTransfer.setDragImage && sceneEl) {
+                                             event.dataTransfer.setDragImage(sceneEl, 20, 20);
+                                         }
+                                         isDraggingScene = true;
+                                     "
+                                     @dragend="isDraggingScene = false"
+                                     title="Arrastrar para mover toda esta escena"
+                                     :class="isSceneHovered ? 'opacity-100' : 'opacity-0'"
+                                     class="shrink-0 w-4 h-5 rounded flex items-center justify-center text-slate-400 hover:text-amber-500 dark:text-slate-500 dark:hover:text-amber-400 cursor-grab active:cursor-grabbing transition-opacity duration-150 select-none">
                                     <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                                         <circle cx="7" cy="4" r="1.5" />
                                         <circle cx="13" cy="4" r="1.5" />
@@ -95,15 +92,23 @@
                                         <circle cx="7" cy="16" r="1.5" />
                                         <circle cx="13" cy="16" r="1.5" />
                                     </svg>
-                                </button>
+                                </div>
 
-                                <!-- Botón Toggle de Acordeón con Slugline Compacto estilo StoryArchitect -->
+                                <!-- Botón Toggle de Acordeón con Icono Dinámico (Cambia de forma según esté expandida o colapsada) -->
                                 <button wire:click="toggleScene('{{ $scene->id }}')"
                                         type="button"
                                         class="flex items-center gap-2 text-left truncate cursor-pointer group/btn">
-                                    <svg class="w-3.5 h-3.5 shrink-0 text-slate-400 group-hover/btn:text-amber-500 transition-transform duration-150 {{ $isExpanded ? 'rotate-90 text-amber-500' : '' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
-                                    </svg>
+                                    @if($isExpanded)
+                                        <!-- Icono Abierto (Flecha hacia abajo) -->
+                                        <svg class="w-3.5 h-3.5 shrink-0 text-amber-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    @else
+                                        <!-- Icono Cerrado / Colapsado (Flecha hacia la derecha) -->
+                                        <svg class="w-3.5 h-3.5 shrink-0 text-slate-400 group-hover/btn:text-amber-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+                                        </svg>
+                                    @endif
 
                                     <div class="flex items-center gap-1.5 flex-wrap font-mono">
                                         <span class="text-[11px] font-bold text-amber-600 dark:text-amber-400">
@@ -175,13 +180,18 @@
                         <!-- Contenido de Bloques de la Escena (Acordeón expandible) -->
                         @if($isExpanded)
                             <div class="p-3 sm:p-5 space-y-0.5">
-                                <!-- Divisor Inicial de Bloque: Gutenberg (Invisible en reposo, revelado en hover) -->
-                                <div class="h-4 my-[-2px] relative flex items-center justify-center group/plus cursor-pointer z-10">
-                                    <div class="w-full h-px bg-amber-500/70 dark:bg-amber-400/70 opacity-0 group-hover/plus:opacity-100 transition-opacity duration-150"></div>
+                                <!-- Divisor Inicial de Bloque: Gutenberg (Invisible en reposo, revelado al pasar el ratón) -->
+                                <div x-data="{ isInitPlusHovered: false }"
+                                     @mouseenter="isInitPlusHovered = true"
+                                     @mouseleave="isInitPlusHovered = false"
+                                     class="h-6 my-0.5 relative flex items-center justify-center cursor-pointer z-10">
+                                    <div :class="isInitPlusHovered ? 'bg-amber-500 dark:bg-amber-400 opacity-100' : 'bg-transparent opacity-0'"
+                                         class="w-full h-0.5 transition-all duration-150"></div>
                                     <button wire:click="openNewBlockModal(0, '{{ $scene->id }}')"
                                             type="button"
                                             title="Insertar bloque al inicio de la escena"
-                                            class="absolute z-10 w-7 h-7 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center justify-center shadow-md hover:scale-110 opacity-0 group-hover/plus:opacity-100 transition-all duration-150 cursor-pointer">
+                                            :class="isInitPlusHovered ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-75 pointer-events-none'"
+                                            class="absolute z-20 w-7 h-7 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center justify-center shadow-md hover:scale-110 transition-all duration-150 cursor-pointer">
                                         <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                                             <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
                                         </svg>
@@ -193,44 +203,44 @@
                                         $isSelected = ($selectedBlockId === $block->id);
                                     @endphp
 
-                                    <!-- Elemento Continuo de Bloque con Drag & Drop Completo de Fila y Lectura Fluida -->
+                                    <!-- Elemento Continuo de Bloque con Drag & Drop Completo de Fila y Efecto Hover Garantizado -->
                                     <div id="block-{{ $block->id }}"
-                                         x-data="{ isDragging: false, isOver: false, isDraggable: false }"
-                                         :draggable="isDraggable"
-                                         @dragstart="
-                                             event.dataTransfer.setData('text/plain', '{{ $block->id }}');
-                                             event.dataTransfer.effectAllowed = 'move';
-                                             isDragging = true;
-                                             if (event.dataTransfer.setDragImage) {
-                                                 event.dataTransfer.setDragImage($el, 20, 20);
-                                             }
-                                         "
-                                         @dragend="isDragging = false; isDraggable = false"
+                                         x-data="{ isBlockHovered: false, isDragging: false, isOver: false }"
+                                         @mouseenter="isBlockHovered = true"
+                                         @mouseleave="isBlockHovered = false"
                                          @dragover.prevent="isOver = true"
                                          @dragleave="isOver = false"
                                          @drop.prevent="
                                              isOver = false;
-                                             isDraggable = false;
                                              const srcId = event.dataTransfer.getData('text/plain');
                                              if (srcId && srcId !== '{{ $block->id }}') {
                                                  $wire.reorderBlock(srcId, {{ $block->block_order }}, '{{ $scene->id }}');
                                              }
                                          "
                                          :class="{
+                                             'bg-slate-100/90 dark:bg-slate-800/70': isBlockHovered && !{{ $isSelected ? 'true' : 'false' }},
                                              'opacity-40 scale-[0.99]': isDragging,
                                              'border-amber-500 ring-2 ring-amber-500/50 bg-amber-50/50 dark:bg-amber-950/30': isOver
                                          }"
                                          wire:click="selectBlock('{{ $block->id }}')"
-                                         class="group/block relative rounded-xl px-2.5 py-1.5 transition-all cursor-pointer border-l-2 {{ $isSelected ? 'bg-amber-500/10 dark:bg-amber-400/10 border-amber-500 shadow-2xs' : 'border-transparent hover:bg-slate-100/80 dark:hover:bg-slate-800/60' }}">
+                                         class="relative rounded-xl px-2.5 py-1.5 transition-all cursor-pointer border-l-2 {{ $isSelected ? 'bg-amber-500/10 dark:bg-amber-400/10 border-amber-500 shadow-2xs' : 'border-transparent' }}">
 
                                         <div class="flex items-start gap-2">
-                                            <!-- Tirador Drag & Drop: Alineado con la primera línea, visible en hover o cuando está seleccionado -->
-                                            <button type="button"
-                                                    @mousedown="isDraggable = true"
-                                                    @mouseup="isDraggable = false"
-                                                    @mouseleave="if (!isDragging) isDraggable = false"
-                                                    title="Arrastrar para mover este bloque de posición"
-                                                    class="shrink-0 w-4 h-5 mt-0.5 rounded flex items-center justify-center text-slate-400 hover:text-amber-500 dark:text-slate-500 dark:hover:text-amber-400 cursor-grab active:cursor-grabbing transition-opacity duration-150 select-none {{ $isSelected ? 'opacity-100' : 'opacity-0 group-hover/block:opacity-100' }}">
+                                            <!-- Tirador Drag & Drop con draggable=true directo y arrastre de fila completa -->
+                                            <div draggable="true"
+                                                 @dragstart.stop="
+                                                     event.dataTransfer.setData('text/plain', '{{ $block->id }}');
+                                                     event.dataTransfer.effectAllowed = 'move';
+                                                     const blockEl = document.getElementById('block-{{ $block->id }}');
+                                                     if (event.dataTransfer.setDragImage && blockEl) {
+                                                         event.dataTransfer.setDragImage(blockEl, 20, 20);
+                                                     }
+                                                     isDragging = true;
+                                                 "
+                                                 @dragend="isDragging = false"
+                                                 title="Arrastrar para mover este bloque de posición"
+                                                 :class="(isBlockHovered || {{ $isSelected ? 'true' : 'false' }}) ? 'opacity-100' : 'opacity-0'"
+                                                 class="shrink-0 w-5 h-6 mt-0.5 rounded flex items-center justify-center text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 dark:text-slate-500 dark:hover:text-amber-400 cursor-grab active:cursor-grabbing transition-opacity duration-150 select-none">
                                                 <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                                                     <circle cx="7" cy="4" r="1.5" />
                                                     <circle cx="13" cy="4" r="1.5" />
@@ -239,7 +249,7 @@
                                                     <circle cx="7" cy="16" r="1.5" />
                                                     <circle cx="13" cy="16" r="1.5" />
                                                 </svg>
-                                            </button>
+                                            </div>
 
                                             <!-- Texto de la Historia según la etapa del menú de la escena -->
                                             <div class="flex-1 min-w-0">
@@ -298,7 +308,8 @@
                                             </div>
 
                                             <!-- Botón de Detalles flotando a la derecha -->
-                                            <div class="shrink-0 pt-0.5 opacity-25 group-hover/block:opacity-100 transition-opacity">
+                                            <div :class="isBlockHovered ? 'opacity-100' : 'opacity-25'"
+                                                 class="shrink-0 pt-0.5 transition-opacity">
                                                 <button wire:click.stop="openBlockDetails('{{ $block->id }}')"
                                                         type="button"
                                                         title="Abrir detalles y etapas en panel lateral"
@@ -310,13 +321,18 @@
                                         </div>
                                     </div>
 
-                                    <!-- Divisor Gutenberg Intermedio: Invisible en reposo, revelado en hover -->
-                                    <div class="h-4 my-[-2px] relative flex items-center justify-center group/plus cursor-pointer z-10">
-                                        <div class="w-full h-px bg-amber-500/70 dark:bg-amber-400/70 opacity-0 group-hover/plus:opacity-100 transition-opacity duration-150"></div>
+                                    <!-- Divisor Gutenberg Intermedio: Revelado al pasar el ratón -->
+                                    <div x-data="{ isPlusHovered: false }"
+                                         @mouseenter="isPlusHovered = true"
+                                         @mouseleave="isPlusHovered = false"
+                                         class="h-6 my-0.5 relative flex items-center justify-center cursor-pointer z-10">
+                                        <div :class="isPlusHovered ? 'bg-amber-500 dark:bg-amber-400 opacity-100' : 'bg-transparent opacity-0'"
+                                             class="w-full h-0.5 transition-all duration-150"></div>
                                         <button wire:click="openNewBlockModal({{ $block->block_order }}, '{{ $scene->id }}')"
                                                 type="button"
                                                 title="Añadir bloque aquí"
-                                                class="absolute z-10 w-7 h-7 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center justify-center shadow-md hover:scale-110 opacity-0 group-hover/plus:opacity-100 transition-all duration-150 cursor-pointer">
+                                                :class="isPlusHovered ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-75 pointer-events-none'"
+                                                class="absolute z-20 w-7 h-7 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center justify-center shadow-md hover:scale-110 transition-all duration-150 cursor-pointer">
                                             <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                                                 <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
                                             </svg>
@@ -334,12 +350,17 @@
                         @endif
                     </div>
 
-                    <!-- Divisor Gutenberg entre Escenas (+ Nueva Escena: Invisible en reposo, revelado en hover) -->
-                    <div class="h-6 my-1 relative flex items-center justify-center group/plusscene cursor-pointer z-10">
-                        <div class="w-full h-px bg-amber-500/70 dark:bg-amber-400/70 opacity-0 group-hover/plusscene:opacity-100 transition-opacity duration-150"></div>
+                    <!-- Divisor Gutenberg entre Escenas (+ Nueva Escena: Revelado al pasar el ratón) -->
+                    <div x-data="{ isScenePlusHovered: false }"
+                         @mouseenter="isScenePlusHovered = true"
+                         @mouseleave="isScenePlusHovered = false"
+                         class="h-8 my-1 relative flex items-center justify-center cursor-pointer z-10">
+                        <div :class="isScenePlusHovered ? 'bg-amber-500 dark:bg-amber-400 opacity-100' : 'bg-transparent opacity-0'"
+                             class="w-full h-0.5 transition-all duration-150"></div>
                         <button wire:click="openNewSceneModal({{ $scene->scene_order }})"
                                 type="button"
-                                class="absolute z-10 px-3 py-1 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md hover:scale-105 opacity-0 group-hover/plusscene:opacity-100 transition-all duration-150 flex items-center gap-1.5 cursor-pointer">
+                                :class="isScenePlusHovered ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-75 pointer-events-none'"
+                                class="absolute z-20 px-3 py-1 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md hover:scale-105 transition-all duration-150 flex items-center gap-1.5 cursor-pointer">
                             <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                                 <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
                             </svg>
