@@ -49,7 +49,7 @@
     <!-- ================= BARRA SUPERIOR STICKY: TÍTULO DEL PROYECTO Y NAVEGACIÓN STORY ARCHITECT ================= -->
     <div class="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 shadow-xs backdrop-blur-md px-4 sm:px-6 lg:px-8 py-2.5 transition-colors">
         <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
-            <!-- Herramientas del Proyecto: Título, Escenas, Biblia, Agujeros, Historial y Tokens (Izquierda) -->
+            <!-- Herramientas del Proyecto: Título, Escenas, Biblia, Agujeros, Historial (Izquierda) -->
             <div class="flex items-center flex-wrap gap-2.5 min-w-0">
                 <span class="text-sm font-bold font-mono uppercase tracking-wider text-slate-900 dark:text-white truncate">
                     {{ $project->title }}
@@ -150,21 +150,6 @@
                     <span>📜</span>
                     <span>Historial</span>
                 </button>
-
-                <!-- Contador de Tokens Diarios Disponibles -->
-                @php
-                    $currentUser = auth()->user() ?? $project->user;
-                    $availableTokens = $currentUser ? $currentUser->getTokensAvailableToday() : 0;
-                    $dailyLimit = $currentUser ? $currentUser->getDailyTokenLimit() : 100000;
-                    $usedToday = $currentUser ? $currentUser->getTokensUsedToday() : 0;
-                    $percentLeft = $dailyLimit > 0 ? max(0, min(100, round(($availableTokens / $dailyLimit) * 100))) : 0;
-                @endphp
-                <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 shadow-2xs shrink-0 cursor-default"
-                     title="Tokens de IA disponibles hoy: {{ number_format($availableTokens, 0, ',', '.') }} de {{ number_format($dailyLimit, 0, ',', '.') }} ({{ $percentLeft }}%). Consumidos hoy: {{ number_format($usedToday, 0, ',', '.') }}. Se renueva diariamente a las 00:00.">
-                    <span class="{{ $percentLeft < 15 ? 'text-rose-500 animate-pulse' : ($percentLeft < 40 ? 'text-amber-500' : 'text-emerald-500') }}">⚡</span>
-                    <span class="font-bold text-slate-900 dark:text-white">{{ number_format($availableTokens, 0, ',', '.') }}</span>
-                    <span class="hidden md:inline text-[11px] text-slate-400">/ {{ number_format($dailyLimit, 0, ',', '.') }} tokens</span>
-                </div>
             </div>
 
             <!-- Menú Superior Alineado a la Derecha: Pipeline - Idea - Tratamiento - Guion - Planos/Tomas -->
@@ -1934,6 +1919,7 @@
 
                     <!-- Tarjeta de Desglose de Tokens -->
                     @php
+                        $currentUser = auth()->user() ?? $project->user;
                         $userTokensAvail = $currentUser ? $currentUser->getTokensAvailableToday() : 0;
                         $hasEnough = $userTokensAvail >= $estimatedPlotHoleTokens;
                         $remainingAfter = max(0, $userTokensAvail - $estimatedPlotHoleTokens);

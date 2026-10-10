@@ -106,6 +106,21 @@
                 </button>
 
                 @auth
+                    @php
+                        $userTokensAvail = auth()->user()->getTokensAvailableToday();
+                        $userDailyLimit = auth()->user()->getDailyTokenLimit();
+                        $userUsedToday = auth()->user()->getTokensUsedToday();
+                        $userPercentLeft = $userDailyLimit > 0 ? max(0, min(100, round(($userTokensAvail / $userDailyLimit) * 100))) : 0;
+                    @endphp
+
+                    <!-- Contador de Tokens Diarios IA del Usuario (Entre selector de tema y usuario) -->
+                    <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-mono font-medium bg-slate-100/80 hover:bg-slate-200/80 dark:bg-slate-900/80 dark:hover:bg-slate-800/80 border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 shadow-2xs transition shrink-0 cursor-default"
+                         title="Tokens de IA disponibles hoy: {{ number_format($userTokensAvail, 0, ',', '.') }} de {{ number_format($userDailyLimit, 0, ',', '.') }} ({{ $userPercentLeft }}%). Consumidos hoy: {{ number_format($userUsedToday, 0, ',', '.') }}. Se renueva diariamente a las 00:00.">
+                        <span class="{{ $userPercentLeft < 15 ? 'text-rose-500 animate-pulse' : ($userPercentLeft < 40 ? 'text-amber-500' : 'text-emerald-500') }}">⚡</span>
+                        <span class="font-bold text-slate-900 dark:text-white">{{ number_format($userTokensAvail, 0, ',', '.') }}</span>
+                        <span class="hidden md:inline text-[11px] text-slate-400">/ {{ number_format($userDailyLimit, 0, ',', '.') }} tokens</span>
+                    </div>
+
                     <!-- Menú Desplegable de Usuario (Estilo jg_hub / jg_dashboard con Cuota de Slots) -->
                     <div class="relative pl-2 border-l border-slate-200 dark:border-slate-800" x-data="{ userMenuOpen: false }" @click.outside="userMenuOpen = false">
                         <button @click="userMenuOpen = !userMenuOpen"
@@ -149,6 +164,27 @@
                                     </span>
                                 </div>
                                 <p class="text-[11px] font-mono text-slate-500 dark:text-slate-400 truncate mt-0.5">{{ auth()->user()->email }}</p>
+                            </div>
+
+                            <!-- Sección de Tokens Diarios de IA -->
+                            <div class="p-3 bg-slate-50 dark:bg-slate-950/70 rounded-xl border border-slate-100 dark:border-slate-800/80 space-y-1.5">
+                                <div class="flex items-center justify-between text-xs">
+                                    <span class="font-medium text-slate-600 dark:text-slate-400 flex items-center gap-1">
+                                        <span>⚡</span> Tokens Diarios:
+                                    </span>
+                                    <span class="font-mono font-bold text-slate-900 dark:text-white">
+                                        <span class="{{ $userPercentLeft < 15 ? 'text-rose-500' : ($userPercentLeft < 40 ? 'text-amber-500' : 'text-emerald-500') }}">{{ number_format($userTokensAvail, 0, ',', '.') }}</span>
+                                        <span class="text-slate-400">/</span>
+                                        <span class="text-slate-500 text-[11px]">{{ number_format($userDailyLimit, 0, ',', '.') }}</span>
+                                    </span>
+                                </div>
+                                <div class="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                                    <div class="h-full {{ $userPercentLeft < 15 ? 'bg-rose-500' : ($userPercentLeft < 40 ? 'bg-amber-500' : 'bg-emerald-500') }} rounded-full transition-all" style="width: {{ $userPercentLeft }}%"></div>
+                                </div>
+                                <p class="text-[10px] text-slate-400 dark:text-slate-500 flex justify-between">
+                                    <span>Consumidos hoy: {{ number_format($userUsedToday, 0, ',', '.') }}</span>
+                                    <span>Renueva: 00:00</span>
+                                </p>
                             </div>
 
                             <!-- Sección de Slots y Capacidad -->

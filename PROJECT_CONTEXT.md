@@ -418,8 +418,18 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
       * **Detección Directa en Tarjetas de Auditoría:** Al auditar agujeros (`analyze_plot_holes`), la tarjeta del log en el historial renderiza directamente un bloque con el desglose de todas las inconsistencias detectadas (escena, bloque, etapa, fallo narrativo y previsualización textual).
       * **Modo JSON con Texto Negro:** Selector de snapshot con bloque `<pre>` en texto negro puro (`#000000 !important; font-weight: 500;`) sobre fondo suave (`bg-slate-100`), garantizando lectura inmediata y eliminando cualquier estilización verde o fondo oscuro ilegible.
     - **Restauración de Cabecera y Estética Minimalista del Editor:**
-      * **Cabecera Horizontal Limpia:** Preservación estricta del layout horizontal con título de proyecto, escenas, Biblia, Agujeros, Historial y Tokens a la izquierda y el pipeline a la derecha, sin colapsos ni apilamientos verticales indebidos.
+      * **Cabecera Horizontal Limpia:** Preservación estricta del layout horizontal con título de proyecto, escenas, Biblia, Agujeros e Historial a la izquierda y el pipeline a la derecha, sin colapsos ni apilamientos verticales indebidos.
       * **Lienzo de Escritura Despejado:** Botón "Detalles" discreto y visible exclusivamente en hover (`opacity-0 group-hover:opacity-100`), retirando elementos flotantes que interferían con la lectura de los bloques de guion.
+  - **Reubicación de Tokens a la Barra de Usuario y Blindaje CI/CD (Fase 28):**
+    - **Reubicación de Tokens Diarios de IA a la Barra Superior de Usuario:**
+      * Se retiró el contador de tokens de la barra contextual de herramientas del proyecto (`script-editor.blade.php`), dado que los tokens diarios son un recurso asignado al usuario y no una propiedad del proyecto individual.
+      * Se ubicó la píldora de tokens diarios (`⚡ X / Y tokens`) en la barra superior global de navegación (`resources/views/layouts/app.blade.php`), exactamente entre el selector de tema (claro/oscuro) y el desplegable del perfil de usuario (con su email).
+      * Se enriqueció el menú desplegable del usuario con una tarjeta dedicada a los tokens diarios de IA, mostrando saldo disponible, límite diario, consumidos hoy y barra de progreso dinámica con colores según disponibilidad.
+    - **Resolución y Blindaje contra `ViteManifestNotFoundException` en GitLab CI:**
+      * Causa raíz: En el runner de GitLab CI (`composer:2`), no se ejecutan compilaciones de NodeJS/Vite previas a la ejecución de PHPUnit, por lo que `public/build/manifest.json` no existía al evaluar `@vite(...)` en tests HTTP completos.
+      * Solución canónica: Incorporación de `$this->withoutVite()` en el método `setUp()` de `tests/TestCase.php`.
+      * Salvaguarda en pipeline: Creación de dummy manifest `public/build/manifest.json` en `before_script` de `.gitlab-ci.yml` para el stage de test.
+      * Verificación: Ejecución exitosa de los 78 tests unitarios y de integración con y sin directorio de build.
 
 ### 7.2. Deudas Técnicas Conocidas
 1. **Actualización Dinámica de Tarifas de Tokens:**

@@ -22,6 +22,7 @@ test:phpunit:
     - mkdir -p storage/framework/views storage/framework/cache/data storage/framework/sessions storage/logs bootstrap/cache
     - chmod -R 777 storage bootstrap/cache
     - cp .env.example .env
+    - mkdir -p public/build && echo '{}' > public/build/manifest.json
     - composer install --no-interaction --prefer-dist
     - php artisan key:generate
   script:
