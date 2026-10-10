@@ -336,4 +336,93 @@ class LivewireScriptEditorTest extends TestCase
         $this->assertEquals(2, $b2->fresh()->block_order);
         $this->assertEquals(3, $b3->fresh()->block_order);
     }
+
+    public function test_manual_editing_locks_stage_and_blocks_accidental_regeneration_until_unlocked(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create(['project_id' => $project->id]);
+
+        $block = ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'block_order' => 1,
+            'raw_text' => 'Texto bruto inicial.',
+            'structured_text' => 'Tratamiento generado por IA.',
+            'stage' => 'structured',
+            'user_locks' => [],
+        ]);
+
+        $this->assertFalse($block->isStageLocked('structured'));
+
+        // Editar manualmente desde el drawer
+        Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->call('openBlockDetails', $block->id, 'structured')
+            ->call('startEditingInDrawer')
+            ->set('editStructuredText', 'Tratamiento con cambios manuales del autor.')
+            ->call('saveBlockFromDrawer');
+
+        $freshBlock = $block->fresh();
+        $this->assertTrue($freshBlock->isStageLocked('structured'));
+        $this->assertTrue($freshBlock->hasManualOverride('structured'));
+
+        // Intentar regenerar desde el paso anterior debe estar bloqueado y conservar el texto
+        Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->call('structureBlock', $freshBlock->id)
+            ->assertSee('protegido');
+
+        $this->assertEquals('Tratamiento con cambios manuales del autor.', $freshBlock->fresh()->structured_text);
+
+        // Desbloquear manualmente la etapa
+        Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->call('toggleStageLock', $freshBlock->id, 'structured')
+            ->assertSee('desbloqueada');
+
+        $this->assertFalse($freshBlock->fresh()->isStageLocked('structured'));
+    }
+
+    public function test_screenplay_manual_edit_blocks_format_to_screenplay_until_unlocked(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create(['project_id' => $project->id]);
+
+        $block = ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'block_order' => 1,
+            'structured_text' => 'Pedro camina.',
+            'screenplay_content' => "PEDRO\nHola a todos.",
+            'stage' => 'screenplay',
+            'user_locks' => [],
+        ]);
+
+        // Guardar edición manual
+        Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->call('openBlockDetails', $block->id, 'screenplay')
+            ->call('startEditingInDrawer')
+            ->set('editScreenplayContent', "PEDRO\nModificación manual de diálogo.")
+            ->call('saveBlockFromDrawer');
+
+        $freshBlock = $block->fresh();
+        $this->assertTrue($freshBlock->isStageLocked('screenplay'));
+
+        // Intentar regenerar guión desde etapa anterior debe estar bloqueado y conservar el texto
+        Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->call('formatBlockToScreenplay', $freshBlock->id)
+            ->assertSee('protegido');
+
+        $this->assertEquals("PEDRO\nModificación manual de diálogo.", $freshBlock->fresh()->screenplay_content);
+
+        // Desbloquear manualmente
+        Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->call('toggleStageLock', $freshBlock->id, 'screenplay')
+            ->assertSee('desbloqueada');
+
+        $this->assertFalse($freshBlock->fresh()->isStageLocked('screenplay'));
+    }
 }

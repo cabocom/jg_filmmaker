@@ -110,4 +110,29 @@ class ScriptBlock extends Model
     {
         return $this->hasMany(Shot::class);
     }
+
+    /**
+     * Comprueba si una etapa específica está bloqueada contra regeneración de IA.
+     */
+    public function isStageLocked(string $stage): bool
+    {
+        $locks = $this->user_locks ?? [];
+
+        return in_array($stage, $locks['locked_fields'] ?? [], true);
+    }
+
+    /**
+     * Comprueba si una etapa tiene modificaciones manuales registradas en manual_diffs.
+     */
+    public function hasManualOverride(string $stage): bool
+    {
+        $locks = $this->user_locks ?? [];
+        foreach ($locks['manual_diffs'] ?? [] as $diff) {
+            if (($diff['stage'] ?? null) === $stage) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

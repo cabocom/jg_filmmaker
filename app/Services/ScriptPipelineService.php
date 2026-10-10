@@ -40,6 +40,10 @@ class ScriptPipelineService
             ];
         }
 
+        if ($block->isStageLocked('structured')) {
+            return $block;
+        }
+
         $userLocks = $this->resolveUserLocks($block);
         $rawText = $block->raw_text ?? '';
 
@@ -100,6 +104,10 @@ class ScriptPipelineService
                 'lighting_notes' => $block->scene->location->lighting_notes,
                 'time_of_day' => $block->scene->time_of_day ?? 'DÍA',
             ];
+        }
+
+        if ($block->isStageLocked('screenplay')) {
+            return $block;
         }
 
         $sourceText = ! empty($block->structured_text) ? $block->structured_text : (string) $block->raw_text;

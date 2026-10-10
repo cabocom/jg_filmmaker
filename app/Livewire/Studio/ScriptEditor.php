@@ -502,6 +502,13 @@ class ScriptEditor extends Component
     public function structureBlock(string $blockId, ScriptPipelineService $pipelineService): void
     {
         $block = ScriptBlock::findOrFail($blockId);
+
+        if ($block->isStageLocked('structured')) {
+            session()->flash('error', "El tratamiento del Bloque {$block->block_order} está protegido (🔒) por modificaciones manuales. Desbloquéalo primero para permitir que la IA lo regenere.");
+
+            return;
+        }
+
         $pipelineService->transitionToStructured($block);
 
         $this->activeBlockTabs[$block->id] = 'structured';
@@ -522,6 +529,13 @@ class ScriptEditor extends Component
     public function formatBlockToScreenplay(string $blockId, ScriptPipelineService $pipelineService): void
     {
         $block = ScriptBlock::findOrFail($blockId);
+
+        if ($block->isStageLocked('screenplay')) {
+            session()->flash('error', "El guión del Bloque {$block->block_order} está protegido (🔒) por modificaciones manuales. Desbloquéalo primero en la pestaña de Guión para permitir que la IA lo regenere.");
+
+            return;
+        }
+
         $pipelineService->transitionToScreenplay($block);
 
         $this->activeBlockTabs[$block->id] = 'screenplay';
@@ -537,6 +551,24 @@ class ScriptEditor extends Component
         }
 
         session()->flash('success', "Bloque {$block->block_order} formateado a guion literario.");
+    }
+
+    public function toggleStageLock(string $blockId, string $stage): void
+    {
+        $block = ScriptBlock::findOrFail($blockId);
+        $userLocks = $block->user_locks ?? [];
+        $lockedFields = $userLocks['locked_fields'] ?? [];
+
+        if (in_array($stage, $lockedFields, true)) {
+            $lockedFields = array_values(array_filter($lockedFields, fn ($f) => $f !== $stage));
+            session()->flash('info', "Etapa '{$stage}' desbloqueada (🔓). Ahora la IA podrá regenerarla si avanzas desde el paso anterior.");
+        } else {
+            $lockedFields[] = $stage;
+            session()->flash('success', "Etapa '{$stage}' protegida con candado (🔒). No se sobreescribirá ante regeneraciones.");
+        }
+
+        $userLocks['locked_fields'] = array_values(array_unique($lockedFields));
+        $block->update(['user_locks' => $userLocks]);
     }
 
     public function breakdownBlockShots(string $blockId, ScriptPipelineService $pipelineService): void

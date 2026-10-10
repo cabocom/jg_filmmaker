@@ -66,10 +66,26 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         <!-- Mensajes Flash -->
         @if(session()->has('success'))
-            <div class="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 text-xs flex items-center justify-between shadow-sm">
+            <div class="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs flex items-center justify-between shadow-sm">
                 <div class="flex items-center gap-2">
                     <span>✓</span>
                     <span>{{ session('success') }}</span>
+                </div>
+            </div>
+        @endif
+        @if(session()->has('error'))
+            <div class="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-800 dark:text-rose-300 text-xs flex items-center justify-between shadow-sm">
+                <div class="flex items-center gap-2">
+                    <span>⚠️</span>
+                    <span>{{ session('error') }}</span>
+                </div>
+            </div>
+        @endif
+        @if(session()->has('info'))
+            <div class="p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-800 dark:text-indigo-300 text-xs flex items-center justify-between shadow-sm">
+                <div class="flex items-center gap-2">
+                    <span>ℹ️</span>
+                    <span>{{ session('info') }}</span>
                 </div>
             </div>
         @endif
@@ -374,7 +390,13 @@
 
                                             <!-- Botón de Detalles flotando a la derecha -->
                                             <div :class="isBlockHovered ? 'opacity-100' : 'opacity-25'"
-                                                 class="shrink-0 pt-0.5 transition-opacity group-hover:opacity-100">
+                                                 class="shrink-0 pt-0.5 transition-opacity group-hover:opacity-100 flex items-center gap-1.5">
+                                                @if($block->isStageLocked('structured') || $block->isStageLocked('screenplay'))
+                                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30"
+                                                          title="Este bloque tiene etapas protegidas contra sobreescritura por modificaciones manuales">
+                                                        🔒 Protegido
+                                                    </span>
+                                                @endif
                                                 <button wire:click.stop="openBlockDetails('{{ $block->id }}')"
                                                         type="button"
                                                         title="Abrir detalles y etapas en panel lateral"
@@ -503,22 +525,28 @@
                     <div class="px-6 pt-2 border-b border-slate-200 dark:border-slate-800 bg-slate-100/50 dark:bg-slate-950 flex items-center gap-2 overflow-x-auto shrink-0">
                         <button wire:click="setDetailTab('raw')"
                                 type="button"
-                                class="px-3.5 py-2 border-b-2 text-xs font-semibold transition {{ $detailActiveTab === 'raw' ? 'border-amber-500 text-amber-600 dark:text-amber-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                                class="px-3.5 py-2 border-b-2 text-xs font-semibold transition cursor-pointer {{ $detailActiveTab === 'raw' ? 'border-amber-500 text-amber-600 dark:text-amber-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
                             1. Idea / Bruto
                         </button>
                         <button wire:click="setDetailTab('structured')"
                                 type="button"
-                                class="px-3.5 py-2 border-b-2 text-xs font-semibold transition {{ $detailActiveTab === 'structured' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
-                            2. Tratamiento
+                                class="px-3.5 py-2 border-b-2 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 {{ $detailActiveTab === 'structured' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                            <span>2. Tratamiento</span>
+                            @if($detailBlock->isStageLocked('structured'))
+                                <span class="text-xs" title="Tratamiento protegido contra sobreescritura (🔒)">🔒</span>
+                            @endif
                         </button>
                         <button wire:click="setDetailTab('screenplay')"
                                 type="button"
-                                class="px-3.5 py-2 border-b-2 text-xs font-semibold transition {{ $detailActiveTab === 'screenplay' ? 'border-amber-500 text-amber-600 dark:text-amber-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
-                            3. Guión Literario
+                                class="px-3.5 py-2 border-b-2 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 {{ $detailActiveTab === 'screenplay' ? 'border-amber-500 text-amber-600 dark:text-amber-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                            <span>3. Guión Literario</span>
+                            @if($detailBlock->isStageLocked('screenplay'))
+                                <span class="text-xs" title="Guión literario protegido contra sobreescritura (🔒)">🔒</span>
+                            @endif
                         </button>
                         <button wire:click="setDetailTab('shots')"
                                 type="button"
-                                class="px-3.5 py-2 border-b-2 text-xs font-semibold transition {{ $detailActiveTab === 'shots' ? 'border-cyan-500 text-cyan-600 dark:text-cyan-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                                class="px-3.5 py-2 border-b-2 text-xs font-semibold transition cursor-pointer {{ $detailActiveTab === 'shots' ? 'border-cyan-500 text-cyan-600 dark:text-cyan-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
                             4. Planos ({{ $detailBlock->shots->count() }})
                         </button>
                     </div>
@@ -594,53 +622,99 @@
                                     <div class="flex items-center gap-2">
                                         <button wire:click="startEditingInDrawer"
                                                 type="button"
-                                                class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 hover:border-amber-400 transition shadow-2xs">
+                                                class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 hover:border-amber-400 transition shadow-2xs cursor-pointer">
                                             ✏️ Editar Texto
                                         </button>
-                                        <button wire:click="openAiTrace('{{ $detailBlock->id }}', '{{ $detailActiveTab === 'raw' ? 'structured' : $detailActiveTab }}')"
-                                                type="button"
-                                                class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800/60 transition flex items-center gap-1.5">
-                                            <span>⚡</span>
-                                            <span>Trazabilidad IA</span>
-                                        </button>
+                                        @if($detailActiveTab !== 'raw')
+                                            <button wire:click="openAiTrace('{{ $detailBlock->id }}', '{{ $detailActiveTab }}')"
+                                                    type="button"
+                                                    class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800/60 transition flex items-center gap-1.5 cursor-pointer">
+                                                <span>⚡</span>
+                                                <span>Trazabilidad IA</span>
+                                            </button>
+                                        @endif
                                     </div>
 
                                     <!-- Botones de Acción de IA Contextual -->
                                     <div>
                                         @if($detailActiveTab === 'raw')
-                                            <button wire:click="structureBlock('{{ $detailBlock->id }}')"
-                                                    wire:loading.attr="disabled"
-                                                    wire:target="structureBlock('{{ $detailBlock->id }}')"
-                                                    type="button"
-                                                    class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm transition flex items-center gap-1.5">
-                                                <span>⚡ Estructurar Tratamiento</span>
-                                            </button>
+                                            @php
+                                                $isStructuredLocked = $detailBlock->isStageLocked('structured');
+                                            @endphp
+                                            @if($isStructuredLocked)
+                                                <button type="button"
+                                                        disabled
+                                                        class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-300 dark:border-slate-700 cursor-not-allowed flex items-center gap-1.5 opacity-60"
+                                                        title="El tratamiento tiene modificaciones manuales protegidas. Desbloquéalo en la pestaña 'Tratamiento' para permitir regenerar.">
+                                                    <span>🔒</span>
+                                                    <span>Tratamiento Protegido</span>
+                                                </button>
+                                            @else
+                                                <button wire:click="structureBlock('{{ $detailBlock->id }}')"
+                                                        wire:loading.attr="disabled"
+                                                        wire:target="structureBlock"
+                                                        type="button"
+                                                        class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                                                    <span wire:loading.remove wire:target="structureBlock">⚡ Estructurar Tratamiento</span>
+                                                    <span wire:loading wire:target="structureBlock" class="flex items-center gap-1.5">
+                                                        <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                                                        <span>Estructurando...</span>
+                                                    </span>
+                                                </button>
+                                            @endif
                                         @elseif($detailActiveTab === 'structured')
-                                            <button wire:click="formatBlockToScreenplay('{{ $detailBlock->id }}')"
-                                                    wire:loading.attr="disabled"
-                                                    wire:target="formatBlockToScreenplay('{{ $detailBlock->id }}')"
-                                                    type="button"
-                                                    class="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-sm transition flex items-center gap-1.5 font-mono">
-                                                <span>🎬 Convertir a Guión</span>
-                                            </button>
+                                            @php
+                                                $isScreenplayLocked = $detailBlock->isStageLocked('screenplay');
+                                            @endphp
+                                            @if($isScreenplayLocked)
+                                                <button type="button"
+                                                        disabled
+                                                        class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-300 dark:border-slate-700 cursor-not-allowed flex items-center gap-1.5 font-mono opacity-60"
+                                                        title="El guión literario tiene modificaciones manuales protegidas. Desbloquéalo en la pestaña 'Guión' para permitir regenerar.">
+                                                    <span>🔒</span>
+                                                    <span>Guión Protegido</span>
+                                                </button>
+                                            @else
+                                                <button wire:click="formatBlockToScreenplay('{{ $detailBlock->id }}')"
+                                                        wire:loading.attr="disabled"
+                                                        wire:target="formatBlockToScreenplay"
+                                                        type="button"
+                                                        class="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none text-slate-950 shadow-sm transition flex items-center gap-1.5 font-mono cursor-pointer">
+                                                    <span wire:loading.remove wire:target="formatBlockToScreenplay">🎬 Convertir a Guión</span>
+                                                    <span wire:loading wire:target="formatBlockToScreenplay" class="flex items-center gap-1.5">
+                                                        <svg class="animate-spin h-3.5 w-3.5 text-slate-950" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                                                        <span>Formateando...</span>
+                                                    </span>
+                                                </button>
+                                            @endif
                                         @elseif($detailActiveTab === 'screenplay')
                                             <button wire:click="breakdownBlockShots('{{ $detailBlock->id }}')"
                                                     wire:loading.attr="disabled"
-                                                    wire:target="breakdownBlockShots('{{ $detailBlock->id }}')"
+                                                    wire:target="breakdownBlockShots"
                                                     type="button"
-                                                    class="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-600 hover:bg-cyan-500 text-white shadow-sm transition flex items-center gap-1.5">
-                                                <span>📹 Desglosar Planos</span>
+                                                    class="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                                                <span wire:loading.remove wire:target="breakdownBlockShots">📹 Desglosar Planos</span>
+                                                <span wire:loading wire:target="breakdownBlockShots" class="flex items-center gap-1.5">
+                                                    <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                                                    <span>Desglosando...</span>
+                                                </span>
                                             </button>
                                         @elseif($detailActiveTab === 'shots')
                                             <div class="flex items-center gap-2">
                                                 <button wire:click="breakdownBlockShots('{{ $detailBlock->id }}')"
+                                                        wire:loading.attr="disabled"
+                                                        wire:target="breakdownBlockShots"
                                                         type="button"
-                                                        class="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-600 hover:bg-cyan-500 text-white shadow-sm transition">
-                                                    ⚡ Regenerar Planos
+                                                        class="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                                                    <span wire:loading.remove wire:target="breakdownBlockShots">⚡ Regenerar Planos</span>
+                                                    <span wire:loading wire:target="breakdownBlockShots" class="flex items-center gap-1.5">
+                                                        <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+                                                        <span>Regenerando...</span>
+                                                    </span>
                                                 </button>
                                                 <button wire:click="startNewShotForBlock('{{ $detailBlock->id }}')"
                                                         type="button"
-                                                        class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200">
+                                                        class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 cursor-pointer">
                                                     + Añadir Plano
                                                 </button>
                                             </div>
@@ -655,13 +729,101 @@
                                         <div class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed font-sans whitespace-pre-line text-left">{{ trim($detailBlock->raw_text ?: 'Sin notas brutas.') }}</div>
                                     </div>
                                 @elseif($detailActiveTab === 'structured')
-                                    <div class="p-5 rounded-xl bg-indigo-50/20 dark:bg-slate-950/70 border border-indigo-200/50 dark:border-indigo-900/40 space-y-2 shadow-2xs">
-                                        <span class="text-xs font-mono font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">2. Tratamiento Dramático:</span>
+                                    <div class="p-5 rounded-xl bg-indigo-50/20 dark:bg-slate-950/70 border border-indigo-200/50 dark:border-indigo-900/40 space-y-3 shadow-2xs">
+                                        <div class="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-indigo-100 dark:border-indigo-900/40">
+                                            <span class="text-xs font-mono font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">2. Tratamiento Dramático:</span>
+                                            @if($detailBlock->hasManualOverride('structured') || $detailBlock->isStageLocked('structured'))
+                                                <div class="flex items-center gap-2">
+                                                    @if($detailBlock->isStageLocked('structured'))
+                                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                                                            <span>🔒</span>
+                                                            <span>Modificado manualmente · Protegido</span>
+                                                        </span>
+                                                        <button wire:click="toggleStageLock('{{ $detailBlock->id }}', 'structured')"
+                                                                type="button"
+                                                                class="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition cursor-pointer"
+                                                                title="Desbloquear para permitir que la IA regenere esta etapa">
+                                                            🔓 Desbloquear
+                                                        </button>
+                                                    @else
+                                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-200/80 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-700">
+                                                            <span>🔓</span>
+                                                            <span>Modificado manualmente · Desbloqueado</span>
+                                                        </span>
+                                                        <button wire:click="toggleStageLock('{{ $detailBlock->id }}', 'structured')"
+                                                                type="button"
+                                                                class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-500 text-slate-950 hover:bg-amber-400 transition cursor-pointer"
+                                                                title="Bloquear para proteger contra regeneraciones de la IA">
+                                                            🔒 Proteger
+                                                        </button>
+                                                    @endif
+                                                </div>
+                                            @endif
+                                        </div>
+
+                                        @if($detailBlock->hasManualOverride('structured'))
+                                            <div class="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+                                                <span class="text-sm">⚠️</span>
+                                                <div class="leading-snug">
+                                                    <strong class="font-bold">Modificación manual detectada:</strong>
+                                                    @if($detailBlock->isStageLocked('structured'))
+                                                        Este texto está <strong>protegido (🔒)</strong>. Si vuelves a regenerar desde el texto bruto, se conservarán tus cambios y no se sobreescribirán.
+                                                    @else
+                                                        Este texto está <strong>desbloqueado (🔓)</strong>. Si ejecutas la estructuración desde el texto bruto, <strong>perderás tus cambios manuales</strong>.
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        @endif
+
                                         <div class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed font-sans whitespace-pre-line text-left">{{ trim($detailBlock->structured_text ?: 'Aún no se ha estructurado el tratamiento para este bloque.') }}</div>
                                     </div>
                                 @elseif($detailActiveTab === 'screenplay')
-                                    <div class="p-5 rounded-xl bg-indigo-50/20 dark:bg-slate-950/70 border border-indigo-200/50 dark:border-indigo-900/40 space-y-2 shadow-2xs">
-                                        <span class="text-xs font-mono font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">3. Guión Literario (Story Architect):</span>
+                                    <div class="p-5 rounded-xl bg-indigo-50/20 dark:bg-slate-950/70 border border-indigo-200/50 dark:border-indigo-900/40 space-y-3 shadow-2xs">
+                                        <div class="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-indigo-100 dark:border-indigo-900/40">
+                                            <span class="text-xs font-mono font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">3. Guión Literario (Story Architect):</span>
+                                            @if($detailBlock->hasManualOverride('screenplay') || $detailBlock->isStageLocked('screenplay'))
+                                                <div class="flex items-center gap-2">
+                                                    @if($detailBlock->isStageLocked('screenplay'))
+                                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                                                            <span>🔒</span>
+                                                            <span>Modificado manualmente · Protegido</span>
+                                                        </span>
+                                                        <button wire:click="toggleStageLock('{{ $detailBlock->id }}', 'screenplay')"
+                                                                type="button"
+                                                                class="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition cursor-pointer"
+                                                                title="Desbloquear para permitir que la IA regenere esta etapa">
+                                                            🔓 Desbloquear
+                                                        </button>
+                                                    @else
+                                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-200/80 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-700">
+                                                            <span>🔓</span>
+                                                            <span>Modificado manualmente · Desbloqueado</span>
+                                                        </span>
+                                                        <button wire:click="toggleStageLock('{{ $detailBlock->id }}', 'screenplay')"
+                                                                type="button"
+                                                                class="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-500 text-slate-950 hover:bg-amber-400 transition cursor-pointer"
+                                                                title="Bloquear para proteger contra regeneraciones de la IA">
+                                                            🔒 Proteger
+                                                        </button>
+                                                    @endif
+                                                </div>
+                                            @endif
+                                        </div>
+
+                                        @if($detailBlock->hasManualOverride('screenplay'))
+                                            <div class="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+                                                <span class="text-sm">⚠️</span>
+                                                <div class="leading-snug">
+                                                    <strong class="font-bold">Modificación manual detectada:</strong>
+                                                    @if($detailBlock->isStageLocked('screenplay'))
+                                                        Este guión está <strong>protegido (🔒)</strong>. Si regeneras desde el tratamiento o el bruto, tus cambios de diálogo/acción se preservarán y no se sobreescribirán.
+                                                    @else
+                                                        Este guión está <strong>desbloqueado (🔓)</strong>. Si ejecutas la conversión a guión desde el tratamiento, <strong>perderás estos cambios manuales</strong>.
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        @endif
+
                                         @if(!empty($detailBlock->screenplay_content))
                                             <div class="screenplay-rendered-container font-screenplay text-sm max-w-2xl mx-auto w-full py-1">
                                                 {!! \App\Services\ScreenplayFormatterService::formatToHtml($detailBlock->screenplay_content) !!}
