@@ -200,6 +200,32 @@ class AgentClientService
     }
 
     /**
+     * Audita y detecta inconsistencias dramáticas y agujeros de guión en la secuencia de bloques del proyecto.
+     *
+     * @param  array<int, array<string, mixed>>  $blocksData
+     * @param  array<int, array<string, mixed>>  $characters
+     * @param  array<int, array<string, mixed>>  $locations
+     * @return array{detected_holes: array<int, array{block_id: string|int, reason: string}>, total_holes: int}
+     */
+    public function auditPlotHoles(array $blocksData, array $characters = [], array $locations = []): array
+    {
+        $payload = [
+            'blocks' => $blocksData,
+            'characters' => $characters,
+            'locations' => $locations,
+        ];
+
+        $result = $this->callTool('plot_hole_detector', $payload);
+
+        $detectedHoles = (array) ($result['metadata']['detected_holes'] ?? ($result['detected_holes'] ?? []));
+
+        return [
+            'detected_holes' => $detectedHoles,
+            'total_holes' => count($detectedHoles),
+        ];
+    }
+
+    /**
      * Parsea planos anotados con el delimitador canónico '--- shot N (tipo) ---'.
      *
      * @return array<int, array{shot_number: int, shot_type: string, description: string}>
@@ -696,6 +722,77 @@ class AgentClientService
             ];
         }
 
+        if ($toolName === 'plot_hole_detector') {
+            $blocks = (array) ($payload['blocks'] ?? []);
+            $detectedHoles = [];
+
+            foreach ($blocks as $block) {
+                $text = (string) ($block['text'] ?? ($block['screenplay_content'] ?? ($block['structured_text'] ?? ($block['raw_text'] ?? ''))));
+                $blockId = $block['id'] ?? null;
+                if (! $blockId || empty(trim($text))) {
+                    continue;
+                }
+
+                $matchedReason = null;
+                if (preg_match('/\[(?:AGUJERO|PLOT_HOLE|INCONSISTENCIA):\s*([^\]]+)\]/iu', $text, $m)) {
+                    $matchedReason = trim($m[1]);
+                } elseif (preg_match('/(?:agujero de gui[oó]n|plot hole|inconsistencia dram[aá]tica|incongruencia):\s*([^\.\n]+)/iu', $text, $m)) {
+                    $matchedReason = 'Inconsistencia detectada: '.trim($m[1]);
+                } elseif (preg_match('/\b(desaparece sin explicaci[oó]n|reaparece de repente sin justificaci[oó]n|muere y luego habla|teletransporta|arma que nunca tuvo)\b/iu', $text, $m)) {
+                    $matchedReason = 'Posible contradicción física o narrativa detectada en la acción ("'.$m[1].'").';
+                }
+
+                if ($matchedReason) {
+                    $detectedHoles[] = [
+                        'block_id' => $blockId,
+                        'reason' => $matchedReason,
+                    ];
+                }
+            }
+
+            $this->lastTelemetry = [
+                'tool' => 'plot_hole_detector',
+                'stage' => 'audit',
+                'provider' => 'deterministic_engine',
+                'model' => 'rule-based-nlp',
+                'executed_at' => now()->toIso8601String(),
+                'duration_ms' => 10,
+                'status' => 'SUCCESS',
+                'system_prompt' => $this->buildSystemPrompt('plot_hole_detector', $payload),
+                'user_prompt' => $this->buildUserPrompt('plot_hole_detector', $payload),
+                'raw_response' => json_encode(['detected_holes' => $detectedHoles]),
+                'output' => count($detectedHoles).' inconsistencias detectadas.',
+                'characters_context' => $payload['characters'] ?? [],
+                'location_context' => null,
+                'user_locks' => [],
+                'steps' => [
+                    [
+                        'number' => 1,
+                        'title' => 'Análisis de Continuidad Narrativa',
+                        'status' => 'completed',
+                        'detail' => 'Escaneo cronológico de '.count($blocks).' bloques.',
+                    ],
+                    [
+                        'number' => 2,
+                        'title' => 'Detección de Agujeros de Guión',
+                        'status' => 'completed',
+                        'detail' => count($detectedHoles).' anomalías registradas.',
+                    ],
+                ],
+            ];
+
+            return [
+                'success' => true,
+                'output' => count($detectedHoles).' inconsistencias detectadas.',
+                'metadata' => [
+                    'stage' => 'audit',
+                    'detected_holes' => $detectedHoles,
+                    'total_holes' => count($detectedHoles),
+                ],
+                'detected_holes' => $detectedHoles,
+            ];
+        }
+
         return ['success' => false, 'output' => '', 'error' => "Herramienta desconocida: {$toolName}"];
     }
 
@@ -905,6 +1002,29 @@ class AgentClientService
                     'metadata' => ['stage' => 'shots', 'shots' => $shots, 'total_shots' => count($shots), 'provider' => $provider, 'model' => $model, 'duration_ms' => $durationMs],
                 ];
             }
+
+            if ($toolName === 'plot_hole_detector') {
+                $cleanJson = $content;
+                if (preg_match('/\{[\s\S]*"detected_holes"[\s\S]*\}/', $content, $m)) {
+                    $cleanJson = $m[0];
+                }
+                $decoded = json_decode($cleanJson, true);
+                $detectedHoles = is_array($decoded) ? (array) ($decoded['detected_holes'] ?? []) : [];
+
+                return [
+                    'success' => true,
+                    'output' => count($detectedHoles).' inconsistencias detectadas por IA.',
+                    'metadata' => [
+                        'stage' => 'audit',
+                        'detected_holes' => $detectedHoles,
+                        'total_holes' => count($detectedHoles),
+                        'provider' => $provider,
+                        'model' => $model,
+                        'duration_ms' => $durationMs,
+                    ],
+                    'detected_holes' => $detectedHoles,
+                ];
+            }
         } catch (\Throwable $e) {
             Log::warning("Direct LLM exception: {$e->getMessage()}");
 
@@ -997,6 +1117,21 @@ class AgentClientService
                 .'Intercala los delimitadores antes de cada bloque de acción o diálogo del guion.';
         }
 
+        if ($toolName === 'plot_hole_detector') {
+            return "Eres un script doctor y analista de continuidad dramática cinematográfica.\n"
+                ."Tu misión es auditar la secuencia cronológica de bloques de guión para detectar AGUJEROS DE GUIÓN, incongruencias lógicas, inconsistencias temporales o contradicciones graves de personajes.\n\n"
+                ."DIRECTRICES:\n"
+                ."1. Evalúa la lógica de causa y efecto entre escenas y bloques.\n"
+                ."2. Para cada anomalía real encontrada, asocia el 'block_id' exacto del bloque afectado y redacta una explicación clara ('reason').\n"
+                ."3. Devuelve OBLIGATORIAMENTE tu respuesta en formato JSON estrictamente válido con la clave 'detected_holes':\n"
+                ."{\n"
+                ."  \"detected_holes\": [\n"
+                ."    {\"block_id\": \"id_del_bloque\", \"reason\": \"Explicación del agujero de guión...\"}\n"
+                ."  ]\n"
+                ."}\n"
+                .'Si no encuentras ningún agujero de guión, devuelve estrictamente: {"detected_holes": []}';
+        }
+
         return null;
     }
 
@@ -1023,6 +1158,21 @@ class AgentClientService
             $screenplay = trim((string) ($payload['screenplay_text'] ?? ''));
 
             return "GUIÓN LITERARIO:\n{$screenplay}";
+        }
+
+        if ($toolName === 'plot_hole_detector') {
+            $blocks = (array) ($payload['blocks'] ?? []);
+            $text = "SECUENCIA DE BLOQUES DEL PROYECTO A AUDITAR:\n\n";
+            foreach ($blocks as $b) {
+                $bId = $b['id'] ?? '';
+                $scNum = $b['scene_order'] ?? 1;
+                $slug = $b['scene_slugline'] ?? 'ESCENA';
+                $blNum = $b['block_order'] ?? 1;
+                $bContent = $b['text'] ?? ($b['screenplay_content'] ?? ($b['structured_text'] ?? ($b['raw_text'] ?? '')));
+                $text .= "--- BLOQUE [id: {$bId}] | Escena {$scNum} ({$slug}) | Bloque #{$blNum} ---\n{$bContent}\n\n";
+            }
+
+            return $text;
         }
 
         return null;

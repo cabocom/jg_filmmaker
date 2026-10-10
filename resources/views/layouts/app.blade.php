@@ -105,17 +105,6 @@
                     <span class="hidden dark:inline text-sm">☀️</span>
                 </button>
 
-                <!-- Botón Drawer de Biblia (si hay proyecto activo) -->
-                @if(isset($currentProject))
-                    <button type="button"
-                            onclick="Livewire.dispatch('toggle-bible-drawer')"
-                            class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 hover:border-amber-500/40 dark:bg-slate-900 dark:hover:bg-slate-800 dark:border-slate-700/80 dark:text-slate-200 transition shadow-sm cursor-pointer"
-                            title="Biblia de Proyecto">
-                        <span>📖</span>
-                        <span class="hidden sm:inline">Biblia de Proyecto</span>
-                    </button>
-                @endif
-
                 @auth
                     <!-- Menú Desplegable de Usuario (Estilo jg_hub / jg_dashboard con Cuota de Slots) -->
                     <div class="relative pl-2 border-l border-slate-200 dark:border-slate-800" x-data="{ userMenuOpen: false }" @click.outside="userMenuOpen = false">

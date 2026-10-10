@@ -543,4 +543,80 @@ class LivewireScriptEditorTest extends TestCase
         $test->call('setActiveView', 'pipeline')
             ->assertSet('activeView', 'pipeline');
     }
+
+    public function test_plot_hole_detector_marks_affected_blocks_with_reason_and_persists_until_rerun(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create([
+            'project_id' => $project->id,
+            'slugline' => 'INT. DESPACHO - DIA',
+            'scene_order' => 1,
+        ]);
+
+        $blockClean = ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'block_order' => 1,
+            'raw_text' => 'Carlos entra en el despacho y saluda a María.',
+            'structured_text' => 'Carlos entra en el despacho y saluda a María.',
+            'screenplay_content' => null,
+            'plot_hole' => null,
+        ]);
+
+        $blockWithHole = ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'block_order' => 2,
+            'raw_text' => '[AGUJERO: Carlos desaparece sin explicación antes de que María responda]',
+            'structured_text' => '[AGUJERO: Carlos desaparece sin explicación antes de que María responda]',
+            'screenplay_content' => null,
+            'plot_hole' => null,
+        ]);
+
+        // Ejecutar análisis de agujeros de guión
+        $test = Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->assertSee('Biblia')
+            ->assertSee('Agujeros de Guión')
+            ->call('analyzePlotHoles');
+
+        // Verificar marcado y motivo en base de datos
+        $freshClean = $blockClean->fresh();
+        $freshHole = $blockWithHole->fresh();
+
+        $this->assertNull($freshClean->plot_hole);
+        $this->assertFalse($freshClean->hasPlotHole());
+
+        $this->assertNotNull($freshHole->plot_hole);
+        $this->assertTrue($freshHole->hasPlotHole());
+        $this->assertStringContainsString('Carlos desaparece sin explicación', $freshHole->plot_hole);
+
+        // El componente debe mostrar el motivo y el badge
+        $test->assertSee('Agujero de Guión Detectado')
+            ->assertSee('Carlos desaparece sin explicación');
+
+        // Comprobar que en la vista consolidada también se ve el motivo
+        $test->call('setActiveView', 'idea')
+            ->assertSee('Carlos desaparece sin explicación');
+
+        // PERSISTENCIA: Nuevo test/recarga sin pasar la herramienta conserva la marca
+        Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->assertSee('Agujero de Guión Detectado')
+            ->assertSee('Carlos desaparece sin explicación');
+
+        // Ahora corregir el texto y volver a pasar la herramienta
+        $blockWithHole->update([
+            'raw_text' => 'Carlos se sienta en la silla frente a María.',
+            'structured_text' => 'Carlos se sienta en la silla frente a María.',
+            'screenplay_content' => null,
+        ]);
+
+        $testRerun = Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->call('analyzePlotHoles');
+
+        $this->assertNull($blockWithHole->fresh()->plot_hole);
+        $this->assertFalse($blockWithHole->fresh()->hasPlotHole());
+        $testRerun->assertDontSee('Carlos desaparece sin explicación');
+    }
 }

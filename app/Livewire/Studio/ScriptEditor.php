@@ -7,6 +7,7 @@ use App\Models\Scene;
 use App\Models\ScriptBlock;
 use App\Models\Shot;
 use App\Models\Take;
+use App\Services\JgAgente\AgentClientService;
 use App\Services\ScriptPipelineService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -1107,6 +1108,91 @@ class ScriptEditor extends Component
         $takeNumber = $take->take_number;
         $this->reset(['editingTakeNotesId', 'editingTakeNotesText']);
         session()->flash('success', "Notas editoriales de la Toma {$takeNumber} guardadas.");
+    }
+
+    /**
+     * Audita y detecta agujeros de guión en los bloques del proyecto actual mediante el agente IA.
+     * Marca cada bloque con el motivo detectado y persiste hasta la próxima auditoría.
+     */
+    public function analyzePlotHoles(?AgentClientService $agentClient = null): void
+    {
+        $agentClient = $agentClient ?? app(AgentClientService::class);
+
+        $scenes = $this->project->scenes()
+            ->with(['scriptBlocks' => fn ($q) => $q->orderBy('block_order')])
+            ->orderBy('scene_order')
+            ->get();
+
+        $blocksData = [];
+        $blocksById = [];
+
+        foreach ($scenes as $scene) {
+            foreach ($scene->scriptBlocks as $block) {
+                $blocksById[(string) $block->id] = $block;
+                $fullBlockText = trim(implode("\n", array_unique(array_filter([
+                    (string) ($block->screenplay_content ?? ''),
+                    (string) ($block->structured_text ?? ''),
+                    (string) ($block->raw_text ?? ''),
+                ]))));
+
+                $blocksData[] = [
+                    'id' => (string) $block->id,
+                    'scene_id' => (string) $scene->id,
+                    'scene_order' => $scene->scene_order,
+                    'scene_slugline' => $scene->slugline,
+                    'block_order' => $block->block_order,
+                    'raw_text' => (string) ($block->raw_text ?? ''),
+                    'structured_text' => (string) ($block->structured_text ?? ''),
+                    'screenplay_content' => (string) ($block->screenplay_content ?? ''),
+                    'text' => $fullBlockText,
+                ];
+            }
+        }
+
+        if (empty($blocksData)) {
+            session()->flash('warning', 'No hay bloques de guión en el proyecto para auditar.');
+
+            return;
+        }
+
+        $characters = $this->project->characters()->get()->map(fn ($c) => [
+            'name' => $c->name,
+            'role' => $c->role,
+            'description' => $c->description,
+        ])->toArray();
+
+        $locations = $this->project->locations()->get()->map(fn ($l) => [
+            'name' => $l->name,
+            'type' => $l->type,
+            'description' => $l->description,
+        ])->toArray();
+
+        $result = $agentClient->auditPlotHoles($blocksData, $characters, $locations);
+
+        $detectedHoles = (array) ($result['detected_holes'] ?? []);
+        $holesByBlockId = [];
+        foreach ($detectedHoles as $hole) {
+            if (isset($hole['block_id']) && ! empty($hole['reason'])) {
+                $holesByBlockId[(string) $hole['block_id']] = (string) $hole['reason'];
+            }
+        }
+
+        $markedCount = 0;
+        foreach ($blocksById as $id => $block) {
+            $reason = $holesByBlockId[(string) $id] ?? null;
+            $block->update([
+                'plot_hole' => $reason,
+            ]);
+            if ($reason !== null) {
+                $markedCount++;
+            }
+        }
+
+        if ($markedCount > 0) {
+            session()->flash('warning', "Se han detectado {$markedCount} posibles agujeros de guión marcados en el proyecto.");
+        } else {
+            session()->flash('success', 'Filtro de agujeros de guión: No se han detectado incongruencias.');
+        }
     }
 
     public function render()

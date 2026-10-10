@@ -28,6 +28,7 @@ class ScriptBlock extends Model
         'screenplay_content',
         'user_locks',
         'stage',
+        'plot_hole',
     ];
 
     /**
@@ -140,5 +141,13 @@ class ScriptBlock extends Model
         }
 
         return false;
+    }
+
+    /**
+     * Comprueba si el bloque tiene un agujero de guión detectado.
+     */
+    public function hasPlotHole(): bool
+    {
+        return filled($this->plot_hole);
     }
 }

@@ -50,14 +50,42 @@
     <!-- ================= BARRA SUPERIOR STICKY: TÍTULO DEL PROYECTO Y NAVEGACIÓN STORY ARCHITECT ================= -->
     <div class="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 shadow-xs backdrop-blur-md px-4 sm:px-6 lg:px-8 py-2.5 transition-colors">
         <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
-            <!-- Título del Proyecto y Recuento de Escenas (Izquierda) -->
-            <div class="flex items-center gap-3 min-w-0">
+            <!-- Herramientas del Proyecto: Título, Escenas, Biblia y Agujeros de Guión (Izquierda) -->
+            <div class="flex items-center flex-wrap gap-2.5 min-w-0">
                 <span class="text-sm font-bold font-mono uppercase tracking-wider text-slate-900 dark:text-white truncate">
                     {{ $project->title }}
                 </span>
                 <span class="px-2 py-0.5 rounded-md text-xs font-bold font-mono bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
                     {{ $scenes->count() }} {{ $scenes->count() === 1 ? 'escena' : 'escenas' }}
                 </span>
+
+                <!-- Botón de la Biblia de Proyecto -->
+                <button type="button"
+                        onclick="Livewire.dispatch('toggle-bible-drawer')"
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 hover:border-amber-500/40 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 transition shadow-2xs cursor-pointer shrink-0"
+                        title="Biblia de Proyecto (Personajes y Localizaciones)">
+                    <span>📖</span>
+                    <span class="hidden sm:inline">Biblia</span>
+                </button>
+
+                <!-- Botón del Filtro de Agujeros de Guión -->
+                @php
+                    $totalPlotHoles = $scenes->flatMap->scriptBlocks->filter(fn($b) => filled($b->plot_hole))->count();
+                @endphp
+                <button wire:click="analyzePlotHoles"
+                        wire:loading.attr="disabled"
+                        type="button"
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-medium {{ $totalPlotHoles > 0 ? 'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/50 dark:border-rose-800 dark:text-rose-300 hover:bg-rose-100' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200' }} border transition shadow-2xs cursor-pointer shrink-0 disabled:opacity-50"
+                        title="Pasar filtro de agujeros de guión con IA en la secuencia del proyecto">
+                    <span wire:loading.remove wire:target="analyzePlotHoles">🕳️</span>
+                    <span wire:loading wire:target="analyzePlotHoles" class="animate-spin text-xs">⏳</span>
+                    <span class="hidden sm:inline">Agujeros de Guión</span>
+                    @if($totalPlotHoles > 0)
+                        <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-rose-500 text-white animate-pulse">
+                            {{ $totalPlotHoles }}
+                        </span>
+                    @endif
+                </button>
             </div>
 
             <!-- Menú Superior Alineado a la Derecha: Pipeline - Idea - Tratamiento - Guion - Planos/Tomas -->
@@ -410,11 +438,32 @@
                                                         </div>
                                                     @endif
                                                 @endif
+
+                                                <!-- Aviso de Agujero de Guión (Persistente hasta nuevo análisis) -->
+                                                @if($block->hasPlotHole())
+                                                    <div class="mt-2.5 p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/80 text-rose-800 dark:text-rose-200 text-xs flex items-start gap-2.5 shadow-2xs">
+                                                        <span class="text-sm shrink-0">🕳️</span>
+                                                        <div class="space-y-0.5">
+                                                            <span class="font-bold uppercase tracking-wider text-[10px] text-rose-900 dark:text-rose-300">
+                                                                Agujero de Guión Detectado
+                                                            </span>
+                                                            <p class="leading-relaxed font-sans text-xs text-rose-800 dark:text-rose-200">
+                                                                {{ $block->plot_hole }}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                @endif
                                             </div>
 
                                             <!-- Botón de Detalles flotando a la derecha -->
                                             <div :class="isBlockHovered ? 'opacity-100' : 'opacity-25'"
                                                  class="shrink-0 pt-0.5 transition-opacity group-hover:opacity-100 flex items-center gap-1.5">
+                                                @if($block->hasPlotHole())
+                                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/30"
+                                                          title="Agujero de guión detectado en este bloque">
+                                                        🕳️ Agujero
+                                                    </span>
+                                                @endif
                                                 @if($block->isStageLocked('structured') || $block->isStageLocked('screenplay'))
                                                     <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30"
                                                           title="Este bloque tiene etapas protegidas contra sobreescritura por modificaciones manuales">
@@ -629,6 +678,17 @@
                                                 </p>
                                             @endif
                                         @endif
+
+                                        <!-- Aviso de Agujero de Guión en Consolidado -->
+                                        @if($block->hasPlotHole())
+                                            <div class="mt-2.5 p-2 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/80 text-rose-800 dark:text-rose-200 text-xs flex items-start gap-2 shadow-2xs">
+                                                <span class="text-sm shrink-0">🕳️</span>
+                                                <div>
+                                                    <span class="font-bold text-[10px] uppercase tracking-wide text-rose-900 dark:text-rose-300">Agujero de guión:</span>
+                                                    <span class="font-sans text-xs text-rose-800 dark:text-rose-200 ml-1">{{ $block->plot_hole }}</span>
+                                                </div>
+                                            </div>
+                                        @endif
                                     </div>
                                 @empty
                                     <p class="text-xs italic text-slate-400 font-mono py-2">Esta escena no contiene bloques de texto todavía.</p>
@@ -731,6 +791,21 @@
 
                     <!-- Cuerpo scrolleable del Drawer -->
                     <div class="flex-1 overflow-y-auto p-6 space-y-6">
+                        <!-- Alerta de Agujero de Guión si está marcado -->
+                        @if($detailBlock->hasPlotHole())
+                            <div class="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/80 text-rose-800 dark:text-rose-200 text-xs flex items-start gap-3 shadow-xs">
+                                <span class="text-xl shrink-0">🕳️</span>
+                                <div class="space-y-1">
+                                    <span class="font-bold tracking-wide uppercase text-[11px] block text-rose-900 dark:text-rose-300">
+                                        Agujero de Guión Detectado
+                                    </span>
+                                    <p class="leading-relaxed font-sans text-rose-800 dark:text-rose-200">
+                                        {{ $detailBlock->plot_hole }}
+                                    </p>
+                                </div>
+                            </div>
+                        @endif
+
                         <!-- Barra de Términos Fijos y Candados si existen -->
                         @if(!empty($detailLocks['pinned_terms']))
                             <div class="p-3 rounded-xl bg-amber-50/80 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-500/20 text-xs text-amber-900 dark:text-amber-300 flex items-center justify-between flex-wrap gap-2">

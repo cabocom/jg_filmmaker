@@ -301,6 +301,18 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
     - Siguiente escena inmediatamente a continuación con separador de lectura continua.
     - **Nomenclatura Limpia de Consolidados:** Se eliminó el prefijo "Consolidado Story Architect", mostrando directamente el dato seguido de "CONSOLIDADO" (e.g. `TRATAMIENTO CONSOLIDADO`, `IDEA CONSOLIDADA`, `GUION CONSOLIDADO`, `PLANOS/TOMAS CONSOLIDADO`).
   - **Eliminación Total de Atajos en Biblia:** Se retiraron completamente los indicadores de atajo de teclado (`Cmd+B` / `Option+B`) del botón de la cabecera y del menú de usuario, dejando el acceso mediante clic limpio sin colisiones con el navegador.
+- **Filtro de Agujeros de Guión y Reubicación de Herramientas de Proyecto (Fase 21):**
+  - **Reubicación de Herramientas a Nivel de Proyecto:** Se eliminó el botón de la "Biblia de Proyecto" de la barra superior de la aplicación (`layouts/app.blade.php`) y se trasladó a la cabecera sticky del propio proyecto (`resources/views/livewire/studio/script-editor.blade.php`), situándolo a la misma altura que el título del proyecto y el contador de escenas.
+  - **Herramienta "Filtro de Agujeros de Guión":** Se incorporó el botón interactivo `🕳️ Agujeros de Guión` en la cabecera del proyecto junto a la Biblia. Dispone de indicador de carga reactivo (`wire:loading`) y un badge pulsante con el total de agujeros detectados en el proyecto.
+  - **Detección Dramática y Persistencia de Inconsistencias (`plot_hole`):**
+    - Se añadió la columna `plot_hole` (text nullable) a la tabla `script_blocks` mediante migración (`2026_10_10_220001_add_plot_hole_to_script_blocks_table.php`).
+    - `ScriptEditor::analyzePlotHoles` audita la secuencia cronológica de bloques del proyecto usando `AgentClientService::auditPlotHoles` (`plot_hole_detector`), cotejando personajes y localizaciones.
+    - Marca los bloques afectados registrando el motivo exacto de la incongruencia dramática.
+    - **Persistencia garantizada:** Las marcas no se eliminan al navegar, recargar o editar otros elementos; persisten en el bloque hasta que el autor vuelva a ejecutar el filtro de agujeros.
+  - **Señalización Visual Multivista:**
+    - **Pipeline Gutenberg:** Tarjeta de advertencia (`🕳️ Agujero de Guión Detectado`) con el motivo detallado bajo el texto del bloque, además del distintivo `🕳️ Agujero` junto a `Detalles`.
+    - **Panel Lateral (Drawer al 60%):** Banner explicativo en la parte superior del cuerpo del drawer al inspeccionar el bloque.
+    - **Consolidado Continuo:** Bloque de advertencia con el motivo bajo el texto del bloque en las vistas de lectura continua (`Idea`, `Tratamiento`, `Guion`, `Planos/Tomas`).
 
 ### 7.2. Deudas Técnicas Conocidas
 1. **Actualización Dinámica de Tarifas de Tokens:**
