@@ -16,6 +16,10 @@
         }
 
         /* Divisores Gutenberg: línea horizontal continua ámbar garantizada */
+        .gutenberg-container {
+            position: relative;
+            z-index: 5 !important;
+        }
         .gutenberg-divider-line {
             position: absolute;
             left: 0;
@@ -27,6 +31,7 @@
             pointer-events: none;
             opacity: 0;
             transition: opacity 0.15s ease;
+            z-index: 5 !important;
         }
         .gutenberg-container:hover .gutenberg-divider-line,
         .gutenberg-divider-line.is-visible {
@@ -37,6 +42,19 @@
             opacity: 1 !important;
             transform: scale(1) !important;
             pointer-events: auto !important;
+            z-index: 6 !important;
+        }
+
+        /* SUPRESIÓN TOTAL E INFALIBLE DE DIVISORES GUTENBERG CUANDO CUALQUIER MODAL ESTÉ ACTIVO */
+        body:has(.fixed.inset-0) .gutenberg-container,
+        body:has([style*="z-index: 9999"]) .gutenberg-container,
+        body:has([style*="z-index: 100000"]) .gutenberg-container,
+        body:has(.backdrop-blur-md) .gutenberg-container,
+        body:has(.backdrop-blur-sm) .gutenberg-container {
+            display: none !important;
+            pointer-events: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
         }
     </style>
 
@@ -73,7 +91,8 @@
             <div x-data="{ isTopScenePlusHovered: false }"
                  @mouseenter="isTopScenePlusHovered = true"
                  @mouseleave="isTopScenePlusHovered = false"
-                 class="gutenberg-container relative py-1 my-0.5 flex items-center justify-center cursor-pointer z-10 w-full">
+                 class="gutenberg-container relative py-1 my-0.5 flex items-center justify-center cursor-pointer z-[5] w-full"
+                 style="z-index: 5;">
                 <div class="gutenberg-divider-line"
                      :class="isTopScenePlusHovered ? 'is-visible' : ''"
                      style="height: 2px; background-color: #f59e0b;"></div>
@@ -81,7 +100,7 @@
                         type="button"
                         title="Insertar nueva escena al inicio del guión"
                         :class="isTopScenePlusHovered ? 'is-visible' : ''"
-                        class="gutenberg-divider-btn opacity-0 scale-75 pointer-events-none relative z-10 px-3 py-1 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md hover:scale-105 transition-all duration-150 flex items-center gap-1.5 cursor-pointer">
+                        class="gutenberg-divider-btn opacity-0 scale-75 pointer-events-none relative z-[6] px-3 py-1 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md hover:scale-105 transition-all duration-150 flex items-center gap-1.5 cursor-pointer">
                     <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
                     </svg>
@@ -238,7 +257,8 @@
                                 <div x-data="{ isInitPlusHovered: false }"
                                      @mouseenter="isInitPlusHovered = true"
                                      @mouseleave="isInitPlusHovered = false"
-                                     class="gutenberg-container relative py-2.5 my-0.5 flex items-center justify-center cursor-pointer z-10 w-full">
+                                     class="gutenberg-container relative py-2.5 my-0.5 flex items-center justify-center cursor-pointer z-[5] w-full"
+                                     style="z-index: 5;">
                                     <div class="gutenberg-divider-line"
                                          :class="isInitPlusHovered ? 'is-visible' : ''"
                                          style="height: 2px; background-color: #f59e0b;"></div>
@@ -246,7 +266,7 @@
                                             type="button"
                                             title="Insertar bloque al inicio de la escena"
                                             :class="isInitPlusHovered ? 'is-visible' : ''"
-                                            class="gutenberg-divider-btn opacity-0 scale-75 pointer-events-none relative z-10 w-7 h-7 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center justify-center shadow-md hover:scale-110 transition-all duration-150 cursor-pointer">
+                                            class="gutenberg-divider-btn opacity-0 scale-75 pointer-events-none relative z-[6] w-7 h-7 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center justify-center shadow-md hover:scale-110 transition-all duration-150 cursor-pointer">
                                         <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                                             <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
                                         </svg>
@@ -379,7 +399,8 @@
                                     <div x-data="{ isPlusHovered: false }"
                                          @mouseenter="isPlusHovered = true"
                                          @mouseleave="isPlusHovered = false"
-                                         class="gutenberg-container relative py-2.5 my-0.5 flex items-center justify-center cursor-pointer z-10 w-full">
+                                         class="gutenberg-container relative py-2.5 my-0.5 flex items-center justify-center cursor-pointer z-[5] w-full"
+                                         style="z-index: 5;">
                                         <div class="gutenberg-divider-line"
                                              :class="isPlusHovered ? 'is-visible' : ''"
                                              style="height: 2px; background-color: #f59e0b;"></div>
@@ -387,7 +408,7 @@
                                                 type="button"
                                                 title="Añadir bloque aquí"
                                                 :class="isPlusHovered ? 'is-visible' : ''"
-                                                class="gutenberg-divider-btn opacity-0 scale-75 pointer-events-none relative z-10 w-7 h-7 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center justify-center shadow-md hover:scale-110 transition-all duration-150 cursor-pointer">
+                                                class="gutenberg-divider-btn opacity-0 scale-75 pointer-events-none relative z-[6] w-7 h-7 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center justify-center shadow-md hover:scale-110 transition-all duration-150 cursor-pointer">
                                             <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                                                 <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
                                             </svg>
@@ -410,14 +431,15 @@
                 <div x-data="{ isScenePlusHovered: false }"
                      @mouseenter="isScenePlusHovered = true"
                      @mouseleave="isScenePlusHovered = false"
-                     class="gutenberg-container relative py-0.5 my-0 flex items-center justify-center cursor-pointer z-10 w-full">
+                     class="gutenberg-container relative py-0.5 my-0 flex items-center justify-center cursor-pointer z-[5] w-full"
+                     style="z-index: 5;">
                     <div class="gutenberg-divider-line"
                          :class="isScenePlusHovered ? 'is-visible' : ''"
                          style="height: 2px; background-color: #f59e0b;"></div>
                     <button wire:click="openNewSceneModal({{ $scene->scene_order }})"
                             type="button"
                             :class="isScenePlusHovered ? 'is-visible' : ''"
-                            class="gutenberg-divider-btn opacity-0 scale-75 pointer-events-none relative z-10 px-3 py-1 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md hover:scale-105 transition-all duration-150 flex items-center gap-1.5 cursor-pointer">
+                            class="gutenberg-divider-btn opacity-0 scale-75 pointer-events-none relative z-[6] px-3 py-1 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md hover:scale-105 transition-all duration-150 flex items-center gap-1.5 cursor-pointer">
                         <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
                         </svg>

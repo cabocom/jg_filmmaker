@@ -84,7 +84,8 @@ class ContextBibleDrawer extends Component
     public function close(): void
     {
         $this->isOpen = false;
-        $this->reset(['editingCharacterId', 'editingLocationId', 'showNewCharacterForm', 'showNewLocationForm']);
+        $this->showDeleteModal = false;
+        $this->reset(['editingCharacterId', 'editingLocationId', 'showNewCharacterForm', 'showNewLocationForm', 'deletingType', 'deletingId', 'deletingName', 'deletingUsages']);
     }
 
     public function startEditCharacter(string $characterId): void
@@ -209,6 +210,7 @@ class ContextBibleDrawer extends Component
         $this->deletingName = $char->name;
         $this->deletingUsages = array_values(array_unique($usages));
         $this->showDeleteModal = true;
+        $this->isOpen = true;
     }
 
     /**
@@ -255,14 +257,16 @@ class ContextBibleDrawer extends Component
         $this->deletingName = $loc->name;
         $this->deletingUsages = array_values(array_unique($usages));
         $this->showDeleteModal = true;
+        $this->isOpen = true;
     }
 
     /**
-     * Cancela la solicitud de borrado y cierra el modal.
+     * Cancela la solicitud de borrado y cierra el modal de confirmación, manteniendo abierta la biblia.
      */
     public function cancelDelete(): void
     {
         $this->reset(['deletingType', 'deletingId', 'deletingName', 'deletingUsages', 'showDeleteModal']);
+        $this->isOpen = true;
     }
 
     /**
