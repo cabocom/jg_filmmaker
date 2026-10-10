@@ -15,9 +15,72 @@ class UserDetail extends Component
 {
     public User $user;
 
+    public bool $showTransferModal = false;
+
+    public ?string $selectedProjectId = null;
+
+    public ?string $selectedProjectTitle = null;
+
+    public ?string $targetUserId = null;
+
     public function mount(User $user): void
     {
         $this->user = $user;
+    }
+
+    public function openTransferModal(string $projectId): void
+    {
+        $project = Project::where('id', $projectId)
+            ->where('user_id', $this->user->id)
+            ->firstOrFail();
+
+        $this->selectedProjectId = $project->id;
+        $this->selectedProjectTitle = $project->title;
+        $this->targetUserId = null;
+        $this->resetErrorBag();
+        $this->showTransferModal = true;
+    }
+
+    public function closeTransferModal(): void
+    {
+        $this->showTransferModal = false;
+        $this->selectedProjectId = null;
+        $this->selectedProjectTitle = null;
+        $this->targetUserId = null;
+        $this->resetErrorBag();
+    }
+
+    public function transferProject(): void
+    {
+        $this->validate([
+            'selectedProjectId' => 'required|exists:projects,id',
+            'targetUserId' => 'required|exists:users,id',
+        ]);
+
+        if ($this->targetUserId === $this->user->id) {
+            $this->addError('targetUserId', 'El usuario seleccionado ya es el propietario de este proyecto.');
+
+            return;
+        }
+
+        $project = Project::where('id', $this->selectedProjectId)
+            ->where('user_id', $this->user->id)
+            ->firstOrFail();
+
+        $targetUser = User::findOrFail($this->targetUserId);
+
+        DB::transaction(function () use ($project, $targetUser) {
+            $project->user_id = $targetUser->id;
+            $project->save();
+        });
+
+        $projectTitle = $project->title;
+        $targetName = $targetUser->name;
+        $targetEmail = $targetUser->email;
+
+        $this->closeTransferModal();
+
+        session()->flash('status', "El proyecto '{$projectTitle}' se transfirió con éxito a {$targetName} ({$targetEmail}).");
     }
 
     public function render()
@@ -80,12 +143,18 @@ class UserDetail extends Component
             ->where('projects.user_id', $this->user->id)
             ->sum('agent_request_logs.estimated_cost_usd') ?: 0.0;
 
+        $availableUsers = User::where('id', '!=', $this->user->id)
+            ->withCount('projects')
+            ->orderBy('name')
+            ->get();
+
         return view('livewire.admin.user-detail', [
             'projects' => $projects,
             'blockCountsByProject' => $blockCountsByProject,
             'aiMetricsByProject' => $aiMetricsByProject,
             'userTotalTokens' => (int) $userTotalTokens,
             'userTotalCost' => (float) $userTotalCost,
+            'availableUsers' => $availableUsers,
         ]);
     }
 }

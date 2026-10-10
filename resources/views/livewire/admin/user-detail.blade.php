@@ -2,6 +2,15 @@
     <x-admin-nav />
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+        @if(session()->has('status'))
+            <div class="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-200 text-xs flex items-center justify-between shadow-xs">
+                <div class="flex items-center gap-2 font-mono">
+                    <span>✓</span>
+                    <span>{{ session('status') }}</span>
+                </div>
+            </div>
+        @endif
+
         <!-- Migas de Pan y Encabezado -->
         <div class="flex items-center justify-between">
             <div class="space-y-1">
@@ -85,6 +94,7 @@
                             <th class="px-4 py-3 text-center">Peticiones IA</th>
                             <th class="px-4 py-3 text-right">Tokens Consumidos</th>
                             <th class="px-4 py-3 text-right">Coste Est. (USD)</th>
+                            <th class="px-4 py-3 text-right">Acciones</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60 font-sans">
@@ -137,10 +147,18 @@
                                 <td class="px-4 py-3.5 text-right font-mono font-semibold text-emerald-600 dark:text-emerald-400">
                                     ${{ number_format($ai['total_cost_usd'], 4) }}
                                 </td>
+                                <td class="px-4 py-3.5 text-right font-mono">
+                                    <button wire:click="openTransferModal('{{ $project->id }}')"
+                                            type="button"
+                                            class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:border-amber-500/50 transition cursor-pointer flex items-center gap-1.5 ml-auto">
+                                        <span>🔄</span>
+                                        <span>Transferir</span>
+                                    </button>
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-4 py-8 text-center text-slate-500 font-mono">
+                                <td colspan="7" class="px-4 py-8 text-center text-slate-500 font-mono">
                                     Este usuario no tiene obras registradas todavía.
                                 </td>
                             </tr>
@@ -150,4 +168,76 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal de Transferencia de Proyecto -->
+    @if($showTransferModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden p-6 space-y-5">
+                <div class="flex items-start justify-between">
+                    <div class="space-y-1">
+                        <span class="text-[11px] font-mono text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider">
+                            Reasignación de Obra
+                        </span>
+                        <h3 class="text-base font-bold text-slate-900 dark:text-white">
+                            Transferir Proyecto
+                        </h3>
+                    </div>
+                    <button wire:click="closeTransferModal"
+                            type="button"
+                            class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg leading-none cursor-pointer">
+                        ✕
+                    </button>
+                </div>
+
+                <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2 text-xs">
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-500 font-mono">Proyecto:</span>
+                        <strong class="text-slate-900 dark:text-white font-mono">{{ $selectedProjectTitle }}</strong>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-500 font-mono">Propietario actual:</span>
+                        <span class="text-slate-700 dark:text-slate-300 font-semibold">{{ $user->name }}</span>
+                    </div>
+                </div>
+
+                <form wire:submit.prevent="transferProject" class="space-y-4">
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-mono font-bold text-slate-700 dark:text-slate-300 uppercase">
+                            Seleccionar Nuevo Propietario
+                        </label>
+                        <select wire:model="targetUserId"
+                                class="w-full px-3 py-2 text-xs rounded-xl bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500">
+                            <option value="">-- Elige un usuario de destino --</option>
+                            @foreach($availableUsers as $target)
+                                <option value="{{ $target->id }}">
+                                    {{ $target->name }} ({{ $target->email }}) — [{{ $target->projects_count }} / {{ $target->paid_project_slots }} slots]
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('targetUserId')
+                            <p class="text-xs text-rose-500 font-mono">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <p class="text-[11px] text-slate-500 leading-relaxed font-sans">
+                        ⚠️ Al transferir, el nuevo usuario obtendrá la titularidad del guion, escenas, bloques y su respectiva telemetría técnica.
+                    </p>
+
+                    <div class="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-200 dark:border-slate-800">
+                        <button wire:click="closeTransferModal"
+                                type="button"
+                                class="px-4 py-2 rounded-xl text-xs font-mono font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">
+                            Cancelar
+                        </button>
+                        <button type="submit"
+                                wire:loading.attr="disabled"
+                                class="px-4 py-2 rounded-xl text-xs font-mono font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-xs transition cursor-pointer flex items-center gap-2">
+                            <span wire:loading.remove>Confirmar Transferencia</span>
+                            <span wire:loading>Procesando...</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
 </div>

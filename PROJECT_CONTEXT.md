@@ -194,7 +194,8 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
 - `LivewireScriptEditorTest.php`: Verifica renderizado del slugline, feed de bloques, inserción Gutenberg, drawer lateral y tomas (6 tests).
 - `PasswordlessAuthTest.php`: Verifica generación y envío de OTP, banner en localhost, un solo uso y detección de replay attacks en `security_breach_logs` (6 tests).
 - `AdminPanelAndTelemetryTest.php`: Verifica middleware `admin` 403, auditoría sin filtrar textos, persistencia de `agent_request_logs` con costes USD y actualización de tarifas (5 tests).
-- **Total:** 44 tests PHPUnit pasando al 100% (236 aserciones).
+- `ProjectTransferAdminTest.php`: Verifica permisos 403, privacidad sin filtrar textos y reasignación/transferencia atómica de obras entre usuarios tanto desde `UserDetail` como desde `ProjectManager` (4 tests).
+- **Total:** 48 tests PHPUnit pasando al 100% (260 aserciones).
 
 ---
 
@@ -257,6 +258,7 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
   - **Gobernanza y Roles de Usuario (`is_admin`):** Middleware `EnsureUserIsAdmin` protegiendo `/admin/*` con denegación 403 estricta. En `/admin/users` se ofrece la lista completa de usuarios, cuotas de slots, consumo de tokens, gasto estimado y toggle de permisos de administrador.
   - **Auditoría Cuantitativa con Privacidad Estricta:** En `/admin/users/{user}` se auditan las obras del autor de forma puramente cuantitativa (conteo de bloques por etapa `raw`, `structured`, `screenplay`, `shots` y consumo de IA) garantizando que ningún fragmento de texto dramático sensible sea cargado o expuesto en memoria.
   - **Catálogo de Tarifas y Telemetría de Costes (`token_pricing_rates` y `agent_request_logs`):** Cálculo automatizado de costes por petición cruzando con el modelo activo (Groq Llama 3.3 70B, Llama 3.1 8B, Gemini 1.5 Flash, Ollama). Gestión interactiva en `/admin/pricing` para editar tarifas de entrada/salida y activar el modelo vigente.
+  - **Gestión Global y Migración de Proyectos (`/admin/projects` y `/admin/users/{user}`):** Módulo administrativo integral para catálogo de obras cinemáticas con buscador reactivo por título/autor, filtros y reasignación/transferencia atómica de obras entre usuarios (`ProjectManager` y `UserDetail`). El modal permite elegir el nuevo autor en caliente y trasvasa el proyecto y sus relaciones manteniendo la privacidad estricta.
 
 ### 7.2. Deudas Técnicas Conocidas
 1. **Actualización Dinámica de Tarifas de Tokens:**

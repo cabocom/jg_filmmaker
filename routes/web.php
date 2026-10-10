@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Livewire\Admin\PricingManager;
+use App\Livewire\Admin\ProjectManager;
 use App\Livewire\Admin\SecurityLogsViewer;
 use App\Livewire\Admin\UserDetail;
 use App\Livewire\Admin\UserList;
@@ -40,6 +41,7 @@ Route::prefix('admin')->middleware(['auth', EnsureUserIsAdmin::class])->group(fu
 
     Route::get('/users', UserList::class)->name('admin.users');
     Route::get('/users/{user}', UserDetail::class)->name('admin.users.show');
+    Route::get('/projects', ProjectManager::class)->name('admin.projects');
     Route::get('/pricing', PricingManager::class)->name('admin.pricing');
     Route::get('/security', SecurityLogsViewer::class)->name('admin.security');
 });

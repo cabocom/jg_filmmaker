@@ -22,6 +22,12 @@
                 <span>Usuarios</span>
             </a>
 
+            <a href="{{ route('admin.projects') }}"
+               class="px-3 py-1.5 rounded-lg font-semibold transition flex items-center gap-1.5 {{ request()->routeIs('admin.projects*') ? 'bg-amber-500 text-slate-950 shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800' }}">
+                <span>🎬</span>
+                <span>Proyectos</span>
+            </a>
+
             <a href="{{ route('admin.pricing') }}"
                class="px-3 py-1.5 rounded-lg font-semibold transition flex items-center gap-1.5 {{ request()->routeIs('admin.pricing') ? 'bg-amber-500 text-slate-950 shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                 <span>⚡</span>
