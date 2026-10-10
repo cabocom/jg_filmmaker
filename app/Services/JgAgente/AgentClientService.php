@@ -1215,14 +1215,22 @@ class AgentClientService
 
         if ($toolName === 'plot_hole_detector') {
             $blocks = (array) ($payload['blocks'] ?? []);
-            $text = "SECUENCIA DE BLOQUES DEL PROYECTO A AUDITAR:\n\n";
+            $stage = $blocks[0]['stage'] ?? 'raw';
+            $stageLabel = match ($stage) {
+                'structured' => 'TRATAMIENTO CONSOLIDADO',
+                'screenplay' => 'GUION CONSOLIDADO',
+                'raw' => 'IDEA / BRUTO (PIPELINE)',
+                default => 'CONSOLIDADO',
+            };
+
+            $text = "SECUENCIA DE BLOQUES DEL PROYECTO A AUDITAR [ETAPA: {$stageLabel}]:\n\n";
             foreach ($blocks as $b) {
                 $bId = $b['id'] ?? '';
                 $scNum = $b['scene_order'] ?? 1;
                 $slug = $b['scene_slugline'] ?? 'ESCENA';
                 $blNum = $b['block_order'] ?? 1;
                 $bContent = $b['text'] ?? ($b['screenplay_content'] ?? ($b['structured_text'] ?? ($b['raw_text'] ?? '')));
-                $text .= "--- BLOQUE [id: {$bId}] | Escena {$scNum} ({$slug}) | Bloque #{$blNum} ---\n{$bContent}\n\n";
+                $text .= "--- BLOQUE [id: {$bId}] | Escena {$scNum} ({$slug}) | Bloque #{$blNum} | Etapa: {$stageLabel} ---\n{$bContent}\n\n";
             }
 
             return $text;

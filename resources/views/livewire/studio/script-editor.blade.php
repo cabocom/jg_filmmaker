@@ -445,9 +445,14 @@
                                                         <div class="flex items-start gap-2.5 min-w-0">
                                                             <span class="text-sm shrink-0">🕳️</span>
                                                             <div class="space-y-0.5">
-                                                                <span class="font-bold uppercase tracking-wider text-[10px] text-rose-900 dark:text-rose-300">
-                                                                    Agujero de Guión Detectado
-                                                                </span>
+                                                                <div class="flex items-center gap-1.5 flex-wrap">
+                                                                    <span class="font-bold uppercase tracking-wider text-[10px] text-rose-900 dark:text-rose-300">
+                                                                        Agujero de Guión Detectado
+                                                                    </span>
+                                                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-rose-200/90 dark:bg-rose-900/80 text-rose-800 dark:text-rose-200 border border-rose-300 dark:border-rose-700 uppercase">
+                                                                        Detectado en: {{ $block->getPlotHoleStageLabel() }}
+                                                                    </span>
+                                                                </div>
                                                                 <p class="leading-relaxed font-sans text-xs text-rose-800 dark:text-rose-200">
                                                                     {{ $block->plot_hole }}
                                                                 </p>
@@ -694,8 +699,13 @@
                                                 <div class="flex items-start gap-2 min-w-0">
                                                     <span class="text-sm shrink-0">🕳️</span>
                                                     <div>
-                                                        <span class="font-bold text-[10px] uppercase tracking-wide text-rose-900 dark:text-rose-300">Agujero de guión:</span>
-                                                        <span class="font-sans text-xs text-rose-800 dark:text-rose-200 ml-1">{{ $block->plot_hole }}</span>
+                                                        <div class="flex items-center gap-1.5 flex-wrap mb-0.5">
+                                                            <span class="font-bold text-[10px] uppercase tracking-wide text-rose-900 dark:text-rose-300">Agujero de guión:</span>
+                                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-rose-200/90 dark:bg-rose-900/80 text-rose-800 dark:text-rose-200 border border-rose-300 dark:border-rose-700 uppercase">
+                                                                Detectado en: {{ $block->getPlotHoleStageLabel() }}
+                                                            </span>
+                                                        </div>
+                                                        <span class="font-sans text-xs text-rose-800 dark:text-rose-200">{{ $block->plot_hole }}</span>
                                                     </div>
                                                 </div>
                                                 <button wire:click="openJustifyModal('{{ $block->id }}')"
@@ -815,9 +825,14 @@
                                 <div class="flex items-start gap-3 min-w-0">
                                     <span class="text-xl shrink-0">🕳️</span>
                                     <div class="space-y-1">
-                                        <span class="font-bold tracking-wide uppercase text-[11px] block text-rose-900 dark:text-rose-300">
-                                            Agujero de Guión Detectado
-                                        </span>
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <span class="font-bold tracking-wide uppercase text-[11px] block text-rose-900 dark:text-rose-300">
+                                                Agujero de Guión Detectado
+                                            </span>
+                                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-rose-200/90 dark:bg-rose-900/80 text-rose-800 dark:text-rose-200 border border-rose-300 dark:border-rose-700 uppercase">
+                                                Detectado en: {{ $detailBlock->getPlotHoleStageLabel() }}
+                                            </span>
+                                        </div>
                                         <p class="leading-relaxed font-sans text-rose-800 dark:text-rose-200">
                                             {{ $detailBlock->plot_hole }}
                                         </p>
@@ -845,8 +860,13 @@
                                 <div class="space-y-2.5">
                                     @foreach($detailBlock->getJustifiedPlotHoles() as $jHole)
                                         <div class="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs space-y-1.5">
-                                            <div class="text-slate-500 dark:text-slate-400 font-mono text-[10px] flex items-center justify-between">
-                                                <span>🕳️ Motivo IA original:</span>
+                                            <div class="text-slate-500 dark:text-slate-400 font-mono text-[10px] flex items-center justify-between gap-2 flex-wrap">
+                                                <div class="flex items-center gap-1.5">
+                                                    <span>🕳️ Motivo IA original:</span>
+                                                    <span class="px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                                                        {{ $jHole['stage_label'] ?? 'Idea (Bruto)' }}
+                                                    </span>
+                                                </div>
                                                 <span>{{ \Carbon\Carbon::parse($jHole['justified_at'])->format('d/m/Y H:i') }}</span>
                                             </div>
                                             <p class="text-slate-600 dark:text-slate-400 italic">"{{ $jHole['hole_reason'] }}"</p>

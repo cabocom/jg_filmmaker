@@ -1122,11 +1122,27 @@ class ScriptEditor extends Component
 
     /**
      * Audita y detecta agujeros de guión en los bloques del proyecto actual mediante el agente IA.
-     * Marca cada bloque con el motivo detectado y persiste hasta la próxima auditoría.
+     * Marca cada bloque con el motivo detectado y la etapa auditada, persistiendo hasta la próxima auditoría.
      */
     public function analyzePlotHoles(?AgentClientService $agentClient = null): void
     {
         $agentClient = $agentClient ?? app(AgentClientService::class);
+
+        $targetStage = match ($this->activeView) {
+            'idea' => 'raw',
+            'structured' => 'structured',
+            'screenplay' => 'screenplay',
+            'shots' => 'screenplay',
+            'pipeline' => 'raw',
+            default => 'raw',
+        };
+
+        $targetStageLabel = match ($targetStage) {
+            'structured' => 'Tratamiento',
+            'screenplay' => 'Guion',
+            'raw' => 'Idea (Bruto)',
+            default => 'Idea (Bruto)',
+        };
 
         $scenes = $this->project->scenes()
             ->with(['scriptBlocks' => fn ($q) => $q->orderBy('block_order')])
@@ -1139,11 +1155,17 @@ class ScriptEditor extends Component
         foreach ($scenes as $scene) {
             foreach ($scene->scriptBlocks as $block) {
                 $blocksById[(string) $block->id] = $block;
-                $fullBlockText = trim(implode("\n", array_unique(array_filter([
-                    (string) ($block->screenplay_content ?? ''),
-                    (string) ($block->structured_text ?? ''),
-                    (string) ($block->raw_text ?? ''),
-                ]))));
+
+                $blockText = match ($targetStage) {
+                    'structured' => (string) ($block->structured_text ?? ''),
+                    'screenplay' => (string) ($block->screenplay_content ?? ''),
+                    'raw' => (string) ($block->raw_text ?? ''),
+                    default => (string) ($block->raw_text ?? ''),
+                };
+
+                if (empty(trim($blockText))) {
+                    $blockText = (string) ($block->raw_text ?? '');
+                }
 
                 $blocksData[] = [
                     'id' => (string) $block->id,
@@ -1151,10 +1173,11 @@ class ScriptEditor extends Component
                     'scene_order' => $scene->scene_order,
                     'scene_slugline' => $scene->slugline,
                     'block_order' => $block->block_order,
+                    'stage' => $targetStage,
                     'raw_text' => (string) ($block->raw_text ?? ''),
                     'structured_text' => (string) ($block->structured_text ?? ''),
                     'screenplay_content' => (string) ($block->screenplay_content ?? ''),
-                    'text' => $fullBlockText,
+                    'text' => $blockText,
                 ];
             }
         }
@@ -1203,18 +1226,24 @@ class ScriptEditor extends Component
                 }
             }
 
+            $userLocks = $block->user_locks ?? [];
+            if ($reason !== null) {
+                $userLocks['plot_hole_stage'] = $targetStage;
+                $markedCount++;
+            } else {
+                unset($userLocks['plot_hole_stage']);
+            }
+
             $block->update([
                 'plot_hole' => $reason,
+                'user_locks' => $userLocks,
             ]);
-            if ($reason !== null) {
-                $markedCount++;
-            }
         }
 
         if ($markedCount > 0) {
-            session()->flash('warning', "Se han detectado {$markedCount} posibles agujeros de guión marcados en el proyecto.");
+            session()->flash('warning', "Se han detectado {$markedCount} posibles agujeros de guión en {$targetStageLabel}.");
         } else {
-            session()->flash('success', 'Filtro de agujeros de guión: No se han detectado incongruencias.');
+            session()->flash('success', "Filtro de agujeros de guión en {$targetStageLabel}: No se han detectado incongruencias.");
         }
     }
 
@@ -1248,14 +1277,20 @@ class ScriptEditor extends Component
         $justifiedHoles = (array) ($userLocks['justified_plot_holes'] ?? []);
 
         $reason = $this->justifyingHoleReason ?: (string) $block->plot_hole;
+        $stage = $block->getPlotHoleStage() ?? 'raw';
+        $stageLabel = $block->getPlotHoleStageLabel();
+
         $justifiedHoles[] = [
             'id' => Str::uuid()->toString(),
             'hole_reason' => $reason,
             'original_reason' => $reason,
+            'stage' => $stage,
+            'stage_label' => $stageLabel,
             'justification' => trim($this->justificationText),
             'justified_at' => now()->toIso8601String(),
         ];
 
+        unset($userLocks['plot_hole_stage']);
         $userLocks['justified_plot_holes'] = $justifiedHoles;
 
         $block->update([

@@ -748,4 +748,56 @@ class LivewireScriptEditorTest extends TestCase
         $locks = $updatedBlock->user_locks ?? [];
         $this->assertEmpty($locks['manual_diffs'] ?? []);
     }
+
+    public function test_plot_hole_analysis_targets_active_view_consolidated_stage_and_indicates_step(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create([
+            'project_id' => $project->id,
+            'slugline' => 'INT. BAR CENTRAL - NOCHE',
+            'scene_order' => 1,
+        ]);
+
+        $block = ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'block_order' => 1,
+            'raw_text' => '[AGUJERO: Descuadre en idea bruta]',
+            'structured_text' => 'Texto de tratamiento limpio sin problemas.',
+            'screenplay_content' => '[AGUJERO: Descuadre en guion literario]',
+            'plot_hole' => null,
+        ]);
+
+        // 1. Ejecución desde la vista 'pipeline': audita sobre raw_text
+        $livewire = Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->set('activeView', 'pipeline')
+            ->call('analyzePlotHoles');
+
+        $fresh = $block->fresh();
+        $this->assertNotNull($fresh->plot_hole);
+        $this->assertStringContainsString('Descuadre en idea bruta', $fresh->plot_hole);
+        $this->assertEquals('raw', $fresh->getPlotHoleStage());
+        $this->assertEquals('Idea (Bruto)', $fresh->getPlotHoleStageLabel());
+        $livewire->assertSee('Detectado en: Idea (Bruto)');
+
+        // 2. Ejecución desde 'structured' (Tratamiento consolidado): texto limpio, se limpia el agujero
+        $livewire->call('setActiveView', 'structured')
+            ->call('analyzePlotHoles');
+
+        $freshTreatment = $block->fresh();
+        $this->assertNull($freshTreatment->plot_hole);
+        $this->assertNull($freshTreatment->getPlotHoleStage());
+
+        // 3. Ejecución desde 'screenplay' (Guion consolidado): detecta incongruencia de guión
+        $livewire->call('setActiveView', 'screenplay')
+            ->call('analyzePlotHoles');
+
+        $freshScreenplay = $block->fresh();
+        $this->assertNotNull($freshScreenplay->plot_hole);
+        $this->assertStringContainsString('Descuadre en guion literario', $freshScreenplay->plot_hole);
+        $this->assertEquals('screenplay', $freshScreenplay->getPlotHoleStage());
+        $this->assertEquals('Guion', $freshScreenplay->getPlotHoleStageLabel());
+        $livewire->assertSee('Detectado en: Guion');
+    }
 }
