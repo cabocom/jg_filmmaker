@@ -124,8 +124,13 @@ class AgentClientService
         string $rawText,
         array $characters = [],
         ?array $location = null,
-        array $userLocks = []
+        array|string $userLocks = []
     ): string {
+        if (! is_array($userLocks)) {
+            $decoded = is_string($userLocks) ? json_decode($userLocks, true) : null;
+            $userLocks = is_array($decoded) ? $decoded : [];
+        }
+
         $payload = [
             'raw_text' => $rawText,
             'characters_context' => $characters,
@@ -142,14 +147,19 @@ class AgentClientService
      * Convierte texto estructurado en guion literario canónico (Fountain/literario).
      *
      * @param  array<int, array<string, mixed>>  $characters
-     * @param  array<string, mixed>  $userLocks
+     * @param  array<string, mixed>|string  $userLocks
      */
     public function formatScreenplay(
         string $structuredText,
         array $characters = [],
-        array $userLocks = [],
+        array|string $userLocks = [],
         ?array $location = null
     ): string {
+        if (! is_array($userLocks)) {
+            $decoded = is_string($userLocks) ? json_decode($userLocks, true) : null;
+            $userLocks = is_array($decoded) ? $decoded : [];
+        }
+
         $payload = [
             'structured_text' => $structuredText,
             'characters_context' => $characters,

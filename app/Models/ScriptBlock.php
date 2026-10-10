@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Database\Factories\ScriptBlockFactory;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -38,8 +39,50 @@ class ScriptBlock extends Model
     {
         return [
             'block_order' => 'integer',
-            'user_locks' => 'array',
         ];
+    }
+
+    /**
+     * Interact with the user_locks attribute to guarantee array type.
+     */
+    protected function userLocks(): Attribute
+    {
+        return Attribute::make(
+            get: function ($value): array {
+                if (is_array($value)) {
+                    return $value;
+                }
+
+                if (is_string($value)) {
+                    $decoded = json_decode($value, true);
+                    if (is_array($decoded)) {
+                        return $decoded;
+                    }
+                    if (is_string($decoded)) {
+                        $second = json_decode($decoded, true);
+                        if (is_array($second)) {
+                            return $second;
+                        }
+                    }
+                }
+
+                return [];
+            },
+            set: function ($value): string {
+                if (is_array($value)) {
+                    return json_encode($value);
+                }
+
+                if (is_string($value)) {
+                    $decoded = json_decode($value, true);
+                    if (is_array($decoded)) {
+                        return json_encode($decoded);
+                    }
+                }
+
+                return json_encode([]);
+            }
+        );
     }
 
     /**

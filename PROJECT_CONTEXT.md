@@ -195,7 +195,8 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
 - `PasswordlessAuthTest.php`: Verifica generación y envío de OTP, banner en localhost, un solo uso y detección de replay attacks en `security_breach_logs` (6 tests).
 - `AdminPanelAndTelemetryTest.php`: Verifica middleware `admin` 403, auditoría sin filtrar textos, persistencia de `agent_request_logs` con costes USD y actualización de tarifas (5 tests).
 - `ProjectTransferAdminTest.php`: Verifica permisos 403, privacidad sin filtrar textos y reasignación/transferencia atómica de obras entre usuarios tanto desde `UserDetail` como desde `ProjectManager` (4 tests).
-- **Total:** 48 tests PHPUnit pasando al 100% (260 aserciones).
+- `ScriptPipelineIntegrationTest.php`: Verifica transiciones entre etapas, inyección semántica de biblia de proyecto y normalización estricta de `user_locks` ante valores serializados o malformados (6 tests).
+- **Total:** 49 tests PHPUnit pasando al 100% (262 aserciones).
 
 ---
 
@@ -206,6 +207,7 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
 - Dispone de pipeline CI/CD en `.gitlab-ci.yml` con etapas de pruebas (`test:phpunit`) y construcción de contenedor Docker limpio sin ofuscación (`build:docker`).
 - Soporta el ciclo completo desde la creación del proyecto hasta el renderizado de vídeo concatenado con FFmpeg.
 - Dispone de interfaz adaptativa en tema Claro (blanco puro estilo `jg_hub`/`jg_dashboard`) y tema Oscuro con selector interactivo y persistencia en `localStorage`.
+- **Normalización Infalible de `user_locks` (Fase 16):** Para blindar el motor ante errores `TypeError` por serialización anidada en SQLite o strings residuales (`"{}"`), `ScriptBlock` implementa un cast de atributo dinámico `userLocks(): Attribute` y `ScriptPipelineService::resolveUserLocks()` que garantizan en tiempo de ejecución que el parámetro siempre sea un `array` asociativo antes de interactuar con `AgentClientService`.
 - **Feed Continuo de Lectura Cinematográfica (Fase 10):** Se eliminaron las cabeceras de bloque redundantes (`BLOQUE #N 1. Bruto...`) y los bordes pesados. El texto de la historia fluye como una lectura continua alineada con el logotipo (`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6`), con el botón `Detalles` flotando sutilmente a la derecha a la misma altura que la primera línea de texto.
 - **Menú Superior Sticky Reordenado:** La barra de navegación se mantiene siempre visible (`sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-4 sm:px-6 lg:px-8`) al hacer scroll. Su orden estricto es **`Idea` > `Tratamiento` > `Guión` > `Planos / Tomas` > `🎬 Montaje`**. Al conmutar de etapa, el feed renderiza únicamente el campo correspondiente a dicha etapa en todos los bloques.
 - **Inserción de Bloques Intermedios estilo Gutenberg (WordPress):** Entre cada par de bloques se ubica un divisor interactivo invisible por defecto (`opacity-0`) que solo al pasar el cursor por encima (`group-hover:opacity-100`) revela una línea naranja continua y un círculo naranja central (`w-8 h-8 rounded-full bg-amber-500 hover:scale-125 shadow-lg`) con el símbolo `+`. Al pulsarlo, se despliega el modal que solicita exclusivamente el texto bruto/idea original y reordena automáticamente la escena.

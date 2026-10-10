@@ -11,6 +11,7 @@ use App\Models\ScriptBlock;
 use App\Models\User;
 use App\Services\ScriptPipelineService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -160,5 +161,32 @@ class ScriptPipelineIntegrationTest extends TestCase
             'scene_id' => $scene->id,
             'script_block_id' => $block->id,
         ]);
+    }
+
+    public function test_pipeline_handles_string_or_double_encoded_user_locks_gracefully(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create(['project_id' => $project->id]);
+
+        $block = ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'raw_text' => 'El detective camina bajo la lluvia.',
+            'stage' => 'raw',
+        ]);
+
+        // Simular valor serializado string o malformado en base de datos
+        DB::table('script_blocks')
+            ->where('id', $block->id)
+            ->update(['user_locks' => '"{}"']);
+
+        $block = ScriptBlock::findOrFail($block->id);
+        $pipeline = app(ScriptPipelineService::class);
+
+        // No debe lanzar TypeError y debe completar la transición
+        $updatedBlock = $pipeline->transitionToStructured($block);
+
+        $this->assertSame('structured', $updatedBlock->stage);
+        $this->assertIsArray($updatedBlock->user_locks);
     }
 }

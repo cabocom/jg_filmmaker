@@ -40,7 +40,7 @@ class ScriptPipelineService
             ];
         }
 
-        $userLocks = $block->user_locks ?? [];
+        $userLocks = $this->resolveUserLocks($block);
         $rawText = $block->raw_text ?? '';
 
         // Enriquecer contexto de personajes con nombres inferidos del texto (ej: Juan)
@@ -103,7 +103,7 @@ class ScriptPipelineService
         }
 
         $sourceText = ! empty($block->structured_text) ? $block->structured_text : (string) $block->raw_text;
-        $userLocks = $block->user_locks ?? [];
+        $userLocks = $this->resolveUserLocks($block);
 
         // Enriquecer contexto de personajes con nombres inferidos del texto (ej: Juan)
         $characters = $this->inferCharactersFromText($sourceText, $characters);
@@ -189,7 +189,7 @@ class ScriptPipelineService
             $createdShots->push($shot);
         }
 
-        $userLocks = $block->user_locks ?? [];
+        $userLocks = $this->resolveUserLocks($block);
         $telemetry = $this->agentClient->getLastTelemetry();
         if ($telemetry) {
             $userLocks['ai_telemetry']['shots'] = $telemetry;
@@ -223,7 +223,7 @@ class ScriptPipelineService
             return $block;
         }
 
-        $userLocks = $block->user_locks ?? [];
+        $userLocks = $this->resolveUserLocks($block);
         $manualDiffs = $userLocks['manual_diffs'] ?? [];
 
         $manualDiffs[] = [
@@ -246,6 +246,34 @@ class ScriptPipelineService
         ]);
 
         return $block;
+    }
+
+    /**
+     * Normaliza user_locks a array asociativo garantizado, previniendo strings o doble serialización.
+     *
+     * @return array<string, mixed>
+     */
+    protected function resolveUserLocks(ScriptBlock $block): array
+    {
+        $locks = $block->user_locks;
+        if (is_array($locks)) {
+            return $locks;
+        }
+
+        if (is_string($locks)) {
+            $decoded = json_decode($locks, true);
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+            if (is_string($decoded)) {
+                $second = json_decode($decoded, true);
+                if (is_array($second)) {
+                    return $second;
+                }
+            }
+        }
+
+        return [];
     }
 
     /**
