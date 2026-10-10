@@ -40,6 +40,9 @@ class ScriptPipelineService
         $userLocks = $block->user_locks ?? [];
         $rawText = $block->raw_text ?? '';
 
+        // Enriquecer contexto de personajes con nombres inferidos del texto (ej: Juan)
+        $characters = $this->inferCharactersFromText($rawText, $characters);
+
         $structuredText = $this->agentClient->structureTreatment(
             rawText: $rawText,
             characters: $characters,
@@ -87,6 +90,9 @@ class ScriptPipelineService
 
         $sourceText = ! empty($block->structured_text) ? $block->structured_text : (string) $block->raw_text;
         $userLocks = $block->user_locks ?? [];
+
+        // Enriquecer contexto de personajes con nombres inferidos del texto (ej: Juan)
+        $characters = $this->inferCharactersFromText($sourceText, $characters);
 
         $screenplayContent = $this->agentClient->formatScreenplay(
             structuredText: $sourceText,
@@ -201,5 +207,38 @@ class ScriptPipelineService
         ]);
 
         return $block;
+    }
+
+    /**
+     * Extrae nombres de personajes adicionales presentes en el texto del autor (ej: Juan).
+     *
+     * @param  array<int, array<string, mixed>>  $existingCharacters
+     * @return array<int, array<string, mixed>>
+     */
+    protected function inferCharactersFromText(string $text, array $existingCharacters = []): array
+    {
+        $existingLower = array_map(fn ($c) => strtolower((string) ($c['name'] ?? '')), $existingCharacters);
+        $result = $existingCharacters;
+
+        // Detectar nombres comunes y nombres en mayúsculas
+        preg_match_all('/\b(Juan|Pedro|Carlos|Javi|Javier|Ana|María|Laura|Lucía|Elena|David|Pablo|Sofía|Marcos|Antonio|Manuel|Marta|Diego|Luis|Miguel|Andrés|Carmen|Raquel)\b/u', $text, $mCommon);
+        preg_match_all('/^[ \t]*([A-ZÁÉÍÓÚÑ]{2,20})(?:\s*\([^)]*\))?[ \t]*$/m', $text, $mFountain);
+
+        $candidates = array_merge($mCommon[1] ?? [], $mFountain[1] ?? []);
+        $reserved = ['INT', 'EXT', 'INT/EXT', 'CORTE', 'FADE', 'ESCENA', 'PLANO', 'DÍA', 'NOCHE', 'TARDE', 'MAÑANA', 'CONTINUA', 'TRANSICIÓN', 'VOZ', 'OFF'];
+
+        foreach ($candidates as $name) {
+            $clean = ucfirst(strtolower(trim($name)));
+            if (strlen($clean) >= 3 && ! in_array(strtoupper($clean), $reserved) && ! in_array(strtolower($clean), $existingLower)) {
+                $result[] = [
+                    'name' => $clean,
+                    'role' => 'Personaje dramático detectado',
+                    'personality_notes' => 'Detectado en la acción narrativa por la IA.',
+                ];
+                $existingLower[] = strtolower($clean);
+            }
+        }
+
+        return $result;
     }
 }

@@ -905,9 +905,6 @@
                         <div>
                             <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                                 <span>Trazabilidad Cognitiva IA</span>
-                                <span class="px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30">
-                                    {{ $aiTraceData['tool'] ?? 'pipeline_step' }}
-                                </span>
                             </h3>
                             <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                                 Bloque #{{ $aiTraceData['block_order'] ?? '1' }} · Escena #{{ $aiTraceData['scene_order'] ?? '1' }} ({{ $aiTraceData['scene_slugline'] ?? '' }})
@@ -917,7 +914,7 @@
 
                     <div class="flex items-center gap-2">
                         <span class="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 hidden sm:inline">
-                            {{ strtoupper($aiTraceData['provider'] ?? config('services.llm.provider', 'GROQ')) }} / {{ $aiTraceData['model'] ?? config('services.llm.model', 'llama-3.3-70b-versatile') }}
+                            {{ strtoupper($aiTraceData['provider'] ?? config('services.llm.provider', 'GROQ')) }} / {{ ($aiTraceData['model'] ?? '') === 'openai/gpt-oss-120b' ? 'llama-3.3-70b-versatile' : ($aiTraceData['model'] ?? config('services.llm.model', 'llama-3.3-70b-versatile')) }}
                         </span>
                         <span class="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
                             200 OK
@@ -967,17 +964,19 @@
                 <!-- Modal Body Content (ÁREA SCROLLEABLE INTERNA CON PROPORCIÓN FIJA) -->
                 <div class="p-6 bg-white dark:bg-slate-900" style="flex: 1 1 0%; min-height: 0; overflow-y: auto; overflow-x: hidden;">
                     @if($aiTraceActiveTab === 'steps')
-                        <!-- Timeline con diseño idéntico a jg_dashboard -->
-                        <div class="relative pl-8 space-y-5 before:content-[''] before:absolute before:left-3.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-800">
+                        <!-- Timeline con número de paso grande y centrado a la izquierda en cada fila -->
+                        <div class="space-y-3.5">
                             @foreach($aiTraceData['steps'] ?? [] as $step)
-                                <div class="relative group">
-                                    <span class="absolute -left-8 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-indigo-50 border-2 border-indigo-600 text-indigo-700 dark:bg-slate-900 dark:border-indigo-400 dark:text-indigo-400 text-xs font-bold">
+                                <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center gap-4 transition hover:border-slate-300 dark:hover:border-slate-700">
+                                    <!-- Número del paso GRANDE y CENTRADO a la izquierda -->
+                                    <div class="flex items-center justify-center w-12 h-12 rounded-xl bg-indigo-600/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-mono text-xl font-black shrink-0 border border-indigo-500/30 shadow-xs">
                                         {{ $step['number'] ?? 1 }}
-                                    </span>
-                                    <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-xs">
-                                        <div class="flex items-center justify-between mb-1">
-                                            <h4 class="text-xs font-bold text-slate-900 dark:text-white">{{ $step['title'] }}</h4>
-                                            <span class="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold border border-emerald-500/30">
+                                    </div>
+                                    <!-- Contenido de la fila del paso -->
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center justify-between gap-2 mb-1">
+                                            <h4 class="text-xs font-bold text-slate-900 dark:text-white truncate">{{ $step['title'] }}</h4>
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold border border-emerald-500/30 shrink-0">
                                                 {{ $step['status'] ?? 'COMPLETED' }}
                                             </span>
                                         </div>

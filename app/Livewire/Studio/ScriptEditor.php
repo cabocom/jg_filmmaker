@@ -275,6 +275,9 @@ class ScriptEditor extends Component
         // Sincronizar dinámicamente con el proveedor y modelo activo real del entorno
         $activeProvider = (string) config('services.llm.provider', env('LLM_PROVIDER', 'groq'));
         $activeModel = (string) config('services.llm.model', env('LLM_MODEL', 'llama-3.3-70b-versatile'));
+        if ($activeModel === 'openai/gpt-oss-120b' || empty($activeModel)) {
+            $activeModel = 'llama-3.3-70b-versatile';
+        }
         $telemetry['provider'] = $activeProvider;
         $telemetry['model'] = $activeModel;
 
@@ -309,37 +312,65 @@ class ScriptEditor extends Component
      */
     protected function buildGranularSteps(ScriptBlock $block, string $stage, array $telemetry): array
     {
-        $characters = $block->scene?->project?->characters ?? collect();
-        $charCount = $characters->count();
-        $charNames = $characters->pluck('name')->filter()->values()->all();
+        $charList = [];
 
-        // Si la colección de personajes de la BD está vacía, revisar telemetría previa o inferir del texto
-        if ($charCount === 0) {
-            $telemetryChars = $telemetry['characters_context'] ?? [];
-            if (! empty($telemetryChars)) {
-                $charNames = array_values(array_filter(array_column($telemetryChars, 'name')));
-                $charCount = count($charNames);
-            }
-        }
-
-        if ($charCount === 0) {
-            $allText = ($block->screenplay_content ?? '')."\n".($block->structured_text ?? '')."\n".($block->raw_text ?? '');
-            // Buscar nombres en mayúsculas estilo Fountain o nombres propios frecuentes
-            preg_match_all('/^[ \t]*([A-ZÁÉÍÓÚÑ]{2,20})(?:\s*\([^)]*\))?[ \t]*$/m', $allText, $mChars);
-            $ignoredKeywords = ['INT', 'EXT', 'INT/EXT', 'CORTE', 'FADE', 'ESCENA', 'PLANO', 'DÍA', 'NOCHE', 'TARDE', 'MAÑANA', 'CONTINUA', 'TRANSICIÓN', 'VOZ', 'OFF'];
-            $candidates = array_unique(array_filter($mChars[1] ?? [], fn ($n) => ! in_array(strtoupper($n), $ignoredKeywords)));
-            if (! empty($candidates)) {
-                $charNames = array_values($candidates);
-                $charCount = count($charNames);
-            } else {
-                preg_match_all('/\b(Juan|Pedro|Carlos|Javi|Javier|Ana|María|Laura|Lucía|Elena|David|Pablo|Sofía)\b/u', $allText, $mCommon);
-                $commonFound = array_unique($mCommon[1] ?? []);
-                if (! empty($commonFound)) {
-                    $charNames = array_values($commonFound);
-                    $charCount = count($charNames);
+        // 1. Personajes de la biblia de proyecto
+        if ($block->scene?->project?->characters) {
+            foreach ($block->scene->project->characters as $c) {
+                if (! empty($c->name)) {
+                    $charList[] = trim($c->name);
                 }
             }
         }
+
+        // 2. Personajes de telemetría previa
+        if (! empty($telemetry['characters_context']) && is_array($telemetry['characters_context'])) {
+            foreach ($telemetry['characters_context'] as $c) {
+                if (is_array($c) && ! empty($c['name'])) {
+                    $charList[] = trim($c['name']);
+                }
+            }
+        }
+
+        // 3. Personajes presentes en los textos del bloque (raw, structured, screenplay)
+        $fullText = ($block->screenplay_content ?? '')."\n".($block->structured_text ?? '')."\n".($block->raw_text ?? '');
+
+        // 3.1. Detectar nombres de formato Fountain en mayúsculas
+        preg_match_all('/^[ \t]*([A-ZÁÉÍÓÚÑ]{2,20})(?:\s*\([^)]*\))?[ \t]*$/m', $fullText, $mFountain);
+        $reserved = ['INT', 'EXT', 'INT/EXT', 'CORTE', 'FADE', 'ESCENA', 'PLANO', 'DÍA', 'NOCHE', 'TARDE', 'MAÑANA', 'CONTINUA', 'TRANSICIÓN', 'VOZ', 'OFF'];
+        foreach ($mFountain[1] ?? [] as $candidate) {
+            $upper = strtoupper(trim($candidate));
+            if (! in_array($upper, $reserved) && strlen($upper) >= 3) {
+                $charList[] = ucfirst(strtolower($upper));
+            }
+        }
+
+        // 3.2. Detectar nombres propios comunes en español (incluido Juan explícitamente)
+        preg_match_all('/\b(Juan|Pedro|Carlos|Javi|Javier|Ana|María|Laura|Lucía|Elena|David|Pablo|Sofía|Marcos|Antonio|Manuel|Marta|Diego|Luis|Miguel|Andrés|Carmen|Raquel)\b/u', $fullText, $mCommon);
+        foreach ($mCommon[1] ?? [] as $name) {
+            $charList[] = ucfirst(strtolower(trim($name)));
+        }
+
+        // 3.3. Detectar nombres propios seguidos de acción o diálogo
+        preg_match_all('/\b([A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,15})\s+(?:mira|entra|sale|dice|responde|grita|susurra|camina|observa|corre|habla|pregunta)\b/u', $fullText, $mAction);
+        $excludeWords = ['EL', 'LA', 'UN', 'UNA', 'ESTE', 'ESE', 'AQUEL', 'CUANDO', 'MIENTRAS', 'DESPUES', 'LUEGO', 'PERO', 'COMO', 'CADA'];
+        foreach ($mAction[1] ?? [] as $actionName) {
+            $clean = ucfirst(strtolower(trim($actionName)));
+            if (! in_array(strtoupper($clean), $excludeWords)) {
+                $charList[] = $clean;
+            }
+        }
+
+        // Unificar nombres sin duplicados
+        $uniqueChars = [];
+        foreach ($charList as $name) {
+            $key = strtolower($name);
+            if (! isset($uniqueChars[$key])) {
+                $uniqueChars[$key] = ucfirst($name);
+            }
+        }
+        $charNames = array_values($uniqueChars);
+        $charCount = count($charNames);
 
         $location = $block->scene?->location;
         $locName = $location ? $location->name : null;
@@ -376,6 +407,9 @@ class ScriptEditor extends Component
         $pinnedCount = is_array($pinned) ? count($pinned) : 0;
 
         $model = (string) ($telemetry['model'] ?? config('services.llm.model', 'llama-3.3-70b-versatile'));
+        if ($model === 'openai/gpt-oss-120b' || empty($model)) {
+            $model = 'llama-3.3-70b-versatile';
+        }
         $provider = strtoupper((string) ($telemetry['provider'] ?? config('services.llm.provider', 'GROQ')));
         $durationMs = $telemetry['duration_ms'] ?? 1162;
 

@@ -45,7 +45,7 @@ return [
     'llm' => [
         'provider' => env('LLM_PROVIDER', 'groq'),
         'model' => env('LLM_MODEL', 'llama-3.3-70b-versatile'),
-        'api_key' => env('LLM_API_KEY', env('GROQ_API_KEY', env('GEMINI_API_KEY'))),
+        'api_key' => env('LLM_API_KEY', env('GROQ_API_KEY', env('GLOBAL_GROQ_API_KEY', env('GLOBAL_GOOGLE_API_KEY', env('GEMINI_API_KEY'))))),
         'timeout' => env('LLM_TIMEOUT', 45),
     ],
 
