@@ -91,6 +91,9 @@ class ScriptEditor extends Component
     // Modal para justificar y descartar un agujero de guión
     public bool $showJustifyModal = false;
 
+    // Visibilidad de mensajes y avisos de agujeros de guión en la interfaz
+    public bool $showPlotHoleAlerts = true;
+
     public ?string $justifyingBlockId = null;
 
     public string $justifyingHoleReason = '';
@@ -1340,6 +1343,37 @@ class ScriptEditor extends Component
         $blockOrder = $block->block_order;
         $this->closeJustifyModal();
         session()->flash('success', "Agujero de guión justificado y retirado del Bloque #{$blockOrder}. Ahora figura en 'Agujeros justificados'.");
+    }
+
+    /**
+     * Alterna la visibilidad de los mensajes/tarjetas de agujeros de guión en la interfaz.
+     */
+    public function togglePlotHoleAlerts(): void
+    {
+        $this->showPlotHoleAlerts = ! $this->showPlotHoleAlerts;
+        $status = $this->showPlotHoleAlerts ? 'activados' : 'desactivados';
+        session()->flash('info', "Avisos de agujeros de guión {$status}.");
+    }
+
+    /**
+     * Limpia todas las marcas de agujeros de guión activas en los bloques del proyecto.
+     */
+    public function clearPlotHoles(): void
+    {
+        foreach ($this->project->scenes as $scene) {
+            foreach ($scene->scriptBlocks as $block) {
+                if (filled($block->plot_hole)) {
+                    $userLocks = $block->user_locks ?? [];
+                    unset($userLocks['plot_hole_stage']);
+                    $block->update([
+                        'plot_hole' => null,
+                        'user_locks' => $userLocks,
+                    ]);
+                }
+            }
+        }
+
+        session()->flash('success', 'Todas las marcas de agujeros de guión han sido eliminadas del proyecto.');
     }
 
     public function render()

@@ -68,24 +68,100 @@
                     <span class="hidden sm:inline">Biblia</span>
                 </button>
 
-                <!-- Botón del Filtro de Agujeros de Guión -->
+                <!-- Botón del Filtro de Agujeros de Guión con Menú Desplegable -->
                 @php
                     $totalPlotHoles = $scenes->flatMap->scriptBlocks->filter(fn($b) => filled($b->plot_hole))->count();
                 @endphp
-                <button wire:click="analyzePlotHoles"
-                        wire:loading.attr="disabled"
-                        type="button"
-                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-medium {{ $totalPlotHoles > 0 ? 'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/50 dark:border-rose-800 dark:text-rose-300 hover:bg-rose-100' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200' }} border transition shadow-2xs cursor-pointer shrink-0 disabled:opacity-50"
-                        title="Pasar filtro de agujeros de guión con IA en la secuencia del proyecto">
-                    <span wire:loading.remove wire:target="analyzePlotHoles">🕳️</span>
-                    <span wire:loading wire:target="analyzePlotHoles" class="animate-spin text-xs">⏳</span>
-                    <span class="hidden sm:inline">Agujeros de Guión</span>
-                    @if($totalPlotHoles > 0)
-                        <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-rose-500 text-white animate-pulse">
-                            {{ $totalPlotHoles }}
-                        </span>
-                    @endif
-                </button>
+                <div class="relative inline-flex items-center" x-data="{ holeMenuOpen: false }" @click.outside="holeMenuOpen = false">
+                    <div class="inline-flex items-center rounded-lg shadow-2xs border {{ $totalPlotHoles > 0 ? 'border-rose-300 dark:border-rose-800' : 'border-slate-200 dark:border-slate-700' }} overflow-hidden">
+                        <!-- Acción principal: Analizar -->
+                        <button wire:click="analyzePlotHoles"
+                                wire:loading.attr="disabled"
+                                type="button"
+                                class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono font-medium {{ $totalPlotHoles > 0 ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 hover:bg-rose-100' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200' }} transition cursor-pointer shrink-0 disabled:opacity-50"
+                                title="Pasar filtro de agujeros de guión con IA">
+                            <span wire:loading.remove wire:target="analyzePlotHoles">🕳️</span>
+                            <span wire:loading wire:target="analyzePlotHoles" class="animate-spin text-xs">⏳</span>
+                            <span class="hidden sm:inline">Agujeros</span>
+                            @if($totalPlotHoles > 0)
+                                <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold {{ $showPlotHoleAlerts ? 'bg-rose-500 text-white animate-pulse' : 'bg-slate-400 text-white' }}"
+                                      title="{{ $showPlotHoleAlerts ? 'Avisos activados' : 'Avisos desactivados' }}">
+                                    {{ $totalPlotHoles }}
+                                </span>
+                            @endif
+                        </button>
+
+                        <!-- Botón del Desplegable (Flecha) -->
+                        <button @click="holeMenuOpen = !holeMenuOpen"
+                                type="button"
+                                class="px-1.5 py-1 text-xs border-l {{ $totalPlotHoles > 0 ? 'border-rose-200 dark:border-rose-800/80 bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 hover:bg-rose-100' : 'border-slate-200 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300' }} transition cursor-pointer"
+                                title="Opciones de agujeros de guión">
+                            <svg class="w-3.5 h-3.5 transition-transform" :class="{ 'rotate-180': holeMenuOpen }" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Dropdown Panel -->
+                    <div x-show="holeMenuOpen"
+                         x-transition:enter="transition ease-out duration-150"
+                         x-transition:enter-start="opacity-0 scale-95"
+                         x-transition:enter-end="opacity-100 scale-100"
+                         x-transition:leave="transition ease-in duration-100"
+                         x-transition:leave-start="opacity-100 scale-100"
+                         x-transition:leave-end="opacity-0 scale-95"
+                         class="absolute left-0 top-full mt-1.5 w-64 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl p-1.5 z-50 space-y-1 font-mono text-xs"
+                         style="display: none;">
+                        
+                        <!-- Opción 1: Re-analizar -->
+                        <button wire:click="analyzePlotHoles"
+                                @click="holeMenuOpen = false"
+                                type="button"
+                                class="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">
+                            <span>⚡</span>
+                            <div>
+                                <span class="block font-bold text-xs">Ejecutar Análisis IA</span>
+                                <span class="block text-[10px] text-slate-400">Audita cada consolidado</span>
+                            </div>
+                        </button>
+
+                        <div class="border-t border-slate-100 dark:border-slate-800 my-1"></div>
+
+                        <!-- Opción 2: Toggle Desactivar / Activar mensajes de agujeros -->
+                        <button wire:click="togglePlotHoleAlerts"
+                                @click="holeMenuOpen = false"
+                                type="button"
+                                class="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer {{ ! $showPlotHoleAlerts ? 'bg-amber-500/10 text-amber-800 dark:text-amber-300' : 'text-slate-700 dark:text-slate-200' }}">
+                            <div class="flex items-center gap-2">
+                                <span>{{ $showPlotHoleAlerts ? '🔕' : '🔔' }}</span>
+                                <div>
+                                    <span class="block font-bold text-xs">
+                                        {{ $showPlotHoleAlerts ? 'Desactivar mensajes' : 'Activar mensajes' }}
+                                    </span>
+                                    <span class="block text-[10px] text-slate-400">
+                                        {{ $showPlotHoleAlerts ? 'Oculta avisos en las escenas' : 'Muestra avisos en las escenas' }}
+                                    </span>
+                                </div>
+                            </div>
+                            <span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase {{ $showPlotHoleAlerts ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400' }}">
+                                {{ $showPlotHoleAlerts ? 'Activos' : 'Ocultos' }}
+                            </span>
+                        </button>
+
+                        @if($totalPlotHoles > 0)
+                            <div class="border-t border-slate-100 dark:border-slate-800 my-1"></div>
+
+                            <!-- Opción 3: Limpiar marcas de agujeros -->
+                            <button wire:click="clearPlotHoles"
+                                    @click="holeMenuOpen = false"
+                                    type="button"
+                                    class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition cursor-pointer text-[11px]">
+                                <span>🗑️</span>
+                                <span>Borrar todas las marcas</span>
+                            </button>
+                        @endif
+                    </div>
+                </div>
             </div>
 
             <!-- Menú Superior Alineado a la Derecha: Pipeline - Idea - Tratamiento - Guion - Planos/Tomas -->
@@ -448,7 +524,7 @@
                                                 @endif
 
                                                 <!-- Aviso de Agujero de Guión (Persistente hasta nuevo análisis o justificación) -->
-                                                @if($block->hasPlotHole())
+                                                @if($showPlotHoleAlerts && $block->hasPlotHole())
                                                     <div class="mt-2.5 p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/80 text-rose-800 dark:text-rose-200 text-xs flex items-start justify-between gap-2.5 shadow-2xs">
                                                         <div class="flex items-start gap-2.5 min-w-0">
                                                             <span class="text-sm shrink-0">🕳️</span>
@@ -480,7 +556,7 @@
                                             <!-- Botón de Detalles flotando a la derecha -->
                                             <div :class="isBlockHovered ? 'opacity-100' : 'opacity-25'"
                                                  class="shrink-0 pt-0.5 transition-opacity group-hover:opacity-100 flex items-center gap-1.5">
-                                                @if($block->hasPlotHole())
+                                                @if($showPlotHoleAlerts && $block->hasPlotHole())
                                                     <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/30"
                                                           title="Agujero de guión detectado en este bloque">
                                                         🕳️ Agujero
@@ -702,7 +778,7 @@
                                         @endif
 
                                         <!-- Aviso de Agujero de Guión en Consolidado -->
-                                        @if($block->hasPlotHole())
+                                        @if($showPlotHoleAlerts && $block->hasPlotHole())
                                             <div class="mt-2.5 p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/80 text-rose-800 dark:text-rose-200 text-xs flex items-start justify-between gap-2 shadow-2xs">
                                                 <div class="flex items-start gap-2 min-w-0">
                                                     <span class="text-sm shrink-0">🕳️</span>

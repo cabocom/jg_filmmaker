@@ -820,4 +820,47 @@ class LivewireScriptEditorTest extends TestCase
             ->assertSee('Detectado en: Guion')
             ->assertSee('2 en Idea, 1 en Guion');
     }
+
+    public function test_can_toggle_plot_hole_alerts_visibility_and_clear_plot_holes(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create([
+            'project_id' => $project->id,
+            'slugline' => 'INT. BAR CENTRAL - NOCHE',
+            'scene_order' => 1,
+        ]);
+
+        $block = ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'block_order' => 1,
+            'raw_text' => 'Javier entra al bar.',
+            'plot_hole' => 'Contradicción evidente en la escena',
+            'user_locks' => ['plot_hole_stage' => 'raw'],
+        ]);
+
+        $livewire = Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->assertSet('showPlotHoleAlerts', true)
+            ->assertSee('Contradicción evidente en la escena')
+            ->assertSee('Agujero de Guión Detectado');
+
+        // Desactivar mensajes de agujeros
+        $livewire->call('togglePlotHoleAlerts')
+            ->assertSet('showPlotHoleAlerts', false)
+            ->assertDontSee('Agujero de Guión Detectado')
+            ->assertDontSee('Contradicción evidente en la escena');
+
+        // Volver a activar mensajes
+        $livewire->call('togglePlotHoleAlerts')
+            ->assertSet('showPlotHoleAlerts', true)
+            ->assertSee('Agujero de Guión Detectado')
+            ->assertSee('Contradicción evidente en la escena');
+
+        // Borrar todas las marcas de agujeros
+        $livewire->call('clearPlotHoles');
+        $this->assertNull($block->fresh()->plot_hole);
+        $this->assertFalse($block->fresh()->hasPlotHole());
+        $livewire->assertDontSee('Agujero de Guión Detectado');
+    }
 }

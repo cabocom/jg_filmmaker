@@ -195,12 +195,12 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
 - `TakeMediaManagementTest.php`: Verifica subida física de vídeo, validaciones y tomas válidas (5 tests).
 - `RoughCutAssemblyTest.php`: Verifica ordenación de timeline, renderizado con FFmpeg y fallbacks (4 tests).
 - `LivewirePipelineReactiveTest.php`: Verifica flujo end-to-end entre etapas y candados (4 tests).
-- `LivewireScriptEditorTest.php`: Verifica renderizado del slugline, feed de bloques, inserción Gutenberg, drawer lateral, tomas, auditoría determinista de borrado seguro de personajes y localizaciones, protocolo de 3 iteraciones de agujeros de guión, análisis multi-etapa independiente de consolidados (Idea, Tratamiento, Guion) con prioridad estricta al origen más temprano y justificación archivada (20 tests).
+- `LivewireScriptEditorTest.php`: Verifica renderizado del slugline, feed de bloques, inserción Gutenberg, drawer lateral, tomas, auditoría determinista de borrado seguro de personajes y localizaciones, protocolo de 3 iteraciones de agujeros de guión, análisis multi-etapa independiente de consolidados (Idea, Tratamiento, Guion) con prioridad estricta al origen más temprano, menú desplegable con alternancia de visibilidad de avisos y justificación archivada (21 tests).
 - `PasswordlessAuthTest.php`: Verifica generación y envío de OTP, banner en localhost, un solo uso y detección de replay attacks en `security_breach_logs` (6 tests).
 - `AdminPanelAndTelemetryTest.php`: Verifica middleware `admin` 403, auditoría sin filtrar textos, persistencia de `agent_request_logs` con costes USD y actualización de tarifas (5 tests).
 - `ProjectTransferAdminTest.php`: Verifica permisos 403, privacidad sin filtrar textos y reasignación/transferencia atómica de obras entre usuarios tanto desde `UserDetail` como desde `ProjectManager` (4 tests).
 - `ScriptPipelineIntegrationTest.php`: Verifica transiciones entre etapas, inyección semántica de biblia de proyecto y normalización estricta de `user_locks` ante valores serializados o malformados (6 tests).
-- **Total:** 65 tests PHPUnit pasando al 100% (409 aserciones).
+- **Total:** 66 tests PHPUnit pasando al 100% (421 aserciones).
 
 ---
 
@@ -324,6 +324,12 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
       3. Paso 3: **Guion Literario** (`screenplay_content`).
     - **Regla del Paso Más Temprano:** Si una inconsistencia tiene su origen en el texto bruto, se marca y conserva como `Detectado en: Idea (Bruto)` aunque persista en el tratamiento o guion. Si nace en el tratamiento, se marca en `Tratamiento`. Y si aparece exclusivamente en el guión literario, se marca en `Guion`.
     - **Registro e Indicación de Etapa:** Se almacena en `user_locks['plot_hole_stage']` y se visualiza un badge distintivo (`Detectado en: Idea (Bruto)`, `Detectado en: Tratamiento` o `Detectado en: Guion`) en las alertas del Pipeline, del Consolidado continuo, del Drawer lateral y en el archivo de "Agujeros justificados". El mensaje flash desglosa el cómputo (e.g., *2 en Idea, 1 en Guion*).
+  - **Menú Desplegable y Alternancia de Visibilidad de Avisos:**
+    - El botón de agujeros en la cabecera del proyecto se convierte en un split-button con menú desplegable vía Alpine.js (`holeMenuOpen`).
+    - Ofrece opciones interactivas:
+      * `⚡ Ejecutar Análisis IA`: audita los consolidados de forma independiente.
+      * `🔕 Desactivar avisos` / `🔔 Activar avisos` (`togglePlotHoleAlerts`): permite ocultar o mostrar las tarjetas y badges de inconsistencias en el guión mientras el autor lee o edita, sin borrar las marcas de la base de datos.
+      * `🗑️ Borrar todas las marcas` (`clearPlotHoles`): limpia de un solo clic todas las inconsistencias registradas en el proyecto cuando se desee reiniciar la auditoría.
   - **Justificación y Retiro de Agujeros de Guión (`justified_plot_holes`):**
     - Se habilita un botón `✅ Justificar` en las tarjetas de alerta de agujero (Pipeline, Consolidado y Drawer).
     - Despliega un modal interactivo donde el usuario introduce una explicación de por qué no es una inconsistencia.
