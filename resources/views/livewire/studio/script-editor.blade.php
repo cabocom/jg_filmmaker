@@ -124,15 +124,17 @@
                 <!-- ================= FEED CONTINUO DE BLOQUES DE LA HISTORIA ================= -->
                 <div class="py-1 space-y-0.5">
                     <!-- Botón Gutenberg Inicial (Insertar antes del primer bloque, visible SOLO en hover) -->
-                    <div class="relative group h-3 -my-0.5 flex items-center justify-center cursor-pointer z-10">
+                    <div class="relative group h-4 -my-0.5 flex items-center justify-center cursor-pointer z-10">
                         <div class="absolute inset-0 flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none" aria-hidden="true">
-                            <div class="w-full border-t border-amber-500 shadow-xs"></div>
+                            <div class="w-full border-t-2 border-amber-500 shadow-xs"></div>
                         </div>
                         <button wire:click="openNewBlockModal(0)"
                                 type="button"
                                 title="Insertar bloque al inicio"
-                                class="relative z-10 opacity-0 group-hover:opacity-100 inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm shadow-md shadow-amber-500/20 border-2 border-white dark:border-slate-900 transition-all transform hover:scale-110 cursor-pointer">
-                            <span class="leading-none pb-0.5">+</span>
+                                class="relative z-10 opacity-0 group-hover:opacity-100 inline-flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-lg shadow-amber-500/40 hover:shadow-amber-500/60 border-2 border-white dark:border-slate-900 transition-all duration-200 transform hover:scale-115 cursor-pointer">
+                            <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                            </svg>
                         </button>
                     </div>
 
@@ -158,7 +160,7 @@
                                  'border-amber-500 ring-2 ring-amber-500/50 bg-amber-50/50 dark:bg-amber-950/30': isOver
                              }"
                              wire:click="selectBlock('{{ $block->id }}')"
-                             class="group relative rounded-xl px-3 py-1.5 transition-all cursor-pointer border-l-2 {{ $isSelected ? 'bg-amber-500/10 dark:bg-amber-400/10 border-amber-500 shadow-2xs' : 'border-transparent hover:bg-slate-100/60 dark:hover:bg-slate-900/40 hover:border-slate-300 dark:hover:border-slate-700' }}">
+                             class="group relative rounded-xl px-3 py-1.5 transition-all cursor-pointer border-l-2 {{ $isSelected ? 'bg-amber-500/10 dark:bg-amber-400/10 border-amber-500 shadow-2xs' : 'border-transparent hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700' }}">
 
                             <div class="flex items-start gap-2.5">
                                 <!-- Handle para Drag & Drop (Aparece en hover a la izquierda) -->
@@ -181,15 +183,11 @@
                                 <div class="flex-1 min-w-0">
                                     @if($pipelineStage === 'idea')
                                         <!-- Etapa 1: Idea / Original / Texto Bruto -->
-                                        <div class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed font-sans whitespace-pre-line">
-                                            {{ $block->raw_text ?: 'Sin notas o texto en bruto.' }}
-                                        </div>
+                                        <div class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed font-sans whitespace-pre-line text-left">{{ trim($block->raw_text ?: 'Sin notas o texto en bruto.') }}</div>
                                     @elseif($pipelineStage === 'structured')
                                         <!-- Etapa 2: Tratamiento Cinematográfico -->
                                         @if(!empty($block->structured_text))
-                                            <div class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed font-sans whitespace-pre-line">
-                                                {{ $block->structured_text }}
-                                            </div>
+                                            <div class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed font-sans whitespace-pre-line text-left">{{ trim($block->structured_text) }}</div>
                                         @else
                                             <div class="py-0.5 flex items-center justify-between text-xs italic text-slate-400 dark:text-slate-500">
                                                 <span>[Tratamiento pendiente de estructurar para este bloque]</span>
@@ -201,9 +199,7 @@
                                     @elseif($pipelineStage === 'screenplay')
                                         <!-- Etapa 3: Guión Literario (Fountain) -->
                                         @if(!empty($block->screenplay_content))
-                                            <div class="font-screenplay text-sm text-slate-900 dark:text-amber-100 leading-relaxed whitespace-pre-wrap max-w-2xl">
-                                                {{ $block->screenplay_content }}
-                                            </div>
+                                            <div class="font-screenplay text-sm text-slate-900 dark:text-amber-100 leading-relaxed whitespace-pre-wrap max-w-2xl text-left">{{ trim($block->screenplay_content) }}</div>
                                         @else
                                             <div class="py-0.5 flex items-center justify-between text-xs italic text-slate-400 dark:text-slate-500">
                                                 <span>[Guión literario pendiente de formatear para este bloque]</span>
@@ -253,15 +249,17 @@
                         </div>
 
                         <!-- Divisor Gutenberg Intermedio (Círculo naranja y línea SOLO en hover) -->
-                        <div class="relative group h-3 -my-0.5 flex items-center justify-center cursor-pointer z-10">
+                        <div class="relative group h-4 -my-0.5 flex items-center justify-center cursor-pointer z-10">
                             <div class="absolute inset-0 flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none" aria-hidden="true">
-                                <div class="w-full border-t border-amber-500 shadow-xs"></div>
+                                <div class="w-full border-t-2 border-amber-500 shadow-xs"></div>
                             </div>
                             <button wire:click="openNewBlockModal({{ $block->block_order }})"
                                     type="button"
                                     title="Añadir bloque aquí"
-                                    class="relative z-10 opacity-0 group-hover:opacity-100 inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm shadow-md shadow-amber-500/20 border-2 border-white dark:border-slate-900 transition-all transform hover:scale-110 cursor-pointer">
-                                <span class="leading-none pb-0.5">+</span>
+                                    class="relative z-10 opacity-0 group-hover:opacity-100 inline-flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-lg shadow-amber-500/40 hover:shadow-amber-500/60 border-2 border-white dark:border-slate-900 transition-all duration-200 transform hover:scale-115 cursor-pointer">
+                                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                </svg>
                             </button>
                         </div>
                     @empty
@@ -485,27 +483,21 @@
                                     </div>
                                 </div>
 
-                                <!-- Vista de Texto según la etapa en el Drawer -->
+                                <!-- Vista de Texto según la etapa en el Drawer (Estilo homogéneo unificado) -->
                                 @if($detailActiveTab === 'raw')
-                                    <div class="p-5 rounded-xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 space-y-2">
-                                        <span class="text-xs font-mono font-bold uppercase tracking-wider text-slate-500">1. Texto Bruto Original:</span>
-                                        <p class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-line">
-                                            {{ $detailBlock->raw_text ?: 'Sin notas brutas.' }}
-                                        </p>
+                                    <div class="p-5 rounded-xl bg-indigo-50/20 dark:bg-slate-950/70 border border-indigo-200/50 dark:border-indigo-900/40 space-y-2 shadow-2xs">
+                                        <span class="text-xs font-mono font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">1. Texto Bruto Original:</span>
+                                        <div class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed font-sans whitespace-pre-line text-left">{{ trim($detailBlock->raw_text ?: 'Sin notas brutas.') }}</div>
                                     </div>
                                 @elseif($detailActiveTab === 'structured')
-                                    <div class="p-5 rounded-xl bg-indigo-50/20 dark:bg-slate-950/70 border border-indigo-200/50 dark:border-indigo-900/40 space-y-2">
+                                    <div class="p-5 rounded-xl bg-indigo-50/20 dark:bg-slate-950/70 border border-indigo-200/50 dark:border-indigo-900/40 space-y-2 shadow-2xs">
                                         <span class="text-xs font-mono font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">2. Tratamiento Dramático:</span>
-                                        <p class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-line">
-                                            {{ $detailBlock->structured_text ?: 'Aún no se ha estructurado el tratamiento para este bloque.' }}
-                                        </p>
+                                        <div class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed font-sans whitespace-pre-line text-left">{{ trim($detailBlock->structured_text ?: 'Aún no se ha estructurado el tratamiento para este bloque.') }}</div>
                                     </div>
                                 @elseif($detailActiveTab === 'screenplay')
-                                    <div class="p-5 rounded-xl bg-amber-50/20 dark:bg-slate-950/70 border border-amber-200/50 dark:border-amber-900/40 space-y-2">
-                                        <span class="text-xs font-mono font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">3. Guión Literario (Fountain):</span>
-                                        <div class="font-screenplay text-sm text-slate-900 dark:text-amber-100 leading-relaxed whitespace-pre-wrap">
-                                            {{ $detailBlock->screenplay_content ?: 'Aún no se ha formateado a guión literario.' }}
-                                        </div>
+                                    <div class="p-5 rounded-xl bg-indigo-50/20 dark:bg-slate-950/70 border border-indigo-200/50 dark:border-indigo-900/40 space-y-2 shadow-2xs">
+                                        <span class="text-xs font-mono font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">3. Guión Literario (Fountain):</span>
+                                        <div class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed font-screenplay whitespace-pre-wrap text-left">{{ trim($detailBlock->screenplay_content ?: 'Aún no se ha formateado a guión literario.') }}</div>
                                     </div>
                                 @elseif($detailActiveTab === 'shots')
                                     <div class="space-y-4">
@@ -721,9 +713,6 @@
                         <span class="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 hidden sm:inline">
                             {{ strtoupper($aiTraceData['provider'] ?? config('services.llm.provider', 'GROQ')) }} / {{ ($aiTraceData['model'] ?? '') === 'openai/gpt-oss-120b' ? 'llama-3.3-70b-versatile' : ($aiTraceData['model'] ?? config('services.llm.model', 'llama-3.3-70b-versatile')) }}
                         </span>
-                        <span class="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
-                            200 OK
-                        </span>
                         <button wire:click="closeAiTraceModal"
                                 type="button"
                                 title="Cerrar modal (Esc)"
@@ -784,7 +773,7 @@
                                             {{ $step['status'] ?? 'COMPLETED' }}
                                         </span>
                                     </div>
-                                    <p class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-mono">{{ $step['detail'] }}</p>
+                                    <p class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-mono text-left">{{ $step['detail'] }}</p>
                                 </div>
                             </div>
                         @endforeach
@@ -796,18 +785,14 @@
                                 <span>⚙️</span>
                                 <span>System Prompt Inyectado (Biblia de Proyecto + Reglas)</span>
                             </span>
-                            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto border border-slate-300 dark:border-slate-800 shadow-inner">
-                                {{ $aiTraceData['system_prompt'] ?? 'Sin prompt de sistema disponible.' }}
-                            </div>
+                            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs whitespace-pre-wrap text-left leading-relaxed max-h-48 overflow-y-auto border border-slate-300 dark:border-slate-800 shadow-inner">{{ trim($aiTraceData['system_prompt'] ?? 'Sin prompt de sistema disponible.') }}</div>
                         </div>
                         <div>
                             <span class="block text-xs font-mono uppercase font-bold text-slate-600 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
                                 <span>📝</span>
                                 <span>Entrada del Autor / Texto Suministrado</span>
                             </span>
-                            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto border border-slate-300 dark:border-slate-800 shadow-inner">
-                                {{ $aiTraceData['user_prompt'] ?? $aiTraceData['input_text'] ?? 'Sin entrada registrada.' }}
-                            </div>
+                            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs whitespace-pre-wrap text-left leading-relaxed max-h-48 overflow-y-auto border border-slate-300 dark:border-slate-800 shadow-inner">{{ trim($aiTraceData['user_prompt'] ?? $aiTraceData['input_text'] ?? 'Sin entrada registrada.') }}</div>
                         </div>
                     </div>
 
@@ -816,9 +801,7 @@
                             <span>🎬</span>
                             <span>Salida Cinematográfica Generada</span>
                         </span>
-                        <div class="p-5 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs border border-slate-300 dark:border-slate-800 whitespace-pre-wrap leading-relaxed overflow-y-auto shadow-inner" style="min-height: 280px; max-height: 380px;">
-                            {{ $aiTraceData['output'] ?? $aiTraceData['raw_response'] ?? 'Sin salida registrada.' }}
-                        </div>
+                        <div class="p-5 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs border border-slate-300 dark:border-slate-800 whitespace-pre-wrap text-left leading-relaxed overflow-y-auto shadow-inner" style="min-height: 280px; max-height: 380px;">{{ trim($aiTraceData['output'] ?? $aiTraceData['raw_response'] ?? 'Sin salida registrada.') }}</div>
                     </div>
 
                     <div x-show="activeTab === 'json'" class="flex flex-col space-y-2">
@@ -827,7 +810,7 @@
                             <span>Payload & Telemetría Completa (JSON)</span>
                         </span>
                         <div class="rounded-xl border border-slate-800 bg-[#0f172a] p-4 shadow-inner" style="min-height: 280px; max-height: 380px; overflow: auto;">
-                            <pre class="m-0 p-0 bg-transparent border-0"><code class="language-json font-mono text-xs leading-relaxed block" style="color: #38bdf8 !important;">{{ json_encode($aiTraceData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</code></pre>
+                            <pre class="m-0 p-0 bg-transparent border-0 text-left"><code class="language-json font-mono text-xs leading-relaxed block text-left" style="color: #38bdf8 !important;">{{ json_encode($aiTraceData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</code></pre>
                         </div>
                     </div>
                 </div>

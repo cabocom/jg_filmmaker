@@ -427,15 +427,67 @@ class AgentClientService
                     $lines[] = '';
                     $dialogueMatched = true;
                 }
+                // Formato C: Acción compuesta + habla indirecta (ej: "Javier mira a Juan con miedo y le dice que ya están llegando.")
+                elseif (preg_match('/^(.*?)[,\s]+y\s+(?:le\s+|les\s+|me\s+|nos\s+)?(pregunta|preguntó|dice|dijo|responde|respondió|contesta|contestó|susurra|susurró|grita|gritó|afirma|afirmó|exclama|exclamó|pide|pidió)\s+(?:a\s+[^,]+?\s+)?(?:que\s+quien|qué\s+quien|que\s+quién|qué\s+quién|que\s+|qué\s+|si\s+)(.+)$/iu', $cleanPara, $m)) {
+                    $action = trim($m[1]);
+                    $verb = strtolower($m[2]);
+                    $rest = trim(rtrim(trim($m[3]), '.?!'));
 
-                // Si no es un diálogo explícito, es un bloque de ACCIÓN cinematográfica
+                    // Detectar interlocutor en la acción
+                    preg_match('/\b([A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,15})\b/u', $action, $mSpeaker);
+                    $speaker = strtoupper($mSpeaker[1] ?? 'PERSONAJE');
+
+                    if (str_contains($verb, 'pregunta')) {
+                        if (preg_match('/^(?:quien|quién)\s+(.+)$/iu', $rest, $mQ)) {
+                            $dialogue = '¿Quién '.$mQ[1].'?';
+                        } else {
+                            $dialogue = '¿'.ucfirst($rest).'?';
+                        }
+                    } else {
+                        $dialogue = ucfirst($rest).'.';
+                    }
+
+                    if (! empty($action)) {
+                        $lines[] = rtrim($action, '.?!').'.';
+                        $lines[] = '';
+                    }
+                    $lines[] = $speaker;
+                    $lines[] = $dialogue;
+                    $lines[] = '';
+                    $dialogueMatched = true;
+                }
+                // Formato D: Habla indirecta encabezada por sujeto (ej: "Juan le pregunta qué quien está llegando.")
+                elseif (preg_match('/^([A-ZÁÉÍÓÚÑ][a-záéíóúñ]{1,15})\s+(?:le\s+|les\s+|me\s+|nos\s+)?(pregunta|preguntó|dice|dijo|responde|respondió|contesta|contestó|susurra|susurró|grita|gritó|afirma|afirmó|exclama|exclamó|pide|pidió)\s+(?:a\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]+\s+)?(?:que\s+quien|qué\s+quien|que\s+quién|qué\s+quién|que\s+qué|qué\s+qué|que\s+cómo|qué\s+cómo|que\s+dónde|qué\s+dónde|que\s+cuándo|qué\s+cuándo|que\s+por\s+qué|que\s+si|qué\s+|que\s+|si\s+|quién\s+|quien\s+|cómo\s+|dónde\s+|cuándo\s+|por\s+qué\s+)(.+)$/iu', $cleanPara, $m)) {
+                    $speaker = strtoupper($m[1]);
+                    $verb = strtolower($m[2]);
+                    $rest = trim(rtrim(trim($m[3]), '.?!'));
+
+                    if (str_contains($verb, 'pregunta')) {
+                        if (preg_match('/^(?:quien|quién)\s+(.+)$/iu', $rest, $mQ)) {
+                            $dialogue = '¿Quién '.$mQ[1].'?';
+                        } elseif (preg_match('/^(?:está|esta|llega|vienen|es|pasa)\b/iu', $rest)) {
+                            $dialogue = '¿Quién '.$rest.'?';
+                        } else {
+                            $dialogue = '¿'.ucfirst($rest).'?';
+                        }
+                    } else {
+                        $dialogue = ucfirst($rest).'.';
+                    }
+
+                    $lines[] = $speaker;
+                    $lines[] = $dialogue;
+                    $lines[] = '';
+                    $dialogueMatched = true;
+                }
+
+                // Si no es un diálogo explícito ni indirecto, es un bloque de ACCIÓN cinematográfica
                 if (! $dialogueMatched) {
                     $actionLine = $cleanPara;
                     foreach ($characters as $char) {
                         if (is_array($char) && ! empty($char['name'])) {
                             $cname = $char['name'];
                             $pattern = '/\b'.preg_quote($cname, '/').'\b/iu';
-                            $actionLine = preg_replace($pattern, strtoupper($cname), $actionLine);
+                            $actionLine = preg_replace($pattern, ucfirst(strtolower($cname)), $actionLine);
                         }
                     }
 

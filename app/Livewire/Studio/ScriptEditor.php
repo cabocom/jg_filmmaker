@@ -111,14 +111,11 @@ class ScriptEditor extends Component
     {
         $this->project = $project;
 
-        // Cargar primera escena disponible o dejar en null
+        // Cargar primera escena disponible o dejar en null (sin auto-seleccionar bloque)
         $firstScene = $this->project->scenes()->first();
         if ($firstScene) {
             $this->activeSceneId = $firstScene->id;
-            $firstBlock = $firstScene->scriptBlocks()->orderBy('block_order')->first();
-            if ($firstBlock) {
-                $this->selectedBlockId = $firstBlock->id;
-            }
+            $this->selectedBlockId = null;
         }
     }
 
@@ -128,11 +125,7 @@ class ScriptEditor extends Component
         $this->editingBlockId = null;
         $this->detailBlockId = null;
         $this->isEditingInDrawer = false;
-
-        $firstBlock = ScriptBlock::where('scene_id', $sceneId)->orderBy('block_order')->first();
-        if ($firstBlock) {
-            $this->selectedBlockId = $firstBlock->id;
-        }
+        $this->selectedBlockId = null;
     }
 
     public function setPipelineStage(string $stage): void

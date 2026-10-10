@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 2.6.0  
+**Versión del documento:** 2.7.0  
 **Fecha de consolidación:** 10 de octubre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 3/4, Tailwind CSS v4, PHP 8.4, PostgreSQL / SQLite, FFmpeg, PHPUnit 12, Laravel Pint  
-**Estado:** Fases 1 a 11 implementadas al 100% (Feed Continuo de Lectura Fluida con espaciado ultra-compacto y divisores Gutenberg zero-gap en reposo, Reordenación de Bloques mediante Drag & Drop con handle sutil y actualización atómica en base de datos, Modal de Trazabilidad Cognitiva 100% reactivo en cliente con Alpine.js para 0 latencia y eliminación total de PayloadTooLargeException con livewire.payload.max_size de 10MB, Menú Sticky Superior Ordenado estrictamente en Idea > Tratamiento > Guión > Planos / Tomas > 🎬 Montaje, Drawer Lateral al 60% para detalles y edición profunda).
+**Estado:** Fases 1 a 12 implementadas al 100% (Formateo Automático de Guión Fountain con Inferencia de Habla Indirecta y Preguntas dramáticas, Sin selección automática de bloques en carga inicial, Hover gris claro y selección manual por clic, Botón Gutenberg redondo ampliado con icono SVG, Eliminación de sangrías residuales en `<pre>` y bloques de texto alineados estrictamente a la izquierda, Drawer lateral 100% homogéneo con estilo de Tratamiento unificado, Supresión de badge 200 OK superfluo).
 
 ---
 
@@ -208,6 +208,13 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
   - Ajuste ergonómico de márgenes y padding vertical (`py-1`, `space-y-0.5`, `px-3 py-1.5`) para conseguir una sensación genuina de lectura continua de novela o guión, eliminando espacios muertos entre párrafos. Los divisores Gutenberg intermedios adoptan altura mínima en reposo (`h-3 -my-0.5`), revelando la línea naranja y el botón `+` únicamente en hover sin forzar separaciones visuales.
   - Implementación de Drag and Drop nativo con Alpine.js mediante un manipulador táctil vertical discreto (`⋮⋮`) que aparece suavemente a la izquierda al hacer hover sobre cualquier bloque. Al arrastrar y soltar, `reorderBlock` reordena los bloques atómicamente dentro de una transacción `DB::transaction`, recalculando los `block_order` sin saltos ni duplicados.
   - Eliminación de roundtrips pesados en el Modal de Trazabilidad IA: la navegación interna entre pestañas (`⚡ Grafo & Saltos`, `💬 System Prompt & Entrada`, `📄 Salida Cinematográfica`, `{ } JSON Técnico`) pasa a gestionarse puramente en el cliente vía Alpine.js (`x-data="{ activeTab: 'steps' }"`, `x-show="activeTab === '...'"`), garantizando 0 ms de latencia, eliminando congelamientos de interfaz y erradicando el error `PayloadTooLargeException`, respaldado además por una ampliación de `payload.max_size` a 10MB en `config/livewire.php`.
+- **Inferencia de Diálogos Fountain, Estilo Homogéneo y Pulido de Interfaz (Fase 12):**
+  - **Inferencia de Habla Indirecta en `screenplay_formatter`:** El motor de guión literario ahora detecta automáticamente construcciones en habla indirecta (e.g., *"Juan le pregunta qué quien está llegando"*, *"Javier mira a Juan con miedo y le dice que ya están llegando"*), separando acciones descriptivas y generando parlamentos canónicos en formato Fountain (`PERSONAJE` en mayúsculas centrado y texto del diálogo/pregunta formateado: *"JUAN \n ¿Quién está llegando?"*).
+  - **Cero Auto-Selección Inicial y Feedback de Hover:** Al cargar la escena o cambiar de escena, ningún bloque se pre-selecciona automáticamente (`selectedBlockId = null`). El bloque resalta con gris claro en hover (`hover:bg-slate-100 dark:hover:bg-slate-800/80`) y solo se activa la selección ámbar cuando el usuario hace clic deliberadamente.
+  - **Rediseño del Botón Gutenberg:** El botón de inserción intermedia se amplió a un círculo perfecto de 36px (`w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-amber-500`) con sombra naranja vibrante y un icono vectorial SVG `+` nítido y centrado.
+  - **Eliminación de Sangrías en `<pre>` y Bloques de Texto:** Se eliminaron todos los espacios y saltos de línea residuales entre el cierre del tag Blade y la variable, asegurando que todos los textos, prompts y JSONs comiencen alineados a la izquierda (`text-left`) y desde arriba sin descuadres visuales.
+  - **Unificación de Tarjetas en Drawer Lateral:** Los textos de las etapas de Bruto (`raw`), Tratamiento (`structured`) y Guión (`screenplay`) comparten exactamente el mismo contenedor (`p-5 rounded-xl bg-indigo-50/20 border border-indigo-200/50`), la misma tipografía y márgenes homogéneos.
+  - **Limpieza de Badges Innecesarios:** Eliminación del badge superfluo `200 OK` en la cabecera del modal de trazabilidad.
 
 ### 7.2. Deudas Técnicas Conocidas
 1. **Autenticación y Multiusuario:**

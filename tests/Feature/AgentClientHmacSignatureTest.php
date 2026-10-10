@@ -103,4 +103,21 @@ class AgentClientHmacSignatureTest extends TestCase
             return $request->header('X-Signature')[0] === $expected;
         });
     }
+
+    public function test_format_screenplay_converts_indirect_dialogue_to_fountain(): void
+    {
+        config(['services.jg_agente.mock' => true]);
+
+        $client = new AgentClientService;
+        $treatment = "Javier mira a Juan con miedo y le dice que ya están llegando.\n\nJuan le pregunta qué quien está llegando.";
+        $result = $client->formatScreenplay($treatment, [
+            ['name' => 'Javier', 'role' => 'protagonista'],
+            ['name' => 'Juan', 'role' => 'amigo'],
+        ]);
+
+        $this->assertStringContainsString('JAVIER', $result);
+        $this->assertStringContainsString('Ya están llegando.', $result);
+        $this->assertStringContainsString('JUAN', $result);
+        $this->assertStringContainsString('¿Quién está llegando?', $result);
+    }
 }
