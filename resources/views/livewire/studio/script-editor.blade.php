@@ -504,12 +504,12 @@
                 <div class="pb-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between flex-wrap gap-4">
                     <div>
                         <h2 class="text-xs font-mono uppercase tracking-widest text-amber-600 dark:text-amber-400 font-bold">
-                            Consolidado Story Architect · {{ match($activeView) {
-                                'idea' => 'Idea / Texto Bruto',
-                                'structured' => 'Tratamiento Narrativo',
-                                'screenplay' => 'Guion Literario',
-                                'shots' => 'Planos / Tomas Técnicas',
-                                default => ucfirst($activeView),
+                            {{ match($activeView) {
+                                'idea' => 'IDEA CONSOLIDADA',
+                                'structured' => 'TRATAMIENTO CONSOLIDADO',
+                                'screenplay' => 'GUION CONSOLIDADO',
+                                'shots' => 'PLANOS/TOMAS CONSOLIDADO',
+                                default => strtoupper($activeView) . ' CONSOLIDADO',
                             } }}
                         </h2>
                         <h1 class="text-xl sm:text-2xl font-bold font-mono text-slate-900 dark:text-white mt-1">

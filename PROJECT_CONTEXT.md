@@ -299,7 +299,8 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
       * **`Planos/Tomas`:** Desglose técnico de planos de cámara (`shot_number`, tipo, descripción) y tomas registradas.
     - Cada bloque en el consolidado incluye un acceso flotante discreto (`✏️ Bloque #N`) que permite abrir directamente el panel lateral de edición sin perder el contexto de lectura.
     - Siguiente escena inmediatamente a continuación con separador de lectura continua.
-  - **Atajo Libre de Colisiones para la Biblia (`Option + B` / `⌥B`):** Se reemplazó el atajo `Cmd+B` por `⌥B` (Option+B en Mac / Alt+B en PC), registrando un listener JavaScript global en `window` que previene el comportamiento del navegador y abre/cierra la Biblia Contextual de inmediato sin desplegar la barra de marcadores del navegador.
+    - **Nomenclatura Limpia de Consolidados:** Se eliminó el prefijo "Consolidado Story Architect", mostrando directamente el dato seguido de "CONSOLIDADO" (e.g. `TRATAMIENTO CONSOLIDADO`, `IDEA CONSOLIDADA`, `GUION CONSOLIDADO`, `PLANOS/TOMAS CONSOLIDADO`).
+  - **Eliminación Total de Atajos en Biblia:** Se retiraron completamente los indicadores de atajo de teclado (`Cmd+B` / `Option+B`) del botón de la cabecera y del menú de usuario, dejando el acceso mediante clic limpio sin colisiones con el navegador.
 
 ### 7.2. Deudas Técnicas Conocidas
 1. **Actualización Dinámica de Tarifas de Tokens:**

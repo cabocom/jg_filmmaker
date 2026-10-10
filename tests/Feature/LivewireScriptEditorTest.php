@@ -505,7 +505,8 @@ class LivewireScriptEditorTest extends TestCase
         // 1. Cambiar a vista 'idea'
         $test->call('setActiveView', 'idea')
             ->assertSet('activeView', 'idea')
-            ->assertSee('Consolidado Story Architect · Idea / Texto Bruto')
+            ->assertSee('IDEA CONSOLIDADA')
+            ->assertDontSee('Consolidado Story Architect')
             ->assertSee('1. INT. CAFETERIA - DIA')
             ->assertSee('Idea bruta bloque 1.')
             ->assertSee('2. EXT. CALLE - NOCHE')
@@ -514,7 +515,7 @@ class LivewireScriptEditorTest extends TestCase
         // 2. Cambiar a vista 'structured' (Tratamiento)
         $test->call('setActiveView', 'structured')
             ->assertSet('activeView', 'structured')
-            ->assertSee('Consolidado Story Architect · Tratamiento Narrativo')
+            ->assertSee('TRATAMIENTO CONSOLIDADO')
             ->assertSee('1. INT. CAFETERIA - DIA')
             ->assertSee('Tratamiento narrativo bloque 1.')
             ->assertSee('2. EXT. CALLE - NOCHE')
@@ -523,7 +524,7 @@ class LivewireScriptEditorTest extends TestCase
         // 3. Cambiar a vista 'screenplay' (Guion)
         $test->call('setActiveView', 'screenplay')
             ->assertSet('activeView', 'screenplay')
-            ->assertSee('Consolidado Story Architect · Guion Literario')
+            ->assertSee('GUION CONSOLIDADO')
             ->assertSee('1. INT. CAFETERIA - DIA')
             ->assertSee('CARLOS')
             ->assertSee('Hola mundo.')
@@ -534,7 +535,7 @@ class LivewireScriptEditorTest extends TestCase
         // 4. Cambiar a vista 'shots' (Planos/Tomas)
         $test->call('setActiveView', 'shots')
             ->assertSet('activeView', 'shots')
-            ->assertSee('Consolidado Story Architect · Planos / Tomas Técnicas')
+            ->assertSee('PLANOS/TOMAS CONSOLIDADO')
             ->assertSee('1. INT. CAFETERIA - DIA')
             ->assertSee('2. EXT. CALLE - NOCHE');
 
