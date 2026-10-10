@@ -891,14 +891,18 @@
 
     <!-- ================= MODAL DE TRAZABILIDAD E INSPECCIÓN DE IA (ESTILO JG_HUB & JG_DASHBOARD) ================= -->
     @if($showAiTraceModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-slate-950/80 backdrop-blur-md transition">
-            <div class="w-full lg:w-1/2 max-w-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] mx-auto">
-                <!-- Modal Header -->
-                <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex items-center justify-between gap-4">
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-black/90 backdrop-blur-md transition"
+             x-data
+             @keydown.escape.window="$wire.closeAiTraceModal()"
+             wire:click.self="closeAiTraceModal">
+            <!-- Contenedor del Modal con TAMAÑO FIJO Y CENTRADO -->
+            <div class="w-full max-w-3xl h-[650px] max-h-[90vh] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col mx-auto shrink-0 transition-none">
+                <!-- Modal Header (Fijo) -->
+                <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex items-center justify-between gap-4 shrink-0">
                     <div class="flex items-center gap-3">
                         <span class="text-xl">🔍</span>
                         <div>
-                            <h3 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                                 <span>Trazabilidad Cognitiva IA</span>
                                 <span class="px-2 py-0.5 text-[10px] font-mono font-bold uppercase rounded bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30">
                                     {{ $aiTraceData['tool'] ?? 'pipeline_step' }}
@@ -911,54 +915,59 @@
                     </div>
 
                     <div class="flex items-center gap-2">
-                        <span class="px-2.5 py-1 rounded-md text-[11px] font-mono font-bold bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700">
+                        <span class="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 hidden sm:inline">
                             {{ strtoupper($aiTraceData['provider'] ?? 'GROQ') }} / {{ $aiTraceData['model'] ?? 'openai/gpt-oss-120b' }}
                         </span>
-                        <span class="px-2.5 py-1 rounded-md text-[11px] font-mono font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                        <span class="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
                             200 OK
                         </span>
-                        <button wire:click="closeAiTraceModal" type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-white text-xl px-2 py-1 rounded-lg transition leading-none">
-                            &times;
+                        <!-- Botón explícito para cerrar con icono y texto -->
+                        <button wire:click="closeAiTraceModal"
+                                type="button"
+                                title="Cerrar modal (Esc)"
+                                class="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 transition flex items-center gap-1.5 cursor-pointer shadow-xs ml-1">
+                            <span>✕</span>
+                            <span class="hidden sm:inline">Cerrar</span>
                         </button>
                     </div>
                 </div>
 
-                <!-- Meta info banner -->
-                <div class="px-6 py-2.5 bg-slate-100/60 dark:bg-slate-950/60 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
+                <!-- Meta info banner (Fijo) -->
+                <div class="px-6 py-2 bg-slate-100/70 dark:bg-slate-950/70 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 shrink-0">
                     <div class="flex items-center gap-4">
-                        <span>⏱️ Latencia: <strong class="text-slate-800 dark:text-slate-200 font-mono">{{ $aiTraceData['duration_ms'] ?? 0 }} ms</strong></span>
-                        <span>📅 Invocado: <strong class="text-slate-800 dark:text-slate-200 font-mono">{{ $aiTraceData['executed_at'] ?? $aiTraceData['timestamp'] ?? now()->toIso8601String() }}</strong></span>
+                        <span>⏱️ Latencia: <strong class="text-slate-900 dark:text-slate-100 font-mono">{{ $aiTraceData['duration_ms'] ?? 0 }} ms</strong></span>
+                        <span>📅 Invocado: <strong class="text-slate-900 dark:text-slate-100 font-mono">{{ $aiTraceData['executed_at'] ?? $aiTraceData['timestamp'] ?? now()->toIso8601String() }}</strong></span>
                     </div>
                     <div>
-                        <span>🎭 Personajes en biblia: <strong class="text-slate-800 dark:text-slate-200">{{ count($aiTraceData['characters_context'] ?? []) }}</strong></span>
+                        <span>🎭 Personajes en biblia: <strong class="text-slate-900 dark:text-slate-100">{{ count($aiTraceData['characters_context'] ?? []) }}</strong></span>
                     </div>
                 </div>
 
-                <!-- Navigation Tabs inside Modal -->
-                <div class="px-6 pt-3 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-2">
+                <!-- Navigation Tabs inside Modal (Fijo) -->
+                <div class="px-6 pt-2 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-2 shrink-0">
                     <button wire:click="switchAiTraceTab('steps')" type="button"
-                            class="px-4 py-2 border-b-2 text-xs font-semibold transition {{ $aiTraceActiveTab === 'steps' ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                            class="px-3.5 py-2 border-b-2 text-xs font-semibold transition {{ $aiTraceActiveTab === 'steps' ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
                         ⚡ Grafo & Saltos
                     </button>
                     <button wire:click="switchAiTraceTab('prompt')" type="button"
-                            class="px-4 py-2 border-b-2 text-xs font-semibold transition {{ $aiTraceActiveTab === 'prompt' ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                            class="px-3.5 py-2 border-b-2 text-xs font-semibold transition {{ $aiTraceActiveTab === 'prompt' ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
                         💬 System Prompt & Entrada
                     </button>
                     <button wire:click="switchAiTraceTab('output')" type="button"
-                            class="px-4 py-2 border-b-2 text-xs font-semibold transition {{ $aiTraceActiveTab === 'output' ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                            class="px-3.5 py-2 border-b-2 text-xs font-semibold transition {{ $aiTraceActiveTab === 'output' ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
                         📄 Salida Cinematográfica
                     </button>
                     <button wire:click="switchAiTraceTab('json')" type="button"
-                            class="px-4 py-2 border-b-2 text-xs font-semibold transition {{ $aiTraceActiveTab === 'json' ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                            class="px-3.5 py-2 border-b-2 text-xs font-semibold transition {{ $aiTraceActiveTab === 'json' ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
                         { } JSON Técnico
                     </button>
                 </div>
 
-                <!-- Modal Body Content -->
-                <div class="p-6 overflow-y-auto flex-1 bg-white dark:bg-slate-900">
+                <!-- Modal Body Content (ÁREA SCROLLEABLE INTERNA DE ALTURA CONSISTENTE) -->
+                <div class="p-6 overflow-y-auto flex-1 min-h-0 bg-white dark:bg-slate-900">
                     @if($aiTraceActiveTab === 'steps')
                         <!-- Timeline con diseño idéntico a jg_dashboard -->
-                        <div class="relative pl-8 space-y-6 before:content-[''] before:absolute before:left-3.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-800">
+                        <div class="relative pl-8 space-y-5 before:content-[''] before:absolute before:left-3.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-800">
                             @foreach($aiTraceData['steps'] ?? [] as $step)
                                 <div class="relative group">
                                     <span class="absolute -left-8 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-indigo-50 border-2 border-indigo-600 text-indigo-700 dark:bg-slate-900 dark:border-indigo-400 dark:text-indigo-400 text-xs font-bold">
@@ -977,47 +986,56 @@
                             @endforeach
                         </div>
                     @elseif($aiTraceActiveTab === 'prompt')
-                        <div class="space-y-4">
+                        <div class="space-y-5">
                             <div>
-                                <span class="block text-xs font-mono uppercase font-bold text-slate-500 dark:text-slate-400 mb-1.5">
-                                    ⚙️ System Prompt Inyectado (Biblia de Proyecto + Reglas)
+                                <span class="block text-xs font-mono uppercase font-bold text-slate-600 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+                                    <span>⚙️</span>
+                                    <span>System Prompt Inyectado (Biblia de Proyecto + Reglas)</span>
                                 </span>
-                                <div class="p-4 rounded-xl bg-slate-900 text-slate-100 dark:bg-slate-950 dark:text-slate-100 font-mono text-xs whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto border border-slate-700 dark:border-slate-800 shadow-inner">
+                                <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs whitespace-pre-wrap leading-relaxed max-h-56 overflow-y-auto border border-slate-300 dark:border-slate-800 shadow-inner">
                                     {{ $aiTraceData['system_prompt'] ?? 'Sin prompt de sistema disponible.' }}
                                 </div>
                             </div>
                             <div>
-                                <span class="block text-xs font-mono uppercase font-bold text-slate-500 dark:text-slate-400 mb-1.5">
-                                    📝 Entrada del Autor / Texto Suministrado
+                                <span class="block text-xs font-mono uppercase font-bold text-slate-600 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+                                    <span>📝</span>
+                                    <span>Entrada del Autor / Texto Suministrado</span>
                                 </span>
-                                <div class="p-4 rounded-xl bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100 font-mono text-xs whitespace-pre-wrap leading-relaxed border border-slate-200 dark:border-slate-800 shadow-inner">
+                                <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs whitespace-pre-wrap leading-relaxed max-h-56 overflow-y-auto border border-slate-300 dark:border-slate-800 shadow-inner">
                                     {{ $aiTraceData['user_prompt'] ?? $aiTraceData['input_text'] ?? 'Sin entrada registrada.' }}
                                 </div>
                             </div>
                         </div>
                     @elseif($aiTraceActiveTab === 'output')
-                        <div>
-                            <span class="block text-xs font-mono uppercase font-bold text-slate-500 dark:text-slate-400 mb-1.5">
-                                🎬 Salida Cinematográfica Generada
+                        <div class="space-y-2">
+                            <span class="block text-xs font-mono uppercase font-bold text-slate-600 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+                                <span>🎬</span>
+                                <span>Salida Cinematográfica Generada</span>
                             </span>
-                            <div class="p-5 rounded-xl bg-slate-900 text-amber-300 dark:bg-slate-950 dark:text-amber-200 font-mono text-xs border border-slate-700 dark:border-slate-800 whitespace-pre-wrap leading-relaxed shadow-inner">
+                            <div class="p-5 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs border border-slate-300 dark:border-slate-800 whitespace-pre-wrap leading-relaxed max-h-[440px] overflow-y-auto shadow-inner">
                                 {{ $aiTraceData['output'] ?? $aiTraceData['raw_response'] ?? 'Sin salida registrada.' }}
                             </div>
                         </div>
                     @elseif($aiTraceActiveTab === 'json')
-                        <div>
-                            <span class="block text-xs font-mono uppercase font-bold text-slate-500 dark:text-slate-400 mb-1.5">
-                                { } Payload & Telemetría Completa
+                        <div class="h-full flex flex-col space-y-2">
+                            <span class="block text-xs font-mono uppercase font-bold text-slate-600 dark:text-slate-300 shrink-0 flex items-center gap-1.5">
+                                <span>{ }</span>
+                                <span>Payload & Telemetría Completa (JSON)</span>
                             </span>
-                            <pre class="p-4 rounded-xl bg-[#0f172a] text-slate-100 font-mono text-xs overflow-x-auto border border-slate-800 max-h-96 shadow-inner"><code class="language-json text-slate-100 leading-relaxed">{{ json_encode($aiTraceData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</code></pre>
+                            <div class="flex-1 min-h-[380px] max-h-[440px] overflow-auto rounded-xl border border-slate-800 bg-[#0f172a] p-4 shadow-inner">
+                                <pre class="m-0 p-0 bg-transparent border-0"><code class="language-json font-mono text-xs leading-relaxed block" style="color: #38bdf8 !important;">{{ json_encode($aiTraceData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</code></pre>
+                            </div>
                         </div>
                     @endif
                 </div>
 
-                <!-- Modal Footer -->
-                <div class="px-6 py-4 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end">
-                    <button wire:click="closeAiTraceModal" type="button" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-200 hover:bg-slate-300 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-white transition">
-                        Cerrar
+                <!-- Modal Footer (Fijo) -->
+                <div class="px-6 py-3.5 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between shrink-0">
+                    <span class="text-xs text-slate-400 font-mono hidden sm:inline">Pulsa <kbd class="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 text-[10px]">Esc</kbd> para salir</span>
+                    <button wire:click="closeAiTraceModal"
+                            type="button"
+                            class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:hover:bg-slate-200 dark:text-slate-900 transition shadow-sm cursor-pointer ml-auto">
+                        Cerrar (Esc)
                     </button>
                 </div>
             </div>
