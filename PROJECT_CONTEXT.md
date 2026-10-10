@@ -287,18 +287,19 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
   - **Bloqueo en Cascada y Protección contra Regeneraciones:** Si el guión literario (`screenplay`) está bloqueado, el tratamiento (`structured`) queda automáticamente protegido contra regeneraciones desde el texto bruto original (`isStageLocked('structured') === true`), impidiendo que una re-estructuración desde el bruto invalide o destruya la coherencia del guión protegido.
   - **Activación y Desbloqueo Interactivo (`toggleStageLock`):** La interfaz incluye distintivos visuales (`🔒 Modificado manualmente · Protegido`), avisos de advertencia contextuales y un botón interactivo para bloquear o desbloquear la etapa (`[🔓 Desbloquear]` / `[🔒 Proteger]`), otorgando al autor el control total de permitir o bloquear la intervención de la IA.
 - **Menú Superior y Consolidado Continuo Story Architect (Fase 20):**
-  - **Menú Sticky Alineado a la Derecha en la Barra de Proyecto:** Se incorpora un selector de vistas compacto en la barra superior sticky junto al título y contador de escenas con las opciones: **`Pipeline` - `Idea` - `Tratamiento` - `Guion` - `Planos/Tomas` - `Montaje`**.
+  - **Menú Sticky Alineado a la Derecha en la Barra de Proyecto:** Se incorpora un selector de vistas compacto en la barra superior sticky junto al título y contador de escenas con las opciones: **`Pipeline` - `Idea` - `Tratamiento` - `Guion` - `Planos/Tomas`** (el tab de montaje queda retirado temporalmente hasta finalizar el pulido de tomas).
+  - **Alineación y Ancho Homogéneo (`max-w-7xl`):** El contenedor de la vista consolidada adopta exactamente la misma geometría y ancho que el pipeline (`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8`), quedando perfectamente alineado con el logotipo institucional superior y los márgenes de la aplicación.
   - **Modo `Pipeline`:** Mantiene el listado de bloques interactivo actual estilo Gutenberg (acordeones por escena, arrastre Drag & Drop, divisores intermedios `+`, drawer lateral al 60% y modales de creación).
-  - **Modo Consolidado Continuo (`Idea`, `Tratamiento`, `Guion`, `Planos/Tomas`, `Montaje`):** Genera una vista de lectura continua de todo el proyecto en lienzo cinematográfico limpio al estilo de Story Architect:
+  - **Modo Consolidado Continuo (`Idea`, `Tratamiento`, `Guion`, `Planos/Tomas`):** Genera una vista de lectura continua de todo el proyecto en lienzo cinematográfico limpio al estilo de Story Architect:
     - Encabezado canónico de cada escena (`scene_order. slugline` y localización asociada).
     - Texto ordenado secuencialmente de cada bloque perteneciente a dicha escena:
       * **`Idea`:** Prosa original / texto bruto (`raw_text`).
       * **`Tratamiento`:** Párrafos dramáticos estructurados (`structured_text`).
       * **`Guion`:** Guión literario completo formateado canónicamente mediante `ScreenplayFormatterService::formatToHtml()`.
       * **`Planos/Tomas`:** Desglose técnico de planos de cámara (`shot_number`, tipo, descripción) y tomas registradas.
-      * **`Montaje`:** Resumen de tomas buenas seleccionadas para el montaje final y reproductor interactivo de línea de tiempo NLE (`rough-cut-timeline`) por escena.
     - Cada bloque en el consolidado incluye un acceso flotante discreto (`✏️ Bloque #N`) que permite abrir directamente el panel lateral de edición sin perder el contexto de lectura.
     - Siguiente escena inmediatamente a continuación con separador de lectura continua.
+  - **Atajo Libre de Colisiones para la Biblia (`Option + B` / `⌥B`):** Se reemplazó el atajo `Cmd+B` por `⌥B` (Option+B en Mac / Alt+B en PC), registrando un listener JavaScript global en `window` que previene el comportamiento del navegador y abre/cierra la Biblia Contextual de inmediato sin desplegar la barra de marcadores del navegador.
 
 ### 7.2. Deudas Técnicas Conocidas
 1. **Actualización Dinámica de Tarifas de Tokens:**

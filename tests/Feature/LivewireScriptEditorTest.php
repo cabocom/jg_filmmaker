@@ -500,7 +500,7 @@ class LivewireScriptEditorTest extends TestCase
             ->assertSee('Tratamiento')
             ->assertSee('Guion')
             ->assertSee('Planos/Tomas')
-            ->assertSee('Montaje');
+            ->assertDontSee('Montaje');
 
         // 1. Cambiar a vista 'idea'
         $test->call('setActiveView', 'idea')
@@ -538,14 +538,7 @@ class LivewireScriptEditorTest extends TestCase
             ->assertSee('1. INT. CAFETERIA - DIA')
             ->assertSee('2. EXT. CALLE - NOCHE');
 
-        // 5. Cambiar a vista 'timeline' (Montaje)
-        $test->call('setActiveView', 'timeline')
-            ->assertSet('activeView', 'timeline')
-            ->assertSee('Consolidado Story Architect · Montaje / Secuencia de Edición')
-            ->assertSee('1. INT. CAFETERIA - DIA')
-            ->assertSee('2. EXT. CALLE - NOCHE');
-
-        // 6. Volver a 'pipeline'
+        // 5. Volver a 'pipeline'
         $test->call('setActiveView', 'pipeline')
             ->assertSet('activeView', 'pipeline');
     }

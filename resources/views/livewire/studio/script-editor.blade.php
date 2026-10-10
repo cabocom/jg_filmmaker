@@ -60,7 +60,7 @@
                 </span>
             </div>
 
-            <!-- Menú Superior Alineado a la Derecha: Pipeline - Idea - Tratamiento - Guion - Planos/Tomas - Montaje -->
+            <!-- Menú Superior Alineado a la Derecha: Pipeline - Idea - Tratamiento - Guion - Planos/Tomas -->
             <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200 dark:border-slate-700/80 shrink-0 overflow-x-auto">
                 <button wire:click="setActiveView('pipeline')"
                         type="button"
@@ -86,11 +86,6 @@
                         type="button"
                         class="px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'shots' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
                     Planos/Tomas
-                </button>
-                <button wire:click="setActiveView('timeline')"
-                        type="button"
-                        class="px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'timeline' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
-                    Montaje
                 </button>
             </div>
         </div>
@@ -274,14 +269,6 @@
                                         title="Desglose técnico de planos de cámara y tomas para esta escena"
                                         class="px-2 py-0.5 rounded transition font-mono cursor-pointer {{ $sceneStage === 'shots' ? 'bg-amber-500 text-slate-950 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
                                     Planos / Tomas
-                                </button>
-
-                                <!-- 5. Montaje -->
-                                <button wire:click="setScenePipelineStage('{{ $scene->id }}', 'timeline')"
-                                        type="button"
-                                        title="Línea de tiempo y pre-corte de edición para esta escena"
-                                        class="px-2 py-0.5 rounded transition font-mono cursor-pointer {{ $sceneStage === 'timeline' ? 'bg-amber-500 text-slate-950 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
-                                    Montaje
                                 </button>
                             </div>
                         </div>
@@ -510,7 +497,7 @@
     </div>
     @else
         <!-- ================= VISTA CONSOLIDADA CONTINUA ESTILO STORY ARCHITECT ================= -->
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
             <!-- Tarjeta de Hoja de Lectura Continua Story Architect -->
             <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 sm:p-12 space-y-8 min-h-[70vh]">
                 <!-- Encabezado del Documento Consolidado -->
@@ -522,7 +509,6 @@
                                 'structured' => 'Tratamiento Narrativo',
                                 'screenplay' => 'Guion Literario',
                                 'shots' => 'Planos / Tomas Técnicas',
-                                'timeline' => 'Montaje / Secuencia de Edición',
                                 default => ucfirst($activeView),
                             } }}
                         </h2>
@@ -642,52 +628,12 @@
                                                     [Bloque #{{ $block->block_order }}: Sin planos técnicos desglosados]
                                                 </p>
                                             @endif
-
-                                        @elseif($activeView === 'timeline')
-                                            <!-- VISTA MONTAJE: LÍNEA DE MONTAJE Y TOMAS BUENAS DEL BLOQUE -->
-                                            @php
-                                                $goodTakes = $block->shots->flatMap->takes->where('is_good_take', true);
-                                            @endphp
-                                            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
-                                                <div class="flex items-center justify-between font-mono">
-                                                    <span class="font-bold text-slate-800 dark:text-slate-200">
-                                                        Bloque #{{ $block->block_order }}
-                                                    </span>
-                                                    <span class="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
-                                                        {{ $goodTakes->count() }} tomas en montaje
-                                                    </span>
-                                                </div>
-                                                @if($goodTakes->isNotEmpty())
-                                                    <div class="flex flex-wrap gap-2 pt-1">
-                                                        @foreach($goodTakes as $take)
-                                                            <div class="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 text-[11px] font-mono text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
-                                                                <span>🎬 Plano {{ $take->shot?->shot_number }}</span>
-                                                                <span class="font-bold">Toma {{ $take->take_number }}</span>
-                                                                @if($take->media_duration)
-                                                                    <span class="text-slate-500">({{ $take->media_duration }}s)</span>
-                                                                @endif
-                                                            </div>
-                                                        @endforeach
-                                                    </div>
-                                                @else
-                                                    <p class="text-xs italic text-slate-400 font-mono">
-                                                        Sin tomas seleccionadas como buenas para el montaje en este bloque.
-                                                    </p>
-                                                @endif
-                                            </div>
                                         @endif
                                     </div>
                                 @empty
                                     <p class="text-xs italic text-slate-400 font-mono py-2">Esta escena no contiene bloques de texto todavía.</p>
                                 @endforelse
                             </div>
-
-                            <!-- En vista Montaje, mostramos además el reproductor interactivo / timeline de la escena -->
-                            @if($activeView === 'timeline')
-                                <div class="pt-4 mt-2 border-t border-slate-100 dark:border-slate-800/60">
-                                    <livewire:studio.rough-cut-timeline :project="$project" :active-scene-id="$scene->id" :key="'consolidated-timeline-'.$scene->id" />
-                                </div>
-                            @endif
                         </section>
                     @empty
                         <div class="text-center py-16 space-y-3">

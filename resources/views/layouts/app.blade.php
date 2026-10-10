@@ -110,11 +110,11 @@
                     <button type="button"
                             onclick="Livewire.dispatch('toggle-bible-drawer')"
                             class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 hover:border-amber-500/40 dark:bg-slate-900 dark:hover:bg-slate-800 dark:border-slate-700/80 dark:text-slate-200 transition shadow-sm"
-                            title="Abrir Biblia Contextual (Cmd+B / Ctrl+B)">
+                            title="Abrir Biblia Contextual (Option+B / Alt+B)">
                         <span>📖</span>
                         <span class="hidden sm:inline">Biblia de Proyecto</span>
-                        <kbd class="hidden md:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-white text-slate-600 rounded border border-slate-200 dark:border-slate-700">
-                            ⌘B
+                        <kbd class="hidden md:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-white text-slate-600 rounded border border-slate-200 dark:border-slate-700" title="Option + B (o Alt + B)">
+                            ⌥B
                         </kbd>
                     </button>
                 @endif
@@ -199,12 +199,13 @@
                                 @if(isset($currentProject))
                                     <button type="button"
                                             onclick="Livewire.dispatch('toggle-bible-drawer'); userMenuOpen = false;"
-                                            class="w-full text-left flex items-center justify-between px-3 py-2 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition font-medium cursor-pointer">
+                                            class="w-full text-left flex items-center justify-between px-3 py-2 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition font-medium cursor-pointer"
+                                            title="Option + B (o Alt + B)">
                                         <div class="flex items-center gap-2.5">
                                             <span>📖</span>
                                             <span>Biblia del Proyecto</span>
                                         </div>
-                                        <kbd class="px-1.5 py-0.5 text-[9px] font-mono bg-slate-200 dark:bg-slate-800 rounded border border-slate-300 dark:border-slate-700">⌘B</kbd>
+                                        <kbd class="px-1.5 py-0.5 text-[9px] font-mono bg-slate-200 dark:bg-slate-800 rounded border border-slate-300 dark:border-slate-700">⌥B</kbd>
                                     </button>
                                 @endif
 
@@ -280,6 +281,14 @@
                 Livewire.hook('morph.updated', () => {
                     applyCodeHighlighting();
                 });
+        // Atajo global para la Biblia de Proyecto: Option + B (Mac) / Alt + B (PC)
+        window.addEventListener('keydown', function(e) {
+            const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
+            if (!isInput && (e.altKey && (e.key === 'b' || e.key === 'B' || e.code === 'KeyB'))) {
+                e.preventDefault();
+                if (window.Livewire) {
+                    Livewire.dispatch('toggle-bible-drawer');
+                }
             }
         });
     </script>

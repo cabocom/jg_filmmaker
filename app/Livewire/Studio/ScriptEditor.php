@@ -173,7 +173,7 @@ class ScriptEditor extends Component
 
     public function setActiveView(string $view): void
     {
-        if (in_array($view, ['pipeline', 'idea', 'structured', 'screenplay', 'shots', 'timeline'])) {
+        if (in_array($view, ['pipeline', 'idea', 'structured', 'screenplay', 'shots'])) {
             $this->activeView = $view;
         }
     }
