@@ -277,7 +277,7 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
     - Parlamento y texto de diálogo en columna centrada de ancho controlado (`.screenplay-dialogue` con sangría canónica).
     - Acciones narrativas y descripciones de escena en ancho completo alineadas a la izquierda (`.screenplay-action`).
     - Transiciones técnicas alineadas a la derecha (`.screenplay-transition`).
-  - **Enlace de Autoría y Despliegue (`films.javiergalvez.com`):** En la cabecera institucional junto al título "Pipeline Cinematográfico IA", se incorpora el crédito interactivo `· hecho por <a href="https://javiergalvez.com">Javier Gálvez</a>`, desacoplado de la navegación interna del proyecto.
+  - **Enlace de Autoría y Despliegue (`films.javiergalvez.com`):** En la cabecera institucional junto al título "Pipeline Cinematográfico IA", se incorpora el crédito interactivo `hecho por <a href="https://javiergalvez.com">Javier Gálvez</a>`, desacoplado de la navegación interna del proyecto.
   - **Unificación Tipográfica de Pestañas de Pipeline:** Se eliminó el emoji `🎬` de la pestaña `Montaje`, unificando su estilo minimalista con `Idea | Tratamiento | Guión | Planos / Tomas | Montaje`.
   - **Identidad Completa de Usuario en Cabecera:** El mini-menú superior sustituye el nombre abreviado por el correo electrónico completo del usuario logueado (`auth()->user()->email`) junto al badge de nivel de suscripción y avatar.
 

@@ -88,7 +88,6 @@
                     </a>
                     <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-none mt-0.5 flex items-center gap-1">
                         <span>Pipeline Cinematográfico IA</span>
-                        <span class="text-slate-400 dark:text-slate-600">·</span>
                         <span>hecho por</span>
                         <a href="https://javiergalvez.com" target="_blank" rel="noopener noreferrer" class="text-amber-600 dark:text-amber-400 hover:underline font-semibold">Javier Gálvez</a>
                     </p>
