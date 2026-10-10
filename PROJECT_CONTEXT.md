@@ -447,6 +447,8 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
     - **Usuario Administrador y Datos Iniciales:**
       * Administrador inicial configurado en `jgalvez@cabocom.com` con privilegios `is_admin = true` y plan `pro`.
       * Obra cinematográfica de demostración *El Susurro del Viento* sembrada y asociada a dicho usuario.
+    - **Script de Despliegue Automatizado (`deploy.sh`):**
+      * Creado e integrado `deploy.sh` en la raíz de `/cabocom/web/apps/films.javiergalvez.com` (y versionado en el repositorio), replicando la convención de `/cabocom/ia/javiergalvez-ia/deploy.sh` con 5 fases automáticas: pull de imágenes, arranque con `--remove-orphans`, sondeo de salud (healthcheck con timeout), migraciones (Alembic y Laravel en PostgreSQL), purga y precalentamiento de cachés, y reporte final de endpoints.
     - **Gestión Segura de Secretos y Configuración:**
       * Variables inyectadas de forma unificada desde Vault (`APP_KEY`, `JG_AGENTE_SECRET`, `GLOBAL_GROQ_API_KEY`, `GLOBAL_GOOGLE_API_KEY`, `GLOBAL_MAIL_*`).
       * Archivo `.env` en la VM protegido con permisos `600`.
