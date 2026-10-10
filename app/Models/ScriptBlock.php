@@ -117,8 +117,14 @@ class ScriptBlock extends Model
     public function isStageLocked(string $stage): bool
     {
         $locks = $this->user_locks ?? [];
+        $lockedFields = $locks['locked_fields'] ?? [];
 
-        return in_array($stage, $locks['locked_fields'] ?? [], true);
+        // Si se bloquea el guión, también queda bloqueado el tratamiento para que no se pueda regenerar desde el bruto
+        if ($stage === 'structured' && in_array('screenplay', $lockedFields, true)) {
+            return true;
+        }
+
+        return in_array($stage, $lockedFields, true);
     }
 
     /**

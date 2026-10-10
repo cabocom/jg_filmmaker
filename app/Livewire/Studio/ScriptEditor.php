@@ -564,6 +564,9 @@ class ScriptEditor extends Component
             session()->flash('info', "Etapa '{$stage}' desbloqueada (🔓). Ahora la IA podrá regenerarla si avanzas desde el paso anterior.");
         } else {
             $lockedFields[] = $stage;
+            if ($stage === 'screenplay' && ! in_array('structured', $lockedFields, true)) {
+                $lockedFields[] = 'structured';
+            }
             session()->flash('success', "Etapa '{$stage}' protegida con candado (🔒). No se sobreescribirá ante regeneraciones.");
         }
 

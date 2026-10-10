@@ -425,4 +425,39 @@ class LivewireScriptEditorTest extends TestCase
 
         $this->assertFalse($freshBlock->fresh()->isStageLocked('screenplay'));
     }
+
+    public function test_locking_screenplay_also_locks_structured_and_prevents_regeneration_from_raw(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create(['project_id' => $project->id]);
+
+        $block = ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'block_order' => 1,
+            'raw_text' => 'Texto bruto original.',
+            'structured_text' => 'Tratamiento inicial.',
+            'screenplay_content' => "JUAN\nTexto de guión.",
+            'stage' => 'screenplay',
+            'user_locks' => [],
+        ]);
+
+        // Bloquear guión manualmente
+        Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->call('toggleStageLock', $block->id, 'screenplay');
+
+        $freshBlock = $block->fresh();
+        $this->assertTrue($freshBlock->isStageLocked('screenplay'));
+        // Tratamiento también debe estar bloqueado automáticamente para no regenerar desde el bruto
+        $this->assertTrue($freshBlock->isStageLocked('structured'));
+
+        // Intentar regenerar tratamiento desde el bruto debe estar bloqueado
+        Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->call('structureBlock', $freshBlock->id)
+            ->assertSee('protegido');
+
+        $this->assertEquals('Tratamiento inicial.', $freshBlock->fresh()->structured_text);
+    }
 }

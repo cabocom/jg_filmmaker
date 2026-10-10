@@ -246,6 +246,11 @@ class ScriptPipelineService
             $lockedFields[] = $stage;
         }
 
+        // Si se bloquea el guión, también hay que bloquear el tratamiento para que no se pueda regenerar desde el bruto
+        if ($stage === 'screenplay' && ! in_array('structured', $lockedFields, true)) {
+            $lockedFields[] = 'structured';
+        }
+
         $userLocks['manual_diffs'] = $manualDiffs;
         $userLocks['locked_fields'] = $lockedFields;
 

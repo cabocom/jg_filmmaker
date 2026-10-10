@@ -645,14 +645,18 @@
                                                 <button type="button"
                                                         disabled
                                                         class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-300 dark:border-slate-700 cursor-not-allowed flex items-center gap-1.5 opacity-60"
-                                                        title="El tratamiento tiene modificaciones manuales protegidas. Desbloquéalo en la pestaña 'Tratamiento' para permitir regenerar.">
+                                                        title="El tratamiento o guión tiene modificaciones manuales protegidas. Desbloquéalo para permitir regenerar desde el bruto.">
                                                     <span>🔒</span>
                                                     <span>Tratamiento Protegido</span>
                                                 </button>
                                             @else
                                                 <button wire:click="structureBlock('{{ $detailBlock->id }}')"
-                                                        wire:loading.attr="disabled"
-                                                        wire:target="structureBlock"
+                                                        x-data="{ isProcessing: false }"
+                                                        @click="isProcessing = true; $el.disabled = true; $el.classList.add('opacity-50', 'pointer-events-none');"
+                                                        :disabled="isProcessing"
+                                                        :class="{ 'opacity-50 cursor-not-allowed pointer-events-none': isProcessing }"
+                                                        wire:loading.delay.0ms.attr="disabled"
+                                                        wire:loading.class="opacity-50 cursor-not-allowed pointer-events-none"
                                                         type="button"
                                                         class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer">
                                                     <span wire:loading.remove wire:target="structureBlock">⚡ Estructurar Tratamiento</span>
@@ -676,8 +680,12 @@
                                                 </button>
                                             @else
                                                 <button wire:click="formatBlockToScreenplay('{{ $detailBlock->id }}')"
-                                                        wire:loading.attr="disabled"
-                                                        wire:target="formatBlockToScreenplay"
+                                                        x-data="{ isProcessing: false }"
+                                                        @click="isProcessing = true; $el.disabled = true; $el.classList.add('opacity-50', 'pointer-events-none');"
+                                                        :disabled="isProcessing"
+                                                        :class="{ 'opacity-50 cursor-not-allowed pointer-events-none': isProcessing }"
+                                                        wire:loading.delay.0ms.attr="disabled"
+                                                        wire:loading.class="opacity-50 cursor-not-allowed pointer-events-none"
                                                         type="button"
                                                         class="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none text-slate-950 shadow-sm transition flex items-center gap-1.5 font-mono cursor-pointer">
                                                     <span wire:loading.remove wire:target="formatBlockToScreenplay">🎬 Convertir a Guión</span>
@@ -689,8 +697,12 @@
                                             @endif
                                         @elseif($detailActiveTab === 'screenplay')
                                             <button wire:click="breakdownBlockShots('{{ $detailBlock->id }}')"
-                                                    wire:loading.attr="disabled"
-                                                    wire:target="breakdownBlockShots"
+                                                    x-data="{ isProcessing: false }"
+                                                    @click="isProcessing = true; $el.disabled = true; $el.classList.add('opacity-50', 'pointer-events-none');"
+                                                    :disabled="isProcessing"
+                                                    :class="{ 'opacity-50 cursor-not-allowed pointer-events-none': isProcessing }"
+                                                    wire:loading.delay.0ms.attr="disabled"
+                                                    wire:loading.class="opacity-50 cursor-not-allowed pointer-events-none"
                                                     type="button"
                                                     class="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer">
                                                 <span wire:loading.remove wire:target="breakdownBlockShots">📹 Desglosar Planos</span>
@@ -702,8 +714,12 @@
                                         @elseif($detailActiveTab === 'shots')
                                             <div class="flex items-center gap-2">
                                                 <button wire:click="breakdownBlockShots('{{ $detailBlock->id }}')"
-                                                        wire:loading.attr="disabled"
-                                                        wire:target="breakdownBlockShots"
+                                                        x-data="{ isProcessing: false }"
+                                                        @click="isProcessing = true; $el.disabled = true; $el.classList.add('opacity-50', 'pointer-events-none');"
+                                                        :disabled="isProcessing"
+                                                        :class="{ 'opacity-50 cursor-not-allowed pointer-events-none': isProcessing }"
+                                                        wire:loading.delay.0ms.attr="disabled"
+                                                        wire:loading.class="opacity-50 cursor-not-allowed pointer-events-none"
                                                         type="button"
                                                         class="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer">
                                                     <span wire:loading.remove wire:target="breakdownBlockShots">⚡ Regenerar Planos</span>
