@@ -67,15 +67,16 @@ class LivewireScriptEditorTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('INT. BAR CENTRAL - NOCHE 1');
         $response->assertSee('BAR CENTRAL');
-        $response->assertSee('BLOQUE #1');
-        $response->assertSee('Términos Fijos:');
-        $response->assertSee('Javi ➜ Javier');
-        $response->assertSee('Planos (1)');
-        $response->assertSee('1. Bruto (Texto del Autor)');
+        $response->assertSee('Detalles');
+        $response->assertSee('Javier está sentado solo en el bar.');
 
-        // Al conmutar interactivamente a la pestaña de Planos, se renderiza el desglose técnico y tomas
+        // Al conmutar interactivamente a la pestaña de Planos y abrir el drawer de detalles, se renderiza el desglose técnico y tomas
         Livewire::actingAs($user)
             ->test(ScriptEditor::class, ['project' => $project])
+            ->call('openBlockDetails', $block->id, 'raw')
+            ->assertSee('BLOQUE #1')
+            ->assertSee('Términos Fijos:')
+            ->assertSee('Javi ➜ Javier')
             ->call('setBlockTab', $block->id, 'shots')
             ->assertSee('--- shot 1 (PM) ---')
             ->assertSee('TOMA 1')
