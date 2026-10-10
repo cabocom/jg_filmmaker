@@ -441,11 +441,11 @@ class AgentClientService
                 }
                 // Formato C: Habla indirecta narrativa (con o sin acción previa, acotaciones de modo y destinatarios)
                 else {
-                    $verbs = '(?:dice|dijo|decir|pregunta|preguntó|preguntar|responde|respondió|responder|contesta|contestó|contestar|susurra|susurró|susurrar|grita|gritó|gritar|afirma|afirmó|afirmar|exclama|exclamó|exclamar|pide|pidió|pedir|murmura|murmuró|advierte|advirtió)';
+                    $verbs = '(?:dice|dijo|decir|diciendo|pregunta|preguntó|preguntar|preguntando|responde|respondió|responder|respondiendo|contesta|contestó|contestar|contestando|susurra|susurró|susurrar|susurrando|grita|gritó|gritar|gritando|afirma|afirmó|afirmar|afirmando|exclama|exclamó|exclamar|exclamando|pide|pidió|pedir|pidiendo|murmura|murmuró|murmurar|murmurando|advierte|advirtió|advirtiendo)';
                     $links = '(?:que\s+quien|qué\s+quien|que\s+quién|qué\s+quién|que\s+qué|qué\s+qué|que\s+cómo|qué\s+cómo|que\s+dónde|qué\s+dónde|que\s+cuándo|qué\s+cuándo|que\s+por\s+qué|que\s+si|qué\s+|que\s+|si\s+|quién\s+|quien\s+|cómo\s+|dónde\s+|cuándo\s+|por\s+qué\s+)';
                     $ignoreWords = ['se', 'el', 'la', 'los', 'las', 'un', 'una', 'al', 'en', 'por', 'tras', 'luego', 'mientras', 'cuando', 'como', 'donde'];
 
-                    if (preg_match('/^(.*?)(?:[,\s]+y\s+|\s+y\s+)?(?:(se|le|les|me|nos|te)\s+)?'.$verbs.'\s+(.*?)\s*'.$links.'(.+)$/iu', $cleanPara, $m)) {
+                    if (preg_match('/^(.*?)(?:[,\s]+y\s+|\s+y\s+|[,\s]+)?(?:(se|le|les|me|nos|te|lo|la|los|las)\s+)?'.$verbs.'\s*(.*?)\s*'.$links.'(.+)$/iu', $cleanPara, $m)) {
                         $prePart = trim($m[1] ?? '');
                         $verbMod = trim($m[3] ?? '');
                         $dialogueRest = trim(rtrim(trim($m[4] ?? ''), '.?!'));
@@ -706,6 +706,7 @@ class AgentClientService
     {
         $res = trim($text);
         $res = preg_replace('/^que\s+/iu', '', $res);
+        $res = preg_replace('/(?<=[.?!])\s*que\s+/iu', ' ', $res);
 
         // Iteración 1: Pronombres y conjugaciones de 3ª persona del destinatario a 2ª persona y 1ª persona
         $replacements = [
@@ -722,6 +723,8 @@ class AgentClientService
             '/\bsu\s+castigo\b/iu' => 'tu castigo',
             '/\bsu\s+culpa\b/iu' => 'tu culpa',
             '/\bpara\s+recibir\s+su\b/iu' => 'para recibir tu',
+            '/\bsus\s+actos\b/iu' => 'tus actos',
+            '/\bsu\s+vida\b/iu' => 'tu vida',
         ];
 
         foreach ($replacements as $pat => $rep) {
@@ -786,6 +789,7 @@ class AgentClientService
         try {
             $endpoint = match ($provider) {
                 'openai' => 'https://api.openai.com/v1/chat/completions',
+                'gemini' => 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
                 default => 'https://api.groq.com/openai/v1/chat/completions',
             };
 
