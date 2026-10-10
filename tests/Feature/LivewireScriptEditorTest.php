@@ -12,6 +12,7 @@ use App\Models\ScriptBlock;
 use App\Models\Shot;
 use App\Models\Take;
 use App\Models\User;
+use App\Services\JgAgente\AgentClientService;
 use App\Services\ScriptPipelineService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -577,7 +578,7 @@ class LivewireScriptEditorTest extends TestCase
         $test = Livewire::actingAs($user)
             ->test(ScriptEditor::class, ['project' => $project])
             ->assertSee('Biblia')
-            ->assertSee('Agujeros de Guión')
+            ->assertSee('Agujeros')
             ->call('analyzePlotHoles');
 
         // Verificar marcado y motivo en base de datos
@@ -861,6 +862,130 @@ class LivewireScriptEditorTest extends TestCase
         $livewire->call('clearPlotHoles');
         $this->assertNull($block->fresh()->plot_hole);
         $this->assertFalse($block->fresh()->hasPlotHole());
+        $livewire->assertDontSee('Agujero de Guión Detectado');
+    }
+
+    public function test_plot_hole_detector_discards_name_capitalization_and_typography_false_positives(): void
+    {
+        $agentClient = app(AgentClientService::class);
+
+        $blocksData = [
+            [
+                'id' => 'block-1',
+                'stage' => 'structured',
+                'structured_text' => 'En el claro del bosque, Estrella Casilda encuentra la muñeca de trapo.',
+                'raw_text' => 'En el claro del bosque, Estrella Casilda encuentra la muñeca de trapo.',
+            ],
+            [
+                'id' => 'block-2',
+                'stage' => 'screenplay',
+                'screenplay_content' => "ESTRELLA CASILDA\n(asustada)\n¿Quién está ahí?",
+                'raw_text' => 'Estrella Casilda habla asustada.',
+            ],
+        ];
+
+        // Simulamos el caso real que dio el falso positivo del usuario
+        $reasonFalsePositive = 'El nombre de la muñeca aparece escrito como "Estrella Casilda" en este bloque, diferente a "ESTRELLA CASILDA" usado en el bloque del bosque, creando una inconsistencia de nombre entre escenas.';
+
+        // Invocamos auditPlotHoles forzando un mock o directamente usando la lógica de filtrado de auditPlotHoles
+        // Mockeamos callTool interno o Http para simular la respuesta con el falso positivo
+        $service = new class extends AgentClientService
+        {
+            public string $mockReason = '';
+
+            public function callTool(string $toolName, array $payload = []): array
+            {
+                return [
+                    'success' => true,
+                    'detected_holes' => [
+                        [
+                            'block_id' => 'block-1',
+                            'reason' => $this->mockReason,
+                        ],
+                    ],
+                ];
+            }
+        };
+
+        $service->mockReason = $reasonFalsePositive;
+        $auditResult = $service->auditPlotHoles($blocksData, [['name' => 'Estrella Casilda']]);
+
+        // Debe descartarse totalmente el falso positivo
+        $this->assertCount(0, $auditResult['detected_holes']);
+        $this->assertEquals(0, $auditResult['total_holes']);
+
+        // En cambio, un agujero real debe conservarse
+        $service->mockReason = 'Estrella Casilda desaparece sin explicación antes de terminar la acción.';
+        $realResult = $service->auditPlotHoles($blocksData, [['name' => 'Estrella Casilda']]);
+        $this->assertCount(1, $realResult['detected_holes']);
+        $this->assertEquals('block-1', $realResult['detected_holes'][0]['block_id']);
+    }
+
+    public function test_pipeline_service_always_capitalizes_character_names_in_all_stages(): void
+    {
+        $pipelineService = app(ScriptPipelineService::class);
+
+        $characters = [
+            ['name' => 'Estrella Casilda'],
+            ['name' => 'Juan Pedro'],
+        ];
+
+        // 1. Etapa structured (Tratamiento)
+        $rawStructured = 'en la penumbra, estrella casilda se acerca lentamente mientras juan pedro la observa con desconcierto.';
+        $capitalizedStructured = $pipelineService->capitalizeCharacterNames($rawStructured, $characters, 'structured');
+
+        $this->assertStringContainsString('Estrella Casilda', $capitalizedStructured);
+        $this->assertStringContainsString('Juan Pedro', $capitalizedStructured);
+        $this->assertStringNotContainsString('estrella casilda', $capitalizedStructured);
+        $this->assertStringNotContainsString('juan pedro', $capitalizedStructured);
+
+        // 2. Etapa screenplay (Guión literario)
+        $rawScreenplay = "estrella casilda camina hacia la puerta.\n\nestrella casilda\n(susurrando)\nNo hagas ruido.\n\njuan pedro se gira alarmado.";
+        $capitalizedScreenplay = $pipelineService->capitalizeCharacterNames($rawScreenplay, $characters, 'screenplay');
+
+        $this->assertStringContainsString('Estrella Casilda camina', $capitalizedScreenplay);
+        $this->assertStringContainsString("ESTRELLA CASILDA\n(susurrando)", $capitalizedScreenplay);
+        $this->assertStringContainsString('Juan Pedro se gira', $capitalizedScreenplay);
+    }
+
+    public function test_plot_hole_menu_has_ver_ocultar_y_borrar_compact_options(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create([
+            'project_id' => $project->id,
+            'slugline' => 'INT. BAR CENTRAL - NOCHE',
+            'scene_order' => 1,
+        ]);
+
+        $block = ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'block_order' => 1,
+            'raw_text' => 'Javier entra al bar.',
+            'plot_hole' => 'Contradicción evidente en la escena',
+            'user_locks' => ['plot_hole_stage' => 'raw'],
+        ]);
+
+        $livewire = Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->assertSee('Agujeros')
+            ->assertSee('Ver')
+            ->assertSee('Ocultar')
+            ->assertSee('Borrar');
+
+        // Probar acción "Ocultar"
+        $livewire->call('hidePlotHoleAlerts')
+            ->assertSet('showPlotHoleAlerts', false)
+            ->assertDontSee('Agujero de Guión Detectado');
+
+        // Probar acción "Ver"
+        $livewire->call('showPlotHoleAlerts')
+            ->assertSet('showPlotHoleAlerts', true)
+            ->assertSee('Agujero de Guión Detectado');
+
+        // Probar acción "Borrar"
+        $livewire->call('clearPlotHoles');
+        $this->assertNull($block->fresh()->plot_hole);
         $livewire->assertDontSee('Agujero de Guión Detectado');
     }
 }

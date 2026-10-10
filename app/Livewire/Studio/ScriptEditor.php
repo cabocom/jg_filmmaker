@@ -1356,6 +1356,24 @@ class ScriptEditor extends Component
     }
 
     /**
+     * Hace visibles los avisos de agujeros de guión.
+     */
+    public function showPlotHoleAlerts(): void
+    {
+        $this->showPlotHoleAlerts = true;
+        session()->flash('info', 'Avisos de agujeros de guión visibles.');
+    }
+
+    /**
+     * Oculta los avisos de agujeros de guión.
+     */
+    public function hidePlotHoleAlerts(): void
+    {
+        $this->showPlotHoleAlerts = false;
+        session()->flash('info', 'Avisos de agujeros de guión ocultos.');
+    }
+
+    /**
      * Limpia todas las marcas de agujeros de guión activas en los bloques del proyecto.
      */
     public function clearPlotHoles(): void

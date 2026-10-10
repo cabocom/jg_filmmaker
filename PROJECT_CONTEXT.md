@@ -341,6 +341,20 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
   - **Corrección de Detección de Modificaciones Manuales:**
     - `ScriptBlock::hasManualOverride` ahora verifica si el texto modificado manualmente (`user_override`) está realmente presente en el contenido actual (`structured_text` o `screenplay_content`), evitando avisos falsos por registros residuales.
     - Al regenerar limpiamente una etapa con IA (`transitionToStructured` o `transitionToScreenplay`), los diffs obsoletos se purgan automáticamente de `manual_diffs` y `locked_fields`.
+- **Filtro Estricto Anti-Falsos Positivos de Nombres, Capitalización Automática y Menú Compacto (Fase 23):**
+  - **Erradicación de Falsos Positivos Tipográficos y de Capitalización:**
+    - Se descartó categóricamente cualquier reporte o alucinación del detector de agujeros que mencione diferencias de mayúsculas, minúsculas, formato o capitalización de nombres (e.g. *"El nombre de la muñeca aparece escrito como 'Estrella Casilda' en este bloque, diferente a 'ESTRELLA CASILDA' usado en el bloque del bosque, creando una inconsistencia de nombre entre escenas"*).
+    - `AgentClientService::auditPlotHoles` implementa un filtro de expresión regular y cotejo de cadenas entre comillas: si se comparan dos cadenas idénticas al normalizar a minúsculas (`mb_strtolower($q1) === mb_strtolower($q2)`) o si el motivo alude a discrepancias de formato de nombre, se descarta automáticamente.
+    - Los prompts de `plot_hole_detector` prohíben explícitamente a los modelos de lenguaje reportar variaciones de capitalización como inconsistencias dramáticas.
+  - **Capitalización Canónica Automática en Todas las Etapas Generadas:**
+    - `ScriptPipelineService::capitalizeCharacterNames` normaliza y capitaliza de manera homogénea todos los nombres de los personajes de la biblia y contexto en las transiciones automáticas:
+      * En **Tratamiento** (`structured`): cada palabra del nombre de personaje se capitaliza en *Title Case* (e.g., `Estrella Casilda`, `Juan Pedro`).
+      * En **Guion literario** (`screenplay`): las descripciones y acciones normalizan a *Title Case*, mientras que los encabezados de diálogo se fijan en mayúsculas canónicas (e.g., `ESTRELLA CASILDA`).
+  - **Menú Desplegable Compacto en Botón Agujeros ("Ver", "Ocultar", "Borrar"):**
+    - Se reemplazaron textos largos del menú desplegable por opciones concisas y limpias de ancho compacto (`w-32`):
+      * **`Ver`**: activa la visibilidad de alertas y tarjetas de agujeros en la interfaz (`showPlotHoleAlerts`).
+      * **`Ocultar`**: oculta las alertas visuales sin alterar los datos del bloque (`hidePlotHoleAlerts`).
+      * **`Borrar`**: elimina de una sola acción todas las inconsistencias marcadas en el proyecto (`clearPlotHoles`).
 
 ### 7.2. Deudas Técnicas Conocidas
 1. **Actualización Dinámica de Tarifas de Tokens:**

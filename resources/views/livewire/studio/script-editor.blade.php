@@ -102,7 +102,7 @@
                         </button>
                     </div>
 
-                    <!-- Dropdown Panel -->
+                    <!-- Dropdown Panel (Compacto: Ver, Ocultar, Borrar) -->
                     <div x-show="holeMenuOpen"
                          x-transition:enter="transition ease-out duration-150"
                          x-transition:enter-start="opacity-0 scale-95"
@@ -110,56 +110,40 @@
                          x-transition:leave="transition ease-in duration-100"
                          x-transition:leave-start="opacity-100 scale-100"
                          x-transition:leave-end="opacity-0 scale-95"
-                         class="absolute left-0 top-full mt-1.5 w-64 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl p-1.5 z-50 space-y-1 font-mono text-xs"
+                         class="absolute left-0 top-full mt-1 w-32 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl p-1 z-50 space-y-0.5 font-mono text-xs"
                          style="display: none;">
                         
-                        <!-- Opción 1: Re-analizar -->
-                        <button wire:click="analyzePlotHoles"
+                        <!-- 1. Ver -->
+                        <button wire:click="showPlotHoleAlerts"
                                 @click="holeMenuOpen = false"
                                 type="button"
-                                class="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">
-                            <span>⚡</span>
-                            <div>
-                                <span class="block font-bold text-xs">Ejecutar Análisis IA</span>
-                                <span class="block text-[10px] text-slate-400">Audita cada consolidado</span>
-                            </div>
+                                class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left {{ $showPlotHoleAlerts ? 'bg-amber-500/10 text-amber-900 dark:text-amber-300 font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }} transition cursor-pointer">
+                            <span>Ver</span>
+                            @if($showPlotHoleAlerts)
+                                <span class="text-amber-600 dark:text-amber-400 font-bold text-[11px]">✓</span>
+                            @endif
                         </button>
 
-                        <div class="border-t border-slate-100 dark:border-slate-800 my-1"></div>
-
-                        <!-- Opción 2: Toggle Desactivar / Activar mensajes de agujeros -->
-                        <button wire:click="togglePlotHoleAlerts"
+                        <!-- 2. Ocultar -->
+                        <button wire:click="hidePlotHoleAlerts"
                                 @click="holeMenuOpen = false"
                                 type="button"
-                                class="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer {{ ! $showPlotHoleAlerts ? 'bg-amber-500/10 text-amber-800 dark:text-amber-300' : 'text-slate-700 dark:text-slate-200' }}">
-                            <div class="flex items-center gap-2">
-                                <span>{{ $showPlotHoleAlerts ? '🔕' : '🔔' }}</span>
-                                <div>
-                                    <span class="block font-bold text-xs">
-                                        {{ $showPlotHoleAlerts ? 'Desactivar mensajes' : 'Activar mensajes' }}
-                                    </span>
-                                    <span class="block text-[10px] text-slate-400">
-                                        {{ $showPlotHoleAlerts ? 'Oculta avisos en las escenas' : 'Muestra avisos en las escenas' }}
-                                    </span>
-                                </div>
-                            </div>
-                            <span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase {{ $showPlotHoleAlerts ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400' }}">
-                                {{ $showPlotHoleAlerts ? 'Activos' : 'Ocultos' }}
-                            </span>
+                                class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left {{ ! $showPlotHoleAlerts ? 'bg-amber-500/10 text-amber-900 dark:text-amber-300 font-bold' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }} transition cursor-pointer">
+                            <span>Ocultar</span>
+                            @if(! $showPlotHoleAlerts)
+                                <span class="text-amber-600 dark:text-amber-400 font-bold text-[11px]">✓</span>
+                            @endif
                         </button>
 
-                        @if($totalPlotHoles > 0)
-                            <div class="border-t border-slate-100 dark:border-slate-800 my-1"></div>
+                        <div class="border-t border-slate-100 dark:border-slate-800 my-0.5"></div>
 
-                            <!-- Opción 3: Limpiar marcas de agujeros -->
-                            <button wire:click="clearPlotHoles"
-                                    @click="holeMenuOpen = false"
-                                    type="button"
-                                    class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition cursor-pointer text-[11px]">
-                                <span>🗑️</span>
-                                <span>Borrar todas las marcas</span>
-                            </button>
-                        @endif
+                        <!-- 3. Borrar -->
+                        <button wire:click="clearPlotHoles"
+                                @click="holeMenuOpen = false"
+                                type="button"
+                                class="w-full flex items-center px-2.5 py-1.5 rounded-lg text-left text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition cursor-pointer">
+                            <span>Borrar</span>
+                        </button>
                     </div>
                 </div>
             </div>

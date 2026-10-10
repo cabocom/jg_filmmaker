@@ -237,6 +237,22 @@ class AgentClientService
             $block = $blocksIndex[$bId];
             $blockText = (string) ($block['text'] ?? ($block['screenplay_content'] ?? ($block['structured_text'] ?? ($block['raw_text'] ?? ''))));
 
+            // Filtro Anti-Falsos Positivos de Capitalización y Tipografía de Nombres:
+            // Discrepancias como 'Estrella Casilda' vs 'ESTRELLA CASILDA' o que mencionen mayúsculas/minúsculas jamás son agujeros de guión dramáticos
+            if (preg_match('/(?:may[uú]scula|min[uú]scula|capitaliz|escrito\s+como|inconsistencia\s+de\s+nombre|inconsistencia\s+en\s+el\s+nombre|diferente\s+a\s*["\'][^"\']+["\']|nombre\s+de\s+la\s+muñeca|nombre\s+del\s+personaje|mismo\s+personaje\s+con\s+distinto\s+nombre)/iu', $reason)) {
+                continue;
+            }
+            if (preg_match_all('/["«\']([^"»\']+)["»\']/u', $reason, $quotedMatches)) {
+                $quoted = $quotedMatches[1];
+                if (count($quoted) >= 2) {
+                    $firstQuote = mb_strtolower(trim($quoted[0]));
+                    $secondQuote = mb_strtolower(trim($quoted[1]));
+                    if ($firstQuote === $secondQuote) {
+                        continue;
+                    }
+                }
+            }
+
             // Filtro Anti-Falsos Positivos: Si el motivo cita a un personaje que NO aparece en el texto del bloque, se descarta
             $isFalsePositive = false;
             foreach ($characters as $char) {
@@ -367,12 +383,13 @@ class AgentClientService
                 // Asegurar primera letra en mayúscula
                 $cleaned = mb_strtoupper(mb_substr($cleaned, 0, 1)).mb_substr($cleaned, 1);
 
-                // Normalizar nombres de personajes del contexto
+                // Normalizar nombres de personajes del contexto con capitalización canónica de cada palabra
                 foreach ($characters as $char) {
                     if (is_array($char) && ! empty($char['name'])) {
                         $cname = trim($char['name']);
+                        $canonicalTitle = mb_convert_case($cname, MB_CASE_TITLE, 'UTF-8');
                         $pattern = '/\b'.preg_quote($cname, '/').'\b/iu';
-                        $cleaned = preg_replace($pattern, ucfirst(strtolower($cname)), $cleaned);
+                        $cleaned = preg_replace($pattern, $canonicalTitle, $cleaned);
                     }
                 }
 
@@ -604,9 +621,10 @@ class AgentClientService
                     $actionLine = $cleanPara;
                     foreach ($characters as $char) {
                         if (is_array($char) && ! empty($char['name'])) {
-                            $cname = $char['name'];
+                            $cname = trim($char['name']);
+                            $canonicalTitle = mb_convert_case($cname, MB_CASE_TITLE, 'UTF-8');
                             $pattern = '/\b'.preg_quote($cname, '/').'\b/iu';
-                            $actionLine = preg_replace($pattern, ucfirst(strtolower($cname)), $actionLine);
+                            $actionLine = preg_replace($pattern, $canonicalTitle, $actionLine);
                         }
                     }
 
@@ -1118,7 +1136,8 @@ class AgentClientService
                 ."4. CONTEXTO DE LOCALIZACIÓN:\n{$locDesc}\n"
                 ."Integra la atmósfera de este entorno dentro de la narración, pero NUNCA antepongas un encabezado o prefijo como 'En LOCALIZACIÓN: ' ni sluglines de guion.\n"
                 ."5. CANDADOS Y TÉRMINOS FIJADOS (REGLA INMUTABLE):\n{$locksDesc}\n"
-                ."6. PROHIBICIONES Y FORMATO DE SALIDA:\n"
+                ."6. CAPITALIZACIÓN OBLIGATORIA DE PERSONAJES: Escribe SIEMPRE los nombres propios de los personajes con la inicial de cada palabra en mayúscula (ej: 'Estrella Casilda', 'Juan Pedro') en todas las menciones narrativas.\n"
+                ."7. PROHIBICIONES Y FORMATO DE SALIDA:\n"
                 ."- NO incluyas encabezados de escena (sluglines como 'INT. BAR - DIA'), ni títulos, ni prefijos como 'En BAR CENTRAL:', ni metadatos.\n"
                 .'- Devuelve ÚNICAMENTE la prosa narrativa dramática en párrafos limpios, sin preámbulos ni conclusiones.';
         }
@@ -1147,12 +1166,13 @@ class AgentClientService
                 ."   (susurrando al oído)\n"
                 ."   Tienes que volverte conmigo.\n"
                 ."3. INFERENCIA DE PERSONAJES: Detecta a todos los interlocutores (como JUAN) e infiere sus parlamentos en mayúsculas centradas aunque no estuviesen en la biblia previa.\n"
-                ."4. FORMATO FOUNTAIN:\n"
+                ."4. CAPITALIZACIÓN OBLIGATORIA: En las acciones descriptivas, escribe SIEMPRE los nombres propios de personajes capitalizados (ej: 'Estrella Casilda'). En los encabezados de diálogo, escríbelos SIEMPRE en mayúsculas completas (ej: 'ESTRELLA CASILDA').\n"
+                ."5. FORMATO FOUNTAIN:\n"
                 ."   NOMBRE PERSONAJE\n"
                 ."   (acotación opcional en minúsculas)\n"
                 ."   Línea de diálogo.\n"
-                ."5. Párrafos de acción concisos (2-3 líneas máximo).\n"
-                .'6. Devuelve ÚNICAMENTE el guion literario, sin preámbulos ni metadatos.';
+                ."6. Párrafos de acción concisos (2-3 líneas máximo).\n"
+                .'7. Devuelve ÚNICAMENTE el guion literario, sin preámbulos ni metadatos.';
         }
 
         if ($toolName === 'shot_breakdown_detector') {
@@ -1172,8 +1192,8 @@ class AgentClientService
                 ."- Escanea la cronología e identifica posibles incongruencias causales o espaciales entre bloques.\n"
                 ."ITERACIÓN 2 (VERIFICACIÓN ESTRICTA DE EVIDENCIA TEXTUAL Y COTEJO LITERAL):\n"
                 ."- Para CADA posible anomalía, lee palabra por palabra el texto real de ese bloque.\n"
-                ."- REGLA DE ORO ANTI-FALSOS POSITIVOS: Si tu análisis dice que un personaje (ej. 'Pedro') aparece o actúa en un lugar, COMPRUEBA si el nombre de ese personaje está explícitamente en el texto del bloque.\n"
-                ."- SI EL PERSONAJE O LA ACCIÓN NO ESTÁ EN EL TEXTO DEL BLOQUE, DESCÁRTALO DE INMEDIATO como falso positivo. Queda prohibido inventar o asumir presencias que no figuren en la escena.\n"
+                ."- REGLA DE ORO ANTI-FALSOS POSITIVOS DE PERSONAJES: Si tu análisis dice que un personaje (ej. 'Pedro') aparece o actúa en un lugar, COMPRUEBA si el nombre de ese personaje está explícitamente en el texto del bloque. Si no aparece, DESCÁRTALO DE INMEDIATO.\n"
+                ."- REGLA DE ORO ANTI-FALSOS POSITIVOS DE TIPOGRAFÍA: Las discrepancias de mayúsculas, minúsculas, formato o capitalización de nombres (como 'Estrella Casilda' vs 'ESTRELLA CASILDA') NUNCA son agujeros de guión ni inconsistencias dramáticas. Queda TERMINANTEMENTE PROHIBIDO reportarlas como agujeros de guión.\n"
                 ."ITERACIÓN 3 (CONSENSO FINAL Y VEREDICTO CRÍTICO):\n"
                 ."- Conserva EXCLUSIVAMENTE los agujeros de guión que hayan superado las iteraciones anteriores con evidencia literal e irrefutable.\n\n"
                 ."FORMATO DE SALIDA (JSON ESTRICTO):\n"
