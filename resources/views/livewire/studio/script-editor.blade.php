@@ -44,25 +44,35 @@
             pointer-events: auto !important;
             z-index: 6 !important;
         }
-
+        @media (hover: none) and (pointer: coarse) {
+            .gutenberg-divider-line {
+                opacity: 0.25 !important;
+            }
+            .gutenberg-divider-btn {
+                opacity: 0.75 !important;
+                pointer-events: auto !important;
+                transform: scale(0.9) !important;
+                z-index: 6 !important;
+            }
+        }
     </style>
 
     <!-- ================= BARRA SUPERIOR STICKY: TÍTULO DEL PROYECTO Y NAVEGACIÓN STORY ARCHITECT ================= -->
-    <div class="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 shadow-xs backdrop-blur-md px-4 sm:px-6 lg:px-8 py-2.5 transition-colors">
-        <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
-            <!-- Herramientas del Proyecto: Título, Escenas, Biblia y Agujeros de Guión (Izquierda) -->
-            <div class="flex items-center flex-wrap gap-2.5 min-w-0">
-                <span class="text-sm font-bold font-mono uppercase tracking-wider text-slate-900 dark:text-white truncate">
+    <div class="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 shadow-xs backdrop-blur-md px-3 sm:px-6 lg:px-8 py-2 sm:py-2.5 transition-colors">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-2.5 sm:gap-4">
+            <!-- Herramientas del Proyecto: Título, Escenas, Biblia, Agujeros, Historial y Tokens (Izquierda / Fila 1 en móvil) -->
+            <div class="flex items-center flex-wrap gap-1.5 sm:gap-2.5 min-w-0">
+                <span class="text-xs sm:text-sm font-bold font-mono uppercase tracking-wider text-slate-900 dark:text-white truncate max-w-[130px] sm:max-w-xs md:max-w-md">
                     {{ $project->title }}
                 </span>
-                <span class="px-2 py-0.5 rounded-md text-xs font-bold font-mono bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
+                <span class="px-2 py-0.5 rounded-md text-[11px] sm:text-xs font-bold font-mono bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
                     {{ $scenes->count() }} {{ $scenes->count() === 1 ? 'escena' : 'escenas' }}
                 </span>
 
                 <!-- Botón de la Biblia de Proyecto -->
                 <button type="button"
                         onclick="Livewire.dispatch('toggle-bible-drawer')"
-                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 hover:border-amber-500/40 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 transition shadow-2xs cursor-pointer shrink-0"
+                        class="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 hover:border-amber-500/40 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 transition shadow-2xs cursor-pointer shrink-0"
                         title="Biblia de Proyecto (Personajes y Localizaciones)">
                     <span>📖</span>
                     <span class="hidden sm:inline">Biblia</span>
@@ -78,7 +88,7 @@
                         <button wire:click="promptAnalyzePlotHoles"
                                 wire:loading.attr="disabled"
                                 type="button"
-                                class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono font-medium {{ $totalPlotHoles > 0 ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 hover:bg-rose-100' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200' }} transition cursor-pointer shrink-0 disabled:opacity-50"
+                                class="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 text-xs font-mono font-medium {{ $totalPlotHoles > 0 ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 hover:bg-rose-100' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200' }} transition cursor-pointer shrink-0 disabled:opacity-50"
                                 title="Pasar filtro de agujeros de guión con IA (informa del coste en tokens antes de ejecutar)">
                             <span wire:loading.remove wire:target="promptAnalyzePlotHoles, analyzePlotHoles">🕳️</span>
                             <span wire:loading wire:target="promptAnalyzePlotHoles, analyzePlotHoles" class="animate-spin text-xs">⏳</span>
@@ -146,7 +156,7 @@
                 <!-- Botón de Historial y Trazabilidad del Proyecto -->
                 <button type="button"
                         wire:click="openActivityHistoryModal"
-                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 hover:border-sky-500/40 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 transition shadow-2xs cursor-pointer shrink-0"
+                        class="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 hover:border-sky-500/40 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 transition shadow-2xs cursor-pointer shrink-0"
                         title="Historial de acciones y trazabilidad en orden cronológico inverso">
                     <span>📜</span>
                     <span class="hidden sm:inline">Historial</span>
@@ -160,39 +170,39 @@
                     $usedToday = $currentUser ? $currentUser->getTokensUsedToday() : 0;
                     $percentLeft = $dailyLimit > 0 ? max(0, min(100, round(($availableTokens / $dailyLimit) * 100))) : 0;
                 @endphp
-                <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 shadow-2xs shrink-0 cursor-default"
+                <div class="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 shadow-2xs shrink-0 cursor-default"
                      title="Tokens de IA disponibles hoy: {{ number_format($availableTokens, 0, ',', '.') }} de {{ number_format($dailyLimit, 0, ',', '.') }} ({{ $percentLeft }}%). Consumidos hoy: {{ number_format($usedToday, 0, ',', '.') }}. Se renueva diariamente a las 00:00.">
                     <span class="{{ $percentLeft < 15 ? 'text-rose-500 animate-pulse' : ($percentLeft < 40 ? 'text-amber-500' : 'text-emerald-500') }}">⚡</span>
                     <span class="font-bold text-slate-900 dark:text-white">{{ number_format($availableTokens, 0, ',', '.') }}</span>
-                    <span class="hidden md:inline text-[11px] text-slate-400">/ {{ number_format($dailyLimit, 0, ',', '.') }} tokens</span>
+                    <span class="hidden md:inline text-[11px] text-slate-400">/ {{ number_format($dailyLimit, 0, ',', '.') }}</span>
                 </div>
             </div>
 
-            <!-- Menú Superior Alineado a la Derecha: Pipeline - Idea - Tratamiento - Guion - Planos/Tomas -->
-            <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200 dark:border-slate-700/80 shrink-0 overflow-x-auto">
+            <!-- Menú Superior: Pipeline - Idea - Tratamiento - Guion - Planos/Tomas (Fila 2 en móvil con scroll horizontal) -->
+            <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200 dark:border-slate-700/80 shrink-0 overflow-x-auto w-full md:w-auto">
                 <button wire:click="setActiveView('pipeline')"
                         type="button"
-                        class="px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'pipeline' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                        class="px-2.5 sm:px-3 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'pipeline' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
                     Pipeline
                 </button>
                 <button wire:click="setActiveView('idea')"
                         type="button"
-                        class="px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'idea' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                        class="px-2.5 sm:px-3 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'idea' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
                     Idea
                 </button>
                 <button wire:click="setActiveView('structured')"
                         type="button"
-                        class="px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'structured' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                        class="px-2.5 sm:px-3 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'structured' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
                     Tratamiento
                 </button>
                 <button wire:click="setActiveView('screenplay')"
                         type="button"
-                        class="px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'screenplay' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                        class="px-2.5 sm:px-3 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'screenplay' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
                     Guion
                 </button>
                 <button wire:click="setActiveView('shots')"
                         type="button"
-                        class="px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'shots' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                        class="px-2.5 sm:px-3 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'shots' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
                     Planos/Tomas
                 </button>
             </div>
@@ -288,7 +298,7 @@
                      class="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-xs transition-all overflow-hidden mb-0">
 
                     <!-- Cabecera de la Escena (Slugline a la Izquierda, Pipeline individual a la Derecha) -->
-                    <div class="px-3.5 py-2 bg-slate-100/75 dark:bg-slate-800/60 border-b border-slate-200/80 dark:border-slate-700/60 flex items-center justify-between gap-3">
+                    <div class="px-2.5 sm:px-3.5 py-2 bg-slate-100/75 dark:bg-slate-800/60 border-b border-slate-200/80 dark:border-slate-700/60 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 sm:gap-3">
                         <div class="flex items-center gap-2 min-w-0">
                             <!-- Tirador Drag & Drop de Escena con draggable=true directo -->
                             <div draggable="true"
@@ -369,7 +379,7 @@
                         </div>
 
                         <!-- Cabecera del Pipeline Integrada dentro de la Escena (Exclusiva para esta escena) -->
-                        <div class="flex items-center gap-2 shrink-0">
+                        <div class="flex items-center gap-1.5 sm:gap-2 shrink-0 overflow-x-auto max-w-full pb-0.5 sm:pb-0">
                             <span class="text-[11px] text-slate-400 dark:text-slate-500 font-mono hidden md:inline">
                                 {{ $scene->scriptBlocks->count() }} {{ $scene->scriptBlocks->count() === 1 ? 'bloque' : 'bloques' }}
                             </span>
@@ -578,7 +588,7 @@
                                             </div>
 
                                             <!-- Botón de Detalles flotando a la derecha -->
-                                            <div :class="isBlockHovered ? 'opacity-100' : 'opacity-25'"
+                                            <div :class="isBlockHovered ? 'opacity-100' : 'opacity-100 sm:opacity-25'"
                                                  class="shrink-0 pt-0.5 transition-opacity group-hover:opacity-100 flex items-center gap-1.5">
                                                 @if($showPlotHoleAlerts && $block->hasPlotHole())
                                                     <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/30"
@@ -680,7 +690,7 @@
         <!-- ================= VISTA CONSOLIDADA CONTINUA ESTILO STORY ARCHITECT ================= -->
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
             <!-- Tarjeta de Hoja de Lectura Continua Story Architect -->
-            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 sm:p-12 space-y-8 min-h-[70vh]">
+            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-3.5 sm:p-8 md:p-12 space-y-6 sm:space-y-8 min-h-[70vh]">
                 <!-- Encabezado del Documento Consolidado -->
                 <div class="pb-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between flex-wrap gap-4">
                     <div>
@@ -899,55 +909,54 @@
                 <div class="fixed inset-0 bg-slate-950/25 backdrop-blur-[2px] transition-opacity cursor-pointer"
                      wire:click="closeBlockDetails"></div>
 
-                <!-- Panel lateral deslizante alineado a la derecha con ancho exacto del 60% -->
-                <div class="fixed inset-y-0 right-0 z-50 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col h-full"
-                     style="width: 60vw; min-width: 320px; max-width: 60vw;">
+                <!-- Panel lateral deslizante alineado a la derecha (adaptativo 100% en móvil, 60% en escritorio) -->
+                <div class="fixed inset-y-0 right-0 z-50 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col h-full w-full sm:w-[540px] md:w-[620px] lg:w-[60vw] max-w-full">
 
                     <!-- Header del Drawer -->
-                    <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/80 flex items-center justify-between gap-4 shrink-0">
-                        <div class="flex items-center gap-3">
-                            <span class="text-xl">📑</span>
-                            <div>
-                                <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <div class="px-3.5 sm:px-6 py-3 sm:py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/80 flex items-center justify-between gap-2 sm:gap-4 shrink-0">
+                        <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+                            <span class="text-lg sm:text-xl shrink-0">📑</span>
+                            <div class="min-w-0">
+                                <h3 class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5 sm:gap-2">
                                     <span>BLOQUE #{{ $detailBlock->block_order }}</span>
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 uppercase font-bold">
+                                    <span class="px-1.5 sm:px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-mono bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 uppercase font-bold">
                                         Etapa: {{ $detailActiveTab }}
                                     </span>
                                 </h3>
-                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                <p class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
                                     Escena #{{ $detailBlock->scene?->scene_order }} · {{ $detailBlock->scene?->slugline }}
                                 </p>
                             </div>
                         </div>
 
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
                             <button wire:click="openDeleteBlockModal('{{ $detailBlock->id }}')"
                                     type="button"
                                     title="Eliminar este bloque permanentemente..."
-                                    class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/50 border border-rose-200 dark:border-rose-800 transition flex items-center gap-1.5 cursor-pointer">
+                                    class="px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/50 border border-rose-200 dark:border-rose-800 transition flex items-center gap-1 cursor-pointer">
                                 <span>🗑️</span>
-                                <span>Eliminar</span>
+                                <span class="hidden sm:inline">Eliminar</span>
                             </button>
                             <button wire:click="closeBlockDetails"
                                     type="button"
                                     title="Cerrar panel lateral (Esc)"
-                                    class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 transition flex items-center gap-1.5 cursor-pointer">
+                                    class="px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 transition flex items-center gap-1 cursor-pointer">
                                 <span>✕</span>
-                                <span>Cerrar</span>
+                                <span class="hidden sm:inline">Cerrar</span>
                             </button>
                         </div>
                     </div>
 
                     <!-- Pestañas internas para navegar por todas las etapas del bloque -->
-                    <div class="px-6 pt-2 border-b border-slate-200 dark:border-slate-800 bg-slate-100/50 dark:bg-slate-950 flex items-center gap-2 overflow-x-auto shrink-0">
+                    <div class="px-3 sm:px-6 pt-1 sm:pt-2 border-b border-slate-200 dark:border-slate-800 bg-slate-100/50 dark:bg-slate-950 flex items-center gap-1 sm:gap-2 overflow-x-auto shrink-0">
                         <button wire:click="setDetailTab('raw')"
                                 type="button"
-                                class="px-3.5 py-2 border-b-2 text-xs font-semibold transition cursor-pointer {{ $detailActiveTab === 'raw' ? 'border-amber-500 text-amber-600 dark:text-amber-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                                class="px-2.5 sm:px-3.5 py-2 border-b-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer {{ $detailActiveTab === 'raw' ? 'border-amber-500 text-amber-600 dark:text-amber-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
                             1. Idea / Bruto
                         </button>
                         <button wire:click="setDetailTab('structured')"
                                 type="button"
-                                class="px-3.5 py-2 border-b-2 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 {{ $detailActiveTab === 'structured' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                                class="px-2.5 sm:px-3.5 py-2 border-b-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer flex items-center gap-1 {{ $detailActiveTab === 'structured' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
                             <span>2. Tratamiento</span>
                             @if($detailBlock->isStageLocked('structured'))
                                 <span class="text-xs" title="Tratamiento protegido contra sobreescritura (🔒)">🔒</span>
@@ -955,21 +964,21 @@
                         </button>
                         <button wire:click="setDetailTab('screenplay')"
                                 type="button"
-                                class="px-3.5 py-2 border-b-2 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 {{ $detailActiveTab === 'screenplay' ? 'border-amber-500 text-amber-600 dark:text-amber-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
-                            <span>3. Guión Literario</span>
+                                class="px-2.5 sm:px-3.5 py-2 border-b-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer flex items-center gap-1 {{ $detailActiveTab === 'screenplay' ? 'border-amber-500 text-amber-600 dark:text-amber-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                            <span>3. Guión</span>
                             @if($detailBlock->isStageLocked('screenplay'))
                                 <span class="text-xs" title="Guión literario protegido contra sobreescritura (🔒)">🔒</span>
                             @endif
                         </button>
                         <button wire:click="setDetailTab('shots')"
                                 type="button"
-                                class="px-3.5 py-2 border-b-2 text-xs font-semibold transition cursor-pointer {{ $detailActiveTab === 'shots' ? 'border-cyan-500 text-cyan-600 dark:text-cyan-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                                class="px-2.5 sm:px-3.5 py-2 border-b-2 text-xs font-semibold whitespace-nowrap transition cursor-pointer {{ $detailActiveTab === 'shots' ? 'border-cyan-500 text-cyan-600 dark:text-cyan-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
                             4. Planos ({{ $detailBlock->shots->count() }})
                         </button>
                     </div>
 
                     <!-- Cuerpo scrolleable del Drawer -->
-                    <div class="flex-1 overflow-y-auto p-6 space-y-6">
+                    <div class="flex-1 overflow-y-auto p-3.5 sm:p-6 space-y-4 sm:space-y-6">
                         <!-- Alerta de Agujero de Guión si está marcado -->
                         @if($detailBlock->hasPlotHole())
                             <div class="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/80 text-rose-800 dark:text-rose-200 text-xs flex items-start justify-between gap-3 shadow-xs">
@@ -1096,7 +1105,7 @@
                             <!-- Modo Visualización en el Drawer con Acciones de IA y Trazabilidad -->
                             <div class="space-y-5">
                                 <!-- Barra de Acciones del Drawer según la etapa -->
-                                <div class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                                <div class="flex flex-wrap items-center justify-between gap-2.5 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
                                     <div class="flex items-center gap-2">
                                         <button wire:click="startEditingInDrawer"
                                                 type="button"
@@ -1375,11 +1384,11 @@
 
     <!-- ================= MODAL DE CREAR NUEVO BLOQUE (ESTILO GUTENBERG, SOLO TEXTO BRUTO) ================= -->
     @if($showNewBlockModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-xs transition"
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/50 backdrop-blur-xs transition"
              x-data
              @keydown.escape.window="$wire.closeNewBlockModal()"
              wire:click.self="closeNewBlockModal">
-            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 w-full max-w-lg space-y-4 transition">
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-4 sm:p-6 w-full max-w-lg max-h-[92vh] flex flex-col overflow-y-auto space-y-4 transition">
                 <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                     <div>
                         <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -1428,11 +1437,11 @@
 
     <!-- ================= MODAL NUEVA ESCENA ================= -->
     @if($showNewSceneModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs"
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-xs"
              x-data
              @keydown.escape.window="$wire.set('showNewSceneModal', false)"
              wire:click.self="$set('showNewSceneModal', false)">
-            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 w-full max-w-md space-y-4">
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-4 sm:p-6 w-full max-w-md max-h-[92vh] flex flex-col overflow-y-auto space-y-4">
                 <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                     <h3 class="text-sm font-bold text-slate-900 dark:text-white">Nueva Escena Cinematográfica</h3>
                     <button wire:click="$set('showNewSceneModal', false)" class="text-slate-400 hover:text-slate-600 dark:hover:text-white text-xs font-bold">✕</button>
@@ -1477,11 +1486,11 @@
 
     <!-- ================= MODAL EDITAR ESCENA ================= -->
     @if($showEditSceneModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs"
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-xs"
              x-data
              @keydown.escape.window="$wire.closeEditSceneModal()"
              wire:click.self="closeEditSceneModal">
-            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 w-full max-w-md space-y-4"
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-4 sm:p-6 w-full max-w-md max-h-[92vh] flex flex-col overflow-y-auto space-y-4"
                  @click.stop>
                 <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                     <div class="flex items-center gap-2">
@@ -1543,11 +1552,11 @@
 
     <!-- ================= MODAL ELIMINAR BLOQUE ================= -->
     @if($showDeleteBlockModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs"
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-xs"
              x-data
              @keydown.escape.window="$wire.closeDeleteBlockModal()"
              wire:click.self="closeDeleteBlockModal">
-            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 w-full max-w-md space-y-4"
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-4 sm:p-6 w-full max-w-md max-h-[92vh] flex flex-col overflow-y-auto space-y-4"
                  @click.stop>
                 <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                     <div class="flex items-center gap-2 text-rose-600 dark:text-rose-400">
@@ -1588,11 +1597,11 @@
 
     <!-- ================= MODAL ELIMINAR ESCENA ================= -->
     @if($showDeleteSceneModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs"
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-xs"
              x-data
              @keydown.escape.window="$wire.closeDeleteSceneModal()"
              wire:click.self="closeDeleteSceneModal">
-            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 w-full max-w-md space-y-4"
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-4 sm:p-6 w-full max-w-md max-h-[92vh] flex flex-col overflow-y-auto space-y-4"
                  @click.stop>
                 <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                     <div class="flex items-center gap-2 text-rose-600 dark:text-rose-400">
@@ -1734,8 +1743,8 @@
                 </div>
 
                 <!-- Meta info banner (Fijo) -->
-                <div class="px-6 py-2 bg-slate-100/70 dark:bg-slate-950/70 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 shrink-0" style="flex-shrink: 0;">
-                    <div class="flex items-center gap-4">
+                <div class="px-3.5 sm:px-6 py-2 bg-slate-100/70 dark:bg-slate-950/70 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] sm:text-xs text-slate-600 dark:text-slate-400 shrink-0" style="flex-shrink: 0;">
+                    <div class="flex items-center gap-3 sm:gap-4 flex-wrap">
                         <span>⏱️ Latencia: <strong class="text-slate-900 dark:text-slate-100 font-mono">{{ $aiTraceData['duration_ms'] ?? 0 }} ms</strong></span>
                         <span>📅 Invocado: <strong class="text-slate-900 dark:text-slate-100 font-mono">{{ $aiTraceData['executed_at'] ?? $aiTraceData['timestamp'] ?? now()->toIso8601String() }}</strong></span>
                     </div>
@@ -1848,8 +1857,8 @@
                  wire:click="closeJustifyModal"></div>
 
             <!-- Modal Dialog -->
-            <div class="flex min-h-full items-center justify-center p-4">
-                <div class="relative w-full max-w-xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-5"
+            <div class="flex min-h-full items-center justify-center p-3 sm:p-4">
+                <div class="relative w-full max-w-xl max-h-[92vh] flex flex-col overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-4 sm:p-6 space-y-4 sm:space-y-5"
                      @click.stop>
                     <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
                         <div class="flex items-center gap-2.5">
@@ -1919,8 +1928,8 @@
                  wire:click="cancelAnalyzePlotHoles"></div>
 
             <!-- Modal Dialog -->
-            <div class="flex min-h-full items-center justify-center p-4">
-                <div class="relative w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-5"
+            <div class="flex min-h-full items-center justify-center p-3 sm:p-4">
+                <div class="relative w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-4 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto"
                      @click.stop>
                     <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
                         <div class="flex items-center gap-2.5">
@@ -2010,21 +2019,21 @@
                  wire:click="closeActivityHistoryModal"></div>
 
             <!-- Modal Dialog -->
-            <div class="flex min-h-full items-center justify-center p-4">
-                <div class="relative w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4"
+            <div class="flex min-h-full items-center justify-center p-2.5 sm:p-4">
+                <div class="relative w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-3.5 sm:p-6 space-y-3 sm:space-y-4 max-h-[90vh] flex flex-col"
                      @click.stop>
-                    <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
-                        <div class="flex items-center gap-2.5">
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800 shrink-0">
+                        <div class="flex items-center gap-2 sm:gap-2.5">
                             <span class="text-xl">📜</span>
                             <div>
-                                <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                <h3 class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                                     <span>Historial de Actividad del Proyecto</span>
                                     <span class="px-2 py-0.5 rounded-full text-[10px] font-mono bg-sky-100 text-sky-800 dark:bg-sky-950/70 dark:text-sky-300 border border-sky-300 dark:border-sky-800">
                                         {{ $activityLogs->count() }} eventos
                                     </span>
                                 </h3>
-                                <p class="text-xs text-slate-500 dark:text-slate-400">
-                                    Trazabilidad cronológica inversa de todas las acciones del usuario (creaciones, ediciones, borrados, IA y justificaciones).
+                                <p class="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400">
+                                    Trazabilidad cronológica inversa de todas las acciones del usuario.
                                 </p>
                             </div>
                         </div>
@@ -2034,7 +2043,7 @@
                     </div>
 
                     <!-- Lista con scroll vertical en orden cronológico inverso -->
-                    <div class="max-h-[62vh] overflow-y-auto pr-1 space-y-2.5">
+                    <div class="flex-1 overflow-y-auto pr-1 space-y-2.5 max-h-[60vh] sm:max-h-[64vh]">
                         @forelse($activityLogs as $log)
                             @php
                                 $actionIcon = match($log->action) {
@@ -2086,17 +2095,165 @@
                                 </p>
 
                                 @if(!empty($log->snapshot))
-                                    <div class="pt-1">
+                                    <div class="pt-1.5" x-data="{ showSnapshot: false, viewMode: 'visual' }">
                                         <button type="button"
                                                 @click="showSnapshot = !showSnapshot"
-                                                class="text-[10px] font-mono text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-1 cursor-pointer">
+                                                class="text-[11px] font-mono text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 flex items-center gap-1.5 cursor-pointer font-medium">
                                             <span x-text="showSnapshot ? '▼ Ocultar snapshot' : '▶ Ver snapshot guardado'"></span>
                                         </button>
+
                                         <div x-show="showSnapshot"
                                              x-collapse
                                              style="display: none;"
-                                             class="mt-1.5 p-2 rounded-lg bg-slate-900 text-emerald-400 font-mono text-[10px] overflow-x-auto max-h-40 border border-slate-800">
-                                            <pre class="leading-tight">{{ json_encode($log->snapshot, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</pre>
+                                             class="mt-2 p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-2.5">
+                                            
+                                            <!-- Barra de Selección: Vista Estructurada / Código JSON -->
+                                            <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                                                <span class="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                                    Datos del evento
+                                                </span>
+                                                <div class="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 p-0.5 bg-slate-100 dark:bg-slate-800 text-[10px] font-mono">
+                                                    <button type="button"
+                                                            @click="viewMode = 'visual'"
+                                                            :class="viewMode === 'visual' ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold shadow-2xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'"
+                                                            class="px-2 py-0.5 rounded-md cursor-pointer transition">
+                                                        Visual
+                                                    </button>
+                                                    <button type="button"
+                                                            @click="viewMode = 'json'"
+                                                            :class="viewMode === 'json' ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-bold shadow-2xs' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'"
+                                                            class="px-2 py-0.5 rounded-md cursor-pointer transition">
+                                                        JSON
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <!-- 1. VISTA VISUAL ESTRUCTURADA -->
+                                            <div x-show="viewMode === 'visual'" class="space-y-2.5 text-xs">
+                                                <!-- Caso A: Auditoría de Agujeros de Guión -->
+                                                @if(isset($log->snapshot['total_detected']))
+                                                    <div class="space-y-2">
+                                                        <div class="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-[11px] font-mono">
+                                                            <span class="text-slate-600 dark:text-slate-300">Total detectados:</span>
+                                                            <span class="font-bold {{ ($log->snapshot['total_detected'] ?? 0) > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400' }}">
+                                                                {{ $log->snapshot['total_detected'] ?? 0 }}
+                                                            </span>
+                                                        </div>
+
+                                                        @if(isset($log->snapshot['by_stage']))
+                                                            <div class="flex items-center gap-3 text-[10px] font-mono text-slate-500 dark:text-slate-400 px-1">
+                                                                <span>Idea: <strong class="text-slate-800 dark:text-slate-200">{{ $log->snapshot['by_stage']['raw'] ?? 0 }}</strong></span>
+                                                                <span>·</span>
+                                                                <span>Tratamiento: <strong class="text-slate-800 dark:text-slate-200">{{ $log->snapshot['by_stage']['structured'] ?? 0 }}</strong></span>
+                                                                <span>·</span>
+                                                                <span>Guión: <strong class="text-slate-800 dark:text-slate-200">{{ $log->snapshot['by_stage']['screenplay'] ?? 0 }}</strong></span>
+                                                            </div>
+                                                        @endif
+
+                                                        @if(!empty($log->snapshot['detected_holes']))
+                                                            <div class="space-y-1.5 pt-1">
+                                                                <span class="text-[10px] font-mono font-bold uppercase text-rose-600 dark:text-rose-400 block">Inconsistencias Reportadas:</span>
+                                                                @foreach($log->snapshot['detected_holes'] as $hole)
+                                                                    <div class="p-2.5 rounded-lg bg-rose-50/80 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-[11px] space-y-1">
+                                                                        <div class="flex items-center justify-between font-mono text-[10px] text-rose-800 dark:text-rose-300">
+                                                                            <span>Escena #{{ $hole['scene_order'] ?? '?' }} · Bloque #{{ $hole['block_order'] ?? '?' }}</span>
+                                                                            <span class="px-1.5 py-0.2 rounded bg-rose-200/80 dark:bg-rose-900 text-rose-900 dark:text-rose-200 font-bold uppercase text-[9px]">{{ $hole['stage_label'] ?? $hole['stage'] ?? '' }}</span>
+                                                                        </div>
+                                                                        <p class="text-slate-900 dark:text-slate-100 font-sans leading-relaxed">
+                                                                            {{ $hole['reason'] ?? '' }}
+                                                                        </p>
+                                                                    </div>
+                                                                @endforeach
+                                                            </div>
+                                                        @endif
+                                                    </div>
+                                                @endif
+
+                                                <!-- Caso B: Bloque de Guión (Creación, Edición, Borrado, IA) -->
+                                                @if(isset($log->snapshot['raw_text']) || isset($log->snapshot['structured_text']) || isset($log->snapshot['screenplay_content']))
+                                                    <div class="space-y-2">
+                                                        @if(isset($log->snapshot['scene_order']) || isset($log->snapshot['block_order']))
+                                                            <div class="flex items-center justify-between flex-wrap gap-1 p-1.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 font-mono text-[10px] text-slate-600 dark:text-slate-300">
+                                                                <div class="flex items-center gap-1.5">
+                                                                    <span class="font-bold text-slate-900 dark:text-white">Escena #{{ $log->snapshot['scene_order'] ?? '?' }}</span>
+                                                                    @if(!empty($log->snapshot['scene_slugline']))
+                                                                        <span class="text-slate-500 truncate max-w-xs">({{ $log->snapshot['scene_slugline'] }})</span>
+                                                                    @endif
+                                                                    <span>·</span>
+                                                                    <span class="font-bold text-slate-900 dark:text-white">Bloque #{{ $log->snapshot['block_order'] ?? '?' }}</span>
+                                                                </div>
+                                                                @if(!empty($log->snapshot['stage']))
+                                                                    <span class="px-1.5 py-0.2 rounded bg-slate-200 dark:bg-slate-800 uppercase font-bold text-[9px] text-slate-700 dark:text-slate-300">{{ $log->snapshot['stage'] }}</span>
+                                                                @endif
+                                                            </div>
+                                                        @endif
+
+                                                        @if(!empty($log->snapshot['raw_text']))
+                                                            <div class="space-y-0.5">
+                                                                <span class="text-[10px] font-mono font-bold uppercase text-amber-700 dark:text-amber-400">Idea (Bruto):</span>
+                                                                <div class="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 font-sans text-xs whitespace-pre-wrap leading-relaxed">
+                                                                    {{ $log->snapshot['raw_text'] }}
+                                                                </div>
+                                                            </div>
+                                                        @endif
+
+                                                        @if(!empty($log->snapshot['structured_text']))
+                                                            <div class="space-y-0.5">
+                                                                <span class="text-[10px] font-mono font-bold uppercase text-sky-700 dark:text-sky-400">Tratamiento Narrativo:</span>
+                                                                <div class="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 font-sans text-xs whitespace-pre-wrap leading-relaxed">
+                                                                    {{ $log->snapshot['structured_text'] }}
+                                                                </div>
+                                                            </div>
+                                                        @endif
+
+                                                        @if(!empty($log->snapshot['screenplay_content']))
+                                                            <div class="space-y-0.5">
+                                                                <span class="text-[10px] font-mono font-bold uppercase text-purple-700 dark:text-purple-400">Guion Literario:</span>
+                                                                <div class="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 font-mono text-[11px] whitespace-pre-wrap leading-relaxed">
+                                                                    {{ $log->snapshot['screenplay_content'] }}
+                                                                </div>
+                                                            </div>
+                                                        @endif
+                                                    </div>
+                                                @endif
+
+                                                <!-- Caso C: Escena (Creación, Edición, Borrado) -->
+                                                @if(isset($log->snapshot['slugline']))
+                                                    <div class="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1 font-mono text-xs">
+                                                        <div class="flex items-center gap-2">
+                                                            <span class="text-slate-500">Encabezado:</span>
+                                                            <span class="font-bold text-slate-900 dark:text-white">{{ $log->snapshot['slugline'] }}</span>
+                                                        </div>
+                                                        @if(isset($log->snapshot['time_of_day']))
+                                                            <div class="flex items-center gap-2 text-[11px]">
+                                                                <span class="text-slate-500">Momento del día:</span>
+                                                                <span class="text-slate-800 dark:text-slate-200">{{ $log->snapshot['time_of_day'] }}</span>
+                                                            </div>
+                                                        @endif
+                                                    </div>
+                                                @endif
+
+                                                <!-- Caso D: Justificación de Agujero de Guión -->
+                                                @if(isset($log->snapshot['justification']))
+                                                    <div class="p-2.5 rounded-lg bg-teal-50/80 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 space-y-1.5 text-xs">
+                                                        <div class="font-mono text-[10px] text-teal-800 dark:text-teal-300 font-bold uppercase">Explicación del Autor:</div>
+                                                        <p class="text-slate-900 dark:text-slate-100 font-sans italic leading-relaxed">"{{ $log->snapshot['justification'] }}"</p>
+                                                        @if(isset($log->snapshot['hole_reason']))
+                                                            <div class="text-[11px] text-slate-500 dark:text-slate-400 font-mono pt-1 border-t border-teal-200 dark:border-teal-800/60">
+                                                                Inconsistencia previa: {{ $log->snapshot['hole_reason'] }}
+                                                            </div>
+                                                        @endif
+                                                    </div>
+                                                @endif
+                                            </div>
+
+                                            <!-- 2. VISTA CÓDIGO TÉCNICO (JSON) CON CONTRASTE MÁXIMO GARANTIZADO -->
+                                            <div x-show="viewMode === 'json'"
+                                                 style="display: none;"
+                                                 class="rounded-xl border border-slate-300 dark:border-slate-800 p-3 overflow-x-auto max-h-56"
+                                                 style="background-color: #020617 !important;">
+                                                <pre style="color: #6ee7b7 !important; background: transparent !important; white-space: pre-wrap; word-break: break-all; margin: 0; padding: 0; font-family: monospace; font-size: 11px; line-height: 1.45;">{{ json_encode($log->snapshot, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</pre>
+                                            </div>
                                         </div>
                                     </div>
                                 @endif

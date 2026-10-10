@@ -407,6 +407,22 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
       * Ofrece al autor la decisión soberana de "Cancelar" o "Confirmar y Auditar", protegiéndolo de consumos inesperados o agotamiento prematuro de su cuota.
     - **Roadmap para "Evolución de la Historia" (`docs/TODO_HISTORIA_EVOLUCION.md`):**
       * Hoja de ruta técnica que define el aprovechamiento analítico de los snapshots de `user_activity_logs` para construir un visualizador de ramificación dramática, métricas de transformación del texto bruto a guion final y análisis retrospectivo de la obra.
+  - **Optimización Responsive Móvil y Visor Enriquecido de Snapshots (Fase 27):**
+    - **Enriquecimiento Estructural de Snapshots (`ScriptEditor.php`):**
+      * Los snapshots de eventos ahora registran datos completos y legibles en vez de identificadores huérfanos:
+        - `analyze_plot_holes`: desglose por etapas y array detallado de inconsistencias (`detected_holes`) con `scene_order`, `scene_slugline`, `block_order`, `stage`, `stage_label`, `reason` y previsualización textual del bloque.
+        - `saveBlock`, `structureBlock`, `formatBlockToScreenplay`: capturan `scene_id`, `scene_order`, `scene_slugline`, `block_order`, `stage`, textos completos de Idea, Tratamiento y Guion.
+        - `confirmDeleteBlock`: registra la escena y orden exacto del fragmento eliminado.
+        - `savePlotHoleJustification`: registra la inconsistencia detectada, la etapa y la justificación explicativa redactada por el autor.
+    - **Visor Dual de Snapshots en Historial (`[Visual | JSON]`):**
+      * Selector en la cabecera del snapshot para alternar entre:
+        1. **Modo Visual:** Tarjetas limpias de alto contraste con tipografía legible, badges de escena/etapa y contenedores específicos para inconsistencias dramáticas y textos de bloque.
+        2. **Modo JSON:** Bloque `<pre>` con colores forzados de alto contraste (`#6ee7b7` sobre fondo `#020617` con `word-break: break-all`) que garantiza lectura inmediata sin interferencia de herencia CSS o modo oscuro.
+    - **Auditoría y Optimización Responsive Móvil para Despliegue Web:**
+      * **Barra Superior Sticky Adaptativa:** Layout vertical en pantallas pequeñas (`flex-col md:flex-row`), truncado elástico del título de proyecto, scroll horizontal fluido (`overflow-x-auto`) en la navegación de etapas (`Pipeline`, `Idea`, `Tratamiento`, `Guión`, `Planos`).
+      * **Drawer Lateral Adaptativo:** Sustituido el ancho rígido `60vw` por `w-full sm:w-[540px] md:w-[620px] lg:w-[60vw]` con `px-3.5 sm:px-6`, permitiendo operar al 100% de la pantalla en teléfonos móviles sin cortes ni barras de desplazamiento horizontal no deseadas.
+      * **Accesibilidad Táctil para Dispositivos Móviles:** Regla CSS `@media (hover: none) and (pointer: coarse)` para revelar con opacidad óptima (0.75) los divisores Gutenberg intermedios y visibilidad activa del botón de detalles sin depender de pseudo-estados `:hover`.
+      * **Modales Adaptativos con Scroll Interno:** Todos los diálogos modales (`showNewBlockModal`, `showNewSceneModal`, `showEditSceneModal`, `showDeleteBlockModal`, `showDeleteSceneModal`, `showJustifyModal`, `showPlotHoleConfirmModal`, `showActivityHistoryModal`) normalizados con `p-3 sm:p-4`, `max-h-[90vh]` / `max-h-[92vh]` y scroll interior vertical garantizado.
 
 ### 7.2. Deudas Técnicas Conocidas
 1. **Actualización Dinámica de Tarifas de Tokens:**

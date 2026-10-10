@@ -656,10 +656,11 @@ class ScriptEditor extends Component
         $block = ScriptBlock::with('scene.project')->findOrFail($this->deletingBlockId);
         $scene = $block->scene;
 
-        $this->logActivity('delete_block', 'ScriptBlock', $block->id, "Bloque #{$block->block_order} de la Escena #{$scene->scene_order} eliminado permanentemente", [
+        $this->logActivity('delete_block', 'ScriptBlock', $block->id, "Bloque #{$block->block_order} de la Escena #{$scene->scene_order} ({$scene->slugline}) eliminado permanentemente", [
             'block_id' => $block->id,
             'scene_id' => $scene->id,
             'scene_order' => $scene->scene_order,
+            'scene_slugline' => $scene->slugline,
             'block_order' => $block->block_order,
             'stage' => $block->stage,
             'raw_text' => $block->raw_text,
@@ -908,8 +909,13 @@ class ScriptEditor extends Component
             'stage' => $this->editStage,
         ]);
 
-        $this->logActivity('update_block', 'ScriptBlock', $block->id, "Bloque #{$block->block_order} editado manualmente (Etapa: {$this->editStage})", [
+        $scene = $block->scene;
+        $this->logActivity('update_block', 'ScriptBlock', $block->id, "Bloque #{$block->block_order} de Escena #{$scene?->scene_order} editado manualmente (Etapa: {$this->editStage})", [
             'block_id' => $block->id,
+            'scene_id' => $scene?->id,
+            'scene_order' => $scene?->scene_order,
+            'scene_slugline' => $scene?->slugline,
+            'block_order' => $block->block_order,
             'stage' => $this->editStage,
             'raw_text' => $this->editRawText,
             'structured_text' => $this->editStructuredText ?: null,
@@ -944,9 +950,17 @@ class ScriptEditor extends Component
             $this->editStage = 'structured';
         }
 
-        $this->logActivity('structure_block_ai', 'ScriptBlock', $block->id, "Bloque #{$block->block_order} estructurado a tratamiento cinematográfico con IA", [
+        $freshBlock = $block->fresh();
+        $scene = $freshBlock->scene;
+        $this->logActivity('structure_block_ai', 'ScriptBlock', $block->id, "Bloque #{$block->block_order} de Escena #{$scene?->scene_order} estructurado a tratamiento cinematográfico con IA", [
             'block_id' => $block->id,
-            'structured_text' => $block->fresh()->structured_text,
+            'scene_id' => $scene?->id,
+            'scene_order' => $scene?->scene_order,
+            'scene_slugline' => $scene?->slugline,
+            'block_order' => $block->block_order,
+            'stage' => 'structured',
+            'raw_text' => $freshBlock->raw_text,
+            'structured_text' => $freshBlock->structured_text,
         ]);
 
         session()->flash('success', "Bloque {$block->block_order} estructurado a tratamiento cinematográfico.");
@@ -976,9 +990,17 @@ class ScriptEditor extends Component
             $this->editStage = 'screenplay';
         }
 
-        $this->logActivity('format_screenplay_ai', 'ScriptBlock', $block->id, "Bloque #{$block->block_order} formateado a guion literario con IA", [
+        $freshBlock = $block->fresh();
+        $scene = $freshBlock->scene;
+        $this->logActivity('format_screenplay_ai', 'ScriptBlock', $block->id, "Bloque #{$block->block_order} de Escena #{$scene?->scene_order} formateado a guion literario con IA", [
             'block_id' => $block->id,
-            'screenplay_content' => $block->fresh()->screenplay_content,
+            'scene_id' => $scene?->id,
+            'scene_order' => $scene?->scene_order,
+            'scene_slugline' => $scene?->slugline,
+            'block_order' => $block->block_order,
+            'stage' => 'screenplay',
+            'structured_text' => $freshBlock->structured_text,
+            'screenplay_content' => $freshBlock->screenplay_content,
         ]);
 
         session()->flash('success', "Bloque {$block->block_order} formateado a guion literario.");
@@ -1702,6 +1724,23 @@ class ScriptEditor extends Component
 
         $totalMarked = array_sum($stageCounts);
 
+        $detectedHolesDetailed = [];
+        foreach ($earliestHoleByBlockId as $bId => $hInfo) {
+            $b = $allBlocks->firstWhere('id', $bId);
+            $sc = $b?->scene;
+            $text = trim(($b?->raw_text ?? '').' '.($b?->structured_text ?? '').' '.($b?->screenplay_content ?? ''));
+            $detectedHolesDetailed[] = [
+                'block_id' => $bId,
+                'scene_order' => $sc?->scene_order,
+                'scene_slugline' => $sc?->slugline,
+                'block_order' => $b?->block_order,
+                'stage' => $hInfo['stage'],
+                'stage_label' => $hInfo['stage_label'],
+                'reason' => $hInfo['reason'],
+                'block_preview' => mb_substr($text, 0, 150),
+            ];
+        }
+
         if ($totalMarked > 0) {
             $details = [];
             if ($stageCounts['raw'] > 0) {
@@ -1717,14 +1756,18 @@ class ScriptEditor extends Component
 
             $this->logActivity('analyze_plot_holes', 'Project', $this->project->id, "Auditoría de agujeros de guión ejecutada ({$totalMarked} detectados: {$detailsStr})", [
                 'total_detected' => $totalMarked,
+                'total_blocks_audited' => $allBlocks->count(),
                 'by_stage' => $stageCounts,
+                'detected_holes' => $detectedHolesDetailed,
             ]);
 
             session()->flash('warning', "Se han detectado {$totalMarked} posibles agujeros de guión ({$detailsStr}). Marcado el origen más temprano.");
         } else {
             $this->logActivity('analyze_plot_holes', 'Project', $this->project->id, 'Auditoría de agujeros de guión ejecutada: sin inconsistencias detectadas', [
                 'total_detected' => 0,
+                'total_blocks_audited' => $allBlocks->count(),
                 'by_stage' => $stageCounts,
+                'detected_holes' => [],
             ]);
 
             session()->flash('success', 'Filtro de agujeros de guión: No se han detectado incongruencias en ninguna de las etapas.');
@@ -1782,11 +1825,18 @@ class ScriptEditor extends Component
             'user_locks' => $userLocks,
         ]);
 
-        $this->logActivity('justify_plot_hole', 'ScriptBlock', $block->id, "Agujero de guión justificado en Bloque #{$block->block_order}: \"".Str::limit(trim($this->justificationText), 80).'"', [
+        $scene = $block->scene;
+        $this->logActivity('justify_plot_hole', 'ScriptBlock', $block->id, "Agujero de guión justificado en Bloque #{$block->block_order} (Escena #{$scene?->scene_order}): \"".Str::limit(trim($this->justificationText), 80).'"', [
             'block_id' => $block->id,
+            'scene_id' => $scene?->id,
+            'scene_order' => $scene?->scene_order,
+            'scene_slugline' => $scene?->slugline,
+            'block_order' => $block->block_order,
             'hole_reason' => $reason,
             'stage' => $stage,
+            'stage_label' => $stageLabel,
             'justification' => trim($this->justificationText),
+            'raw_text' => $block->raw_text,
         ]);
 
         $blockOrder = $block->block_order;
