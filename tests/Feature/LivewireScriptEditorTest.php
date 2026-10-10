@@ -140,6 +140,109 @@ class LivewireScriptEditorTest extends TestCase
         $this->assertEquals('Chaqueta de cuero oscura', $character->fresh()->costume_notes);
     }
 
+    public function test_context_bible_drawer_blocks_character_deletion_when_in_use_and_lists_occurrences(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create(['project_id' => $project->id, 'scene_order' => 1]);
+        ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'block_order' => 2,
+            'raw_text' => 'Marcos entra apresurado en la estancia.',
+        ]);
+
+        $character = Character::factory()->create([
+            'project_id' => $project->id,
+            'name' => 'Marcos',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(ContextBibleDrawer::class, ['project' => $project])
+            ->call('open')
+            ->call('requestDeleteCharacter', $character->id)
+            ->assertSet('showDeleteModal', true)
+            ->assertSet('deletingType', 'character')
+            ->assertSet('deletingName', 'Marcos')
+            ->assertSet('deletingUsages', ['ESC. 1 · BLOQUE 2'])
+            ->assertSee('No se puede eliminar el personaje')
+            ->assertSee('ESC. 1 · BLOQUE 2')
+            ->call('confirmDelete')
+            ->assertSee('No se puede eliminar: el elemento está siendo utilizado en el guión.');
+
+        $this->assertDatabaseHas('characters', ['id' => $character->id]);
+    }
+
+    public function test_context_bible_drawer_allows_character_deletion_when_unused(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $character = Character::factory()->create([
+            'project_id' => $project->id,
+            'name' => 'Elena',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(ContextBibleDrawer::class, ['project' => $project])
+            ->call('open')
+            ->call('requestDeleteCharacter', $character->id)
+            ->assertSet('showDeleteModal', true)
+            ->assertSet('deletingUsages', [])
+            ->assertSee('¿Eliminar personaje permanentemente?')
+            ->assertSee('Eliminar definitivamente')
+            ->call('confirmDelete')
+            ->assertDispatched('bible-updated')
+            ->assertSee('eliminado correctamente de la Biblia.');
+
+        $this->assertDatabaseMissing('characters', ['id' => $character->id]);
+    }
+
+    public function test_context_bible_drawer_blocks_location_deletion_when_assigned_or_mentioned(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $location = Location::factory()->create(['project_id' => $project->id, 'name' => 'Azotea']);
+        Scene::factory()->create([
+            'project_id' => $project->id,
+            'scene_order' => 3,
+            'location_id' => $location->id,
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(ContextBibleDrawer::class, ['project' => $project])
+            ->call('open')
+            ->call('requestDeleteLocation', $location->id)
+            ->assertSet('showDeleteModal', true)
+            ->assertSet('deletingType', 'location')
+            ->assertSet('deletingName', 'Azotea')
+            ->assertSet('deletingUsages', ['ESC. 3 (Asignada a la escena)'])
+            ->assertSee('No se puede eliminar la localización')
+            ->assertSee('ESC. 3 (Asignada a la escena)')
+            ->call('confirmDelete')
+            ->assertSee('No se puede eliminar: el elemento está siendo utilizado en el guión.');
+
+        $this->assertDatabaseHas('locations', ['id' => $location->id]);
+    }
+
+    public function test_context_bible_drawer_allows_location_deletion_when_unused(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $location = Location::factory()->create(['project_id' => $project->id, 'name' => 'Sótano Olvidado']);
+
+        Livewire::actingAs($user)
+            ->test(ContextBibleDrawer::class, ['project' => $project])
+            ->call('open')
+            ->call('requestDeleteLocation', $location->id)
+            ->assertSet('showDeleteModal', true)
+            ->assertSet('deletingUsages', [])
+            ->assertSee('¿Eliminar localización permanentemente?')
+            ->call('confirmDelete')
+            ->assertDispatched('bible-updated')
+            ->assertSee('eliminada correctamente de la Biblia.');
+
+        $this->assertDatabaseMissing('locations', ['id' => $location->id]);
+    }
+
     public function test_can_insert_block_intermediately_with_raw_text_only(): void
     {
         $user = User::factory()->create();

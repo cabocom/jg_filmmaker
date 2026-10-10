@@ -107,6 +107,9 @@ La coherencia narrativa del universo de la obra se gestiona mediante la Biblia d
   - Cajón lateral accesible globalmente desde el estudio mediante el botón "Biblia de Proyecto" o el atajo de teclado canónico (`Cmd+B` en macOS o `Ctrl+B` en Linux/Windows).
   - Permite consultar, dar de alta y editar personajes y localizaciones en caliente sin interrumpir la escritura ni perder el foco del editor.
   - Inyección reactiva: Los personajes y localizaciones dados de alta en la Biblia quedan inmediatamente disponibles como contexto semántico para las herramientas de estructuración y desglose.
+  - **Auditoría Determinista y Borrado Seguro:** Incorpora opción de eliminación segura (`requestDeleteCharacter` y `requestDeleteLocation`) con inspección determinista previa de todo el proyecto:
+    - **Detección de Uso y Bloqueo Ineludible:** Si el personaje aparece en el texto de algún bloque (`screenplay_content`, `structured_text`, `raw_text`) o la localización está vinculada a una escena (`location_id`), figura en un slugline o en bloques de guión, el sistema **impide su borrado** y abre una ventana modal enumerando de forma exhaustiva cada ocurrencia (`ESC. {n} · BLOQUE {m}` o `ESC. {n} (Asignada a la escena)`).
+    - **Confirmación para Entidades sin Uso:** Si el elemento no tiene ninguna ocurrencia en el guión, se despliega una ventana de confirmación antes de ejecutar su eliminación definitiva de la base de datos.
 
 ---
 
@@ -191,12 +194,12 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
 - `TakeMediaManagementTest.php`: Verifica subida física de vídeo, validaciones y tomas válidas (5 tests).
 - `RoughCutAssemblyTest.php`: Verifica ordenación de timeline, renderizado con FFmpeg y fallbacks (4 tests).
 - `LivewirePipelineReactiveTest.php`: Verifica flujo end-to-end entre etapas y candados (4 tests).
-- `LivewireScriptEditorTest.php`: Verifica renderizado del slugline, feed de bloques, inserción Gutenberg, drawer lateral y tomas (6 tests).
+- `LivewireScriptEditorTest.php`: Verifica renderizado del slugline, feed de bloques, inserción Gutenberg, drawer lateral, tomas y auditoría determinista de borrado seguro de personajes y localizaciones (11 tests).
 - `PasswordlessAuthTest.php`: Verifica generación y envío de OTP, banner en localhost, un solo uso y detección de replay attacks en `security_breach_logs` (6 tests).
 - `AdminPanelAndTelemetryTest.php`: Verifica middleware `admin` 403, auditoría sin filtrar textos, persistencia de `agent_request_logs` con costes USD y actualización de tarifas (5 tests).
 - `ProjectTransferAdminTest.php`: Verifica permisos 403, privacidad sin filtrar textos y reasignación/transferencia atómica de obras entre usuarios tanto desde `UserDetail` como desde `ProjectManager` (4 tests).
 - `ScriptPipelineIntegrationTest.php`: Verifica transiciones entre etapas, inyección semántica de biblia de proyecto y normalización estricta de `user_locks` ante valores serializados o malformados (6 tests).
-- **Total:** 49 tests PHPUnit pasando al 100% (262 aserciones).
+- **Total:** 53 tests PHPUnit pasando al 100% (284 aserciones).
 
 ---
 
