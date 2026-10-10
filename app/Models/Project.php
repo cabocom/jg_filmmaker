@@ -57,4 +57,12 @@ class Project extends Model
     {
         return $this->hasMany(Scene::class)->orderBy('scene_order');
     }
+
+    /**
+     * Agent request telemetry logs for this project.
+     */
+    public function agentRequestLogs(): HasMany
+    {
+        return $this->hasMany(AgentRequestLog::class);
+    }
 }

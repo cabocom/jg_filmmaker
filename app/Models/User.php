@@ -26,6 +26,7 @@ class User extends Authenticatable
         'password',
         'plan_tier',
         'paid_project_slots',
+        'is_admin',
     ];
 
     /**
@@ -49,6 +50,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'paid_project_slots' => 'integer',
+            'is_admin' => 'boolean',
         ];
     }
 
@@ -58,5 +60,21 @@ class User extends Authenticatable
     public function projects(): HasMany
     {
         return $this->hasMany(Project::class);
+    }
+
+    /**
+     * One time passwords generated for this user.
+     */
+    public function oneTimePasswords(): HasMany
+    {
+        return $this->hasMany(OneTimePassword::class);
+    }
+
+    /**
+     * Security breach logs related to this user.
+     */
+    public function securityBreachLogs(): HasMany
+    {
+        return $this->hasMany(SecurityBreachLog::class);
     }
 }

@@ -115,95 +115,121 @@
                     </button>
                 @endif
 
-                <!-- Menú Desplegable de Usuario (Estilo jg_hub / jg_dashboard con Cuota de Slots) -->
-                <div class="relative pl-2 border-l border-slate-200 dark:border-slate-800" x-data="{ userMenuOpen: false }" @click.outside="userMenuOpen = false">
-                    <button @click="userMenuOpen = !userMenuOpen"
-                            type="button"
-                            class="flex items-center gap-2.5 px-2 py-1 rounded-xl bg-slate-100/80 hover:bg-slate-200 border border-slate-200/80 dark:bg-slate-900/80 dark:hover:bg-slate-800 dark:border-slate-800 transition shadow-xs cursor-pointer text-left">
-                        <div class="text-right hidden sm:block">
-                            <div class="flex items-center justify-end gap-1.5">
-                                <span class="text-xs font-semibold text-slate-800 dark:text-slate-200">{{ auth()->user()->name ?? 'Javier Gálvez' }}</span>
-                                <span class="px-1.5 py-0.2 rounded text-[9px] font-bold tracking-wider uppercase bg-amber-500/10 text-amber-700 border border-amber-500/30 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/40">
-                                    {{ strtoupper(auth()->user()->plan_tier ?? 'PRO') }}
-                                </span>
+                @auth
+                    <!-- Menú Desplegable de Usuario (Estilo jg_hub / jg_dashboard con Cuota de Slots) -->
+                    <div class="relative pl-2 border-l border-slate-200 dark:border-slate-800" x-data="{ userMenuOpen: false }" @click.outside="userMenuOpen = false">
+                        <button @click="userMenuOpen = !userMenuOpen"
+                                type="button"
+                                class="flex items-center gap-2.5 px-2 py-1 rounded-xl bg-slate-100/80 hover:bg-slate-200 border border-slate-200/80 dark:bg-slate-900/80 dark:hover:bg-slate-800 dark:border-slate-800 transition shadow-xs cursor-pointer text-left">
+                            <div class="text-right hidden sm:block">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <span class="text-xs font-semibold text-slate-800 dark:text-slate-200">{{ auth()->user()->name }}</span>
+                                    <span class="px-1.5 py-0.2 rounded text-[9px] font-bold tracking-wider uppercase bg-amber-500/10 text-amber-700 border border-amber-500/30 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/40">
+                                        {{ strtoupper(auth()->user()->plan_tier) }}
+                                    </span>
+                                </div>
                             </div>
-                        </div>
 
-                        <div class="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center font-bold text-xs text-amber-600 dark:text-amber-300 shadow-inner">
-                            {{ strtoupper(substr(auth()->user()->name ?? 'J', 0, 1)) }}
-                        </div>
-
-                        <svg class="w-3.5 h-3.5 text-slate-400 transition-transform" :class="{ 'rotate-180': userMenuOpen }" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                        </svg>
-                    </button>
-
-                    <!-- Dropdown Panel (Mini Menú de Usuario) -->
-                    <div x-show="userMenuOpen"
-                         x-transition:enter="transition ease-out duration-150"
-                         x-transition:enter-start="opacity-0 scale-95"
-                         x-transition:enter-end="opacity-100 scale-100"
-                         x-transition:leave="transition ease-in duration-100"
-                         x-transition:leave-start="opacity-100 scale-100"
-                         x-transition:leave-end="opacity-0 scale-95"
-                         class="absolute right-0 mt-2 w-72 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden z-50 p-2 space-y-2"
-                         style="display: none;">
-
-                        <!-- Tarjeta de Identidad -->
-                        <div class="p-3 bg-slate-50 dark:bg-slate-950/70 rounded-xl border border-slate-100 dark:border-slate-800/80">
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs font-bold text-slate-900 dark:text-white">{{ auth()->user()->name ?? 'Javier Gálvez' }}</span>
-                                <span class="px-1.5 py-0.5 rounded text-[9px] font-bold font-mono uppercase bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30">
-                                    {{ strtoupper(auth()->user()->plan_tier ?? 'PRO') }}
-                                </span>
+                            <div class="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center font-bold text-xs text-amber-600 dark:text-amber-300 shadow-inner">
+                                {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
                             </div>
-                            <p class="text-[11px] font-mono text-slate-500 dark:text-slate-400 truncate mt-0.5">{{ auth()->user()->email ?? 'filmmaker@cabocom.net' }}</p>
-                        </div>
 
-                        <!-- Sección de Slots y Capacidad -->
-                        <div class="p-3 bg-slate-50 dark:bg-slate-950/70 rounded-xl border border-slate-100 dark:border-slate-800/80 space-y-2">
-                            <div class="flex items-center justify-between text-xs">
-                                <span class="font-medium text-slate-600 dark:text-slate-400">Slots de Proyectos:</span>
-                                <span class="font-mono font-bold text-slate-900 dark:text-white">
-                                    <span class="text-emerald-600 dark:text-emerald-400">{{ auth()->user()->projects()->count() ?? 1 }}</span>
-                                    <span class="text-slate-400">/</span>
-                                    <span>{{ auth()->user()->paid_project_slots ?? 5 }}</span>
-                                </span>
-                            </div>
-                            <div class="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                                <div class="h-full bg-emerald-500 rounded-full transition-all" style="width: {{ min(100, ((auth()->user()->projects()->count() ?? 1) / (auth()->user()->paid_project_slots ?? 5)) * 100) }}%"></div>
-                            </div>
-                        </div>
+                            <svg class="w-3.5 h-3.5 text-slate-400 transition-transform" :class="{ 'rotate-180': userMenuOpen }" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
 
-                        <!-- Opciones Rápidas -->
-                        <div class="space-y-1 pt-1 border-t border-slate-100 dark:border-slate-800/60 text-xs">
-                            <a href="{{ route('projects.index') }}"
-                               class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition font-medium">
-                                <span>📁</span>
-                                <span>Mis Proyectos</span>
-                            </a>
-                            @if(isset($currentProject))
+                        <!-- Dropdown Panel (Mini Menú de Usuario) -->
+                        <div x-show="userMenuOpen"
+                             x-transition:enter="transition ease-out duration-150"
+                             x-transition:enter-start="opacity-0 scale-95"
+                             x-transition:enter-end="opacity-100 scale-100"
+                             x-transition:leave="transition ease-in duration-100"
+                             x-transition:leave-start="opacity-100 scale-100"
+                             x-transition:leave-end="opacity-0 scale-95"
+                             class="absolute right-0 mt-2 w-72 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden z-50 p-2 space-y-2"
+                             style="display: none;">
+
+                            <!-- Tarjeta de Identidad -->
+                            <div class="p-3 bg-slate-50 dark:bg-slate-950/70 rounded-xl border border-slate-100 dark:border-slate-800/80">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold text-slate-900 dark:text-white">{{ auth()->user()->name }}</span>
+                                    <span class="px-1.5 py-0.5 rounded text-[9px] font-bold font-mono uppercase bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30">
+                                        {{ strtoupper(auth()->user()->plan_tier) }}
+                                    </span>
+                                </div>
+                                <p class="text-[11px] font-mono text-slate-500 dark:text-slate-400 truncate mt-0.5">{{ auth()->user()->email }}</p>
+                            </div>
+
+                            <!-- Sección de Slots y Capacidad -->
+                            <div class="p-3 bg-slate-50 dark:bg-slate-950/70 rounded-xl border border-slate-100 dark:border-slate-800/80 space-y-2">
+                                <div class="flex items-center justify-between text-xs">
+                                    <span class="font-medium text-slate-600 dark:text-slate-400">Slots de Proyectos:</span>
+                                    <span class="font-mono font-bold text-slate-900 dark:text-white">
+                                        <span class="text-emerald-600 dark:text-emerald-400">{{ auth()->user()->projects()->count() }}</span>
+                                        <span class="text-slate-400">/</span>
+                                        <span>{{ auth()->user()->paid_project_slots }}</span>
+                                    </span>
+                                </div>
+                                <div class="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                                    <div class="h-full bg-emerald-500 rounded-full transition-all" style="width: {{ min(100, (auth()->user()->projects()->count() / max(1, auth()->user()->paid_project_slots)) * 100) }}%"></div>
+                                </div>
+                            </div>
+
+                            <!-- Opciones Rápidas -->
+                            <div class="space-y-1 pt-1 border-t border-slate-100 dark:border-slate-800/60 text-xs">
+                                <a href="{{ route('projects.index') }}"
+                                   class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition font-medium">
+                                    <span>📁</span>
+                                    <span>Mis Proyectos</span>
+                                </a>
+
+                                @if(auth()->user()->is_admin)
+                                    <a href="{{ route('admin.users') }}"
+                                       class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 transition font-medium font-mono">
+                                        <span>🛠️</span>
+                                        <span>Panel Administración</span>
+                                    </a>
+                                @endif
+
+                                @if(isset($currentProject))
+                                    <button type="button"
+                                            onclick="Livewire.dispatch('toggle-bible-drawer'); userMenuOpen = false;"
+                                            class="w-full text-left flex items-center justify-between px-3 py-2 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition font-medium cursor-pointer">
+                                        <div class="flex items-center gap-2.5">
+                                            <span>📖</span>
+                                            <span>Biblia del Proyecto</span>
+                                        </div>
+                                        <kbd class="px-1.5 py-0.5 text-[9px] font-mono bg-slate-200 dark:bg-slate-800 rounded border border-slate-300 dark:border-slate-700">⌘B</kbd>
+                                    </button>
+                                @endif
+
                                 <button type="button"
-                                        onclick="Livewire.dispatch('toggle-bible-drawer'); userMenuOpen = false;"
-                                        class="w-full text-left flex items-center justify-between px-3 py-2 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition font-medium cursor-pointer">
-                                    <div class="flex items-center gap-2.5">
-                                        <span>📖</span>
-                                        <span>Biblia del Proyecto</span>
-                                    </div>
-                                    <kbd class="px-1.5 py-0.5 text-[9px] font-mono bg-slate-200 dark:bg-slate-800 rounded border border-slate-300 dark:border-slate-700">⌘B</kbd>
+                                        onclick="toggleTheme()"
+                                        class="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition font-medium cursor-pointer">
+                                    <span class="dark:hidden">🌙</span>
+                                    <span class="hidden dark:inline">☀️</span>
+                                    <span class="dark:hidden">Modo Oscuro</span>
+                                    <span class="hidden dark:inline">Modo Claro</span>
                                 </button>
-                            @endif
-                            <button type="button"
-                                    onclick="toggleTheme()"
-                                    class="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition font-medium cursor-pointer">
-                                <span class="dark:hidden">🌙</span>
-                                <span class="hidden dark:inline">☀️</span>
-                                <span class="dark:hidden">Modo Oscuro</span>
-                                <span class="hidden dark:inline">Modo Claro</span>
-                            </button>
+
+                                <form method="POST" action="{{ route('logout') }}" class="pt-1 border-t border-slate-100 dark:border-slate-800/60">
+                                    @csrf
+                                    <button type="submit"
+                                            class="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition font-medium cursor-pointer">
+                                        <span>🚪</span>
+                                        <span>Cerrar Sesión</span>
+                                    </button>
+                                </form>
+                            </div>
                         </div>
                     </div>
-                </div>
+                @else
+                    <a href="{{ route('login') }}"
+                       class="px-3.5 py-1.5 rounded-xl font-bold font-mono text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-2xs">
+                        Acceso Seguro ➔
+                    </a>
+                @endauth
             </div>
         </div>
     </header>

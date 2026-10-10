@@ -18,7 +18,8 @@ class EnsureDemoUserAuthenticated
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (! Auth::check()) {
+        // Emulación de demo user activa exclusivamente en entorno testing (fuera de rutas de login)
+        if (app()->environment('testing') && ! Auth::check() && ! $request->is('login*', 'logout*')) {
             try {
                 if (Schema::hasTable('users')) {
                     $user = User::firstOrCreate(

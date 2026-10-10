@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             DemoProjectSeeder::class,
+            TokenPricingRatesSeeder::class,
         ]);
     }
 }

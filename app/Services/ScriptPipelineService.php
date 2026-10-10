@@ -11,8 +11,11 @@ use Illuminate\Database\Eloquent\Collection;
 class ScriptPipelineService
 {
     public function __construct(
-        protected AgentClientService $agentClient
-    ) {}
+        protected AgentClientService $agentClient,
+        protected ?AgentTelemetryService $telemetryService = null
+    ) {
+        $this->telemetryService = $this->telemetryService ?? app(AgentTelemetryService::class);
+    }
 
     /**
      * Transiciona el bloque a la etapa 'structured', aplicando el contexto del proyecto y candados.
@@ -53,6 +56,17 @@ class ScriptPipelineService
         $telemetry = $this->agentClient->getLastTelemetry();
         if ($telemetry) {
             $userLocks['ai_telemetry']['structured'] = $telemetry;
+        }
+
+        if ($project) {
+            $this->telemetryService->record(
+                projectId: $project->id,
+                scriptBlockId: $block->id,
+                toolName: 'treatment_structuring',
+                inputPayload: ['raw_text' => $rawText, 'characters' => $characters, 'location' => $location],
+                outputPayload: $structuredText,
+                telemetry: $telemetry
+            );
         }
 
         $block->update([
@@ -106,6 +120,17 @@ class ScriptPipelineService
             $userLocks['ai_telemetry']['screenplay'] = $telemetry;
         }
 
+        if ($project) {
+            $this->telemetryService->record(
+                projectId: $project->id,
+                scriptBlockId: $block->id,
+                toolName: 'screenplay_formatter',
+                inputPayload: ['structured_text' => $sourceText, 'characters' => $characters, 'location' => $location],
+                outputPayload: $screenplayContent,
+                telemetry: $telemetry
+            );
+        }
+
         $block->update([
             'screenplay_content' => $screenplayContent,
             'user_locks' => $userLocks,
@@ -122,6 +147,9 @@ class ScriptPipelineService
      */
     public function generateShotsBreakdown(ScriptBlock $block): Collection
     {
+        $block->loadMissing('scene.project');
+        $project = $block->scene?->project;
+
         $sourceText = ! empty($block->screenplay_content)
             ? $block->screenplay_content
             : (! empty($block->structured_text) ? $block->structured_text : (string) $block->raw_text);
@@ -165,6 +193,17 @@ class ScriptPipelineService
         $telemetry = $this->agentClient->getLastTelemetry();
         if ($telemetry) {
             $userLocks['ai_telemetry']['shots'] = $telemetry;
+        }
+
+        if ($project) {
+            $this->telemetryService->record(
+                projectId: $project->id,
+                scriptBlockId: $block->id,
+                toolName: 'shot_breakdown_detector',
+                inputPayload: ['screenplay' => $sourceText],
+                outputPayload: $shotsList,
+                telemetry: $telemetry
+            );
         }
 
         $block->update([

@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 2.10.0  
+**Versión del documento:** 3.0.0  
 **Fecha de consolidación:** 10 de octubre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 3/4, Tailwind CSS v4, PHP 8.4, PostgreSQL / SQLite, FFmpeg, PHPUnit 12, Laravel Pint  
-**Estado:** Fases 1 a 15 implementadas al 100% (Pipeline desacoplado por escena individual sin afección global, inserción de escena inicial con Gutenberg superior previo a Escena 1, barra superior limpia con eliminación de título redundante junto al logo, línea horizontal ámbar visible continua en divisores Gutenberg).
+**Estado:** Fases 1 a 16 implementadas al 100% (Autenticación passwordless por email idéntica a jg_hub con OTP en Localhost y detección de replay attacks, Panel de Administración `/admin` con control de roles `is_admin`, auditoría cuantitativa de obras con privacidad estricta, telemetría y costes de tokens en `agent_request_logs`, y catálogo interactivo de tarifas en `token_pricing_rates`).
 
 ---
 
@@ -141,7 +141,11 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
 ## 6. Catálogo de Archivos, Rutas y Tests
 
 ### 6.1. Modelos de Dominio Eloquent (`app/Models/`)
-- `User.php`: Autenticación, plan y slots (`paid_project_slots`).
+- `User.php`: Autenticación, plan, slots (`paid_project_slots`) y rol de administrador (`is_admin`).
+- `OneTimePassword.php`: Código hash efímero OTP de acceso con validez de 15 minutos y seguimiento de un solo uso.
+- `SecurityBreachLog.php`: Registro de auditoría y detección de ataques replay y tokens reutilizados/caducados.
+- `TokenPricingRate.php`: Catálogo interactivo de tarifas por millón de tokens (Input / Output) de proveedores LLM.
+- `AgentRequestLog.php`: Telemetría granular de consumo de tokens y coste en USD por petición y proyecto.
 - `Project.php`: Contenedor de producción cinematográfica.
 - `Character.php`: Entidad de Biblia de personajes.
 - `Location.php`: Entidad de Biblia de localizaciones.
@@ -151,22 +155,34 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
 - `Take.php`: Toma audiovisual con archivo físico y notas editoriales.
 
 ### 6.2. Servicios de Negocio (`app/Services/`)
-- `ScriptPipelineService.php`: Orquesta las transiciones entre etapas narrativas.
+- `ScriptPipelineService.php`: Orquesta las transiciones entre etapas narrativas y registra telemetría de costes.
+- `AgentTelemetryService.php`: Extrae/estima tokens (1 token ~ 4 caracteres) y calcula el coste en USD cruzando con la tarifa activa.
 - `UserLockResolver.php`: Resuelve candados, diffs y sustituciones de términos fijados.
 - `RoughCutAssemblyService.php`: Ensamblado y renderizado de pre-corte con FFmpeg.
 - `JgAgente/AgentClientService.php`: Cliente HTTP firmado con HMAC-SHA256 y fallback local.
 
 ### 6.3. Componentes Livewire (`app/Livewire/` & `resources/views/livewire/`)
+- `Auth/Login.php` (`login.blade.php`): Acceso passwordless seguro con OTP y banner destacado en localhost.
+- `Admin/UserList.php` (`user-list.blade.php`): Gobernanza de usuarios, slots, rol admin y gasto acumulado.
+- `Admin/UserDetail.php` (`user-detail.blade.php`): Auditoría cuantitativa de obras con estricta privacidad de guiones.
+- `Admin/PricingManager.php` (`pricing-manager.blade.php`): Catálogo interactivo de tarifas y modelo activo.
+- `Admin/SecurityLogsViewer.php` (`security-logs-viewer.blade.php`): Visor de eventos de seguridad y replay attacks.
 - `Projects/ProjectList.php` (`project-list.blade.php`): Panel de proyectos y cuotas de usuario.
-- `Studio/ScriptEditor.php` (`script-editor.blade.php`): Editor de 3 columnas, candados y planos.
+- `Studio/ScriptEditor.php` (`script-editor.blade.php`): Editor continuo StoryArchitect con Gutenberg y candados.
 - `Studio/RoughCutTimeline.php` (`rough-cut-timeline.blade.php`): Timeline NLE, reproductor y ensamble.
 - `Studio/ContextBibleDrawer.php` (`context-bible-drawer.blade.php`): Drawer lateral (`Cmd+B`) para personajes y localizaciones.
 
 ### 6.4. Rutas Web (`routes/web.php`)
+- `GET /login`: Formulario de acceso passwordless (`Login`).
+- `POST /logout`: Cierre de sesión seguro y revocación de sesión.
 - `GET /`: Redirección a `/projects`.
 - `GET /projects`: Listado de proyectos cinematográficos (`ProjectList`).
 - `GET /projects/{project}`: Estudio principal de rodaje y guión (`ScriptEditor`).
-- `GET /projects/{project}/rough-cut`: Timeline NLE y pre-corte (`RoughCutTimeline`).
+- `GET /admin`: Redirección al panel de administración (`admin.index` -> `admin.users`).
+- `GET /admin/users`: Listado y control global de usuarios (`UserList`).
+- `GET /admin/users/{user}`: Auditoría cuantitativa y privacidad del autor (`UserDetail`).
+- `GET /admin/pricing`: Gestión de tarifas por millón de tokens (`PricingManager`).
+- `GET /admin/security`: Visor forense de incidentes y brechas (`SecurityLogsViewer`).
 
 ### 6.5. Pruebas Automatizadas (`tests/Feature/`)
 - `DomainModelArchitectureTest.php`: Verifica UUIDv4, integridad referencial y cascadas en BD (6 tests).
@@ -175,8 +191,10 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
 - `TakeMediaManagementTest.php`: Verifica subida física de vídeo, validaciones y tomas válidas (5 tests).
 - `RoughCutAssemblyTest.php`: Verifica ordenación de timeline, renderizado con FFmpeg y fallbacks (4 tests).
 - `LivewirePipelineReactiveTest.php`: Verifica flujo end-to-end entre etapas y candados (4 tests).
-- `LivewireScriptEditorTest.php`: Verifica renderizado del slugline, feed de bloques, creación e inserción Gutenberg intermedia, Drawer lateral al 60% con edición y cambio de etapas del pipeline, eliminación de términos fijos y toggling de tomas (6 tests).
-- **Total:** 31 tests PHPUnit pasando al 100% (165 aserciones).
+- `LivewireScriptEditorTest.php`: Verifica renderizado del slugline, feed de bloques, inserción Gutenberg, drawer lateral y tomas (6 tests).
+- `PasswordlessAuthTest.php`: Verifica generación y envío de OTP, banner en localhost, un solo uso y detección de replay attacks en `security_breach_logs` (6 tests).
+- `AdminPanelAndTelemetryTest.php`: Verifica middleware `admin` 403, auditoría sin filtrar textos, persistencia de `agent_request_logs` con costes USD y actualización de tarifas (5 tests).
+- **Total:** 44 tests PHPUnit pasando al 100% (236 aserciones).
 
 ---
 
@@ -232,11 +250,18 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
   - **Divisor Gutenberg Superior (Previo a Escena 1):** Se retiró el botón `+ Nueva Escena` de la barra superior derecha y se habilitó un divisor interactivo horizontal previo a la Escena 1 (`openNewSceneModal(0)`). Al pulsarlo, crea una nueva escena en la primera posición (`scene_order = 1`) y desplaza el orden del resto atómicamente.
   - **Limpieza de Identidad en Barra de Navegación Principal:** En `resources/views/layouts/app.blade.php`, se eliminó el título del proyecto y el badge de estado que aparecían tras la barra `/` junto al logotipo institucional, dejando el branding limpio y despejado.
   - **Línea Horizontal Continua en Divisores Gutenberg y Hover Infalible de Bloques:** Se implementaron reglas CSS dedicadas e infalibles para `.script-block-item:not(.is-selected):hover` (fondo `#f1f5f9` en tema claro y `#1e293b` en tema oscuro) independizándolo del compilador JIT, y se fijó `.gutenberg-divider-line` con `height: 2px !important; background-color: #f59e0b !important; left: 0; right: 0;` activado tanto por Alpine como por CSS nativo `.gutenberg-container:hover`, garantizando que la línea ámbar sea 100% visible de lado a lado por debajo del botón central `+`.
+- **Autenticación Passwordless, Panel de Administración y Telemetría de Costes (Fase 8 / 16):**
+  - **Autenticación Passwordless por Email (Estilo jg_hub):** Flujo de acceso en `/login` donde el usuario introduce su correo y recibe un PIN OTP alfanumérico seguro (`XXXX-XXXX`) de 8 caracteres con validez de 15 minutos. El hash criptográfico se almacena en la tabla `one_time_passwords`.
+  - **Modo Especial en Localhost / Desarrollo:** En entorno local (`app()->environment('local')` o conexiones desde localhost/127.0.0.1), la pantalla de verificación muestra un banner destacado con el código generado y un botón para autocompletar el campo sin requerir configuración SMTP ni revisar logs.
+  - **Detección de Replay Attacks y Tokens Revocados:** Si un código introducido coincide con un registro donde `used_at IS NOT NULL` o `expires_at < now()`, el acceso se rechaza de inmediato y se registra el evento forense en `security_breach_logs` (IP, user agent, usuario, timestamp y motivo `REUSED_OR_EXPIRED_TOKEN`).
+  - **Gobernanza y Roles de Usuario (`is_admin`):** Middleware `EnsureUserIsAdmin` protegiendo `/admin/*` con denegación 403 estricta. En `/admin/users` se ofrece la lista completa de usuarios, cuotas de slots, consumo de tokens, gasto estimado y toggle de permisos de administrador.
+  - **Auditoría Cuantitativa con Privacidad Estricta:** En `/admin/users/{user}` se auditan las obras del autor de forma puramente cuantitativa (conteo de bloques por etapa `raw`, `structured`, `screenplay`, `shots` y consumo de IA) garantizando que ningún fragmento de texto dramático sensible sea cargado o expuesto en memoria.
+  - **Catálogo de Tarifas y Telemetría de Costes (`token_pricing_rates` y `agent_request_logs`):** Cálculo automatizado de costes por petición cruzando con el modelo activo (Groq Llama 3.3 70B, Llama 3.1 8B, Gemini 1.5 Flash, Ollama). Gestión interactiva en `/admin/pricing` para editar tarifas de entrada/salida y activar el modelo vigente.
 
 ### 7.2. Deudas Técnicas Conocidas
-1. **Autenticación y Multiusuario:**
-   - Actualmente opera con el middleware `EnsureDemoUserAuthenticated` que inyecta automáticamente un usuario demo de prueba (`filmmaker@cabocom.net`).
-   - *Mejora pendiente:* Conectar con el sistema de autenticación centralizado del ecosistema `jg_hub` o SSO OAuth2 / Laravel Fortify, y aplicar control estricto de cuotas (`paid_project_slots`) en pasarela de pago.
+1. **Actualización Dinámica de Tarifas de Tokens:**
+   - Actualmente las tarifas se configuran manualmente desde el panel de administración (`/admin/pricing`) o vía seeder inicial (`TokenPricingRatesSeeder`).
+   - *Mejora pendiente:* Implementar un sincronizador periódico automatizado (comando / job en segundo plano) contra las APIs de facturación o catálogos públicos de proveedores externos (Groq, OpenRouter, Google AI, OpenAI) para mantener los precios por millón de tokens actualizados en tiempo real.
 2. **Motor de Ensamblado FFmpeg:**
    - La concatenación actual utiliza el demuxer `concat` (`-f concat -safe 0 -c copy`), asumiendo que los clips de vídeo subidos comparten códec, contenedor y resolución.
    - *Mejora pendiente:* Diseñar un pipeline de transcodificación intermedia normalizada (e.g. H.264 1080p a 24fps unificado) para evitar inconsistencias cuando los rodajes mezclen cámaras con tasas de fotogramas o formatos heterogéneos.
