@@ -23,7 +23,7 @@ services:
       JG_AGENTE_URL: "${JG_AGENTE_URL:-http://127.0.0.1:8001}"
       JG_AGENTE_SECRET: "${JG_AGENTE_SECRET:-test-secret-ecosystem-2026}"
       LLM_PROVIDER: "${LLM_PROVIDER:-groq}"
-      LLM_MODEL: "${LLM_MODEL:-llama-3.3-70b-versatile}"
+      LLM_MODEL: "${LLM_MODEL:-openai/gpt-oss-120b}"
     env_file:
       - .env
     volumes:

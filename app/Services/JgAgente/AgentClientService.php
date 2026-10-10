@@ -774,7 +774,7 @@ class AgentClientService
         }
 
         $provider = (string) config('services.llm.provider', 'groq');
-        $model = (string) config('services.llm.model', 'llama-3.3-70b-versatile');
+        $model = (string) config('services.llm.model', 'openai/gpt-oss-120b');
         $timeout = (int) config('services.llm.timeout', 45);
 
         $systemPrompt = $this->buildSystemPrompt($toolName, $payload);

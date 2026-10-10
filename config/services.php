@@ -44,8 +44,22 @@ return [
 
     'llm' => [
         'provider' => env('LLM_PROVIDER', 'groq'),
-        'model' => env('LLM_MODEL', 'llama-3.3-70b-versatile'),
+        'model' => (function () {
+            $m = env('LLM_MODEL');
+            if (empty($m) || $m === 'llama-3.3-70b-versatile') {
+                return 'openai/gpt-oss-120b';
+            }
+
+            return $m;
+        })(),
         'api_key' => (function () {
+            $provider = strtolower((string) env('LLM_PROVIDER', 'groq'));
+            if ($provider === 'groq') {
+                $groqKey = env('GROQ_API_KEY') ?: (env('GLOBAL_GROQ_API_KEY') ?: env('LLM_API_KEY'));
+                if (! empty($groqKey) && str_starts_with($groqKey, 'gsk_')) {
+                    return $groqKey;
+                }
+            }
             $key = env('LLM_API_KEY') ?: (env('GROQ_API_KEY') ?: (env('GLOBAL_GROQ_API_KEY') ?: (env('GLOBAL_GOOGLE_API_KEY') ?: env('GEMINI_API_KEY'))));
             if (! empty($key)) {
                 return $key;
