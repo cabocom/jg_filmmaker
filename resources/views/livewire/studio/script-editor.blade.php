@@ -142,6 +142,21 @@
                         </button>
                     </div>
                 </div>
+
+                <!-- Contador de Tokens Diarios Disponibles -->
+                @php
+                    $currentUser = auth()->user() ?? $project->user;
+                    $availableTokens = $currentUser ? $currentUser->getTokensAvailableToday() : 0;
+                    $dailyLimit = $currentUser ? $currentUser->getDailyTokenLimit() : 100000;
+                    $usedToday = $currentUser ? $currentUser->getTokensUsedToday() : 0;
+                    $percentLeft = $dailyLimit > 0 ? max(0, min(100, round(($availableTokens / $dailyLimit) * 100))) : 0;
+                @endphp
+                <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 shadow-2xs shrink-0 cursor-default"
+                     title="Tokens de IA disponibles hoy: {{ number_format($availableTokens, 0, ',', '.') }} de {{ number_format($dailyLimit, 0, ',', '.') }} ({{ $percentLeft }}%). Consumidos hoy: {{ number_format($usedToday, 0, ',', '.') }}. Se renueva diariamente a las 00:00.">
+                    <span class="{{ $percentLeft < 15 ? 'text-rose-500 animate-pulse' : ($percentLeft < 40 ? 'text-amber-500' : 'text-emerald-500') }}">⚡</span>
+                    <span class="font-bold text-slate-900 dark:text-white">{{ number_format($availableTokens, 0, ',', '.') }}</span>
+                    <span class="hidden md:inline text-[11px] text-slate-400">/ {{ number_format($dailyLimit, 0, ',', '.') }} tokens</span>
+                </div>
             </div>
 
             <!-- Menú Superior Alineado a la Derecha: Pipeline - Idea - Tratamiento - Guion - Planos/Tomas -->
@@ -330,6 +345,16 @@
                                     class="p-1 rounded text-slate-400 hover:text-amber-500 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 transition cursor-pointer shrink-0">
                                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                </svg>
+                            </button>
+
+                            <!-- Botón de Borrado de Escena -->
+                            <button wire:click="openDeleteSceneModal('{{ $scene->id }}')"
+                                    type="button"
+                                    title="Eliminar Escena {{ $scene->scene_order }}..."
+                                    class="p-1 rounded text-slate-400 hover:text-rose-500 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 transition cursor-pointer shrink-0">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                 </svg>
                             </button>
                         </div>
@@ -565,6 +590,16 @@
                                                     <span class="text-xs">📑</span>
                                                     <span class="text-[11px] font-bold">Detalles</span>
                                                 </button>
+
+                                                <!-- Botón Eliminar Bloque -->
+                                                <button wire:click.stop="openDeleteBlockModal('{{ $block->id }}')"
+                                                        type="button"
+                                                        title="Eliminar bloque permanentemente..."
+                                                        class="p-1 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 dark:hover:text-rose-400 transition cursor-pointer">
+                                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -683,6 +718,14 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                         </svg>
                                     </button>
+                                    <button wire:click="openDeleteSceneModal('{{ $scene->id }}')"
+                                            type="button"
+                                            title="Eliminar Escena {{ $scene->scene_order }}..."
+                                            class="p-1 rounded text-slate-400 hover:text-rose-500 hover:bg-slate-200 dark:hover:bg-slate-800 transition cursor-pointer">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                    </button>
                                 </div>
                                 <div class="flex items-center gap-2 text-xs font-mono text-slate-500 dark:text-slate-400">
                                     @if($scene->location)
@@ -698,14 +741,22 @@
                             <div class="space-y-4 pl-2 sm:pl-4">
                                 @forelse($scene->scriptBlocks as $block)
                                     <div class="group relative py-2">
-                                        <!-- Botón flotante para abrir edición en drawer directamente -->
-                                        <div class="absolute right-0 top-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <!-- Botones flotantes para editar o borrar bloque directamente -->
+                                        <div class="absolute right-0 top-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
                                             <button wire:click="openBlockDetails('{{ $block->id }}', '{{ match($activeView) { 'idea' => 'raw', 'structured' => 'structured', 'screenplay' => 'screenplay', 'shots' => 'shots', default => 'raw' } }}')"
                                                     type="button"
                                                     title="Editar bloque #{{ $block->block_order }}"
                                                     class="px-2 py-1 rounded text-[11px] font-mono bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 dark:bg-slate-800 dark:hover:bg-amber-950/40 dark:text-slate-300 dark:hover:text-amber-300 border border-slate-200 dark:border-slate-700 transition flex items-center gap-1 cursor-pointer">
                                                 <span>✏️</span>
                                                 <span>Bloque #{{ $block->block_order }}</span>
+                                            </button>
+                                            <button wire:click="openDeleteBlockModal('{{ $block->id }}')"
+                                                    type="button"
+                                                    title="Eliminar bloque permanentemente..."
+                                                    class="p-1 rounded text-[11px] font-mono bg-slate-100 hover:bg-rose-100 text-slate-400 hover:text-rose-600 dark:bg-slate-800 dark:hover:bg-rose-950/40 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-700 transition flex items-center cursor-pointer">
+                                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
                                             </button>
                                         </div>
 
@@ -861,6 +912,13 @@
                         </div>
 
                         <div class="flex items-center gap-2">
+                            <button wire:click="openDeleteBlockModal('{{ $detailBlock->id }}')"
+                                    type="button"
+                                    title="Eliminar este bloque permanentemente..."
+                                    class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/50 border border-rose-200 dark:border-rose-800 transition flex items-center gap-1.5 cursor-pointer">
+                                <span>🗑️</span>
+                                <span>Eliminar</span>
+                            </button>
                             <button wire:click="closeBlockDetails"
                                     type="button"
                                     title="Cerrar panel lateral (Esc)"
@@ -1470,6 +1528,117 @@
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- ================= MODAL ELIMINAR BLOQUE ================= -->
+    @if($showDeleteBlockModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs"
+             x-data
+             @keydown.escape.window="$wire.closeDeleteBlockModal()"
+             wire:click.self="closeDeleteBlockModal">
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 w-full max-w-md space-y-4"
+                 @click.stop>
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <div class="flex items-center gap-2 text-rose-600 dark:text-rose-400">
+                        <span class="text-base">🗑️</span>
+                        <h3 class="text-sm font-bold text-slate-900 dark:text-white">
+                            Eliminar Bloque #{{ $deletingBlockOrder }}
+                        </h3>
+                    </div>
+                    <button wire:click="closeDeleteBlockModal" class="text-slate-400 hover:text-slate-600 dark:hover:text-white text-xs font-bold cursor-pointer">✕</button>
+                </div>
+
+                <div class="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-800 dark:text-rose-300 text-xs space-y-2">
+                    <p class="font-bold flex items-center gap-1.5">
+                        <span>⚠️</span>
+                        <span>Esta acción no se puede deshacer</span>
+                    </p>
+                    <p>
+                        Los datos de este bloque serán eliminados permanentemente y no podrán ser recuperados. Se guardará un registro de este momento en el historial de trazabilidad del proyecto.
+                    </p>
+                    @if($deletingBlockPreview)
+                        <div class="mt-2 p-2 rounded bg-white/60 dark:bg-slate-950/60 border border-rose-500/20 text-slate-700 dark:text-slate-300 font-mono text-[11px] italic truncate">
+                            "{{ $deletingBlockPreview }}"
+                        </div>
+                    @endif
+                </div>
+
+                <div class="pt-3 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
+                    <button wire:click="closeDeleteBlockModal" type="button" class="px-3.5 py-1.5 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer">
+                        Cancelar
+                    </button>
+                    <button wire:click="confirmDeleteBlock" type="button" class="px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl shadow-md transition cursor-pointer">
+                        Confirmar y Eliminar Bloque
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- ================= MODAL ELIMINAR ESCENA ================= -->
+    @if($showDeleteSceneModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs"
+             x-data
+             @keydown.escape.window="$wire.closeDeleteSceneModal()"
+             wire:click.self="closeDeleteSceneModal">
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 w-full max-w-md space-y-4"
+                 @click.stop>
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <div class="flex items-center gap-2 text-rose-600 dark:text-rose-400">
+                        <span class="text-base">🎬</span>
+                        <h3 class="text-sm font-bold text-slate-900 dark:text-white">
+                            Eliminar Escena #{{ $deletingSceneOrder }}
+                        </h3>
+                    </div>
+                    <button wire:click="closeDeleteSceneModal" class="text-slate-400 hover:text-slate-600 dark:hover:text-white text-xs font-bold cursor-pointer">✕</button>
+                </div>
+
+                @if($deletingSceneBlockCount > 0)
+                    <!-- Caso 1: La escena contiene bloques -> PROHIBIDO borrar según regla de negocio -->
+                    <div class="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 text-xs space-y-2">
+                        <p class="font-bold flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
+                            <span>🚫</span>
+                            <span>No se puede eliminar la escena</span>
+                        </p>
+                        <p>
+                            Para borrar una escena, primero no debe haber ningún bloque en ella. Esta escena contiene actualmente <strong class="font-bold underline">{{ $deletingSceneBlockCount }} bloque(s)</strong> de guión.
+                        </p>
+                        <p class="text-[11px] text-amber-700/80 dark:text-amber-300/80">
+                            Debes eliminar primero todos sus bloques para poder proceder al borrado de la escena.
+                        </p>
+                    </div>
+
+                    <div class="pt-3 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
+                        <button wire:click="closeDeleteSceneModal" type="button" class="px-4 py-1.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white font-bold text-xs rounded-xl transition cursor-pointer">
+                            Entendido
+                        </button>
+                    </div>
+                @else
+                    <!-- Caso 2: La escena no tiene bloques -> Confirmación irreversible -->
+                    <div class="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-800 dark:text-rose-300 text-xs space-y-2">
+                        <p class="font-bold flex items-center gap-1.5">
+                            <span>⚠️</span>
+                            <span>Esta acción no se puede deshacer</span>
+                        </p>
+                        <p>
+                            ¿Estás seguro de que deseas eliminar permanentemente la Escena #{{ $deletingSceneOrder }} (<strong>{{ $deletingSceneSlugline }}</strong>)?
+                        </p>
+                        <p>
+                            Los datos de esta escena no podrán ser recuperados. Se guardará un registro de este momento en el historial de trazabilidad del proyecto y se actualizará la Biblia.
+                        </p>
+                    </div>
+
+                    <div class="pt-3 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
+                        <button wire:click="closeDeleteSceneModal" type="button" class="px-3.5 py-1.5 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer">
+                            Cancelar
+                        </button>
+                        <button wire:click="confirmDeleteScene" type="button" class="px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl shadow-md transition cursor-pointer">
+                            Confirmar y Eliminar Escena
+                        </button>
+                    </div>
+                @endif
             </div>
         </div>
     @endif

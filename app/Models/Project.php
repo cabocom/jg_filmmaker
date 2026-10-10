@@ -65,4 +65,12 @@ class Project extends Model
     {
         return $this->hasMany(AgentRequestLog::class);
     }
+
+    /**
+     * Activity logs for user actions in this project.
+     */
+    public function activityLogs(): HasMany
+    {
+        return $this->hasMany(UserActivityLog::class);
+    }
 }

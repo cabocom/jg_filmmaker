@@ -154,6 +154,9 @@ class UserDetail extends Component
             'aiMetricsByProject' => $aiMetricsByProject,
             'userTotalTokens' => (int) $userTotalTokens,
             'userTotalCost' => (float) $userTotalCost,
+            'userTokensUsedToday' => $this->user->getTokensUsedToday(),
+            'userTokensAvailableToday' => $this->user->getTokensAvailableToday(),
+            'userDailyTokenLimit' => $this->user->getDailyTokenLimit(),
             'availableUsers' => $availableUsers,
         ]);
     }

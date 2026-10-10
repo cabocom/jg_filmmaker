@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Livewire\Studio\ContextBibleDrawer;
 use App\Livewire\Studio\ScriptEditor;
+use App\Models\AgentRequestLog;
 use App\Models\Character;
 use App\Models\Location;
 use App\Models\Project;
@@ -12,6 +13,7 @@ use App\Models\ScriptBlock;
 use App\Models\Shot;
 use App\Models\Take;
 use App\Models\User;
+use App\Models\UserActivityLog;
 use App\Services\JgAgente\AgentClientService;
 use App\Services\ScriptPipelineService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -1108,5 +1110,183 @@ class LivewireScriptEditorTest extends TestCase
             'name' => 'BAR CENTRAL',
         ]);
         $this->assertEquals('BAR', $scene2->fresh()->location->name);
+    }
+
+    public function test_can_delete_block_with_warning_and_audit_log_traceability(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create([
+            'project_id' => $project->id,
+            'scene_order' => 1,
+            'slugline' => 'INT. BAR - NOCHE',
+        ]);
+        $block = ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'block_order' => 1,
+            'raw_text' => 'Texto que será eliminado de forma irreversible.',
+            'stage' => 'raw',
+        ]);
+
+        $livewire = Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project]);
+
+        // Abrir modal de confirmación de borrado
+        $livewire->call('openDeleteBlockModal', $block->id)
+            ->assertSet('showDeleteBlockModal', true)
+            ->assertSet('deletingBlockId', $block->id)
+            ->assertSet('deletingBlockOrder', 1);
+
+        // Confirmar eliminación irreversible
+        $livewire->call('confirmDeleteBlock')
+            ->assertSet('showDeleteBlockModal', false)
+            ->assertSet('deletingBlockId', null);
+
+        // El bloque ya no debe existir en la base de datos
+        $this->assertDatabaseMissing('script_blocks', [
+            'id' => $block->id,
+        ]);
+
+        // Debe haberse guardado la trazabilidad en user_activity_logs
+        $this->assertDatabaseHas('user_activity_logs', [
+            'user_id' => $user->id,
+            'project_id' => $project->id,
+            'action' => 'delete_block',
+            'entity_type' => 'ScriptBlock',
+            'entity_id' => $block->id,
+        ]);
+
+        $log = UserActivityLog::where('action', 'delete_block')->latest()->first();
+        $this->assertNotNull($log);
+        $this->assertEquals('Texto que será eliminado de forma irreversible.', $log->snapshot['raw_text']);
+    }
+
+    public function test_cannot_delete_scene_if_it_contains_blocks(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create([
+            'project_id' => $project->id,
+            'scene_order' => 1,
+            'slugline' => 'INT. BAR - NOCHE',
+        ]);
+        ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'block_order' => 1,
+            'raw_text' => 'Bloque que impide el borrado de la escena.',
+        ]);
+
+        $livewire = Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project]);
+
+        // Intentar abrir modal de borrado de escena
+        $livewire->call('openDeleteSceneModal', $scene->id)
+            ->assertSet('showDeleteSceneModal', true)
+            ->assertSet('deletingSceneBlockCount', 1);
+
+        // Intentar confirmar borrado: debe ser rechazado
+        $livewire->call('confirmDeleteScene');
+
+        // La escena sigue existiendo en BD
+        $this->assertDatabaseHas('scenes', [
+            'id' => $scene->id,
+        ]);
+
+        // No se generó log de borrado de escena
+        $this->assertDatabaseMissing('user_activity_logs', [
+            'action' => 'delete_scene',
+            'entity_id' => $scene->id,
+        ]);
+    }
+
+    public function test_can_delete_scene_when_empty_with_audit_log_traceability(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create([
+            'project_id' => $project->id,
+            'scene_order' => 1,
+            'slugline' => 'INT. CALLE SOLITARIA - NOCHE',
+        ]);
+        // Escena vacía (0 bloques)
+
+        $livewire = Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project]);
+
+        $livewire->call('openDeleteSceneModal', $scene->id)
+            ->assertSet('showDeleteSceneModal', true)
+            ->assertSet('deletingSceneBlockCount', 0);
+
+        // Confirmar eliminación
+        $livewire->call('confirmDeleteScene')
+            ->assertSet('showDeleteSceneModal', false);
+
+        // La escena ya no existe en la base de datos
+        $this->assertDatabaseMissing('scenes', [
+            'id' => $scene->id,
+        ]);
+
+        // Se registró en user_activity_logs
+        $this->assertDatabaseHas('user_activity_logs', [
+            'user_id' => $user->id,
+            'project_id' => $project->id,
+            'action' => 'delete_scene',
+            'entity_type' => 'Scene',
+            'entity_id' => $scene->id,
+        ]);
+
+        $log = UserActivityLog::where('action', 'delete_scene')->latest()->first();
+        $this->assertNotNull($log);
+        $this->assertEquals('INT. CALLE SOLITARIA - NOCHE', $log->snapshot['slugline']);
+    }
+
+    public function test_audit_plot_holes_records_telemetry_tokens_and_enforces_daily_limit(): void
+    {
+        $user = User::factory()->create(['daily_token_limit' => 100000]);
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create([
+            'project_id' => $project->id,
+            'scene_order' => 1,
+            'slugline' => 'INT. BAR - NOCHE',
+        ]);
+        ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'block_order' => 1,
+            'raw_text' => 'Texto para auditar.',
+            'stage' => 'raw',
+        ]);
+
+        $initialTokens = $user->getTokensUsedToday();
+
+        $livewire = Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project]);
+
+        $livewire->call('analyzePlotHoles');
+
+        // Debe haberse registrado en agent_request_logs
+        $this->assertDatabaseHas('agent_request_logs', [
+            'project_id' => $project->id,
+            'tool_name' => 'plot_hole_detector',
+        ]);
+
+        // Y los tokens consumidos hoy deben haberse incrementado
+        $this->assertGreaterThan($initialTokens, $user->getTokensUsedToday());
+
+        // Ahora probamos cuando el usuario no tiene tokens disponibles
+        $exhaustedUser = User::factory()->create(['daily_token_limit' => 0]);
+        $exhaustedProject = Project::factory()->create(['user_id' => $exhaustedUser->id]);
+        $exhaustedScene = Scene::factory()->create(['project_id' => $exhaustedProject->id, 'scene_order' => 1]);
+        ScriptBlock::factory()->create(['scene_id' => $exhaustedScene->id, 'raw_text' => 'Prueba sin tokens.']);
+
+        $logsBefore = AgentRequestLog::where('project_id', $exhaustedProject->id)->count();
+
+        Livewire::actingAs($exhaustedUser)
+            ->test(ScriptEditor::class, ['project' => $exhaustedProject])
+            ->call('analyzePlotHoles')
+            ->assertSee('Has alcanzado tu cupo diario de tokens de IA');
+
+        // No debe haberse ejecutado nueva petición a la IA
+        $logsAfter = AgentRequestLog::where('project_id', $exhaustedProject->id)->count();
+        $this->assertEquals($logsBefore, $logsAfter);
     }
 }

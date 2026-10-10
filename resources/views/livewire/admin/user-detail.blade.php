@@ -31,7 +31,7 @@
         </div>
 
         <!-- Tarjetas de Resumen del Usuario -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1">
                 <span class="text-[11px] font-mono text-slate-500 uppercase">Perfil / Plan</span>
                 <div class="font-bold text-slate-900 dark:text-white truncate">{{ $user->name }}</div>
@@ -52,15 +52,23 @@
             </div>
 
             <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1">
-                <span class="text-[11px] font-mono text-slate-500 uppercase">Tokens IA Consumidos</span>
-                <div class="text-2xl font-extrabold font-mono text-indigo-600 dark:text-indigo-400">
-                    {{ number_format($userTotalTokens) }}
+                <span class="text-[11px] font-mono text-slate-500 uppercase">Tokens Hoy (Límite Diario)</span>
+                <div class="text-2xl font-extrabold font-mono text-amber-600 dark:text-amber-400">
+                    {{ number_format($userTokensUsedToday) }} <span class="text-xs font-normal text-slate-400">/ {{ number_format($userDailyTokenLimit) }}</span>
                 </div>
-                <p class="text-[11px] text-slate-500">Total en todos los proyectos</p>
+                <p class="text-[11px] text-slate-500">{{ number_format($userTokensAvailableToday) }} restantes hoy (reset 00:00)</p>
             </div>
 
             <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1">
-                <span class="text-[11px] font-mono text-slate-500 uppercase">Gasto Acumulado Estimado</span>
+                <span class="text-[11px] font-mono text-slate-500 uppercase">Tokens IA Acumulados</span>
+                <div class="text-2xl font-extrabold font-mono text-indigo-600 dark:text-indigo-400">
+                    {{ number_format($userTotalTokens) }}
+                </div>
+                <p class="text-[11px] text-slate-500">Total histórico en todos los proyectos</p>
+            </div>
+
+            <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1">
+                <span class="text-[11px] font-mono text-slate-500 uppercase">Gasto Histórico Estimado</span>
                 <div class="text-2xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400">
                     ${{ number_format($userTotalCost, 4) }}
                 </div>

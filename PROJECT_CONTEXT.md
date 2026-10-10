@@ -368,6 +368,23 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
       * Si el usuario renombra el slugline de una escena modificando la localización (e.g. de `BAR CENTRAL` a `BAR`), el sistema detecta el cambio, renombra la localización en la Biblia si era exclusiva de esa escena y actualiza la relación, manteniendo la coherencia sin obligar al usuario a crearlas manualmente en la Biblia.
     - **Actualización Reactiva de la Biblia (`bible-updated`):**
       * Emite el evento `bible-updated` al modificar o crear escenas, permitiendo que el panel lateral `ContextBibleDrawer` refresque de inmediato las entidades de personajes y localizaciones sin recarga de página.
+  - **Borrado Seguro con Trazabilidad Histórica y Telemetría Diaria de Tokens (Fase 25):**
+    - **Tabla de Auditoría y Trazabilidad Histórica (`user_activity_logs`):**
+      * Almacena registros permanentes en PostgreSQL de acciones críticas del cliente (`delete_block`, `delete_scene`), capturando `user_id`, `project_id`, `action`, `entity_type`, `entity_id`, descripción legible y un `snapshot` en JSON con el contenido completo previo para auditoría histórica irreversible.
+    - **Borrado Controlado de Bloques (`openDeleteBlockModal` / `confirmDeleteBlock`):**
+      * Modal de advertencia explícita informando de que los datos no podrán ser recuperados.
+      * Al confirmar: persiste en `user_activity_logs`, elimina el bloque, reordena los bloques restantes de la escena secuencialmente (`block_order`), sincroniza la Biblia y refresca los agujeros de guión.
+    - **Regla Estricta para Borrado de Escenas (`openDeleteSceneModal` / `confirmDeleteScene`):**
+      * Para eliminar una escena, primero debe quedar completamente vacía de bloques.
+      * Si la escena contiene bloques (`scriptBlocks()->count() > 0`), el modal bloquea la eliminación y advierte: *"Para borrar una escena, primero no debe haber ningún bloque en ella. Elimina primero sus bloques"*.
+      * Si la escena no tiene bloques, despliega la confirmación irreversible, guarda la trazabilidad en `user_activity_logs`, reordena las escenas restantes del proyecto (`scene_order`) y sincroniza la Biblia.
+    - **Telemetría y Contabilidad de Tokens en Agujeros de Guión:**
+      * Cada ejecución de `analyzePlotHoles` registra su telemetría real en `agent_request_logs` con `tool_name = 'plot_hole_detector'`, cruzando tokens de entrada, salida y coste estimado en USD visible en `/admin/users` y `/admin/projects`.
+    - **Contador Diario de Tokens Disponibles (`daily_token_limit`):**
+      * Atributo `daily_token_limit` en `users` (100.000 tokens por defecto).
+      * Cálculo dinámico de tokens consumidos en el día en curso (`created_at >= today()->startOfDay()`), garantizando reseteo automático a las 00:00 cada medianoche sin necesidad de tareas de mantenimiento.
+      * Indicador interactivo en la cabecera superior del editor de guión mostrando tokens disponibles hoy frente al cupo diario (`⚡ X / Y tokens`).
+      * Tarjeta de monitorización diaria de cuota en el panel de administración (`/admin/users/{user}`).
 
 ### 7.2. Deudas Técnicas Conocidas
 1. **Actualización Dinámica de Tarifas de Tokens:**

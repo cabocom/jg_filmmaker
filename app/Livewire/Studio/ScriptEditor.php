@@ -7,6 +7,8 @@ use App\Models\Scene;
 use App\Models\ScriptBlock;
 use App\Models\Shot;
 use App\Models\Take;
+use App\Models\UserActivityLog;
+use App\Services\AgentTelemetryService;
 use App\Services\JgAgente\AgentClientService;
 use App\Services\ScriptPipelineService;
 use Illuminate\Support\Facades\DB;
@@ -123,6 +125,28 @@ class ScriptEditor extends Component
     public string $editingSceneTimeOfDay = 'DÍA';
 
     public ?string $editingSceneLocationId = null;
+
+    // Modal de borrado de bloque con advertencia y confirmación
+    public bool $showDeleteBlockModal = false;
+
+    public ?string $deletingBlockId = null;
+
+    public ?int $deletingBlockOrder = null;
+
+    public ?int $deletingBlockSceneOrder = null;
+
+    public ?string $deletingBlockPreview = null;
+
+    // Modal de borrado de escena con comprobación de bloques y confirmación
+    public bool $showDeleteSceneModal = false;
+
+    public ?string $deletingSceneId = null;
+
+    public int $deletingSceneBlockCount = 0;
+
+    public ?int $deletingSceneOrder = null;
+
+    public ?string $deletingSceneSlugline = null;
 
     /**
      * IDs de escenas expandidas en el acordeón vertical (Modo StoryArchitect).
@@ -551,6 +575,183 @@ class ScriptEditor extends Component
 
         $this->closeEditSceneModal();
         session()->flash('success', "Escena #{$scene->scene_order} actualizada correctamente.");
+    }
+
+    /**
+     * Abre el modal de advertencia para eliminar un bloque de guión.
+     */
+    public function openDeleteBlockModal(string $blockId): void
+    {
+        $block = ScriptBlock::with('scene')->findOrFail($blockId);
+        $this->deletingBlockId = $block->id;
+        $this->deletingBlockOrder = $block->block_order;
+        $this->deletingBlockSceneOrder = $block->scene?->scene_order;
+        $raw = trim((string) ($block->raw_text ?? ''));
+        $preview = $raw ?: ($block->structured_text ?: ($block->screenplay_content ?: 'Bloque sin contenido'));
+        $this->deletingBlockPreview = mb_substr($preview, 0, 120);
+        $this->showDeleteBlockModal = true;
+    }
+
+    /**
+     * Cierra el modal de eliminación de bloque.
+     */
+    public function closeDeleteBlockModal(): void
+    {
+        $this->reset(['showDeleteBlockModal', 'deletingBlockId', 'deletingBlockPreview', 'deletingBlockOrder', 'deletingBlockSceneOrder']);
+    }
+
+    /**
+     * Confirma la eliminación irreversible del bloque, registra la auditoría y reordena.
+     */
+    public function confirmDeleteBlock(): void
+    {
+        if (! $this->deletingBlockId) {
+            return;
+        }
+
+        $block = ScriptBlock::with('scene.project')->findOrFail($this->deletingBlockId);
+        $scene = $block->scene;
+        $user = auth()->user() ?? $this->project->user;
+
+        // Registrar trazabilidad histórica del cliente en user_activity_logs
+        UserActivityLog::create([
+            'user_id' => $user->id,
+            'project_id' => $this->project->id,
+            'action' => 'delete_block',
+            'entity_type' => 'ScriptBlock',
+            'entity_id' => $block->id,
+            'description' => "Bloque #{$block->block_order} de la Escena #{$scene->scene_order} eliminado permanentemente.",
+            'snapshot' => [
+                'block_id' => $block->id,
+                'scene_id' => $scene->id,
+                'scene_order' => $scene->scene_order,
+                'block_order' => $block->block_order,
+                'stage' => $block->stage,
+                'raw_text' => $block->raw_text,
+                'structured_text' => $block->structured_text,
+                'screenplay_content' => $block->screenplay_content,
+                'plot_hole' => $block->plot_hole,
+                'user_locks' => $block->user_locks,
+            ],
+        ]);
+
+        if ($this->selectedBlockId === $block->id) {
+            $this->selectedBlockId = null;
+        }
+        if ($this->editingBlockId === $block->id) {
+            $this->editingBlockId = null;
+        }
+        if ($this->detailBlockId === $block->id) {
+            $this->detailBlockId = null;
+            $this->isEditingInDrawer = false;
+        }
+
+        $block->delete();
+
+        // Reordenar secuencialmente los bloques restantes de la escena
+        $remainingBlocks = $scene->scriptBlocks()->orderBy('block_order')->get();
+        foreach ($remainingBlocks as $idx => $rem) {
+            $order = $idx + 1;
+            if ($rem->block_order !== $order) {
+                $rem->update(['block_order' => $order]);
+            }
+        }
+
+        // Actualizar Biblia de proyecto
+        $pipeline = app(ScriptPipelineService::class);
+        $pipeline->syncProjectCharacters($this->project);
+        $pipeline->syncProjectLocations($this->project);
+        $this->dispatch('bible-updated');
+
+        $this->closeDeleteBlockModal();
+        session()->flash('success', "Bloque #{$this->deletingBlockOrder} eliminado correctamente y registrado en el historial.");
+    }
+
+    /**
+     * Abre el modal de advertencia para eliminar una escena.
+     */
+    public function openDeleteSceneModal(string $sceneId): void
+    {
+        $scene = Scene::findOrFail($sceneId);
+        $this->deletingSceneId = $scene->id;
+        $this->deletingSceneOrder = $scene->scene_order;
+        $this->deletingSceneSlugline = $scene->slugline;
+        $this->deletingSceneBlockCount = $scene->scriptBlocks()->count();
+        $this->showDeleteSceneModal = true;
+    }
+
+    /**
+     * Cierra el modal de eliminación de escena.
+     */
+    public function closeDeleteSceneModal(): void
+    {
+        $this->reset(['showDeleteSceneModal', 'deletingSceneId', 'deletingSceneBlockCount', 'deletingSceneOrder', 'deletingSceneSlugline']);
+    }
+
+    /**
+     * Confirma la eliminación irreversible de la escena (solo si no contiene bloques).
+     */
+    public function confirmDeleteScene(): void
+    {
+        if (! $this->deletingSceneId) {
+            return;
+        }
+
+        $scene = Scene::findOrFail($this->deletingSceneId);
+
+        // Regla estricta: primero no tiene que haber ningún bloque en la escena
+        $blockCount = $scene->scriptBlocks()->count();
+        if ($blockCount > 0) {
+            session()->flash('error', "No se puede eliminar la Escena #{$scene->scene_order}: contiene {$blockCount} bloque(s). Debes eliminar primero todos sus bloques.");
+            $this->closeDeleteSceneModal();
+
+            return;
+        }
+
+        $user = auth()->user() ?? $this->project->user;
+
+        // Registrar trazabilidad histórica en user_activity_logs
+        UserActivityLog::create([
+            'user_id' => $user->id,
+            'project_id' => $this->project->id,
+            'action' => 'delete_scene',
+            'entity_type' => 'Scene',
+            'entity_id' => $scene->id,
+            'description' => "Escena #{$scene->scene_order} ({$scene->slugline}) eliminada permanentemente.",
+            'snapshot' => [
+                'scene_id' => $scene->id,
+                'scene_order' => $scene->scene_order,
+                'slugline' => $scene->slugline,
+                'time_of_day' => $scene->time_of_day,
+                'location_id' => $scene->location_id,
+            ],
+        ]);
+
+        if ($this->activeSceneId === $scene->id) {
+            $nextScene = $this->project->scenes()->where('id', '!=', $scene->id)->first();
+            $this->activeSceneId = $nextScene?->id;
+            $this->selectedBlockId = null;
+        }
+
+        $scene->delete();
+
+        // Reordenar secuencialmente las escenas restantes del proyecto
+        $remainingScenes = $this->project->scenes()->orderBy('scene_order')->get();
+        foreach ($remainingScenes as $idx => $sc) {
+            $order = $idx + 1;
+            if ($sc->scene_order !== $order) {
+                $sc->update(['scene_order' => $order]);
+            }
+        }
+
+        // Actualizar Biblia de proyecto
+        $pipeline = app(ScriptPipelineService::class);
+        $pipeline->syncProjectCharacters($this->project);
+        $pipeline->syncProjectLocations($this->project);
+        $this->dispatch('bible-updated');
+
+        $this->closeDeleteSceneModal();
+        session()->flash('success', 'Escena eliminada correctamente y registrada en el historial.');
     }
 
     public function addBlock(): void
@@ -1204,6 +1405,13 @@ class ScriptEditor extends Component
     {
         $agentClient = $agentClient ?? app(AgentClientService::class);
 
+        $user = auth()->user() ?? $this->project->user;
+        if ($user && ! $user->hasDailyTokensAvailable(10)) {
+            session()->flash('error', 'Has alcanzado tu cupo diario de tokens de IA ('.number_format($user->getDailyTokenLimit(), 0, ',', '.').' tokens). El cupo se renovará automáticamente a las 00:00.');
+
+            return;
+        }
+
         $scenes = $this->project->scenes()
             ->with(['scriptBlocks' => fn ($q) => $q->orderBy('block_order')])
             ->orderBy('scene_order')
@@ -1275,6 +1483,18 @@ class ScriptEditor extends Component
             }
 
             $result = $agentClient->auditPlotHoles($stageBlocksData, $characters, $locations);
+
+            // Registrar telemetría de tokens consumidos en agent_request_logs
+            $telemetry = $agentClient->getLastTelemetry();
+            app(AgentTelemetryService::class)->record(
+                projectId: $this->project->id,
+                scriptBlockId: null,
+                toolName: 'plot_hole_detector',
+                inputPayload: $stageBlocksData,
+                outputPayload: $result,
+                telemetry: $telemetry
+            );
+
             $detectedHoles = (array) ($result['detected_holes'] ?? []);
 
             foreach ($detectedHoles as $hole) {
