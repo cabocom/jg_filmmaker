@@ -16,7 +16,8 @@ Este directorio contiene la documentación técnica y arquitectónica canónica 
 | **[04_context_bible.md](04_context_bible.md)** | Biblia Contextual de Proyecto | Drawer lateral interactivo (`Cmd+B` / `Ctrl+B`), gestión en caliente de Personajes y Localizaciones e inyección semántica. |
 | **[05_hmac_agent_integration.md](05_hmac_agent_integration.md)** | Integración Inter-Servicio HMAC-SHA256 | Protocolo criptográfico con `jg_agente`, cabeceras canónicas (`X-Signature`), consumo de `jg_plugin_filmmaker` y fallback determinista. |
 | **[06_media_takes_ffmpeg.md](06_media_takes_ffmpeg.md)** | Gestión de Medios y Ensamble FFmpeg | Almacenamiento particionado por UUID, catalogación de tomas válidas (`is_good_take`), metadatos técnicos en JSONB y motor de concatenación continua. |
-| **[07_testing_quality_cicd.md](07_testing_quality_cicd.md)** | Estrategia de Testing y CI/CD | Suite de 28 tests PHPUnit, Laravel Pint, orquestación en `scripts/check.sh` y deudas técnicas conocidas. |
+| **[07_testing_quality_cicd.md](07_testing_quality_cicd.md)** | Estrategia de Testing y CI/CD | Suite de 48 tests PHPUnit, Laravel Pint, orquestación en `scripts/check.sh` y deudas técnicas conocidas. |
+| **[08_auth_admin_telemetry.md](08_auth_admin_telemetry.md)** | Autenticación Passwordless, Admin y Telemetría | Flujo OTP en email y localhost, detección de replay attacks, panel `/admin`, migración de proyectos y costes USD. |
 
 ---
 

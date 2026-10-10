@@ -17,23 +17,28 @@ Todas las pruebas garantizan:
 
 ## 2. Inventario de Pruebas Automatizadas
 
-La suite comprende **28 pruebas y 144 aserciones** pasando al 100%:
+La suite comprende **48 pruebas y 260 aserciones** pasando al 100%:
 
 | Archivo de Prueba | Propósito y Cobertura | Tests |
 |---|---|---|
 | `DomainModelArchitectureTest.php` | Valida claves primarias UUIDv4, integridad referencial, eliminación en cascada y casts JSONB (`user_locks`, `technical_meta`). | 6 |
-| `ScriptEditorLivewireTest.php` | Valida renderizado del editor Livewire, alternancia de candados de usuario y apertura del drawer de Biblia. | 4 |
-| `AgentClientHmacTest.php` | Valida cálculo de firma canónica HMAC-SHA256, cabeceras HTTP y tolerancia a fallos con fallback determinista. | 5 |
-| `TakeMediaManagementTest.php` | Valida carga de archivos de vídeo por toma con `WithFileUploads`, marcado de `is_good_take` y persistencia física. | 5 |
+| `TakeMediaUploadTest.php` | Valida carga de archivos de vídeo por toma con `WithFileUploads`, marcado de `is_good_take` y persistencia física. | 4 |
+| `RoughCutTimelineTest.php` | Valida reactividad del timeline, filtrado de tomas aprobadas y persistencia de notas editoriales. | 3 |
 | `RoughCutAssemblyTest.php` | Valida ordenación del timeline NLE, concatenación con FFmpeg, control de excepciones sin tomas aprobadas y fallback en testing. | 4 |
-| `LivewirePipelineReactiveTest.php` | Valida el ciclo completo end-to-end: edición de bruto, estructuración, formateo a guión y desglose de planos. | 4 |
+| `AgentClientHmacSignatureTest.php` | Valida cálculo de firma canónica HMAC-SHA256, cabeceras HTTP y tolerancia a fallos con fallback determinista. | 5 |
+| `ScriptPipelineIntegrationTest.php` | Valida el ciclo completo end-to-end: edición de bruto, estructuración, formateo a guión y desglose de planos. | 4 |
+| `LivewireProjectDashboardTest.php` | Valida catálogo inicial de proyectos, creación rápida y métricas de cuota. | 2 |
+| `LivewireScriptEditorTest.php` | Valida renderizado del editor continuo, acordeón StoryArchitect, Gutenberg divisores, drawer lateral al 60% y candados. | 7 |
+| `PasswordlessAuthTest.php` | Valida flujo de OTP, banner especial en localhost, un solo uso y detección de replay attacks con registros de brecha. | 6 |
+| `AdminPanelAndTelemetryTest.php` | Valida middleware 403, auditoría cuantitativa sin fuga de textos literarios, roles de admin y registro de telemetría de costes en USD. | 5 |
+| `ProjectTransferAdminTest.php` | Valida reasignación y transferencia atómica de obras entre usuarios desde `UserDetail` y `ProjectManager`. | 4 |
 
 ---
 
 ## 3. Comandos de Validación y Formateo
 
 ```bash
-# 1. Ejecutar la suite completa de pruebas (28 tests)
+# 1. Ejecutar la suite completa de pruebas (48 tests)
 php artisan test
 
 # 2. Verificar formato y linter estricto de PHP con Pint

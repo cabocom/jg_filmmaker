@@ -27,14 +27,19 @@ Su misión principal es desacoplar el proceso de creación audiovisual en etapas
 │  │ - RoughCutTimeline    │         │ - UserLockResolver              │  │
 │  │ - ContextBibleDrawer  │         │ - RoughCutAssemblyService       │  │
 │  │ - ProjectList         │         │ - AgentClientService (HMAC)     │  │
-│  └───────────────────────┘         └────────────────┬────────────────┘  │
-│                                                     │                   │
-│                                                     ▼                   │
-│                                    ┌─────────────────────────────────┐  │
-│                                    │   Base de Datos (UUIDv4)        │  │
-│                                    │   - projects, scenes, blocks    │  │
-│                                    │   - characters, locations       │  │
-│                                    │   - shots, takes                │  │
+│  │                       │         │ - AgentTelemetryService         │  │
+│  │   Auth & Admin UI     │         └────────────────┬────────────────┘  │
+│  │ - Login (Passwordless)│                          │                   │
+│  │ - UserList & Detail   │                          ▼                   │
+│  │ - ProjectManager      │         ┌─────────────────────────────────┐  │
+│  │ - PricingManager      │         │   Base de Datos (UUIDv4)        │  │
+│  │ - SecurityLogsViewer  │         │ - users, one_time_passwords     │  │
+│  └───────────────────────┘         │ - projects, scenes, blocks      │  │
+│                                    │ - characters, locations         │  │
+│                                    │ - shots, takes                  │  │
+│                                    │ - security_breach_logs          │  │
+│                                    │ - token_pricing_rates           │  │
+│                                    │ - agent_request_logs            │  │
 │                                    └─────────────────────────────────┘  │
 └────────────────────────────────────┬────────────────────────────────────┘
                                      │ HTTP / HMAC-SHA256 (Red Privada)
@@ -50,11 +55,12 @@ Su misión principal es desacoplar el proceso de creación audiovisual en etapas
 ## 2. Stack Tecnológico
 
 - **Framework Web:** Laravel 12 (v12.69.3) bajo PHP 8.4.
-- **Frontend Reactivo:** Livewire 3/4 (componentes full-page, subida de archivos vía streaming `WithFileUploads`).
+- **Frontend Reactivo:** Livewire 3/4 (componentes full-page, modales reactivos, subida de archivos vía streaming `WithFileUploads`).
+- **Autenticación y Seguridad:** Passwordless con OTP efímero (SHA-256), detección de replay attacks y middleware de roles `EnsureUserIsAdmin`.
 - **Motor de Estilos:** Tailwind CSS v4 con soporte de `@custom-variant dark (&:where(.dark, .dark *))` y selector dinámico persistido en `localStorage` (`jg_theme`/`console_theme`).
-- **Bases de Datos:** Compatible con PostgreSQL y SQLite (entorno local).
+- **Bases de Datos:** Compatible con PostgreSQL y SQLite (entorno local y tests en memoria).
 - **Procesamiento Multimedia:** FFmpeg para la concatenación y renderizado de tomas aprobadas.
-- **Calidad de Código:** PHPUnit 12 para pruebas automatizadas y Laravel Pint para verificación de estándares PSR-12.
+- **Calidad de Código:** PHPUnit 12 (48 pruebas pasando al 100%) y Laravel Pint para verificación de estándares PSR-12.
 
 ---
 
