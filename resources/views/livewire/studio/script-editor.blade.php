@@ -121,37 +121,38 @@
                                 </span>
 
                                 <!-- Pestañas de Etapas del Pipeline (SOLO las Completadas) -->
-                                <div class="inline-flex items-center gap-1 bg-slate-200/70 dark:bg-slate-900/90 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
+                                <div class="inline-flex items-center gap-1 bg-slate-200/70 dark:bg-slate-900/90 p-1 rounded-xl border border-slate-200 dark:border-slate-800 {{ $editingBlockId === $block->id ? 'opacity-60 cursor-not-allowed' : '' }}"
+                                     @if($editingBlockId === $block->id) title="Guarda o cancela la edición para cambiar de pestaña" @endif>
                                     <!-- Pestaña 1: Bruto (Siempre Completada) -->
-                                    <button wire:click="setBlockTab('{{ $block->id }}', 'raw')"
+                                    <button @if($editingBlockId === $block->id) disabled @else wire:click="setBlockTab('{{ $block->id }}', 'raw')" @endif
                                             type="button"
-                                            class="px-3 py-1 rounded-lg text-xs font-semibold transition {{ $activeTab === 'raw' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                                            class="px-3 py-1 rounded-lg text-xs font-semibold transition {{ $activeTab === 'raw' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }} {{ $editingBlockId === $block->id ? 'cursor-not-allowed' : 'cursor-pointer' }}">
                                         Bruto
                                     </button>
 
                                     <!-- Pestaña 2: Tratamiento (Solo si Completada) -->
                                     @if(!empty($block->structured_text))
-                                        <button wire:click="setBlockTab('{{ $block->id }}', 'structured')"
+                                        <button @if($editingBlockId === $block->id) disabled @else wire:click="setBlockTab('{{ $block->id }}', 'structured')" @endif
                                                 type="button"
-                                                class="px-3 py-1 rounded-lg text-xs font-semibold transition {{ $activeTab === 'structured' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 font-bold shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                                                class="px-3 py-1 rounded-lg text-xs font-semibold transition {{ $activeTab === 'structured' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 font-bold shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }} {{ $editingBlockId === $block->id ? 'cursor-not-allowed' : 'cursor-pointer' }}">
                                             Tratamiento
                                         </button>
                                     @endif
 
                                     <!-- Pestaña 3: Guión (Solo si Completada) -->
                                     @if(!empty($block->screenplay_content))
-                                        <button wire:click="setBlockTab('{{ $block->id }}', 'screenplay')"
+                                        <button @if($editingBlockId === $block->id) disabled @else wire:click="setBlockTab('{{ $block->id }}', 'screenplay')" @endif
                                                 type="button"
-                                                class="px-3 py-1 rounded-lg text-xs font-semibold transition {{ $activeTab === 'screenplay' ? 'bg-white dark:bg-slate-800 text-amber-600 dark:text-amber-400 font-bold shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                                                class="px-3 py-1 rounded-lg text-xs font-semibold transition {{ $activeTab === 'screenplay' ? 'bg-white dark:bg-slate-800 text-amber-600 dark:text-amber-400 font-bold shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }} {{ $editingBlockId === $block->id ? 'cursor-not-allowed' : 'cursor-pointer' }}">
                                             Guión
                                         </button>
                                     @endif
 
                                     <!-- Pestaña 4: Planos (Solo si Completada) -->
                                     @if($block->shots->isNotEmpty())
-                                        <button wire:click="setBlockTab('{{ $block->id }}', 'shots')"
+                                        <button @if($editingBlockId === $block->id) disabled @else wire:click="setBlockTab('{{ $block->id }}', 'shots')" @endif
                                                 type="button"
-                                                class="px-3 py-1 rounded-lg text-xs font-semibold transition {{ $activeTab === 'shots' ? 'bg-white dark:bg-slate-800 text-cyan-600 dark:text-cyan-400 font-bold shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                                                class="px-3 py-1 rounded-lg text-xs font-semibold transition {{ $activeTab === 'shots' ? 'bg-white dark:bg-slate-800 text-cyan-600 dark:text-cyan-400 font-bold shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }} {{ $editingBlockId === $block->id ? 'cursor-not-allowed' : 'cursor-pointer' }}">
                                             Planos ({{ $block->shots->count() }})
                                         </button>
                                     @endif
@@ -252,7 +253,7 @@
                             </div>
                         </div>
 
-                        <!-- Detalle de Términos Fijos con candado -->
+                        <!-- Detalle de Términos Fijos con candado y opción de borrado -->
                         @if(!empty($userLocks['pinned_terms']))
                             <div class="px-5 py-2 bg-amber-50/80 border-b border-amber-200 text-xs text-amber-900 dark:bg-amber-950/20 dark:border-amber-500/20 dark:text-amber-300/90 flex items-center gap-2 flex-wrap">
                                 <span class="font-bold text-[11px] uppercase tracking-wider flex items-center gap-1.5">
@@ -260,8 +261,14 @@
                                     <span>Términos Fijos:</span>
                                 </span>
                                 @foreach($userLocks['pinned_terms'] as $original => $fixed)
-                                    <span class="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200 font-mono text-[11px]">
-                                        {{ $original }} ➜ {{ $fixed }}
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200 font-mono text-[11px] group">
+                                        <span>{{ $original }} ➜ {{ $fixed }}</span>
+                                        <button wire:click="removePinnedTerm('{{ $block->id }}', '{{ $original }}')"
+                                                type="button"
+                                                title="Eliminar término fijo '{{ $original }}'"
+                                                class="text-amber-700/60 dark:text-amber-400/60 hover:text-rose-600 dark:hover:text-rose-400 font-bold ml-0.5 cursor-pointer transition">
+                                            ✕
+                                        </button>
                                     </span>
                                 @endforeach
                             </div>

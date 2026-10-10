@@ -70,9 +70,36 @@ class LivewireScriptEditorTest extends TestCase
         $response->assertSee('BLOQUE #1');
         $response->assertSee('Términos Fijos:');
         $response->assertSee('Javi ➜ Javier');
-        $response->assertSee('--- shot 1 (PM) ---');
-        $response->assertSee('TOMA 1');
-        $response->assertSee('TOMA BUENA');
+        $response->assertSee('Planos (1)');
+        $response->assertSee('1. Bruto (Texto del Autor)');
+
+        // Al conmutar interactivamente a la pestaña de Planos, se renderiza el desglose técnico y tomas
+        Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->call('setBlockTab', $block->id, 'shots')
+            ->assertSee('--- shot 1 (PM) ---')
+            ->assertSee('TOMA 1')
+            ->assertSee('TOMA BUENA');
+    }
+
+    public function test_can_remove_pinned_term_from_block(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create(['project_id' => $project->id]);
+        $block = ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'user_locks' => [
+                'pinned_terms' => ['Javi' => 'Javier'],
+            ],
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->call('removePinnedTerm', $block->id, 'Javi');
+
+        $freshLocks = $block->fresh()->user_locks ?? [];
+        $this->assertArrayNotHasKey('Javi', $freshLocks['pinned_terms'] ?? []);
     }
 
     public function test_can_toggle_good_take_status_interactively(): void

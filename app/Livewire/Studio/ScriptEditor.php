@@ -233,7 +233,23 @@ class ScriptEditor extends Component
 
     public function setBlockTab(string $blockId, string $tab): void
     {
+        // Si el usuario está editando este bloque, no permitir cambio de pestaña hasta guardar o cancelar
+        if ($this->editingBlockId === $blockId) {
+            return;
+        }
+
         $this->activeBlockTabs[$blockId] = $tab;
+    }
+
+    public function removePinnedTerm(string $blockId, string $term): void
+    {
+        $block = ScriptBlock::findOrFail($blockId);
+        $userLocks = $block->user_locks ?? [];
+        if (isset($userLocks['pinned_terms'][$term])) {
+            unset($userLocks['pinned_terms'][$term]);
+            $block->update(['user_locks' => $userLocks]);
+            session()->flash('success', "Término fijo '{$term}' eliminado.");
+        }
     }
 
     public function startNewShotForBlock(string $blockId): void
@@ -248,17 +264,7 @@ class ScriptEditor extends Component
             return $this->activeBlockTabs[$block->id];
         }
 
-        // Por defecto activar la etapa más avanzada que esté completada
-        if ($block->shots->isNotEmpty()) {
-            return 'shots';
-        }
-        if (! empty($block->screenplay_content)) {
-            return 'screenplay';
-        }
-        if (! empty($block->structured_text)) {
-            return 'structured';
-        }
-
+        // Al entrar al proyecto carga siempre la primera pestaña ('raw')
         return 'raw';
     }
 
