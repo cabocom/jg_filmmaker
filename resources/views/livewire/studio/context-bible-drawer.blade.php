@@ -348,16 +348,25 @@
                         <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
                             Aparece en {{ count($deletingUsages) }} {{ count($deletingUsages) === 1 ? 'ubicación' : 'ubicaciones' }}:
                         </span>
-                        <div class="max-h-48 overflow-y-auto rounded-xl p-2.5 bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 space-y-1.5">
+                        <div class="max-h-48 overflow-y-auto rounded-xl p-2 bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 space-y-1.5">
                             @foreach($deletingUsages as $usage)
-                                <div class="flex items-center gap-2 py-1 px-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800/80 text-xs font-mono font-bold text-slate-800 dark:text-slate-200">
-                                    <span class="text-amber-500">📌</span>
-                                    <span>{{ $usage }}</span>
-                                </div>
+                                <button wire:click="inspectUsage('{{ $usage }}')"
+                                        type="button"
+                                        title="Ir a este bloque en el guión y abrir su panel de detalle"
+                                        class="w-full flex items-center justify-between gap-2 py-2 px-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800/80 hover:border-amber-500 hover:bg-amber-50/50 dark:hover:bg-slate-800/80 transition cursor-pointer text-left group shadow-2xs">
+                                    <div class="flex items-center gap-2 text-xs font-mono font-bold text-slate-800 dark:text-slate-200">
+                                        <span class="text-amber-500">📌</span>
+                                        <span>{{ $usage }}</span>
+                                    </div>
+                                    <div class="flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400 group-hover:text-amber-700 dark:group-hover:text-amber-300">
+                                        <span>Ver detalle</span>
+                                        <span class="transition-transform group-hover:translate-x-0.5">➔</span>
+                                    </div>
+                                </button>
                             @endforeach
                         </div>
                         <p class="text-[11px] text-slate-500 dark:text-slate-400 italic">
-                            Para poder eliminarlo de la Biblia, debes sustituirlo o retirarlo previamente de los textos de esas escenas.
+                            Haz clic en una ubicación para abrir directamente su panel lateral y modificar o retirar el texto.
                         </p>
                     </div>
 

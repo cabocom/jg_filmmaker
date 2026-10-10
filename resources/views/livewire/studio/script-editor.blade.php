@@ -45,17 +45,6 @@
             z-index: 6 !important;
         }
 
-        /* SUPRESIÓN TOTAL E INFALIBLE DE DIVISORES GUTENBERG CUANDO CUALQUIER MODAL ESTÉ ACTIVO */
-        body:has(.fixed.inset-0) .gutenberg-container,
-        body:has([style*="z-index: 9999"]) .gutenberg-container,
-        body:has([style*="z-index: 100000"]) .gutenberg-container,
-        body:has(.backdrop-blur-md) .gutenberg-container,
-        body:has(.backdrop-blur-sm) .gutenberg-container {
-            display: none !important;
-            pointer-events: none !important;
-            opacity: 0 !important;
-            visibility: hidden !important;
-        }
     </style>
 
     <!-- ================= BARRA SUPERIOR STICKY: TÍTULO DEL PROYECTO ================= -->
@@ -91,7 +80,7 @@
             <div x-data="{ isTopScenePlusHovered: false }"
                  @mouseenter="isTopScenePlusHovered = true"
                  @mouseleave="isTopScenePlusHovered = false"
-                 class="gutenberg-container relative py-1 my-0.5 flex items-center justify-center cursor-pointer z-[5] w-full"
+                 class="gutenberg-container relative py-0.5 my-0 flex items-center justify-center cursor-pointer z-[5] w-full"
                  style="z-index: 5;">
                 <div class="gutenberg-divider-line"
                      :class="isTopScenePlusHovered ? 'is-visible' : ''"
@@ -257,7 +246,7 @@
                                 <div x-data="{ isInitPlusHovered: false }"
                                      @mouseenter="isInitPlusHovered = true"
                                      @mouseleave="isInitPlusHovered = false"
-                                     class="gutenberg-container relative py-2.5 my-0.5 flex items-center justify-center cursor-pointer z-[5] w-full"
+                                     class="gutenberg-container relative py-1 my-0 flex items-center justify-center cursor-pointer z-[5] w-full"
                                      style="z-index: 5;">
                                     <div class="gutenberg-divider-line"
                                          :class="isInitPlusHovered ? 'is-visible' : ''"
@@ -399,7 +388,7 @@
                                     <div x-data="{ isPlusHovered: false }"
                                          @mouseenter="isPlusHovered = true"
                                          @mouseleave="isPlusHovered = false"
-                                         class="gutenberg-container relative py-2.5 my-0.5 flex items-center justify-center cursor-pointer z-[5] w-full"
+                                         class="gutenberg-container relative py-1 my-0 flex items-center justify-center cursor-pointer z-[5] w-full"
                                          style="z-index: 5;">
                                         <div class="gutenberg-divider-line"
                                              :class="isPlusHovered ? 'is-visible' : ''"

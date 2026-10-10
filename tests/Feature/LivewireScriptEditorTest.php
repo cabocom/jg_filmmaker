@@ -166,8 +166,11 @@ class LivewireScriptEditorTest extends TestCase
             ->assertSet('deletingUsages', ['ESC. 1 · BLOQUE 2'])
             ->assertSee('No se puede eliminar el personaje')
             ->assertSee('ESC. 1 · BLOQUE 2')
-            ->call('confirmDelete')
-            ->assertSee('No se puede eliminar: el elemento está siendo utilizado en el guión.');
+            ->assertSee('Ver detalle')
+            ->call('inspectUsage', 'ESC. 1 · BLOQUE 2')
+            ->assertSet('showDeleteModal', false)
+            ->assertSet('isOpen', false)
+            ->assertDispatched('open-block-details', blockId: $block->id);
 
         $this->assertDatabaseHas('characters', ['id' => $character->id]);
     }

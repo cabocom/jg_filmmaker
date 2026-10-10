@@ -297,6 +297,33 @@ class ContextBibleDrawer extends Component
         $this->dispatch('bible-updated');
     }
 
+    /**
+     * Cierra el modal de confirmación de borrado y la biblia, y abre el drawer lateral con el detalle del bloque en ScriptEditor.
+     */
+    public function inspectUsage(string $usage): void
+    {
+        $blockId = null;
+
+        if (preg_match('/ESC\.\s*(\d+)\s*·\s*BLOQUE\s*(\d+)/iu', $usage, $m)) {
+            $sceneOrder = (int) $m[1];
+            $blockOrder = (int) $m[2];
+            $scene = $this->project->scenes()->where('scene_order', $sceneOrder)->first();
+            if ($scene) {
+                $block = $scene->scriptBlocks()->where('block_order', $blockOrder)->first();
+                $blockId = $block?->id;
+            }
+        } elseif (preg_match('/ESC\.\s*(\d+)/iu', $usage, $m)) {
+            $sceneOrder = (int) $m[1];
+            $scene = $this->project->scenes()->where('scene_order', $sceneOrder)->first();
+            $blockId = $scene?->scriptBlocks()->orderBy('block_order')->first()?->id;
+        }
+
+        if ($blockId) {
+            $this->close();
+            $this->dispatch('open-block-details', blockId: $blockId);
+        }
+    }
+
     public function render()
     {
         $characters = $this->project->characters()->latest()->get();

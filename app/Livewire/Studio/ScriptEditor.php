@@ -11,6 +11,7 @@ use App\Services\ScriptPipelineService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
@@ -190,6 +191,7 @@ class ScriptEditor extends Component
         $this->dispatch('scroll-to-selected-block', blockId: $blockId);
     }
 
+    #[On('open-block-details')]
     public function openBlockDetails(string $blockId, ?string $tab = null): void
     {
         $block = ScriptBlock::findOrFail($blockId);
