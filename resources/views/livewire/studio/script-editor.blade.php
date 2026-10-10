@@ -1,4 +1,45 @@
 <div class="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors">
+    <style>
+        /* Estilos directos e infalibles para hover de bloques */
+        .script-block-item {
+            transition: background-color 0.15s ease, border-color 0.15s ease;
+        }
+        .script-block-item:not(.is-selected):hover {
+            background-color: #f1f5f9 !important; /* Tailwind slate-100 */
+        }
+        .dark .script-block-item:not(.is-selected):hover {
+            background-color: #1e293b !important; /* Tailwind slate-800 */
+        }
+        .script-block-item.is-selected {
+            background-color: rgba(245, 158, 11, 0.1) !important;
+            border-left-color: #f59e0b !important;
+        }
+
+        /* Divisores Gutenberg: línea horizontal continua ámbar garantizada */
+        .gutenberg-divider-line {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 2px !important;
+            background-color: #f59e0b !important; /* amber-500 */
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+        }
+        .gutenberg-container:hover .gutenberg-divider-line,
+        .gutenberg-divider-line.is-visible {
+            opacity: 1 !important;
+        }
+        .gutenberg-container:hover .gutenberg-divider-btn,
+        .gutenberg-divider-btn.is-visible {
+            opacity: 1 !important;
+            transform: scale(1) !important;
+            pointer-events: auto !important;
+        }
+    </style>
+
     <!-- ================= BARRA SUPERIOR STICKY: TÍTULO DEL PROYECTO ================= -->
     <div class="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 shadow-xs backdrop-blur-md px-4 sm:px-6 lg:px-8 py-2.5 transition-colors">
         <div class="max-w-7xl mx-auto flex items-center justify-between gap-3">
@@ -32,14 +73,15 @@
             <div x-data="{ isTopScenePlusHovered: false }"
                  @mouseenter="isTopScenePlusHovered = true"
                  @mouseleave="isTopScenePlusHovered = false"
-                 class="relative py-2.5 my-1 flex items-center justify-center cursor-pointer z-10">
-                <div class="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[2px] bg-amber-500 dark:bg-amber-400 transition-opacity duration-150 pointer-events-none"
-                     :class="isTopScenePlusHovered ? 'opacity-100' : 'opacity-0'"></div>
+                 class="gutenberg-container relative py-2.5 my-1 flex items-center justify-center cursor-pointer z-10 w-full">
+                <div class="gutenberg-divider-line"
+                     :class="isTopScenePlusHovered ? 'is-visible' : ''"
+                     style="height: 2px; background-color: #f59e0b;"></div>
                 <button wire:click="openNewSceneModal(0)"
                         type="button"
                         title="Insertar nueva escena al inicio del guión"
-                        :class="isTopScenePlusHovered ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-75 pointer-events-none'"
-                        class="relative z-10 px-3 py-1 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md hover:scale-105 transition-all duration-150 flex items-center gap-1.5 cursor-pointer">
+                        :class="isTopScenePlusHovered ? 'is-visible' : ''"
+                        class="gutenberg-divider-btn opacity-0 scale-75 pointer-events-none relative z-10 px-3 py-1 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md hover:scale-105 transition-all duration-150 flex items-center gap-1.5 cursor-pointer">
                     <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
                     </svg>
@@ -196,14 +238,15 @@
                                 <div x-data="{ isInitPlusHovered: false }"
                                      @mouseenter="isInitPlusHovered = true"
                                      @mouseleave="isInitPlusHovered = false"
-                                     class="relative py-2.5 my-0.5 flex items-center justify-center cursor-pointer z-10">
-                                    <div class="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[2px] bg-amber-500 dark:bg-amber-400 transition-opacity duration-150 pointer-events-none"
-                                         :class="isInitPlusHovered ? 'opacity-100' : 'opacity-0'"></div>
+                                     class="gutenberg-container relative py-2.5 my-0.5 flex items-center justify-center cursor-pointer z-10 w-full">
+                                    <div class="gutenberg-divider-line"
+                                         :class="isInitPlusHovered ? 'is-visible' : ''"
+                                         style="height: 2px; background-color: #f59e0b;"></div>
                                     <button wire:click="openNewBlockModal(0, '{{ $scene->id }}')"
                                             type="button"
                                             title="Insertar bloque al inicio de la escena"
-                                            :class="isInitPlusHovered ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-75 pointer-events-none'"
-                                            class="relative z-10 w-7 h-7 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center justify-center shadow-md hover:scale-110 transition-all duration-150 cursor-pointer">
+                                            :class="isInitPlusHovered ? 'is-visible' : ''"
+                                            class="gutenberg-divider-btn opacity-0 scale-75 pointer-events-none relative z-10 w-7 h-7 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center justify-center shadow-md hover:scale-110 transition-all duration-150 cursor-pointer">
                                         <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                                             <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
                                         </svg>
@@ -230,12 +273,11 @@
                                              }
                                          "
                                          :class="{
-                                             'bg-slate-100/90 dark:bg-slate-800/70': isBlockHovered && !{{ $isSelected ? 'true' : 'false' }},
                                              'opacity-40 scale-[0.99]': isDragging,
                                              'border-amber-500 ring-2 ring-amber-500/50 bg-amber-50/50 dark:bg-amber-950/30': isOver
                                          }"
                                          wire:click="selectBlock('{{ $block->id }}')"
-                                         class="relative rounded-xl px-2.5 py-1.5 transition-all cursor-pointer border-l-2 {{ $isSelected ? 'bg-amber-500/10 dark:bg-amber-400/10 border-amber-500 shadow-2xs' : 'border-transparent' }}">
+                                         class="script-block-item group relative rounded-xl px-2.5 py-1.5 transition-all cursor-pointer border-l-2 {{ $isSelected ? 'is-selected border-amber-500 shadow-2xs' : 'border-transparent' }}">
 
                                         <div class="flex items-start gap-2">
                                             <!-- Tirador Drag & Drop con draggable=true directo y arrastre de fila completa -->
@@ -252,7 +294,7 @@
                                                  @dragend="isDragging = false"
                                                  title="Arrastrar para mover este bloque de posición"
                                                  :class="(isBlockHovered || {{ $isSelected ? 'true' : 'false' }}) ? 'opacity-100' : 'opacity-0'"
-                                                 class="shrink-0 w-5 h-6 mt-0.5 rounded flex items-center justify-center text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 dark:text-slate-500 dark:hover:text-amber-400 cursor-grab active:cursor-grabbing transition-opacity duration-150 select-none">
+                                                 class="shrink-0 w-5 h-6 mt-0.5 rounded flex items-center justify-center text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 dark:text-slate-500 dark:hover:text-amber-400 cursor-grab active:cursor-grabbing transition-opacity duration-150 select-none group-hover:opacity-100">
                                                 <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                                                     <circle cx="7" cy="4" r="1.5" />
                                                     <circle cx="13" cy="4" r="1.5" />
@@ -321,7 +363,7 @@
 
                                             <!-- Botón de Detalles flotando a la derecha -->
                                             <div :class="isBlockHovered ? 'opacity-100' : 'opacity-25'"
-                                                 class="shrink-0 pt-0.5 transition-opacity">
+                                                 class="shrink-0 pt-0.5 transition-opacity group-hover:opacity-100">
                                                 <button wire:click.stop="openBlockDetails('{{ $block->id }}')"
                                                         type="button"
                                                         title="Abrir detalles y etapas en panel lateral"
@@ -337,14 +379,15 @@
                                     <div x-data="{ isPlusHovered: false }"
                                          @mouseenter="isPlusHovered = true"
                                          @mouseleave="isPlusHovered = false"
-                                         class="relative py-2.5 my-0.5 flex items-center justify-center cursor-pointer z-10">
-                                        <div class="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[2px] bg-amber-500 dark:bg-amber-400 transition-opacity duration-150 pointer-events-none"
-                                             :class="isPlusHovered ? 'opacity-100' : 'opacity-0'"></div>
+                                         class="gutenberg-container relative py-2.5 my-0.5 flex items-center justify-center cursor-pointer z-10 w-full">
+                                        <div class="gutenberg-divider-line"
+                                             :class="isPlusHovered ? 'is-visible' : ''"
+                                             style="height: 2px; background-color: #f59e0b;"></div>
                                         <button wire:click="openNewBlockModal({{ $block->block_order }}, '{{ $scene->id }}')"
                                                 type="button"
                                                 title="Añadir bloque aquí"
-                                                :class="isPlusHovered ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-75 pointer-events-none'"
-                                                class="relative z-10 w-7 h-7 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center justify-center shadow-md hover:scale-110 transition-all duration-150 cursor-pointer">
+                                                :class="isPlusHovered ? 'is-visible' : ''"
+                                                class="gutenberg-divider-btn opacity-0 scale-75 pointer-events-none relative z-10 w-7 h-7 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center justify-center shadow-md hover:scale-110 transition-all duration-150 cursor-pointer">
                                             <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                                                 <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
                                             </svg>
@@ -367,13 +410,14 @@
                 <div x-data="{ isScenePlusHovered: false }"
                      @mouseenter="isScenePlusHovered = true"
                      @mouseleave="isScenePlusHovered = false"
-                     class="relative py-3 my-1 flex items-center justify-center cursor-pointer z-10">
-                    <div class="absolute inset-x-0 top-1/2 -translate-y-1/2 h-[2px] bg-amber-500 dark:bg-amber-400 transition-opacity duration-150 pointer-events-none"
-                         :class="isScenePlusHovered ? 'opacity-100' : 'opacity-0'"></div>
+                     class="gutenberg-container relative py-3 my-1 flex items-center justify-center cursor-pointer z-10 w-full">
+                    <div class="gutenberg-divider-line"
+                         :class="isScenePlusHovered ? 'is-visible' : ''"
+                         style="height: 2px; background-color: #f59e0b;"></div>
                     <button wire:click="openNewSceneModal({{ $scene->scene_order }})"
                             type="button"
-                            :class="isScenePlusHovered ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-75 pointer-events-none'"
-                            class="relative z-10 px-3 py-1 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md hover:scale-105 transition-all duration-150 flex items-center gap-1.5 cursor-pointer">
+                            :class="isScenePlusHovered ? 'is-visible' : ''"
+                            class="gutenberg-divider-btn opacity-0 scale-75 pointer-events-none relative z-10 px-3 py-1 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md hover:scale-105 transition-all duration-150 flex items-center gap-1.5 cursor-pointer">
                         <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
                         </svg>
