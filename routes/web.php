@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Livewire\Admin\PricingManager;
 use App\Livewire\Admin\SecurityLogsViewer;
 use App\Livewire\Admin\UserDetail;
@@ -32,7 +33,7 @@ Route::middleware(['auth'])->group(function () {
 });
 
 // Panel de Administración (Protegido por Middleware EnsureUserIsAdmin)
-Route::prefix('admin')->middleware(['auth', 'admin'])->group(function () {
+Route::prefix('admin')->middleware(['auth', EnsureUserIsAdmin::class])->group(function () {
     Route::get('/', function () {
         return redirect()->route('admin.users');
     })->name('admin.index');
