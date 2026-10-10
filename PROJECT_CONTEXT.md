@@ -385,6 +385,28 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
       * Cálculo dinámico de tokens consumidos en el día en curso (`created_at >= today()->startOfDay()`), garantizando reseteo automático a las 00:00 cada medianoche sin necesidad de tareas de mantenimiento.
       * Indicador interactivo en la cabecera superior del editor de guión mostrando tokens disponibles hoy frente al cupo diario (`⚡ X / Y tokens`).
       * Tarjeta de monitorización diaria de cuota en el panel de administración (`/admin/users/{user}`).
+  - **Trazabilidad Global del Usuario y Modal de Confirmación de Tokens (Fase 26):**
+    - **Trazabilidad Exhaustiva de Todas las Acciones del Usuario (`logActivity`):**
+      * La trazabilidad histórica en `user_activity_logs` se extendió a todas las acciones operativas del usuario sobre la obra:
+        - Creación y edición de escenas (`create_scene`, `update_scene`).
+        - Reordenación secuencial de escenas y bloques (`reorder_scene`, `reorder_block`).
+        - Creación y edición manual de bloques (`create_block`, `update_block`).
+        - Borrado definitivo de bloques y escenas (`delete_block`, `delete_scene`).
+        - Transformaciones cognitivas con IA a tratamiento (`structure_block_ai`) y a guion (`format_screenplay_ai`).
+        - Alternancia de candados de protección de etapa (`toggle_stage_lock`).
+        - Justificación y archivo de inconsistencias dramáticas (`justify_plot_hole`).
+        - Limpieza de marcas (`clear_plot_holes`) y ejecuciones de auditoría (`analyze_plot_holes`).
+      * Cada evento captura un snapshot JSON estructurado que congela el estado exacto del fragmento en ese instante.
+    - **Modal de Historial de Actividad en Orden Cronológico Inverso (`openActivityHistoryModal`):**
+      * Botón `📜 Historial` en la barra superior sticky del editor.
+      * Modal interactivo que renderiza los eventos en orden cronológico inverso (`latest()`), con insignia de acción tipificada por colores, fecha relativa y absoluta, usuario autor y acordeón colapsable con el snapshot JSON estructurado.
+    - **Confirmación Previa de Coste en Tokens para Agujeros de Guión (`promptAnalyzePlotHoles`):**
+      * Al hacer clic en el botón principal de "Agujeros", el sistema ya no dispara la petición directamente a ciegas.
+      * Calcula una estimación heurística del volumen de tokens requerido en función del contenido textual de los bloques activos y el contexto de la Biblia.
+      * Despliega un modal informativo `showPlotHoleConfirmModal` con el desglose de bloques a auditar, coste estimado en tokens, saldo diario disponible y saldo restante previsto tras la ejecución.
+      * Ofrece al autor la decisión soberana de "Cancelar" o "Confirmar y Auditar", protegiéndolo de consumos inesperados o agotamiento prematuro de su cuota.
+    - **Roadmap para "Evolución de la Historia" (`docs/TODO_HISTORIA_EVOLUCION.md`):**
+      * Hoja de ruta técnica que define el aprovechamiento analítico de los snapshots de `user_activity_logs` para construir un visualizador de ramificación dramática, métricas de transformación del texto bruto a guion final y análisis retrospectivo de la obra.
 
 ### 7.2. Deudas Técnicas Conocidas
 1. **Actualización Dinámica de Tarifas de Tokens:**

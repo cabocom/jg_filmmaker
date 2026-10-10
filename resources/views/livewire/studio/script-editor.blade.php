@@ -74,14 +74,14 @@
                 @endphp
                 <div class="relative inline-flex items-center" x-data="{ holeMenuOpen: false }" @click.outside="holeMenuOpen = false">
                     <div class="inline-flex items-center rounded-lg shadow-2xs border {{ $totalPlotHoles > 0 ? 'border-rose-300 dark:border-rose-800' : 'border-slate-200 dark:border-slate-700' }} overflow-hidden">
-                        <!-- Acción principal: Analizar -->
-                        <button wire:click="analyzePlotHoles"
+                        <!-- Acción principal: Analizar previa confirmación de tokens -->
+                        <button wire:click="promptAnalyzePlotHoles"
                                 wire:loading.attr="disabled"
                                 type="button"
                                 class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono font-medium {{ $totalPlotHoles > 0 ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 hover:bg-rose-100' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200' }} transition cursor-pointer shrink-0 disabled:opacity-50"
-                                title="Pasar filtro de agujeros de guión con IA">
-                            <span wire:loading.remove wire:target="analyzePlotHoles">🕳️</span>
-                            <span wire:loading wire:target="analyzePlotHoles" class="animate-spin text-xs">⏳</span>
+                                title="Pasar filtro de agujeros de guión con IA (informa del coste en tokens antes de ejecutar)">
+                            <span wire:loading.remove wire:target="promptAnalyzePlotHoles, analyzePlotHoles">🕳️</span>
+                            <span wire:loading wire:target="promptAnalyzePlotHoles, analyzePlotHoles" class="animate-spin text-xs">⏳</span>
                             <span class="hidden sm:inline">Agujeros</span>
                             @if($totalPlotHoles > 0)
                                 <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold {{ $showPlotHoleAlerts ? 'bg-rose-500 text-white animate-pulse' : 'bg-slate-400 text-white' }}"
@@ -142,6 +142,15 @@
                         </button>
                     </div>
                 </div>
+
+                <!-- Botón de Historial y Trazabilidad del Proyecto -->
+                <button type="button"
+                        wire:click="openActivityHistoryModal"
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 hover:border-sky-500/40 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 transition shadow-2xs cursor-pointer shrink-0"
+                        title="Historial de acciones y trazabilidad en orden cronológico inverso">
+                    <span>📜</span>
+                    <span class="hidden sm:inline">Historial</span>
+                </button>
 
                 <!-- Contador de Tokens Diarios Disponibles -->
                 @php
@@ -1893,6 +1902,221 @@
                                 class="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer">
                             <span>✅</span>
                             <span>Confirmar Justificación</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- ================= MODAL CONFIRMAR COSTE EN TOKENS ANTES DE AUDITAR AGUJEROS DE GUIÓN ================= -->
+    @if($showPlotHoleConfirmModal)
+        <div class="fixed inset-0 z-50 overflow-y-auto"
+             x-data
+             @keydown.escape.window="$wire.cancelAnalyzePlotHoles()">
+            <!-- Backdrop -->
+            <div class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm transition-opacity cursor-pointer"
+                 wire:click="cancelAnalyzePlotHoles"></div>
+
+            <!-- Modal Dialog -->
+            <div class="flex min-h-full items-center justify-center p-4">
+                <div class="relative w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-5"
+                     @click.stop>
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+                        <div class="flex items-center gap-2.5">
+                            <span class="text-xl">🕳️</span>
+                            <div>
+                                <h3 class="text-sm font-bold text-slate-900 dark:text-white">
+                                    Auditoría de Agujeros de Guión
+                                </h3>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">
+                                    Confirmación previa de coste en tokens de IA
+                                </p>
+                            </div>
+                        </div>
+                        <button wire:click="cancelAnalyzePlotHoles" type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg cursor-pointer">
+                            ✕
+                        </button>
+                    </div>
+
+                    <!-- Mensaje explicativo -->
+                    <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                        El script analizará los <strong class="font-bold text-slate-900 dark:text-white">{{ $estimatedBlocksToAudit }} bloque(s)</strong> con contenido de tu proyecto a través de las 3 etapas (Idea, Tratamiento y Guion), contrastando coherencia narrativa, personajes y localizaciones con la Biblia de Proyecto.
+                    </p>
+
+                    <!-- Tarjeta de Desglose de Tokens -->
+                    @php
+                        $userTokensAvail = $currentUser ? $currentUser->getTokensAvailableToday() : 0;
+                        $hasEnough = $userTokensAvail >= $estimatedPlotHoleTokens;
+                        $remainingAfter = max(0, $userTokensAvail - $estimatedPlotHoleTokens);
+                    @endphp
+                    <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-3 font-mono text-xs">
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-500 dark:text-slate-400">Bloques a auditar:</span>
+                            <span class="font-bold text-slate-900 dark:text-white">{{ $estimatedBlocksToAudit }} bloques</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-500 dark:text-slate-400">Coste estimado en tokens:</span>
+                            <span class="font-bold text-amber-600 dark:text-amber-400">~{{ number_format($estimatedPlotHoleTokens, 0, ',', '.') }} tokens</span>
+                        </div>
+                        <div class="border-t border-slate-200 dark:border-slate-800/80 pt-2 flex items-center justify-between">
+                            <span class="text-slate-500 dark:text-slate-400">Saldo disponible hoy:</span>
+                            <span class="font-bold text-slate-900 dark:text-white">{{ number_format($userTokensAvail, 0, ',', '.') }} tokens</span>
+                        </div>
+                        <div class="flex items-center justify-between {{ $hasEnough ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">
+                            <span class="font-medium">Saldo tras ejecución:</span>
+                            <span class="font-bold">~{{ number_format($remainingAfter, 0, ',', '.') }} tokens</span>
+                        </div>
+                    </div>
+
+                    @if(! $hasEnough)
+                        <div class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/80 text-xs text-rose-700 dark:text-rose-300 flex items-start gap-2">
+                            <span>⚠️</span>
+                            <span>No dispones de suficientes tokens diarios para auditar todos los bloques. Tu saldo se renovará automáticamente a las 00:00.</span>
+                        </div>
+                    @endif
+
+                    <!-- Botones de Acción -->
+                    <div class="flex items-center justify-end gap-2.5 pt-2">
+                        <button wire:click="cancelAnalyzePlotHoles"
+                                type="button"
+                                class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 transition cursor-pointer">
+                            Cancelar
+                        </button>
+                        <button wire:click="confirmAnalyzePlotHoles"
+                                wire:loading.attr="disabled"
+                                @if(! $hasEnough) disabled @endif
+                                type="button"
+                                class="px-4 py-2 rounded-xl text-xs font-bold {{ $hasEnough ? 'bg-amber-500 hover:bg-amber-400 text-slate-950' : 'bg-slate-300 text-slate-500 cursor-not-allowed' }} shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                            <span wire:loading.remove wire:target="confirmAnalyzePlotHoles">🕳️ Confirmar y Auditar</span>
+                            <span wire:loading wire:target="confirmAnalyzePlotHoles" class="flex items-center gap-1.5">
+                                <span class="animate-spin text-xs">⏳</span>
+                                <span>Auditando con IA...</span>
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- ================= MODAL HISTORIAL DE ACTIVIDAD Y TRAZABILIDAD COMPLETA ================= -->
+    @if($showActivityHistoryModal)
+        <div class="fixed inset-0 z-50 overflow-y-auto"
+             x-data
+             @keydown.escape.window="$wire.closeActivityHistoryModal()">
+            <!-- Backdrop -->
+            <div class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm transition-opacity cursor-pointer"
+                 wire:click="closeActivityHistoryModal"></div>
+
+            <!-- Modal Dialog -->
+            <div class="flex min-h-full items-center justify-center p-4">
+                <div class="relative w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4"
+                     @click.stop>
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+                        <div class="flex items-center gap-2.5">
+                            <span class="text-xl">📜</span>
+                            <div>
+                                <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                    <span>Historial de Actividad del Proyecto</span>
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-mono bg-sky-100 text-sky-800 dark:bg-sky-950/70 dark:text-sky-300 border border-sky-300 dark:border-sky-800">
+                                        {{ $activityLogs->count() }} eventos
+                                    </span>
+                                </h3>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">
+                                    Trazabilidad cronológica inversa de todas las acciones del usuario (creaciones, ediciones, borrados, IA y justificaciones).
+                                </p>
+                            </div>
+                        </div>
+                        <button wire:click="closeActivityHistoryModal" type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg cursor-pointer">
+                            ✕
+                        </button>
+                    </div>
+
+                    <!-- Lista con scroll vertical en orden cronológico inverso -->
+                    <div class="max-h-[62vh] overflow-y-auto pr-1 space-y-2.5">
+                        @forelse($activityLogs as $log)
+                            @php
+                                $actionIcon = match($log->action) {
+                                    'create_block', 'create_scene' => '➕',
+                                    'update_block', 'update_scene' => '✏️',
+                                    'delete_block', 'delete_scene' => '🗑️',
+                                    'reorder_block', 'reorder_scene' => '↕️',
+                                    'structure_block_ai' => '🤖',
+                                    'format_screenplay_ai' => '🎬',
+                                    'toggle_stage_lock' => '🔒',
+                                    'justify_plot_hole' => '✅',
+                                    'clear_plot_holes' => '🧹',
+                                    'analyze_plot_holes' => '🕳️',
+                                    default => '📌',
+                                };
+
+                                $badgeClass = match($log->action) {
+                                    'create_block', 'create_scene' => 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
+                                    'update_block', 'update_scene' => 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+                                    'delete_block', 'delete_scene' => 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border-rose-200 dark:border-rose-800',
+                                    'reorder_block', 'reorder_scene' => 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700',
+                                    'structure_block_ai', 'format_screenplay_ai' => 'bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+                                    'toggle_stage_lock' => 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
+                                    'justify_plot_hole' => 'bg-teal-50 text-teal-700 dark:bg-teal-950/50 dark:text-teal-300 border-teal-200 dark:border-teal-800',
+                                    'analyze_plot_holes' => 'bg-orange-50 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300 border-orange-200 dark:border-orange-800',
+                                    default => 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700',
+                                };
+                            @endphp
+
+                            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 text-xs transition hover:border-slate-300 dark:hover:border-slate-700 space-y-1.5"
+                                 x-data="{ showSnapshot: false }">
+                                <div class="flex items-center justify-between gap-2 flex-wrap">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-sm">{{ $actionIcon }}</span>
+                                        <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase border {{ $badgeClass }}">
+                                            {{ str_replace('_', ' ', $log->action) }}
+                                        </span>
+                                        <span class="text-slate-500 dark:text-slate-400 font-mono text-[11px]">
+                                            {{ $log->user?->name ?? 'Usuario' }}
+                                        </span>
+                                    </div>
+                                    <span class="text-[11px] font-mono text-slate-400" title="{{ $log->created_at->format('d/m/Y H:i:s') }}">
+                                        {{ $log->created_at->diffForHumans() }}
+                                    </span>
+                                </div>
+
+                                <p class="text-slate-800 dark:text-slate-200 font-sans leading-relaxed">
+                                    {{ $log->description }}
+                                </p>
+
+                                @if(!empty($log->snapshot))
+                                    <div class="pt-1">
+                                        <button type="button"
+                                                @click="showSnapshot = !showSnapshot"
+                                                class="text-[10px] font-mono text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-1 cursor-pointer">
+                                            <span x-text="showSnapshot ? '▼ Ocultar snapshot' : '▶ Ver snapshot guardado'"></span>
+                                        </button>
+                                        <div x-show="showSnapshot"
+                                             x-collapse
+                                             style="display: none;"
+                                             class="mt-1.5 p-2 rounded-lg bg-slate-900 text-emerald-400 font-mono text-[10px] overflow-x-auto max-h-40 border border-slate-800">
+                                            <pre class="leading-tight">{{ json_encode($log->snapshot, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</pre>
+                                        </div>
+                                    </div>
+                                @endif
+                            </div>
+                        @empty
+                            <div class="p-8 text-center text-slate-400 font-mono text-xs">
+                                <span>No hay acciones registradas en el historial todavía.</span>
+                            </div>
+                        @endforelse
+                    </div>
+
+                    <!-- Pie del modal -->
+                    <div class="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                        <span class="text-[11px] font-mono text-slate-400">
+                            Base para futura función "Evolución de la Historia"
+                        </span>
+                        <button wire:click="closeActivityHistoryModal"
+                                type="button"
+                                class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:hover:bg-slate-200 dark:text-slate-900 transition cursor-pointer">
+                            Cerrar
                         </button>
                     </div>
                 </div>

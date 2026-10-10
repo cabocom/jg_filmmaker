@@ -148,6 +148,16 @@ class ScriptEditor extends Component
 
     public ?string $deletingSceneSlugline = null;
 
+    // Modal de historial y trazabilidad completa de acciones del cliente
+    public bool $showActivityHistoryModal = false;
+
+    // Modal de estimación previa y confirmación de coste en tokens para agujeros de guión
+    public bool $showPlotHoleConfirmModal = false;
+
+    public int $estimatedPlotHoleTokens = 0;
+
+    public int $estimatedBlocksToAudit = 0;
+
     /**
      * IDs de escenas expandidas en el acordeón vertical (Modo StoryArchitect).
      *
@@ -388,6 +398,13 @@ class ScriptEditor extends Component
             'user_locks' => [],
         ]);
 
+        $this->logActivity('create_block', 'ScriptBlock', $newBlock->id, "Bloque #{$newBlock->block_order} creado en Escena #{$scene->scene_order}", [
+            'scene_id' => $scene->id,
+            'scene_order' => $scene->scene_order,
+            'block_order' => $newBlock->block_order,
+            'raw_text' => $newBlock->raw_text,
+        ]);
+
         $this->selectedBlockId = $newBlock->id;
         $this->closeNewBlockModal();
 
@@ -432,6 +449,12 @@ class ScriptEditor extends Component
                 }
             }
         });
+
+        $this->logActivity('reorder_block', 'ScriptBlock', $draggedBlockId, "Bloque reordenado en escena a posición #{$targetOrder}", [
+            'block_id' => $draggedBlockId,
+            'scene_id' => $sceneTargetId,
+            'target_order' => $targetOrder,
+        ]);
 
         $this->selectedBlockId = $draggedBlockId;
         session()->flash('success', 'Bloque reordenado correctamente.');
@@ -480,6 +503,11 @@ class ScriptEditor extends Component
             }
         });
 
+        $this->logActivity('reorder_scene', 'Scene', $draggedSceneId, "Escena reordenada a posición #{$targetOrder}", [
+            'scene_id' => $draggedSceneId,
+            'target_order' => $targetOrder,
+        ]);
+
         session()->flash('success', 'Escena reordenada correctamente.');
     }
 
@@ -518,6 +546,14 @@ class ScriptEditor extends Component
         // Sincronizar localizaciones del proyecto y notificar a la Biblia
         app(ScriptPipelineService::class)->syncProjectLocations($this->project);
         $this->dispatch('bible-updated');
+
+        $this->logActivity('create_scene', 'Scene', $scene->id, "Escena #{$scene->scene_order} creada ({$scene->slugline})", [
+            'scene_id' => $scene->id,
+            'scene_order' => $scene->scene_order,
+            'slugline' => $scene->slugline,
+            'time_of_day' => $scene->time_of_day,
+            'location_id' => $scene->location_id,
+        ]);
 
         $this->activeSceneId = $scene->id;
         $this->reset(['showNewSceneModal', 'newSceneLocationId']);
@@ -573,6 +609,14 @@ class ScriptEditor extends Component
         app(ScriptPipelineService::class)->syncProjectLocations($this->project);
         $this->dispatch('bible-updated');
 
+        $this->logActivity('update_scene', 'Scene', $scene->id, "Escena #{$scene->scene_order} actualizada ({$scene->slugline})", [
+            'scene_id' => $scene->id,
+            'scene_order' => $scene->scene_order,
+            'slugline' => $scene->slugline,
+            'time_of_day' => $scene->time_of_day,
+            'location_id' => $scene->location_id,
+        ]);
+
         $this->closeEditSceneModal();
         session()->flash('success', "Escena #{$scene->scene_order} actualizada correctamente.");
     }
@@ -611,28 +655,18 @@ class ScriptEditor extends Component
 
         $block = ScriptBlock::with('scene.project')->findOrFail($this->deletingBlockId);
         $scene = $block->scene;
-        $user = auth()->user() ?? $this->project->user;
 
-        // Registrar trazabilidad histórica del cliente en user_activity_logs
-        UserActivityLog::create([
-            'user_id' => $user->id,
-            'project_id' => $this->project->id,
-            'action' => 'delete_block',
-            'entity_type' => 'ScriptBlock',
-            'entity_id' => $block->id,
-            'description' => "Bloque #{$block->block_order} de la Escena #{$scene->scene_order} eliminado permanentemente.",
-            'snapshot' => [
-                'block_id' => $block->id,
-                'scene_id' => $scene->id,
-                'scene_order' => $scene->scene_order,
-                'block_order' => $block->block_order,
-                'stage' => $block->stage,
-                'raw_text' => $block->raw_text,
-                'structured_text' => $block->structured_text,
-                'screenplay_content' => $block->screenplay_content,
-                'plot_hole' => $block->plot_hole,
-                'user_locks' => $block->user_locks,
-            ],
+        $this->logActivity('delete_block', 'ScriptBlock', $block->id, "Bloque #{$block->block_order} de la Escena #{$scene->scene_order} eliminado permanentemente", [
+            'block_id' => $block->id,
+            'scene_id' => $scene->id,
+            'scene_order' => $scene->scene_order,
+            'block_order' => $block->block_order,
+            'stage' => $block->stage,
+            'raw_text' => $block->raw_text,
+            'structured_text' => $block->structured_text,
+            'screenplay_content' => $block->screenplay_content,
+            'plot_hole' => $block->plot_hole,
+            'user_locks' => $block->user_locks,
         ]);
 
         if ($this->selectedBlockId === $block->id) {
@@ -708,23 +742,12 @@ class ScriptEditor extends Component
             return;
         }
 
-        $user = auth()->user() ?? $this->project->user;
-
-        // Registrar trazabilidad histórica en user_activity_logs
-        UserActivityLog::create([
-            'user_id' => $user->id,
-            'project_id' => $this->project->id,
-            'action' => 'delete_scene',
-            'entity_type' => 'Scene',
-            'entity_id' => $scene->id,
-            'description' => "Escena #{$scene->scene_order} ({$scene->slugline}) eliminada permanentemente.",
-            'snapshot' => [
-                'scene_id' => $scene->id,
-                'scene_order' => $scene->scene_order,
-                'slugline' => $scene->slugline,
-                'time_of_day' => $scene->time_of_day,
-                'location_id' => $scene->location_id,
-            ],
+        $this->logActivity('delete_scene', 'Scene', $scene->id, "Escena #{$scene->scene_order} ({$scene->slugline}) eliminada permanentemente", [
+            'scene_id' => $scene->id,
+            'scene_order' => $scene->scene_order,
+            'slugline' => $scene->slugline,
+            'time_of_day' => $scene->time_of_day,
+            'location_id' => $scene->location_id,
         ]);
 
         if ($this->activeSceneId === $scene->id) {
@@ -752,6 +775,98 @@ class ScriptEditor extends Component
 
         $this->closeDeleteSceneModal();
         session()->flash('success', 'Escena eliminada correctamente y registrada en el historial.');
+    }
+
+    /**
+     * Registra una acción del usuario en el historial de trazabilidad del proyecto.
+     *
+     * @param  array<string, mixed>|null  $snapshot
+     */
+    protected function logActivity(string $action, string $entityType, ?string $entityId, string $description, ?array $snapshot = null): void
+    {
+        $user = auth()->user() ?? $this->project->user;
+        if (! $user) {
+            return;
+        }
+
+        UserActivityLog::create([
+            'user_id' => $user->id,
+            'project_id' => $this->project->id,
+            'action' => $action,
+            'entity_type' => $entityType,
+            'entity_id' => $entityId,
+            'description' => $description,
+            'snapshot' => $snapshot,
+        ]);
+    }
+
+    /**
+     * Abre el modal de historial y auditoría cronológica inversa del proyecto.
+     */
+    public function openActivityHistoryModal(): void
+    {
+        $this->showActivityHistoryModal = true;
+    }
+
+    /**
+     * Cierra el modal de historial de actividad.
+     */
+    public function closeActivityHistoryModal(): void
+    {
+        $this->showActivityHistoryModal = false;
+    }
+
+    /**
+     * Calcula la estimación de tokens que consumirá la auditoría de agujeros y abre el modal de confirmación.
+     */
+    public function promptAnalyzePlotHoles(): void
+    {
+        $scenes = $this->project->scenes()
+            ->with(['scriptBlocks' => fn ($q) => $q->orderBy('block_order')])
+            ->orderBy('scene_order')
+            ->get();
+
+        $allBlocks = $scenes->flatMap(fn ($s) => $s->scriptBlocks);
+        $blockCount = 0;
+        $totalChars = 0;
+
+        foreach ($allBlocks as $block) {
+            $text = trim(($block->raw_text ?? '').' '.($block->structured_text ?? '').' '.($block->screenplay_content ?? ''));
+            if (! empty($text)) {
+                $blockCount++;
+                $totalChars += mb_strlen($text);
+            }
+        }
+
+        if ($blockCount === 0) {
+            session()->flash('warning', 'No hay bloques con contenido en el proyecto para auditar.');
+
+            return;
+        }
+
+        // Estimación heurística: prompt (longitud texto / 4 + contexto biblia ~350) + output estimado (~750)
+        $estimatedPromptTokens = (int) ceil($totalChars / 4) + 350;
+        $estimatedResponseTokens = 750;
+        $this->estimatedPlotHoleTokens = $estimatedPromptTokens + $estimatedResponseTokens;
+        $this->estimatedBlocksToAudit = $blockCount;
+        $this->showPlotHoleConfirmModal = true;
+    }
+
+    /**
+     * Cancela la auditoría de agujeros de guión y cierra el modal.
+     */
+    public function cancelAnalyzePlotHoles(): void
+    {
+        $this->showPlotHoleConfirmModal = false;
+    }
+
+    /**
+     * Confirma la auditoría de agujeros de guión tras la aceptación del coste en tokens.
+     */
+    public function confirmAnalyzePlotHoles(): void
+    {
+        $this->showPlotHoleConfirmModal = false;
+        $this->analyzePlotHoles();
     }
 
     public function addBlock(): void
@@ -793,6 +908,14 @@ class ScriptEditor extends Component
             'stage' => $this->editStage,
         ]);
 
+        $this->logActivity('update_block', 'ScriptBlock', $block->id, "Bloque #{$block->block_order} editado manualmente (Etapa: {$this->editStage})", [
+            'block_id' => $block->id,
+            'stage' => $this->editStage,
+            'raw_text' => $this->editRawText,
+            'structured_text' => $this->editStructuredText ?: null,
+            'screenplay_content' => $this->editScreenplayContent ?: null,
+        ]);
+
         $this->editingBlockId = null;
         session()->flash('success', "Bloque {$block->block_order} actualizado y bloqueos retenidos.");
     }
@@ -821,6 +944,11 @@ class ScriptEditor extends Component
             $this->editStage = 'structured';
         }
 
+        $this->logActivity('structure_block_ai', 'ScriptBlock', $block->id, "Bloque #{$block->block_order} estructurado a tratamiento cinematográfico con IA", [
+            'block_id' => $block->id,
+            'structured_text' => $block->fresh()->structured_text,
+        ]);
+
         session()->flash('success', "Bloque {$block->block_order} estructurado a tratamiento cinematográfico.");
     }
 
@@ -848,6 +976,11 @@ class ScriptEditor extends Component
             $this->editStage = 'screenplay';
         }
 
+        $this->logActivity('format_screenplay_ai', 'ScriptBlock', $block->id, "Bloque #{$block->block_order} formateado a guion literario con IA", [
+            'block_id' => $block->id,
+            'screenplay_content' => $block->fresh()->screenplay_content,
+        ]);
+
         session()->flash('success', "Bloque {$block->block_order} formateado a guion literario.");
     }
 
@@ -870,6 +1003,12 @@ class ScriptEditor extends Component
 
         $userLocks['locked_fields'] = array_values(array_unique($lockedFields));
         $block->update(['user_locks' => $userLocks]);
+
+        $this->logActivity('toggle_stage_lock', 'ScriptBlock', $block->id, "Candado de etapa '{$stage}' alternado en Bloque #{$block->block_order}", [
+            'block_id' => $block->id,
+            'stage' => $stage,
+            'locked_fields' => $lockedFields,
+        ]);
     }
 
     public function breakdownBlockShots(string $blockId, ScriptPipelineService $pipelineService): void
@@ -1576,8 +1715,18 @@ class ScriptEditor extends Component
             }
             $detailsStr = implode(', ', $details);
 
+            $this->logActivity('analyze_plot_holes', 'Project', $this->project->id, "Auditoría de agujeros de guión ejecutada ({$totalMarked} detectados: {$detailsStr})", [
+                'total_detected' => $totalMarked,
+                'by_stage' => $stageCounts,
+            ]);
+
             session()->flash('warning', "Se han detectado {$totalMarked} posibles agujeros de guión ({$detailsStr}). Marcado el origen más temprano.");
         } else {
+            $this->logActivity('analyze_plot_holes', 'Project', $this->project->id, 'Auditoría de agujeros de guión ejecutada: sin inconsistencias detectadas', [
+                'total_detected' => 0,
+                'by_stage' => $stageCounts,
+            ]);
+
             session()->flash('success', 'Filtro de agujeros de guión: No se han detectado incongruencias en ninguna de las etapas.');
         }
     }
@@ -1633,6 +1782,13 @@ class ScriptEditor extends Component
             'user_locks' => $userLocks,
         ]);
 
+        $this->logActivity('justify_plot_hole', 'ScriptBlock', $block->id, "Agujero de guión justificado en Bloque #{$block->block_order}: \"".Str::limit(trim($this->justificationText), 80).'"', [
+            'block_id' => $block->id,
+            'hole_reason' => $reason,
+            'stage' => $stage,
+            'justification' => trim($this->justificationText),
+        ]);
+
         $blockOrder = $block->block_order;
         $this->closeJustifyModal();
         session()->flash('success', "Agujero de guión justificado y retirado del Bloque #{$blockOrder}. Ahora figura en 'Agujeros justificados'.");
@@ -1684,6 +1840,8 @@ class ScriptEditor extends Component
             }
         }
 
+        $this->logActivity('clear_plot_holes', 'Project', $this->project->id, 'Todas las marcas de agujeros de guión eliminadas del proyecto');
+
         session()->flash('success', 'Todas las marcas de agujeros de guión han sido eliminadas del proyecto.');
     }
 
@@ -1707,10 +1865,15 @@ class ScriptEditor extends Component
             ])->find($this->activeSceneId);
         }
 
+        $activityLogs = $this->showActivityHistoryModal
+            ? $this->project->activityLogs()->with('user')->latest()->take(100)->get()
+            : collect();
+
         return view('livewire.studio.script-editor', [
             'scenes' => $scenes,
             'activeScene' => $activeScene,
             'locations' => $this->project->locations()->get(),
+            'activityLogs' => $activityLogs,
         ])->layoutData([
             'title' => $this->project->title.' — Estudio',
             'currentProject' => $this->project,

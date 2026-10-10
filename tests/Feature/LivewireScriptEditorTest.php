@@ -1289,4 +1289,92 @@ class LivewireScriptEditorTest extends TestCase
         $logsAfter = AgentRequestLog::where('project_id', $exhaustedProject->id)->count();
         $this->assertEquals($logsBefore, $logsAfter);
     }
+
+    public function test_prompt_analyze_plot_holes_estimates_token_cost_and_requires_confirmation(): void
+    {
+        $user = User::factory()->create(['daily_token_limit' => 100000]);
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create(['project_id' => $project->id, 'scene_order' => 1]);
+        ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'block_order' => 1,
+            'raw_text' => 'El detective busca pistas en el despacho oscuro.',
+            'stage' => 'raw',
+        ]);
+
+        $component = Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project]);
+
+        // Al pulsar en Agujeros se solicita confirmación informando del coste estimado
+        $component->call('promptAnalyzePlotHoles')
+            ->assertSet('showPlotHoleConfirmModal', true)
+            ->assertSee('Auditoría de Agujeros de Guión')
+            ->assertSee('Confirmación previa de coste en tokens de IA');
+
+        $this->assertGreaterThan(0, $component->get('estimatedPlotHoleTokens'));
+        $this->assertEquals(1, $component->get('estimatedBlocksToAudit'));
+
+        // El usuario puede cancelar
+        $component->call('cancelAnalyzePlotHoles')
+            ->assertSet('showPlotHoleConfirmModal', false);
+
+        // O confirmar y ejecutar la auditoría
+        $component->call('promptAnalyzePlotHoles')
+            ->assertSet('showPlotHoleConfirmModal', true)
+            ->call('confirmAnalyzePlotHoles')
+            ->assertSet('showPlotHoleConfirmModal', false);
+
+        $this->assertDatabaseHas('user_activity_logs', [
+            'project_id' => $project->id,
+            'action' => 'analyze_plot_holes',
+        ]);
+    }
+
+    public function test_activity_history_records_actions_and_displays_reverse_chronological_modal(): void
+    {
+        $user = User::factory()->create(['name' => 'Directora Lucía']);
+        $project = Project::factory()->create(['user_id' => $user->id]);
+
+        $component = Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project]);
+
+        // 1. Crear escena
+        $component->set('newSceneSlugline', 'INT. HABITACIÓN SECRETA - DÍA')
+            ->set('newSceneTimeOfDay', 'DÍA')
+            ->call('createScene');
+
+        $scene = Scene::where('project_id', $project->id)->first();
+        $this->assertNotNull($scene);
+
+        $this->assertDatabaseHas('user_activity_logs', [
+            'project_id' => $project->id,
+            'action' => 'create_scene',
+        ]);
+
+        // 2. Crear bloque adicional
+        $component->set('activeSceneId', $scene->id)
+            ->set('newBlockRawText', 'Lucía encuentra una carta lacrada en el cajón.')
+            ->call('createNewBlock');
+
+        $this->assertDatabaseHas('user_activity_logs', [
+            'project_id' => $project->id,
+            'action' => 'create_block',
+        ]);
+
+        // 3. Abrir modal de historial
+        $component->call('openActivityHistoryModal')
+            ->assertSet('showActivityHistoryModal', true)
+            ->assertSee('Historial de Actividad del Proyecto')
+            ->assertSee('Lucía encuentra una carta lacrada')
+            ->assertSee('HABITACIÓN SECRETA');
+
+        // 4. Cerrar modal de historial
+        $component->call('closeActivityHistoryModal')
+            ->assertSet('showActivityHistoryModal', false);
+
+        // Verificar orden cronológico inverso en los logs del proyecto
+        $logs = $project->activityLogs()->latest()->get();
+        $this->assertGreaterThanOrEqual(2, $logs->count());
+        $this->assertEquals('create_block', $logs->first()->action);
+    }
 }
