@@ -70,23 +70,23 @@
         }
     </style>
 </head>
-<body class="h-full flex flex-col font-mono bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased selection:bg-amber-500/30 selection:text-amber-900 dark:selection:text-amber-200 transition-colors duration-150">
+<body class="h-full flex flex-col font-mono bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased selection:bg-amber-500/30 selection:text-amber-900 dark:selection:text-amber-200 transition-colors duration-150 overflow-x-hidden">
     <!-- Navbar Superior de Estudio -->
-    <header class="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/90 dark:border-slate-800 dark:bg-slate-950/80 backdrop-blur-md px-4 sm:px-6 py-3 transition-colors">
-        <div class="flex items-center justify-between gap-4 max-w-7xl mx-auto">
+    <header class="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/90 dark:border-slate-800 dark:bg-slate-950/80 backdrop-blur-md px-3 sm:px-6 py-2.5 sm:py-3 transition-colors">
+        <div class="flex items-center justify-between gap-2 sm:gap-4 max-w-7xl mx-auto">
             <!-- Marca y Breadcrumbs -->
-            <div class="flex items-center gap-3">
-                <a href="{{ route('projects.index') }}" class="flex items-center gap-2 group">
-                    <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center shadow-lg shadow-amber-950/20 border border-amber-400/30 group-hover:scale-105 transition">
-                        <span class="text-lg">🎬</span>
+            <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+                <a href="{{ route('projects.index') }}" class="flex items-center gap-2 group shrink-0">
+                    <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center shadow-lg shadow-amber-950/20 border border-amber-400/30 group-hover:scale-105 transition">
+                        <span class="text-base sm:text-lg">🎬</span>
                     </div>
                 </a>
-                <div>
-                    <a href="{{ route('projects.index') }}" class="text-base font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5 hover:text-amber-600 transition">
-                        jG Filmmaker
-                        <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 font-semibold tracking-wider">STUDIO</span>
+                <div class="min-w-0">
+                    <a href="{{ route('projects.index') }}" class="text-sm sm:text-base font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5 hover:text-amber-600 transition truncate">
+                        <span>jG Filmmaker</span>
+                        <span class="text-[9px] sm:text-[10px] font-mono px-1 sm:px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 font-semibold tracking-wider">STUDIO</span>
                     </a>
-                    <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-none mt-0.5 flex items-center gap-1">
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-none mt-0.5 hidden md:flex items-center gap-1">
                         <span>Pipeline Cinematográfico IA</span>
                         <span>hecho por</span>
                         <a href="https://javiergalvez.com" target="_blank" rel="noopener noreferrer" class="text-amber-600 dark:text-amber-400 hover:underline font-semibold">Javier Gálvez</a>
@@ -95,11 +95,11 @@
             </div>
 
             <!-- Acciones y Usuario -->
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-1.5 sm:gap-3 shrink-0">
                 <!-- Selector Tema Claro / Oscuro -->
                 <button type="button"
                         onclick="toggleTheme()"
-                        class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition shadow-sm"
+                        class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition shadow-sm shrink-0"
                         title="Alternar Tema Claro / Oscuro">
                     <span class="dark:hidden text-sm">🌙</span>
                     <span class="hidden dark:inline text-sm">☀️</span>
@@ -114,7 +114,7 @@
                     @endphp
 
                     <!-- Contador de Tokens Diarios IA del Usuario (Entre selector de tema y usuario) -->
-                    <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-mono font-medium bg-slate-100/80 hover:bg-slate-200/80 dark:bg-slate-900/80 dark:hover:bg-slate-800/80 border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 shadow-2xs transition shrink-0 cursor-default"
+                    <div class="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-xl text-xs font-mono font-medium bg-slate-100/80 hover:bg-slate-200/80 dark:bg-slate-900/80 dark:hover:bg-slate-800/80 border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 shadow-2xs transition shrink-0 cursor-default"
                          title="Tokens de IA disponibles hoy: {{ number_format($userTokensAvail, 0, ',', '.') }} de {{ number_format($userDailyLimit, 0, ',', '.') }} ({{ $userPercentLeft }}%). Consumidos hoy: {{ number_format($userUsedToday, 0, ',', '.') }}. Se renueva diariamente a las 00:00.">
                         <span class="{{ $userPercentLeft < 15 ? 'text-rose-500 animate-pulse' : ($userPercentLeft < 40 ? 'text-amber-500' : 'text-emerald-500') }}">⚡</span>
                         <span class="font-bold text-slate-900 dark:text-white">{{ number_format($userTokensAvail, 0, ',', '.') }}</span>
@@ -122,10 +122,10 @@
                     </div>
 
                     <!-- Menú Desplegable de Usuario (Estilo jg_hub / jg_dashboard con Cuota de Slots) -->
-                    <div class="relative pl-2 border-l border-slate-200 dark:border-slate-800" x-data="{ userMenuOpen: false }" @click.outside="userMenuOpen = false">
+                    <div class="relative pl-1 sm:pl-2 border-l border-slate-200 dark:border-slate-800 shrink-0" x-data="{ userMenuOpen: false }" @click.outside="userMenuOpen = false">
                         <button @click="userMenuOpen = !userMenuOpen"
                                 type="button"
-                                class="flex items-center gap-2.5 px-2 py-1 rounded-xl bg-slate-100/80 hover:bg-slate-200 border border-slate-200/80 dark:bg-slate-900/80 dark:hover:bg-slate-800 dark:border-slate-800 transition shadow-xs cursor-pointer text-left">
+                                class="flex items-center gap-1.5 sm:gap-2.5 px-1.5 sm:px-2 py-1 rounded-xl bg-slate-100/80 hover:bg-slate-200 border border-slate-200/80 dark:bg-slate-900/80 dark:hover:bg-slate-800 dark:border-slate-800 transition shadow-xs cursor-pointer text-left">
                             <div class="text-right hidden sm:block">
                                 <div class="flex items-center justify-end gap-1.5">
                                     <span class="text-xs font-semibold text-slate-800 dark:text-slate-200">{{ auth()->user()->email }}</span>
@@ -135,7 +135,7 @@
                                 </div>
                             </div>
 
-                            <div class="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center font-bold text-xs text-amber-600 dark:text-amber-300 shadow-inner">
+                            <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center font-bold text-xs text-amber-600 dark:text-amber-300 shadow-inner">
                                 {{ strtoupper(substr(auth()->user()->name ?: auth()->user()->email, 0, 1)) }}
                             </div>
 

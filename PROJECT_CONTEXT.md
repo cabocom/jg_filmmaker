@@ -449,6 +449,13 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
       * Obra cinematográfica de demostración *El Susurro del Viento* sembrada y asociada a dicho usuario.
     - **Script de Despliegue Automatizado (`deploy.sh`):**
       * Creado e integrado `deploy.sh` en la raíz de `/cabocom/web/apps/films.javiergalvez.com` (y versionado en el repositorio), replicando la convención de `/cabocom/ia/javiergalvez-ia/deploy.sh` con 5 fases automáticas: pull de imágenes, arranque con `--remove-orphans`, sondeo de salud (healthcheck con timeout), migraciones (Alembic y Laravel en PostgreSQL), purga y precalentamiento de cachés, y reporte final de endpoints.
+    - **Proxy de Depuración y Desarrollo Remoto (`films.cabocom.net`):**
+      * Configurada regla de Nginx en la VM (`/etc/nginx/sites-available/8010-films.cabocom.net` y enlace simbólico en `sites-enabled`) enrutando `https://films.cabocom.net` con SSL activo hacia la máquina local de desarrollo por la VPN (`http://10.8.0.8:8010`).
+      * Habilita pruebas en tiempo real desde dispositivos móviles sin necesidad de redesplegar imágenes en producción ni saltarse el aislamiento de desarrollo.
+    - **Optimización de Interfaz Móvil y Responsiva:**
+      * Topbar global (`layouts/app.blade.php`): Subtítulo colapsado en pantallas estrechas (`hidden md:flex`), avatar, tema y contador de tokens ajustados con `shrink-0` y protección `overflow-x-hidden`.
+      * Estudio y Editor de Guion (`script-editor.blade.php`): Barra superior adaptada a `flex-col md:flex-row` con scroll horizontal seguro para selector de etapas y cabecera de escena dividida en fila de metadatos/acciones y selector de pipeline.
+      * Listado de Proyectos (`project-list.blade.php`): Encabezado con `flex-wrap` y botón `shrink-0`.
     - **Gestión Segura de Secretos y Configuración:**
       * Variables inyectadas de forma unificada desde Vault (`APP_KEY`, `JG_AGENTE_SECRET`, `GLOBAL_GROQ_API_KEY`, `GLOBAL_GOOGLE_API_KEY`, `GLOBAL_MAIL_*`).
       * Archivo `.env` en la VM protegido con permisos `600`.

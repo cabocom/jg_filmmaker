@@ -2,21 +2,21 @@
     <!-- Header del Dashboard -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-slate-200 dark:border-slate-800">
         <div>
-            <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
+            <h1 class="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white flex flex-wrap items-center gap-2 sm:gap-3">
                 <span>Proyectos Cinematográficos</span>
-                <span class="text-xs font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                <span class="text-xs font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400 border border-slate-200 dark:border-slate-700 shrink-0">
                     {{ $projects->count() }} de {{ $user->paid_project_slots ?? 5 }} slots
                 </span>
             </h1>
-            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
                 Gestiona y desarrolla el pipeline de guión, Biblia de arte, desglose de planos y tomas de rodaje.
             </p>
         </div>
 
-        <div>
+        <div class="shrink-0">
             <button wire:click="$set('showCreateModal', true)"
                     type="button"
-                    class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30 transition-all cursor-pointer">
+                    class="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30 transition-all cursor-pointer shrink-0">
                 <span>+</span>
                 <span>Nuevo Proyecto</span>
             </button>

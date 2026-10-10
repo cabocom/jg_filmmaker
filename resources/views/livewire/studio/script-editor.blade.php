@@ -47,11 +47,12 @@
     </style>
 
     <!-- ================= BARRA SUPERIOR STICKY: TÍTULO DEL PROYECTO Y NAVEGACIÓN STORY ARCHITECT ================= -->
-    <div class="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 shadow-xs backdrop-blur-md px-4 sm:px-6 lg:px-8 py-2.5 transition-colors">
-        <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
+    <!-- ================= BARRA SUPERIOR STICKY: TÍTULO DEL PROYECTO Y NAVEGACIÓN STORY ARCHITECT ================= -->
+    <div class="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 shadow-xs backdrop-blur-md px-3 sm:px-6 lg:px-8 py-2 sm:py-2.5 transition-colors">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-2.5 sm:gap-4">
             <!-- Herramientas del Proyecto: Título, Escenas, Biblia, Agujeros, Historial (Izquierda) -->
-            <div class="flex items-center flex-wrap gap-2.5 min-w-0">
-                <span class="text-sm font-bold font-mono uppercase tracking-wider text-slate-900 dark:text-white truncate">
+            <div class="flex items-center flex-wrap gap-2 min-w-0">
+                <span class="text-sm font-bold font-mono uppercase tracking-wider text-slate-900 dark:text-white truncate max-w-[150px] sm:max-w-xs" title="{{ $project->title }}">
                     {{ $project->title }}
                 </span>
                 <span class="px-2 py-0.5 rounded-md text-xs font-bold font-mono bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
@@ -153,30 +154,30 @@
             </div>
 
             <!-- Menú Superior Alineado a la Derecha: Pipeline - Idea - Tratamiento - Guion - Planos/Tomas -->
-            <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200 dark:border-slate-700/80 shrink-0 overflow-x-auto">
+            <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200 dark:border-slate-700/80 shrink-0 overflow-x-auto max-w-full">
                 <button wire:click="setActiveView('pipeline')"
                         type="button"
-                        class="px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'pipeline' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                        class="px-2 sm:px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'pipeline' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
                     Pipeline
                 </button>
                 <button wire:click="setActiveView('idea')"
                         type="button"
-                        class="px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'idea' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                        class="px-2 sm:px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'idea' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
                     Idea
                 </button>
                 <button wire:click="setActiveView('structured')"
                         type="button"
-                        class="px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'structured' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                        class="px-2 sm:px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'structured' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
                     Tratamiento
                 </button>
                 <button wire:click="setActiveView('screenplay')"
                         type="button"
-                        class="px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'screenplay' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                        class="px-2 sm:px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'screenplay' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
                     Guion
                 </button>
                 <button wire:click="setActiveView('shots')"
                         type="button"
-                        class="px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'shots' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                        class="px-2 sm:px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'shots' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
                     Planos/Tomas
                 </button>
             </div>
@@ -272,98 +273,101 @@
                      class="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl shadow-xs transition-all overflow-hidden mb-0">
 
                     <!-- Cabecera de la Escena (Slugline a la Izquierda, Pipeline individual a la Derecha) -->
-                    <div class="px-2.5 sm:px-3.5 py-2 bg-slate-100/75 dark:bg-slate-800/60 border-b border-slate-200/80 dark:border-slate-700/60 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 sm:gap-3">
-                        <div class="flex items-center gap-2 min-w-0">
-                            <!-- Tirador Drag & Drop de Escena con draggable=true directo -->
-                            <div draggable="true"
-                                 @dragstart.stop="
-                                     event.dataTransfer.setData('scene-id', '{{ $scene->id }}');
-                                     event.dataTransfer.effectAllowed = 'move';
-                                     const sceneEl = document.getElementById('scene-card-{{ $scene->id }}');
-                                     if (event.dataTransfer.setDragImage && sceneEl) {
-                                         event.dataTransfer.setDragImage(sceneEl, 20, 20);
-                                     }
-                                     isDraggingScene = true;
-                                 "
-                                 @dragend="isDraggingScene = false"
-                                 title="Arrastrar para mover toda esta escena"
-                                 :class="isSceneHovered ? 'opacity-100' : 'opacity-0'"
-                                 class="shrink-0 w-4 h-5 rounded flex items-center justify-center text-slate-400 hover:text-amber-500 dark:text-slate-500 dark:hover:text-amber-400 cursor-grab active:cursor-grabbing transition-opacity duration-150 select-none">
-                                <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-                                    <circle cx="7" cy="4" r="1.5" />
-                                    <circle cx="13" cy="4" r="1.5" />
-                                    <circle cx="7" cy="10" r="1.5" />
-                                    <circle cx="13" cy="10" r="1.5" />
-                                    <circle cx="7" cy="16" r="1.5" />
-                                    <circle cx="13" cy="16" r="1.5" />
-                                </svg>
+                    <div class="px-2.5 sm:px-3.5 py-2 bg-slate-100/75 dark:bg-slate-800/60 border-b border-slate-200/80 dark:border-slate-700/60 flex flex-col md:flex-row md:items-center justify-between gap-2 sm:gap-3">
+                        <div class="flex items-center justify-between md:justify-start gap-2 w-full md:w-auto min-w-0">
+                            <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                                <!-- Tirador Drag & Drop de Escena con draggable=true directo -->
+                                <div draggable="true"
+                                     @dragstart.stop="
+                                         event.dataTransfer.setData('scene-id', '{{ $scene->id }}');
+                                         event.dataTransfer.effectAllowed = 'move';
+                                         const sceneEl = document.getElementById('scene-card-{{ $scene->id }}');
+                                         if (event.dataTransfer.setDragImage && sceneEl) {
+                                             event.dataTransfer.setDragImage(sceneEl, 20, 20);
+                                         }
+                                         isDraggingScene = true;
+                                     "
+                                     @dragend="isDraggingScene = false"
+                                     title="Arrastrar para mover toda esta escena"
+                                     :class="isSceneHovered ? 'opacity-100' : 'opacity-0'"
+                                     class="shrink-0 w-4 h-5 rounded flex items-center justify-center text-slate-400 hover:text-amber-500 dark:text-slate-500 dark:hover:text-amber-400 cursor-grab active:cursor-grabbing transition-opacity duration-150 select-none">
+                                    <svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                        <circle cx="7" cy="4" r="1.5" />
+                                        <circle cx="13" cy="4" r="1.5" />
+                                        <circle cx="7" cy="10" r="1.5" />
+                                        <circle cx="13" cy="10" r="1.5" />
+                                        <circle cx="7" cy="16" r="1.5" />
+                                        <circle cx="13" cy="16" r="1.5" />
+                                    </svg>
+                                </div>
+
+                                <!-- Botón Toggle de Acordeón con Icono Dinámico (Cambia de forma según esté expandida o colapsada) -->
+                                <button wire:click="toggleScene('{{ $scene->id }}')"
+                                        type="button"
+                                        class="flex items-center gap-1.5 sm:gap-2 text-left min-w-0 cursor-pointer group/btn">
+                                    @if($isExpanded)
+                                        <!-- Icono Abierto (Flecha hacia abajo) -->
+                                        <svg class="w-3.5 h-3.5 shrink-0 text-amber-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    @else
+                                        <!-- Icono Cerrado / Colapsado (Flecha hacia la derecha) -->
+                                        <svg class="w-3.5 h-3.5 shrink-0 text-slate-400 group-hover/btn:text-amber-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+                                        </svg>
+                                    @endif
+
+                                    <div class="flex items-center gap-1 sm:gap-1.5 font-mono min-w-0">
+                                        <span class="text-[11px] font-bold text-amber-600 dark:text-amber-400 shrink-0">
+                                            ESC. {{ $scene->scene_order }}
+                                        </span>
+                                        <span class="text-slate-300 dark:text-slate-600 font-bold shrink-0">·</span>
+                                        <span class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide truncate max-w-[130px] sm:max-w-xs md:max-w-md">
+                                            {{ $scene->slugline }}
+                                        </span>
+                                        @if($scene->time_of_day)
+                                            <span class="text-[10px] text-slate-400 dark:text-slate-500 shrink-0 hidden sm:inline">
+                                                ({{ $scene->time_of_day }})
+                                            </span>
+                                        @endif
+                                    </div>
+                                </button>
                             </div>
 
-                            <!-- Botón Toggle de Acordeón con Icono Dinámico (Cambia de forma según esté expandida o colapsada) -->
-                            <button wire:click="toggleScene('{{ $scene->id }}')"
-                                    type="button"
-                                    class="flex items-center gap-2 text-left truncate cursor-pointer group/btn">
-                                @if($isExpanded)
-                                    <!-- Icono Abierto (Flecha hacia abajo) -->
-                                    <svg class="w-3.5 h-3.5 shrink-0 text-amber-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+                            <!-- Botones de Edición Rápida y Borrado -->
+                            <div class="flex items-center gap-1 shrink-0">
+                                <button wire:click="openEditSceneModal('{{ $scene->id }}')"
+                                        type="button"
+                                        title="Editar nombre y datos de la Escena {{ $scene->scene_order }}"
+                                        class="p-1 rounded text-slate-400 hover:text-amber-500 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 transition cursor-pointer shrink-0">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                     </svg>
-                                @else
-                                    <!-- Icono Cerrado / Colapsado (Flecha hacia la derecha) -->
-                                    <svg class="w-3.5 h-3.5 shrink-0 text-slate-400 group-hover/btn:text-amber-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+                                </button>
+
+                                <button wire:click="openDeleteSceneModal('{{ $scene->id }}')"
+                                        type="button"
+                                        title="Eliminar Escena {{ $scene->scene_order }}..."
+                                        class="p-1 rounded text-slate-400 hover:text-rose-500 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 transition cursor-pointer shrink-0">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                     </svg>
-                                @endif
-
-                                <div class="flex items-center gap-1.5 flex-wrap font-mono">
-                                    <span class="text-[11px] font-bold text-amber-600 dark:text-amber-400">
-                                        ESC. {{ $scene->scene_order }}
-                                    </span>
-                                    <span class="text-slate-300 dark:text-slate-600 font-bold">·</span>
-                                    <span class="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide truncate">
-                                        {{ $scene->slugline }}
-                                    </span>
-                                    @if($scene->time_of_day)
-                                        <span class="text-[10px] text-slate-400 dark:text-slate-500">
-                                            ({{ $scene->time_of_day }})
-                                        </span>
-                                    @endif
-                                </div>
-                            </button>
-
-                            <!-- Botón de Edición Rápida de Escena -->
-                            <button wire:click="openEditSceneModal('{{ $scene->id }}')"
-                                    type="button"
-                                    title="Editar nombre y datos de la Escena {{ $scene->scene_order }}"
-                                    class="p-1 rounded text-slate-400 hover:text-amber-500 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 transition cursor-pointer shrink-0">
-                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                </svg>
-                            </button>
-
-                            <!-- Botón de Borrado de Escena -->
-                            <button wire:click="openDeleteSceneModal('{{ $scene->id }}')"
-                                    type="button"
-                                    title="Eliminar Escena {{ $scene->scene_order }}..."
-                                    class="p-1 rounded text-slate-400 hover:text-rose-500 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 transition cursor-pointer shrink-0">
-                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                            </button>
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Cabecera del Pipeline Integrada dentro de la Escena (Exclusiva para esta escena) -->
-                        <div class="flex items-center gap-1.5 sm:gap-2 shrink-0 overflow-x-auto max-w-full pb-0.5 sm:pb-0">
+                        <div class="flex items-center justify-between md:justify-end gap-1.5 sm:gap-2 w-full md:w-auto shrink-0 overflow-x-auto max-w-full pb-0.5 sm:pb-0">
                             <span class="text-[11px] text-slate-400 dark:text-slate-500 font-mono hidden md:inline">
                                 {{ $scene->scriptBlocks->count() }} {{ $scene->scriptBlocks->count() === 1 ? 'bloque' : 'bloques' }}
                             </span>
 
-                            <div class="inline-flex rounded-lg bg-white/90 dark:bg-slate-900/90 p-0.5 border border-slate-200 dark:border-slate-700/80 text-[11px] shadow-2xs">
+                            <div class="inline-flex rounded-lg bg-white/90 dark:bg-slate-900/90 p-0.5 border border-slate-200 dark:border-slate-700/80 text-[11px] shadow-2xs shrink-0">
                                 <!-- 1. Idea -->
                                 <button wire:click="setScenePipelineStage('{{ $scene->id }}', 'idea')"
                                         type="button"
                                         title="Listado de textos originales en bruto para esta escena"
-                                        class="px-2 py-0.5 rounded transition font-mono cursor-pointer {{ $sceneStage === 'idea' ? 'bg-amber-500 text-slate-950 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                                        class="px-2 py-0.5 rounded transition font-mono cursor-pointer whitespace-nowrap {{ $sceneStage === 'idea' ? 'bg-amber-500 text-slate-950 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
                                     Idea
                                 </button>
 
@@ -371,7 +375,7 @@
                                 <button wire:click="setScenePipelineStage('{{ $scene->id }}', 'structured')"
                                         type="button"
                                         title="Listado de textos estructurados a tratamiento para esta escena"
-                                        class="px-2 py-0.5 rounded transition font-mono cursor-pointer {{ $sceneStage === 'structured' ? 'bg-amber-500 text-slate-950 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                                        class="px-2 py-0.5 rounded transition font-mono cursor-pointer whitespace-nowrap {{ $sceneStage === 'structured' ? 'bg-amber-500 text-slate-950 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
                                     Tratamiento
                                 </button>
 
@@ -379,7 +383,7 @@
                                 <button wire:click="setScenePipelineStage('{{ $scene->id }}', 'screenplay')"
                                         type="button"
                                         title="Listado de textos formateados a guión canónico Fountain para esta escena"
-                                        class="px-2 py-0.5 rounded transition font-mono cursor-pointer {{ $sceneStage === 'screenplay' ? 'bg-amber-500 text-slate-950 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                                        class="px-2 py-0.5 rounded transition font-mono cursor-pointer whitespace-nowrap {{ $sceneStage === 'screenplay' ? 'bg-amber-500 text-slate-950 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
                                     Guión
                                 </button>
 
@@ -387,7 +391,7 @@
                                 <button wire:click="setScenePipelineStage('{{ $scene->id }}', 'shots')"
                                         type="button"
                                         title="Desglose técnico de planos de cámara y tomas para esta escena"
-                                        class="px-2 py-0.5 rounded transition font-mono cursor-pointer {{ $sceneStage === 'shots' ? 'bg-amber-500 text-slate-950 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                                        class="px-2 py-0.5 rounded transition font-mono cursor-pointer whitespace-nowrap {{ $sceneStage === 'shots' ? 'bg-amber-500 text-slate-950 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
                                     Planos / Tomas
                                 </button>
                             </div>
