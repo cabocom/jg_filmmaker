@@ -123,16 +123,14 @@
             @else
                 <!-- ================= FEED CONTINUO DE BLOQUES DE LA HISTORIA ================= -->
                 <div class="py-1 space-y-0.5">
-                    <!-- Botón Gutenberg Inicial (Insertar antes del primer bloque, visible SOLO en hover) -->
-                    <div class="relative group h-4 -my-0.5 flex items-center justify-center cursor-pointer z-10">
-                        <div class="absolute inset-0 flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none" aria-hidden="true">
-                            <div class="w-full border-t-2 border-amber-500 shadow-xs"></div>
-                        </div>
+                    <!-- Botón Gutenberg Inicial (Insertar antes del primer bloque, visible en hover) -->
+                    <div class="relative group h-8 -my-2 flex items-center justify-center cursor-pointer z-20">
+                        <div class="absolute inset-x-0 h-0.5 bg-amber-500 dark:bg-amber-400 opacity-0 group-hover:opacity-100 transition-all duration-150 pointer-events-none shadow-xs" aria-hidden="true"></div>
                         <button wire:click="openNewBlockModal(0)"
                                 type="button"
                                 title="Insertar bloque al inicio"
-                                class="relative z-10 opacity-0 group-hover:opacity-100 inline-flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-lg shadow-amber-500/40 hover:shadow-amber-500/60 border-2 border-white dark:border-slate-900 transition-all duration-200 transform hover:scale-115 cursor-pointer">
-                            <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                class="relative z-10 opacity-0 group-hover:opacity-100 transform scale-75 group-hover:scale-100 inline-flex items-center justify-center w-8 h-8 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-md shadow-amber-500/40 border-2 border-white dark:border-slate-900 transition-all duration-150 hover:scale-110 cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                             </svg>
                         </button>
@@ -163,12 +161,12 @@
                              class="group relative rounded-xl px-3 py-1.5 transition-all cursor-pointer border-l-2 {{ $isSelected ? 'bg-amber-500/10 dark:bg-amber-400/10 border-amber-500 shadow-2xs' : 'border-transparent hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700' }}">
 
                             <div class="flex items-start gap-2.5">
-                                <!-- Handle para Drag & Drop (Aparece en hover a la izquierda) -->
+                                <!-- Handle para Drag & Drop (Visible y evidente para reordenar bloques) -->
                                 <div draggable="true"
                                      @dragstart.stop="event.dataTransfer.setData('text/plain', '{{ $block->id }}'); event.dataTransfer.effectAllowed = 'move'; isDragging = true"
                                      @dragend="isDragging = false"
-                                     title="Arrastrar para mover de posición"
-                                     class="shrink-0 pt-0.5 opacity-0 group-hover:opacity-40 hover:!opacity-100 transition-opacity cursor-grab active:cursor-grabbing text-slate-400 dark:text-slate-500 hover:text-amber-500 select-none">
+                                     title="Arrastrar para mover este bloque de posición"
+                                     class="shrink-0 p-1 -ml-1 rounded opacity-50 group-hover:opacity-100 hover:!opacity-100 transition-all cursor-grab active:cursor-grabbing text-slate-400 dark:text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-500/10 select-none flex items-center justify-center">
                                     <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
                                         <circle cx="7" cy="4" r="1.5" />
                                         <circle cx="13" cy="4" r="1.5" />
@@ -248,16 +246,14 @@
                             </div>
                         </div>
 
-                        <!-- Divisor Gutenberg Intermedio (Círculo naranja y línea SOLO en hover) -->
-                        <div class="relative group h-4 -my-0.5 flex items-center justify-center cursor-pointer z-10">
-                            <div class="absolute inset-0 flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none" aria-hidden="true">
-                                <div class="w-full border-t-2 border-amber-500 shadow-xs"></div>
-                            </div>
+                        <!-- Divisor Gutenberg Intermedio (Línea horizontal continua y botón central SOLO en hover) -->
+                        <div class="relative group h-8 -my-2.5 flex items-center justify-center cursor-pointer z-20">
+                            <div class="absolute inset-x-0 h-0.5 bg-amber-500 dark:bg-amber-400 opacity-0 group-hover:opacity-100 transition-all duration-150 pointer-events-none shadow-xs" aria-hidden="true"></div>
                             <button wire:click="openNewBlockModal({{ $block->block_order }})"
                                     type="button"
                                     title="Añadir bloque aquí"
-                                    class="relative z-10 opacity-0 group-hover:opacity-100 inline-flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-lg shadow-amber-500/40 hover:shadow-amber-500/60 border-2 border-white dark:border-slate-900 transition-all duration-200 transform hover:scale-115 cursor-pointer">
-                                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                                    class="relative z-10 opacity-0 group-hover:opacity-100 transform scale-75 group-hover:scale-100 inline-flex items-center justify-center w-8 h-8 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-md shadow-amber-500/40 border-2 border-white dark:border-slate-900 transition-all duration-150 hover:scale-110 cursor-pointer">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                                 </svg>
                             </button>

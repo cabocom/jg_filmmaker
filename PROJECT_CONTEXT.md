@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 2.7.0  
+**Versión del documento:** 2.8.0  
 **Fecha de consolidación:** 10 de octubre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 3/4, Tailwind CSS v4, PHP 8.4, PostgreSQL / SQLite, FFmpeg, PHPUnit 12, Laravel Pint  
-**Estado:** Fases 1 a 12 implementadas al 100% (Formateo Automático de Guión Fountain con Inferencia de Habla Indirecta y Preguntas dramáticas, Sin selección automática de bloques en carga inicial, Hover gris claro y selección manual por clic, Botón Gutenberg redondo ampliado con icono SVG, Eliminación de sangrías residuales en `<pre>` y bloques de texto alineados estrictamente a la izquierda, Drawer lateral 100% homogéneo con estilo de Tratamiento unificado, Supresión de badge 200 OK superfluo).
+**Estado:** Fases 1 a 13 implementadas al 100% (Línea continua horizontal Gutenberg y botón central emergente en hover para inserción exacta de bloques, Tirador visual permanente y reactivo de Drag & Drop para reordenar bloques, Motor robusto de Detección de Diálogos y Habla Indirecta con acotaciones circunstanciales y resolución de sujetos elípticos en PHP y Python, Sincronización y montaje del plugin `jg_plugin_filmmaker` en `jg_agente_conversacional`).
 
 ---
 
