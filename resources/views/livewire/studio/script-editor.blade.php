@@ -47,24 +47,57 @@
 
     </style>
 
-    <!-- ================= BARRA SUPERIOR STICKY: TÍTULO DEL PROYECTO ================= -->
+    <!-- ================= BARRA SUPERIOR STICKY: TÍTULO DEL PROYECTO Y NAVEGACIÓN STORY ARCHITECT ================= -->
     <div class="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 shadow-xs backdrop-blur-md px-4 sm:px-6 lg:px-8 py-2.5 transition-colors">
-        <div class="max-w-7xl mx-auto flex items-center justify-between gap-3">
-            <!-- Título del Proyecto y Recuento de Escenas -->
-            <div class="flex items-center gap-3">
-                <span class="text-sm font-bold font-mono uppercase tracking-wider text-slate-900 dark:text-white">
+        <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
+            <!-- Título del Proyecto y Recuento de Escenas (Izquierda) -->
+            <div class="flex items-center gap-3 min-w-0">
+                <span class="text-sm font-bold font-mono uppercase tracking-wider text-slate-900 dark:text-white truncate">
                     {{ $project->title }}
                 </span>
-                <span class="px-2 py-0.5 rounded-md text-xs font-bold font-mono bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                <span class="px-2 py-0.5 rounded-md text-xs font-bold font-mono bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
                     {{ $scenes->count() }} {{ $scenes->count() === 1 ? 'escena' : 'escenas' }}
                 </span>
+            </div>
+
+            <!-- Menú Superior Alineado a la Derecha: Pipeline - Idea - Tratamiento - Guion - Planos/Tomas - Montaje -->
+            <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200 dark:border-slate-700/80 shrink-0 overflow-x-auto">
+                <button wire:click="setActiveView('pipeline')"
+                        type="button"
+                        class="px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'pipeline' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                    Pipeline
+                </button>
+                <button wire:click="setActiveView('idea')"
+                        type="button"
+                        class="px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'idea' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                    Idea
+                </button>
+                <button wire:click="setActiveView('structured')"
+                        type="button"
+                        class="px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'structured' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                    Tratamiento
+                </button>
+                <button wire:click="setActiveView('screenplay')"
+                        type="button"
+                        class="px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'screenplay' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                    Guion
+                </button>
+                <button wire:click="setActiveView('shots')"
+                        type="button"
+                        class="px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'shots' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                    Planos/Tomas
+                </button>
+                <button wire:click="setActiveView('timeline')"
+                        type="button"
+                        class="px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'timeline' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                    Montaje
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- ================= CONTENEDOR PRINCIPAL STORYARCHITECT ================= -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        <!-- Mensajes Flash -->
+    <!-- Mensajes Flash Globales -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
         @if(session()->has('success'))
             <div class="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs flex items-center justify-between shadow-sm">
                 <div class="flex items-center gap-2">
@@ -89,11 +122,15 @@
                 </div>
             </div>
         @endif
+    </div>
 
-        <!-- ================= FLUJO VERTICAL CONTINUO DE ESCENAS (MODO STORYARCHITECT) ================= -->
-        <div class="space-y-1">
-            <!-- Divisor Gutenberg Inicial por encima de la Escena 1 (+ Nueva Escena al inicio) -->
-            <div x-data="{ isTopScenePlusHovered: false }"
+    @if($activeView === 'pipeline')
+        <!-- ================= CONTENEDOR PRINCIPAL STORYARCHITECT (MODO PIPELINE INTERACTIVO) ================= -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+            <!-- ================= FLUJO VERTICAL CONTINUO DE ESCENAS (MODO STORYARCHITECT) ================= -->
+            <div class="space-y-1">
+                <!-- Divisor Gutenberg Inicial por encima de la Escena 1 (+ Nueva Escena al inicio) -->
+                <div x-data="{ isTopScenePlusHovered: false }"
                  @mouseenter="isTopScenePlusHovered = true"
                  @mouseleave="isTopScenePlusHovered = false"
                  class="gutenberg-container relative py-0.5 my-0 flex items-center justify-center cursor-pointer z-[5] w-full"
@@ -471,6 +508,201 @@
             @endforelse
         </div>
     </div>
+    @else
+        <!-- ================= VISTA CONSOLIDADA CONTINUA ESTILO STORY ARCHITECT ================= -->
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+            <!-- Tarjeta de Hoja de Lectura Continua Story Architect -->
+            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 sm:p-12 space-y-8 min-h-[70vh]">
+                <!-- Encabezado del Documento Consolidado -->
+                <div class="pb-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between flex-wrap gap-4">
+                    <div>
+                        <h2 class="text-xs font-mono uppercase tracking-widest text-amber-600 dark:text-amber-400 font-bold">
+                            Consolidado Story Architect · {{ match($activeView) {
+                                'idea' => 'Idea / Texto Bruto',
+                                'structured' => 'Tratamiento Narrativo',
+                                'screenplay' => 'Guion Literario',
+                                'shots' => 'Planos / Tomas Técnicas',
+                                'timeline' => 'Montaje / Secuencia de Edición',
+                                default => ucfirst($activeView),
+                            } }}
+                        </h2>
+                        <h1 class="text-xl sm:text-2xl font-bold font-mono text-slate-900 dark:text-white mt-1">
+                            {{ $project->title }}
+                        </h1>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                            {{ $scenes->count() }} {{ $scenes->count() === 1 ? 'Escena' : 'Escenas' }}
+                        </span>
+                        <button wire:click="setActiveView('pipeline')"
+                                type="button"
+                                class="px-3 py-1 rounded-lg text-xs font-bold font-mono bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 transition flex items-center gap-1.5 cursor-pointer">
+                            <span>← Volver a Pipeline</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Flujo Continuo de Escenas y Bloques -->
+                <div class="space-y-10">
+                    @forelse($scenes as $scene)
+                        <section class="space-y-4 pt-6 first:pt-0 border-t first:border-t-0 border-slate-200 dark:border-slate-800/80">
+                            <!-- ENCABEZADO DE LA ESCENA (STORY ARCHITECT SLUGLINE) -->
+                            <div class="py-2.5 px-3 rounded-lg bg-slate-50 dark:bg-slate-950/60 border-l-4 border-amber-500 dark:border-amber-400 flex items-center justify-between flex-wrap gap-2">
+                                <div class="font-mono font-black text-sm uppercase tracking-wide text-slate-950 dark:text-amber-400">
+                                    {{ $scene->scene_order }}. {{ $scene->slugline }}
+                                </div>
+                                <div class="flex items-center gap-2 text-xs font-mono text-slate-500 dark:text-slate-400">
+                                    @if($scene->location)
+                                        <span>📍 {{ $scene->location->name }} ({{ $scene->location->type }})</span>
+                                    @endif
+                                    <span class="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-[11px]">
+                                        {{ $scene->scriptBlocks->count() }} {{ $scene->scriptBlocks->count() === 1 ? 'bloque' : 'bloques' }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- TEXTO DE CADA BLOQUE TAL Y COMO ESTÁN ORDENADOS -->
+                            <div class="space-y-4 pl-2 sm:pl-4">
+                                @forelse($scene->scriptBlocks as $block)
+                                    <div class="group relative py-2">
+                                        <!-- Botón flotante para abrir edición en drawer directamente -->
+                                        <div class="absolute right-0 top-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button wire:click="openBlockDetails('{{ $block->id }}', '{{ match($activeView) { 'idea' => 'raw', 'structured' => 'structured', 'screenplay' => 'screenplay', 'shots' => 'shots', default => 'raw' } }}')"
+                                                    type="button"
+                                                    title="Editar bloque #{{ $block->block_order }}"
+                                                    class="px-2 py-1 rounded text-[11px] font-mono bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-900 dark:bg-slate-800 dark:hover:bg-amber-950/40 dark:text-slate-300 dark:hover:text-amber-300 border border-slate-200 dark:border-slate-700 transition flex items-center gap-1 cursor-pointer">
+                                                <span>✏️</span>
+                                                <span>Bloque #{{ $block->block_order }}</span>
+                                            </button>
+                                        </div>
+
+                                        @if($activeView === 'idea')
+                                            <!-- VISTA IDEA: TEXTO BRUTO -->
+                                            @if(filled(trim($block->raw_text ?? '')))
+                                                <div class="text-sm text-slate-800 dark:text-slate-200 font-sans leading-relaxed whitespace-pre-line">
+                                                    {{ $block->raw_text }}
+                                                </div>
+                                            @else
+                                                <p class="text-xs italic text-slate-400 font-mono py-1">
+                                                    [Bloque #{{ $block->block_order }}: Sin texto bruto / idea registrada]
+                                                </p>
+                                            @endif
+
+                                        @elseif($activeView === 'structured')
+                                            <!-- VISTA TRATAMIENTO: TEXTO ESTRUCTURADO -->
+                                            @if(filled(trim($block->structured_text ?? '')))
+                                                <div class="text-sm text-slate-800 dark:text-slate-200 font-sans leading-relaxed whitespace-pre-line">
+                                                    {{ $block->structured_text }}
+                                                </div>
+                                            @else
+                                                <p class="text-xs italic text-slate-400 font-mono py-1">
+                                                    [Bloque #{{ $block->block_order }}: Tratamiento no estructurado]
+                                                </p>
+                                            @endif
+
+                                        @elseif($activeView === 'screenplay')
+                                            <!-- VISTA GUION: FOUNTAIN FORMATEADO STORY ARCHITECT -->
+                                            @if(filled(trim($block->screenplay_content ?? '')))
+                                                <div class="screenplay-content font-mono text-xs sm:text-sm text-slate-900 dark:text-amber-100 leading-relaxed space-y-2">
+                                                    {!! \App\Services\ScreenplayFormatterService::formatToHtml($block->screenplay_content) !!}
+                                                </div>
+                                            @else
+                                                <p class="text-xs italic text-slate-400 font-mono py-1">
+                                                    [Bloque #{{ $block->block_order }}: Guión no generado]
+                                                </p>
+                                            @endif
+
+                                        @elseif($activeView === 'shots')
+                                            <!-- VISTA PLANOS / TOMAS TÉCNICAS -->
+                                            @if($block->shots->isNotEmpty())
+                                                <div class="space-y-3">
+                                                    @foreach($block->shots as $shot)
+                                                        <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
+                                                            <div class="flex items-center justify-between font-mono pb-1 border-b border-slate-200 dark:border-slate-800">
+                                                                <span class="font-bold text-cyan-700 dark:text-cyan-400 uppercase tracking-wide">
+                                                                    PLANO {{ $shot->shot_number }} · {{ $shot->shot_type }}
+                                                                </span>
+                                                                <span class="text-slate-500 font-mono text-[11px]">{{ $shot->takes->count() }} tomas</span>
+                                                            </div>
+                                                            <p class="text-slate-700 dark:text-slate-300 leading-relaxed font-sans">{{ $shot->description }}</p>
+                                                            @if($shot->takes->isNotEmpty())
+                                                                <div class="flex flex-wrap gap-1.5 pt-1.5">
+                                                                    @foreach($shot->takes as $take)
+                                                                        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold border {{ $take->is_good_take ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-300 dark:border-slate-700' }}">
+                                                                            Toma {{ $take->take_number }} {{ $take->is_good_take ? '✓ Buena' : '' }}
+                                                                        </span>
+                                                                    @endforeach
+                                                                </div>
+                                                            @endif
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            @else
+                                                <p class="text-xs italic text-slate-400 font-mono py-1">
+                                                    [Bloque #{{ $block->block_order }}: Sin planos técnicos desglosados]
+                                                </p>
+                                            @endif
+
+                                        @elseif($activeView === 'timeline')
+                                            <!-- VISTA MONTAJE: LÍNEA DE MONTAJE Y TOMAS BUENAS DEL BLOQUE -->
+                                            @php
+                                                $goodTakes = $block->shots->flatMap->takes->where('is_good_take', true);
+                                            @endphp
+                                            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
+                                                <div class="flex items-center justify-between font-mono">
+                                                    <span class="font-bold text-slate-800 dark:text-slate-200">
+                                                        Bloque #{{ $block->block_order }}
+                                                    </span>
+                                                    <span class="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
+                                                        {{ $goodTakes->count() }} tomas en montaje
+                                                    </span>
+                                                </div>
+                                                @if($goodTakes->isNotEmpty())
+                                                    <div class="flex flex-wrap gap-2 pt-1">
+                                                        @foreach($goodTakes as $take)
+                                                            <div class="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 text-[11px] font-mono text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                                                                <span>🎬 Plano {{ $take->shot?->shot_number }}</span>
+                                                                <span class="font-bold">Toma {{ $take->take_number }}</span>
+                                                                @if($take->media_duration)
+                                                                    <span class="text-slate-500">({{ $take->media_duration }}s)</span>
+                                                                @endif
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
+                                                @else
+                                                    <p class="text-xs italic text-slate-400 font-mono">
+                                                        Sin tomas seleccionadas como buenas para el montaje en este bloque.
+                                                    </p>
+                                                @endif
+                                            </div>
+                                        @endif
+                                    </div>
+                                @empty
+                                    <p class="text-xs italic text-slate-400 font-mono py-2">Esta escena no contiene bloques de texto todavía.</p>
+                                @endforelse
+                            </div>
+
+                            <!-- En vista Montaje, mostramos además el reproductor interactivo / timeline de la escena -->
+                            @if($activeView === 'timeline')
+                                <div class="pt-4 mt-2 border-t border-slate-100 dark:border-slate-800/60">
+                                    <livewire:studio.rough-cut-timeline :project="$project" :active-scene-id="$scene->id" :key="'consolidated-timeline-'.$scene->id" />
+                                </div>
+                            @endif
+                        </section>
+                    @empty
+                        <div class="text-center py-16 space-y-3">
+                            <span class="text-4xl">🎬</span>
+                            <h3 class="text-base font-bold text-slate-900 dark:text-white">No hay escenas en este proyecto</h3>
+                            <p class="text-xs text-slate-500">Regresa a la vista Pipeline para añadir la primera escena.</p>
+                            <button wire:click="setActiveView('pipeline')" type="button" class="px-4 py-2 bg-amber-500 text-slate-950 font-bold text-xs rounded-xl shadow-md">
+                                Ir a Pipeline
+                            </button>
+                        </div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+    @endif
 
     <!-- ================= MODAL LATERAL DERECHO AL 60% (DETALLES Y EDICIÓN DE BLOQUE) ================= -->
     @if($detailBlockId)

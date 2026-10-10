@@ -460,4 +460,93 @@ class LivewireScriptEditorTest extends TestCase
 
         $this->assertEquals('Tratamiento inicial.', $freshBlock->fresh()->structured_text);
     }
+
+    public function test_top_navigation_menu_switches_between_pipeline_and_consolidated_story_architect_views(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id, 'title' => 'PROYECTO CINE TEST']);
+        $scene1 = Scene::factory()->create([
+            'project_id' => $project->id,
+            'scene_order' => 1,
+            'slugline' => 'INT. CAFETERIA - DIA',
+        ]);
+        $scene2 = Scene::factory()->create([
+            'project_id' => $project->id,
+            'scene_order' => 2,
+            'slugline' => 'EXT. CALLE - NOCHE',
+        ]);
+
+        $b1 = ScriptBlock::factory()->create([
+            'scene_id' => $scene1->id,
+            'block_order' => 1,
+            'raw_text' => 'Idea bruta bloque 1.',
+            'structured_text' => 'Tratamiento narrativo bloque 1.',
+            'screenplay_content' => "CARLOS\nHola mundo.",
+        ]);
+
+        $b2 = ScriptBlock::factory()->create([
+            'scene_id' => $scene2->id,
+            'block_order' => 1,
+            'raw_text' => 'Idea bruta escena 2.',
+            'structured_text' => 'Tratamiento escena 2.',
+            'screenplay_content' => "ANA\nBuenas noches.",
+        ]);
+
+        $test = Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->assertSet('activeView', 'pipeline')
+            ->assertSee('Pipeline')
+            ->assertSee('Idea')
+            ->assertSee('Tratamiento')
+            ->assertSee('Guion')
+            ->assertSee('Planos/Tomas')
+            ->assertSee('Montaje');
+
+        // 1. Cambiar a vista 'idea'
+        $test->call('setActiveView', 'idea')
+            ->assertSet('activeView', 'idea')
+            ->assertSee('Consolidado Story Architect · Idea / Texto Bruto')
+            ->assertSee('1. INT. CAFETERIA - DIA')
+            ->assertSee('Idea bruta bloque 1.')
+            ->assertSee('2. EXT. CALLE - NOCHE')
+            ->assertSee('Idea bruta escena 2.');
+
+        // 2. Cambiar a vista 'structured' (Tratamiento)
+        $test->call('setActiveView', 'structured')
+            ->assertSet('activeView', 'structured')
+            ->assertSee('Consolidado Story Architect · Tratamiento Narrativo')
+            ->assertSee('1. INT. CAFETERIA - DIA')
+            ->assertSee('Tratamiento narrativo bloque 1.')
+            ->assertSee('2. EXT. CALLE - NOCHE')
+            ->assertSee('Tratamiento escena 2.');
+
+        // 3. Cambiar a vista 'screenplay' (Guion)
+        $test->call('setActiveView', 'screenplay')
+            ->assertSet('activeView', 'screenplay')
+            ->assertSee('Consolidado Story Architect · Guion Literario')
+            ->assertSee('1. INT. CAFETERIA - DIA')
+            ->assertSee('CARLOS')
+            ->assertSee('Hola mundo.')
+            ->assertSee('2. EXT. CALLE - NOCHE')
+            ->assertSee('ANA')
+            ->assertSee('Buenas noches.');
+
+        // 4. Cambiar a vista 'shots' (Planos/Tomas)
+        $test->call('setActiveView', 'shots')
+            ->assertSet('activeView', 'shots')
+            ->assertSee('Consolidado Story Architect · Planos / Tomas Técnicas')
+            ->assertSee('1. INT. CAFETERIA - DIA')
+            ->assertSee('2. EXT. CALLE - NOCHE');
+
+        // 5. Cambiar a vista 'timeline' (Montaje)
+        $test->call('setActiveView', 'timeline')
+            ->assertSet('activeView', 'timeline')
+            ->assertSee('Consolidado Story Architect · Montaje / Secuencia de Edición')
+            ->assertSee('1. INT. CAFETERIA - DIA')
+            ->assertSee('2. EXT. CALLE - NOCHE');
+
+        // 6. Volver a 'pipeline'
+        $test->call('setActiveView', 'pipeline')
+            ->assertSet('activeView', 'pipeline');
+    }
 }

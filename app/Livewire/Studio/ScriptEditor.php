@@ -27,6 +27,9 @@ class ScriptEditor extends Component
     // Pestaña visual activa global para los bloques: 'all', 'raw', 'structured', 'screenplay', 'shots', 'timeline'
     public string $viewMode = 'all';
 
+    // Vista activa en la barra superior: 'pipeline' (editor interactivo) o consolidado ('idea', 'structured', 'screenplay', 'shots', 'timeline')
+    public string $activeView = 'pipeline';
+
     // Etapa global activa del pipeline: 'idea' (Original/Bruto) > 'structured' (Tratamiento) > 'screenplay' (Guión) > 'shots' (Planos/Tomas) > 'timeline' (Montaje)
     public string $pipelineStage = 'idea';
 
@@ -166,6 +169,13 @@ class ScriptEditor extends Component
         $this->detailBlockId = null;
         $this->isEditingInDrawer = false;
         $this->selectedBlockId = null;
+    }
+
+    public function setActiveView(string $view): void
+    {
+        if (in_array($view, ['pipeline', 'idea', 'structured', 'screenplay', 'shots', 'timeline'])) {
+            $this->activeView = $view;
+        }
     }
 
     public function setPipelineStage(string $stage): void
