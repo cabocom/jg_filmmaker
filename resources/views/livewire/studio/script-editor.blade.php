@@ -228,7 +228,7 @@
                                         type="button"
                                         title="Línea de tiempo y pre-corte de edición para esta escena"
                                         class="px-2 py-0.5 rounded transition font-mono cursor-pointer {{ $sceneStage === 'timeline' ? 'bg-amber-500 text-slate-950 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
-                                    🎬 Montaje
+                                    Montaje
                                 </button>
                             </div>
                         </div>
@@ -332,9 +332,11 @@
                                                         </div>
                                                     @endif
                                                 @elseif($sceneStage === 'screenplay')
-                                                    <!-- Etapa 3: Guión Literario (Fountain) -->
+                                                    <!-- Etapa 3: Guión Literario (Story Architect / Fountain) -->
                                                     @if(!empty($block->screenplay_content))
-                                                        <div class="font-screenplay text-sm text-slate-900 dark:text-amber-100 leading-relaxed whitespace-pre-wrap max-w-2xl text-left">{{ trim($block->screenplay_content) }}</div>
+                                                        <div class="screenplay-rendered-container font-screenplay text-sm max-w-2xl mx-auto w-full py-1">
+                                                            {!! \App\Services\ScreenplayFormatterService::formatToHtml($block->screenplay_content) !!}
+                                                        </div>
                                                     @else
                                                         <div class="py-0.5 flex items-center justify-between text-xs italic text-slate-400 dark:text-slate-500">
                                                             <span>[Guión literario pendiente de formatear para este bloque]</span>
@@ -659,8 +661,14 @@
                                     </div>
                                 @elseif($detailActiveTab === 'screenplay')
                                     <div class="p-5 rounded-xl bg-indigo-50/20 dark:bg-slate-950/70 border border-indigo-200/50 dark:border-indigo-900/40 space-y-2 shadow-2xs">
-                                        <span class="text-xs font-mono font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">3. Guión Literario (Fountain):</span>
-                                        <div class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed font-screenplay whitespace-pre-wrap text-left">{{ trim($detailBlock->screenplay_content ?: 'Aún no se ha formateado a guión literario.') }}</div>
+                                        <span class="text-xs font-mono font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">3. Guión Literario (Story Architect):</span>
+                                        @if(!empty($detailBlock->screenplay_content))
+                                            <div class="screenplay-rendered-container font-screenplay text-sm max-w-2xl mx-auto w-full py-1">
+                                                {!! \App\Services\ScreenplayFormatterService::formatToHtml($detailBlock->screenplay_content) !!}
+                                            </div>
+                                        @else
+                                            <div class="text-sm text-slate-400 dark:text-slate-500 italic font-screenplay">Aún no se ha formateado a guión literario.</div>
+                                        @endif
                                     </div>
                                 @elseif($detailActiveTab === 'shots')
                                     <div class="space-y-4">

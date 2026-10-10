@@ -80,14 +80,19 @@
                     <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center shadow-lg shadow-amber-950/20 border border-amber-400/30 group-hover:scale-105 transition">
                         <span class="text-lg">🎬</span>
                     </div>
-                    <div>
-                        <span class="text-base font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5">
-                            jG Filmmaker
-                            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 font-semibold tracking-wider">STUDIO</span>
-                        </span>
-                        <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-none">Pipeline Cinematográfico IA</p>
-                    </div>
                 </a>
+                <div>
+                    <a href="{{ route('projects.index') }}" class="text-base font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5 hover:text-amber-600 transition">
+                        jG Filmmaker
+                        <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 font-semibold tracking-wider">STUDIO</span>
+                    </a>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-none mt-0.5 flex items-center gap-1">
+                        <span>Pipeline Cinematográfico IA</span>
+                        <span class="text-slate-400 dark:text-slate-600">·</span>
+                        <span>hecho por</span>
+                        <a href="https://javiergalvez.com" target="_blank" rel="noopener noreferrer" class="text-amber-600 dark:text-amber-400 hover:underline font-semibold">Javier Gálvez</a>
+                    </p>
+                </div>
             </div>
 
             <!-- Acciones y Usuario -->
@@ -109,7 +114,7 @@
                             title="Abrir Biblia Contextual (Cmd+B / Ctrl+B)">
                         <span>📖</span>
                         <span class="hidden sm:inline">Biblia de Proyecto</span>
-                        <kbd class="hidden md:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-white text-slate-600 rounded border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700">
+                        <kbd class="hidden md:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-white text-slate-600 rounded border border-slate-200 dark:border-slate-700">
                             ⌘B
                         </kbd>
                     </button>
@@ -123,7 +128,7 @@
                                 class="flex items-center gap-2.5 px-2 py-1 rounded-xl bg-slate-100/80 hover:bg-slate-200 border border-slate-200/80 dark:bg-slate-900/80 dark:hover:bg-slate-800 dark:border-slate-800 transition shadow-xs cursor-pointer text-left">
                             <div class="text-right hidden sm:block">
                                 <div class="flex items-center justify-end gap-1.5">
-                                    <span class="text-xs font-semibold text-slate-800 dark:text-slate-200">{{ auth()->user()->name }}</span>
+                                    <span class="text-xs font-semibold text-slate-800 dark:text-slate-200">{{ auth()->user()->email }}</span>
                                     <span class="px-1.5 py-0.2 rounded text-[9px] font-bold tracking-wider uppercase bg-amber-500/10 text-amber-700 border border-amber-500/30 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/40">
                                         {{ strtoupper(auth()->user()->plan_tier) }}
                                     </span>
@@ -131,7 +136,7 @@
                             </div>
 
                             <div class="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center font-bold text-xs text-amber-600 dark:text-amber-300 shadow-inner">
-                                {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
+                                {{ strtoupper(substr(auth()->user()->name ?: auth()->user()->email, 0, 1)) }}
                             </div>
 
                             <svg class="w-3.5 h-3.5 text-slate-400 transition-transform" :class="{ 'rotate-180': userMenuOpen }" fill="none" viewBox="0 0 24 24" stroke="currentColor">

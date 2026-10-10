@@ -145,7 +145,7 @@ class LivewireScriptEditorTest extends TestCase
         $user = User::factory()->create();
         $project = Project::factory()->create(['user_id' => $user->id]);
         $scene = Scene::factory()->create(['project_id' => $project->id, 'scene_order' => 1]);
-        ScriptBlock::factory()->create([
+        $block = ScriptBlock::factory()->create([
             'scene_id' => $scene->id,
             'block_order' => 2,
             'raw_text' => 'Marcos entra apresurado en la estancia.',

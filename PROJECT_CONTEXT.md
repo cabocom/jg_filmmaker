@@ -269,6 +269,17 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
   - **Jerarquía y Apilamiento Estricto de Modales (`z-index: 100000`):** El modal de confirmación o bloqueo de borrado reside en capa superior independiente (`z-index: 100000`) por encima del modal de la Biblia (`z-index: 9999`), oscureciendo el fondo con backdrop propio. El evento `Esc` se gestiona selectivamente para cerrar primero la confirmación manteniendo abierta la Biblia.
   - **Navegación Directa al Detalle del Bloque en Uso (`inspectUsage`):** Las ubicaciones listadas en el diálogo de bloqueo son botones interactivos (`Ver detalle ➔`). Al pulsar sobre cualquiera de ellas, se cierran automáticamente el popup de confirmación y la Biblia, y se despacha el evento global `open-block-details` a `ScriptEditor`, abriendo de inmediato el drawer lateral de detalle de ese bloque específico para editarlo o desvincular el personaje/localización.
   - **Restauración y Compactación Ergonómica de Divisores Gutenberg:** Se ajustó la zona activa de los divisores intermedios (`py-0.5 my-0` en escenas y `py-1 my-0` en bloques) situándolos prácticamente pegados a los bloques y escenas contiguos sin espacios muertos, revelando la línea ámbar y los botones `+` con suavidad al pasar el cursor.
+- **Formateo Story Architect, Autoría y Refinamientos de Cabecera (Fase 18):**
+  - **Formateo Canónico de Diálogos Estilo Story Architect (`ScreenplayFormatterService`):** Implementación de analizador determinista Fountain a HTML que estructura los guiones literarios con la tipografía y geometría canónica de software profesional de guion (Story Architect / Final Draft):
+    - Encabezados de escena (*sluglines*) en mayúsculas negrita con separador superior (`.screenplay-slugline`).
+    - Nombres de personajes centrados, en mayúsculas y destacados (`.screenplay-character`).
+    - Acotaciones dramáticas centradas entre paréntesis y en cursiva (`.screenplay-parenthetical`).
+    - Parlamento y texto de diálogo en columna centrada de ancho controlado (`.screenplay-dialogue` con sangría canónica).
+    - Acciones narrativas y descripciones de escena en ancho completo alineadas a la izquierda (`.screenplay-action`).
+    - Transiciones técnicas alineadas a la derecha (`.screenplay-transition`).
+  - **Enlace de Autoría y Despliegue (`films.javiergalvez.com`):** En la cabecera institucional junto al título "Pipeline Cinematográfico IA", se incorpora el crédito interactivo `· hecho por <a href="https://javiergalvez.com">Javier Gálvez</a>`, desacoplado de la navegación interna del proyecto.
+  - **Unificación Tipográfica de Pestañas de Pipeline:** Se eliminó el emoji `🎬` de la pestaña `Montaje`, unificando su estilo minimalista con `Idea | Tratamiento | Guión | Planos / Tomas | Montaje`.
+  - **Identidad Completa de Usuario en Cabecera:** El mini-menú superior sustituye el nombre abreviado por el correo electrónico completo del usuario logueado (`auth()->user()->email`) junto al badge de nivel de suscripción y avatar.
 
 ### 7.2. Deudas Técnicas Conocidas
 1. **Actualización Dinámica de Tarifas de Tokens:**
