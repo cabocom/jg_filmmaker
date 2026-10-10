@@ -430,6 +430,22 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
       * Solución canónica: Incorporación de `$this->withoutVite()` en el método `setUp()` de `tests/TestCase.php`.
       * Salvaguarda en pipeline: Creación de dummy manifest `public/build/manifest.json` en `before_script` de `.gitlab-ci.yml` para el stage de test.
       * Verificación: Ejecución exitosa de los 78 tests unitarios y de integración con y sin directorio de build.
+  - **Despliegue Autónomo en Producción en la VM de OVH (Fase 29):**
+    - **Servidor y Ruta de Producción:** Desplegado en la máquina virtual OVH (`ubuntu@webdev.cabocom.com`) bajo `/cabocom/web/apps/films.javiergalvez.com`.
+    - **Dominio Público y Certificado SSL:** Operativo en `https://films.javiergalvez.com` bajo proxy inverso Nginx con certificado SSL activo de Let's Encrypt y redirección automática 80 -> 443. Soporte para cargas de vídeo hasta 500MB (`client_max_body_size 500M`) y WebSockets.
+    - **Arquitectura y Desacoplamiento de Servicios:**
+      * `jg_filmmaker` (`registry.cabocom.net/javiergalvez-ia/jg_filmmaker:latest`): Contenedor web Laravel Livewire escuchando en `127.0.0.1:8924` (expuesto al host vía Nginx).
+      * `jg_agente_filmmaker` (`registry.cabocom.net/javiergalvez-ia/jg_agente:latest`): Execution Plane autónomo con el plugin `jg_plugin_filmmaker` montado localmente en `/app/plugins/jg_plugin_filmmaker:ro`. Capacidades verificadas en boot: 3 herramientas cinematográficas (`treatment_structuring`, `screenplay_formatter`, `shot_breakdown_detector`). Operando sin Dashboard (`DASHBOARD_URL=""`, `ENABLE_HEARTBEAT=false`).
+      * `jg_agente_postgres_filmmaker` (`postgres:16-alpine`): Base de datos relacional para LangGraph checkpointer del agente (`jg_agente_filmmaker`).
+      * Red interna compartida: `jg_network` (externa bridge).
+    - **Persistencia Física Estricta en Disco:**
+      * SQLite de filmmaker persistido físicamente en `/cabocom/web/apps/films.javiergalvez.com/data/database/database.sqlite`.
+      * Storage de medios y tomas persistido en `/cabocom/web/apps/films.javiergalvez.com/data/storage`.
+      * Clúster PostgreSQL del agente persistido físicamente en `/cabocom/web/apps/films.javiergalvez.com/data/postgres`.
+      * Datos del agente persistidos en `/cabocom/web/apps/films.javiergalvez.com/data/agent_data`.
+    - **Gestión Segura de Secretos y Configuración:**
+      * Variables inyectadas de forma unificada desde Vault (`APP_KEY`, `JG_AGENTE_SECRET`, `GLOBAL_GROQ_API_KEY`, `GLOBAL_GOOGLE_API_KEY`, `GLOBAL_MAIL_*`).
+      * Archivo `.env` en la VM protegido con permisos `600`.
 
 ### 7.2. Deudas Técnicas Conocidas
 1. **Actualización Dinámica de Tarifas de Tokens:**
