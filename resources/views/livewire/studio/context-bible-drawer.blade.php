@@ -1,7 +1,8 @@
 <div>
     @if($isOpen)
         <!-- Modal Centrado de Biblia de Proyecto (Dimensiones fijas y mismo scroll que trazabilidad) -->
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-black/90 backdrop-blur-md transition"
+        <div class="fixed inset-0 flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-black/90 backdrop-blur-md transition"
+             style="z-index: 9999;"
              x-data
              @keydown.escape.window="$wire.close()"
              wire:click.self="close">
