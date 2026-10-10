@@ -25,6 +25,26 @@ class ScriptEditor extends Component
     // Pestaña visual activa global para los bloques: 'all', 'raw', 'structured', 'screenplay', 'shots', 'timeline'
     public string $viewMode = 'all';
 
+    // Etapa global activa del pipeline: 'idea' (Original/Bruto) > 'structured' (Tratamiento) > 'screenplay' (Guión) > 'shots' (Planos/Tomas) > 'timeline' (Montaje)
+    public string $pipelineStage = 'idea';
+
+    // Bloque seleccionado actualmente en la lectura continua
+    public ?string $selectedBlockId = null;
+
+    // Modal lateral (Drawer al 60%) para detalles y edición del bloque
+    public ?string $detailBlockId = null;
+
+    public string $detailActiveTab = 'raw'; // 'raw', 'structured', 'screenplay', 'shots'
+
+    public bool $isEditingInDrawer = false;
+
+    // Modal para Añadir Nuevo Bloque (estilo Gutenberg, SOLO campo Texto Bruto)
+    public bool $showNewBlockModal = false;
+
+    public ?int $insertAfterOrder = null;
+
+    public string $newBlockRawText = '';
+
     /**
      * Pestaña activa por cada bloque: [ $blockId => 'raw'|'structured'|'screenplay'|'shots' ].
      *
@@ -94,6 +114,10 @@ class ScriptEditor extends Component
         $firstScene = $this->project->scenes()->first();
         if ($firstScene) {
             $this->activeSceneId = $firstScene->id;
+            $firstBlock = $firstScene->scriptBlocks()->orderBy('block_order')->first();
+            if ($firstBlock) {
+                $this->selectedBlockId = $firstBlock->id;
+            }
         }
     }
 
@@ -101,6 +125,170 @@ class ScriptEditor extends Component
     {
         $this->activeSceneId = $sceneId;
         $this->editingBlockId = null;
+        $this->detailBlockId = null;
+        $this->isEditingInDrawer = false;
+
+        $firstBlock = ScriptBlock::where('scene_id', $sceneId)->orderBy('block_order')->first();
+        if ($firstBlock) {
+            $this->selectedBlockId = $firstBlock->id;
+        }
+    }
+
+    public function setPipelineStage(string $stage): void
+    {
+        $this->pipelineStage = $stage;
+        $this->viewMode = match ($stage) {
+            'idea' => 'all',
+            'structured' => 'structured',
+            'screenplay' => 'screenplay',
+            'shots' => 'shots',
+            'timeline' => 'timeline',
+            default => 'all',
+        };
+
+        if ($this->selectedBlockId) {
+            $this->dispatch('scroll-to-selected-block', blockId: $this->selectedBlockId);
+        }
+    }
+
+    public function selectBlock(string $blockId): void
+    {
+        $this->selectedBlockId = $blockId;
+        $this->dispatch('scroll-to-selected-block', blockId: $blockId);
+    }
+
+    public function openBlockDetails(string $blockId, ?string $tab = null): void
+    {
+        $block = ScriptBlock::findOrFail($blockId);
+        $this->detailBlockId = $block->id;
+        $this->selectedBlockId = $block->id;
+        $this->isEditingInDrawer = false;
+
+        $targetTab = $tab ?: match ($this->pipelineStage) {
+            'idea' => 'raw',
+            'structured' => 'structured',
+            'screenplay' => 'screenplay',
+            'shots' => 'shots',
+            default => 'raw',
+        };
+
+        $this->detailActiveTab = $targetTab;
+        $this->editRawText = (string) ($block->raw_text ?? '');
+        $this->editStructuredText = (string) ($block->structured_text ?? '');
+        $this->editScreenplayContent = (string) ($block->screenplay_content ?? '');
+        $this->editStage = (string) ($block->stage ?? 'raw');
+    }
+
+    public function closeBlockDetails(): void
+    {
+        $this->detailBlockId = null;
+        $this->isEditingInDrawer = false;
+    }
+
+    public function setDetailTab(string $tab): void
+    {
+        $this->detailActiveTab = $tab;
+    }
+
+    public function startEditingInDrawer(): void
+    {
+        if (! $this->detailBlockId) {
+            return;
+        }
+
+        $block = ScriptBlock::findOrFail($this->detailBlockId);
+        $this->editRawText = (string) ($block->raw_text ?? '');
+        $this->editStructuredText = (string) ($block->structured_text ?? '');
+        $this->editScreenplayContent = (string) ($block->screenplay_content ?? '');
+        $this->editStage = (string) ($block->stage ?? 'raw');
+        $this->isEditingInDrawer = true;
+    }
+
+    public function cancelEditingInDrawer(): void
+    {
+        $this->isEditingInDrawer = false;
+    }
+
+    public function saveBlockFromDrawer(ScriptPipelineService $pipelineService): void
+    {
+        if (! $this->detailBlockId) {
+            return;
+        }
+
+        $block = ScriptBlock::findOrFail($this->detailBlockId);
+
+        if (! empty($block->structured_text) && $this->editStructuredText !== $block->structured_text) {
+            $pipelineService->recordManualOverride($block, 'structured', $block->structured_text, $this->editStructuredText);
+        }
+
+        if (! empty($block->screenplay_content) && $this->editScreenplayContent !== $block->screenplay_content) {
+            $pipelineService->recordManualOverride($block, 'screenplay', $block->screenplay_content, $this->editScreenplayContent);
+        }
+
+        $block->update([
+            'raw_text' => $this->editRawText,
+            'structured_text' => $this->editStructuredText ?: null,
+            'screenplay_content' => $this->editScreenplayContent ?: null,
+            'stage' => $this->editStage,
+        ]);
+
+        $this->isEditingInDrawer = false;
+        session()->flash('success', "Bloque #{$block->block_order} guardado correctamente.");
+    }
+
+    public function openNewBlockModal(?int $afterOrder = null): void
+    {
+        $this->insertAfterOrder = $afterOrder;
+        $this->newBlockRawText = '';
+        $this->showNewBlockModal = true;
+    }
+
+    public function closeNewBlockModal(): void
+    {
+        $this->showNewBlockModal = false;
+        $this->insertAfterOrder = null;
+        $this->newBlockRawText = '';
+    }
+
+    public function createNewBlock(): void
+    {
+        if (! $this->activeSceneId) {
+            return;
+        }
+
+        $this->validate([
+            'newBlockRawText' => 'required|string|min:2',
+        ], [
+            'newBlockRawText.required' => 'Debes escribir el texto bruto o idea de la escena.',
+            'newBlockRawText.min' => 'El texto debe tener al menos 2 caracteres.',
+        ]);
+
+        $scene = Scene::findOrFail($this->activeSceneId);
+
+        if ($this->insertAfterOrder !== null) {
+            // Desplazar bloques con orden mayor que el de inserción
+            $scene->scriptBlocks()
+                ->where('block_order', '>', $this->insertAfterOrder)
+                ->increment('block_order');
+
+            $newOrder = $this->insertAfterOrder + 1;
+        } else {
+            $maxOrder = $scene->scriptBlocks()->max('block_order') ?? 0;
+            $newOrder = $maxOrder + 1;
+        }
+
+        $newBlock = $scene->scriptBlocks()->create([
+            'block_order' => $newOrder,
+            'raw_text' => trim($this->newBlockRawText),
+            'stage' => 'raw',
+            'user_locks' => [],
+        ]);
+
+        $this->selectedBlockId = $newBlock->id;
+        $this->closeNewBlockModal();
+
+        $this->dispatch('scroll-to-selected-block', blockId: $newBlock->id);
+        session()->flash('success', "Bloque #{$newBlock->block_order} creado e insertado en la escena.");
     }
 
     public function createScene(): void
@@ -136,21 +324,7 @@ class ScriptEditor extends Component
 
     public function addBlock(): void
     {
-        if (! $this->activeSceneId) {
-            return;
-        }
-
-        $scene = Scene::findOrFail($this->activeSceneId);
-        $maxOrder = $scene->scriptBlocks()->max('block_order') ?? 0;
-
-        $block = $scene->scriptBlocks()->create([
-            'block_order' => $maxOrder + 1,
-            'raw_text' => 'Nuevo párrafo o estímulo dramático...',
-            'stage' => 'raw',
-            'user_locks' => [],
-        ]);
-
-        $this->startEditBlock($block->id);
+        $this->openNewBlockModal();
     }
 
     public function startEditBlock(string $blockId): void
@@ -198,6 +372,11 @@ class ScriptEditor extends Component
 
         $this->activeBlockTabs[$block->id] = 'structured';
 
+        if ($this->detailBlockId === $block->id) {
+            $this->editStructuredText = (string) $block->fresh()->structured_text;
+            $this->detailActiveTab = 'structured';
+        }
+
         if ($this->editingBlockId === $block->id) {
             $this->editStructuredText = (string) $block->fresh()->structured_text;
             $this->editStage = 'structured';
@@ -212,6 +391,11 @@ class ScriptEditor extends Component
         $pipelineService->transitionToScreenplay($block);
 
         $this->activeBlockTabs[$block->id] = 'screenplay';
+
+        if ($this->detailBlockId === $block->id) {
+            $this->editScreenplayContent = (string) $block->fresh()->screenplay_content;
+            $this->detailActiveTab = 'screenplay';
+        }
 
         if ($this->editingBlockId === $block->id) {
             $this->editScreenplayContent = (string) $block->fresh()->screenplay_content;
@@ -228,6 +412,10 @@ class ScriptEditor extends Component
 
         $this->activeBlockTabs[$block->id] = 'shots';
 
+        if ($this->detailBlockId === $block->id) {
+            $this->detailActiveTab = 'shots';
+        }
+
         session()->flash('success', "Bloque {$block->block_order} desglosado: {$createdShots->count()} planos sincronizados.");
     }
 
@@ -239,6 +427,7 @@ class ScriptEditor extends Component
         }
 
         $this->activeBlockTabs[$blockId] = $tab;
+        $this->openBlockDetails($blockId, $tab);
     }
 
     public function removePinnedTerm(string $blockId, string $term): void

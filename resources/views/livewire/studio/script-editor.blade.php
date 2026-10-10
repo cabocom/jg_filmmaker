@@ -1,850 +1,610 @@
-<div class="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-    <!-- Barra Superior de Navegación de Escenas -->
-    <div class="bg-white/90 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm dark:shadow-xl backdrop-blur-sm flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors">
-        <!-- Selector de Escena Activa -->
-        <div class="flex items-center gap-3 overflow-x-auto pb-1 md:pb-0 scrollbar-thin">
-            <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 shrink-0">Escenas:</span>
-            <div class="flex items-center gap-2">
-                @forelse($scenes as $scene)
-                    <button wire:click="selectScene('{{ $scene->id }}')"
+<div class="min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors">
+    <!-- ================= BARRA SUPERIOR STICKY: ESCENAS Y PIPELINE ================= -->
+    <div class="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 shadow-sm backdrop-blur-md px-4 sm:px-6 py-3 transition-colors">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <!-- Selector de Escena Activa -->
+            <div class="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-thin">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 shrink-0">Escenas:</span>
+                <div class="flex items-center gap-1.5">
+                    @forelse($scenes as $scene)
+                        <button wire:click="selectScene('{{ $scene->id }}')"
+                                type="button"
+                                class="px-2.5 py-1 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 border {{ $activeSceneId === $scene->id ? 'bg-amber-500 text-slate-950 font-bold border-amber-400 shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:border-slate-700' }}">
+                            <span>#{{ $scene->scene_order }}</span>
+                            <span class="truncate max-w-[120px] sm:max-w-[180px]">{{ $scene->slugline }}</span>
+                        </button>
+                    @empty
+                        <span class="text-xs text-slate-400 italic">No hay escenas creadas.</span>
+                    @endforelse
+
+                    <button wire:click="$set('showNewSceneModal', true)"
                             type="button"
-                            class="px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-2 border {{ $activeSceneId === $scene->id ? 'bg-amber-500 text-slate-950 font-bold border-amber-400 shadow-md shadow-amber-950/20' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:border-slate-800' }}">
-                        <span>#{{ $scene->scene_order }}</span>
-                        <span class="truncate max-w-[150px] sm:max-w-[200px]">{{ $scene->slugline }}</span>
+                            class="px-2 py-1 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-amber-700 border border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-amber-400 dark:border-slate-700 transition flex items-center gap-1 shrink-0"
+                            title="Añadir Escena">
+                        <span>+</span>
+                        <span class="hidden sm:inline">Nueva Escena</span>
                     </button>
-                @empty
-                    <span class="text-xs text-slate-400 italic">No hay escenas creadas todavía.</span>
-                @endforelse
+                </div>
+            </div>
 
-                <button wire:click="$set('showNewSceneModal', true)"
+            <!-- Menú del Pipeline Ordenado Estrictamente: Idea > Tratamiento > Guión > Planos/Tomas > Montaje -->
+            <div class="flex items-center gap-2 shrink-0 self-end md:self-auto">
+                <div class="inline-flex rounded-xl bg-slate-100 dark:bg-slate-950 p-1 border border-slate-200 dark:border-slate-800 text-xs shadow-inner">
+                    <!-- 1. Idea (Original / Bruto) -->
+                    <button wire:click="setPipelineStage('idea')"
+                            type="button"
+                            title="Listado de textos originales en bruto"
+                            class="px-3 py-1 rounded-lg transition {{ $pipelineStage === 'idea' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                        Idea
+                    </button>
+
+                    <!-- 2. Tratamiento -->
+                    <button wire:click="setPipelineStage('structured')"
+                            type="button"
+                            title="Listado de textos estructurados a tratamiento"
+                            class="px-3 py-1 rounded-lg transition {{ $pipelineStage === 'structured' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                        Tratamiento
+                    </button>
+
+                    <!-- 3. Guión -->
+                    <button wire:click="setPipelineStage('screenplay')"
+                            type="button"
+                            title="Listado de textos formateados a guión canónico Fountain"
+                            class="px-3 py-1 rounded-lg transition {{ $pipelineStage === 'screenplay' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                        Guión
+                    </button>
+
+                    <!-- 4. Planos / Tomas -->
+                    <button wire:click="setPipelineStage('shots')"
+                            type="button"
+                            title="Desglose técnico de planos de cámara y tomas"
+                            class="px-3 py-1 rounded-lg transition {{ $pipelineStage === 'shots' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                        Planos / Tomas
+                    </button>
+
+                    <!-- 5. Montaje -->
+                    <button wire:click="setPipelineStage('timeline')"
+                            type="button"
+                            title="Línea de tiempo y pre-corte de edición"
+                            class="px-3 py-1 rounded-lg transition {{ $pipelineStage === 'timeline' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                        🎬 Montaje
+                    </button>
+                </div>
+
+                <!-- Botón Añadir Bloque en Barra Superior -->
+                <button wire:click="openNewBlockModal"
                         type="button"
-                        class="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-amber-700 border border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-amber-400 dark:border-slate-700 transition flex items-center gap-1 shrink-0"
-                        title="Añadir Escena">
+                        class="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-xs transition flex items-center gap-1 shrink-0">
                     <span>+</span>
-                    <span>Nueva Escena</span>
+                    <span>Añadir Bloque</span>
                 </button>
             </div>
-        </div>
-
-        <!-- Filtros de Vista del Pipeline y Acciones -->
-        <div class="flex items-center gap-2 shrink-0 self-end md:self-auto">
-            <div class="inline-flex rounded-xl bg-slate-100 dark:bg-slate-950 p-1 border border-slate-200 dark:border-slate-800 text-xs">
-                <button wire:click="$set('viewMode', 'all')"
-                        type="button"
-                        class="px-2.5 py-1 rounded-lg transition {{ $viewMode === 'all' ? 'bg-white dark:bg-slate-800 text-amber-700 dark:text-amber-300 font-semibold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
-                    Pipeline
-                </button>
-                <button wire:click="$set('viewMode', 'screenplay')"
-                        type="button"
-                        class="px-2.5 py-1 rounded-lg transition {{ $viewMode === 'screenplay' ? 'bg-white dark:bg-slate-800 text-amber-700 dark:text-amber-300 font-semibold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
-                    Guión
-                </button>
-                <button wire:click="$set('viewMode', 'structured')"
-                        type="button"
-                        class="px-2.5 py-1 rounded-lg transition {{ $viewMode === 'structured' ? 'bg-white dark:bg-slate-800 text-amber-700 dark:text-amber-300 font-semibold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
-                    Tratamiento
-                </button>
-                <button wire:click="$set('viewMode', 'shots')"
-                        type="button"
-                        class="px-2.5 py-1 rounded-lg transition {{ $viewMode === 'shots' ? 'bg-white dark:bg-slate-800 text-amber-700 dark:text-amber-300 font-semibold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
-                    Planos / Tomas
-                </button>
-                <button wire:click="$set('viewMode', 'timeline')"
-                        type="button"
-                        class="px-2.5 py-1 rounded-lg transition {{ $viewMode === 'timeline' ? 'bg-white dark:bg-slate-800 text-amber-700 dark:text-amber-300 font-semibold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
-                    🎬 Montaje
-                </button>
-            </div>
-
-            <button wire:click="addBlock"
-                    type="button"
-                    class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 dark:text-amber-300 border border-amber-500/30 transition flex items-center gap-1.5">
-                <span>+</span>
-                <span>Añadir Bloque</span>
-            </button>
         </div>
     </div>
 
-    <!-- Mensajes Flash -->
-    @if(session()->has('success'))
-        <div class="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 text-xs flex items-center justify-between">
-            <div class="flex items-center gap-2">
-                <span>✓</span>
-                <span>{{ session('success') }}</span>
-            </div>
-        </div>
-    @endif
-
-    <!-- Escena Activa -->
-    @if($activeScene)
-        <!-- Encabezado Cinematográfico de la Escena (Slugline) -->
-        <div class="bg-white dark:bg-gradient-to-r dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm dark:shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-3 transition-colors">
-            <div>
-                <div class="flex items-center gap-2 text-xs font-mono text-amber-600 dark:text-amber-400 mb-1">
-                    <span class="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 font-bold">ESCENA {{ $activeScene->scene_order }}</span>
-                    <span>•</span>
-                    <span class="text-slate-500 dark:text-slate-400">{{ $activeScene->time_of_day }}</span>
-                    @if($activeScene->location)
-                        <span>•</span>
-                        <span class="text-slate-700 dark:text-slate-300 font-bold">{{ $activeScene->location->name }} ({{ $activeScene->location->type }})</span>
-                    @endif
+    <!-- ================= CONTENEDOR PRINCIPAL ================= -->
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-4 space-y-6">
+        <!-- Mensajes Flash -->
+        @if(session()->has('success'))
+            <div class="p-3.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 text-xs flex items-center justify-between shadow-sm">
+                <div class="flex items-center gap-2">
+                    <span>✓</span>
+                    <span>{{ session('success') }}</span>
                 </div>
-                <h2 class="text-xl sm:text-2xl font-bold font-mono tracking-tight text-slate-900 dark:text-white uppercase">
-                    {{ $activeScene->slugline }}
-                </h2>
-            </div>
-        </div>
-
-        @if($viewMode === 'timeline')
-            <!-- Subvista de Montaje / Pre-corte de Edición (RoughCutTimeline) -->
-            <livewire:studio.rough-cut-timeline :project="$project" :active-scene-id="$activeSceneId" :key="'timeline-'.$activeSceneId" />
-        @else
-            <!-- ================= SECCIÓN DE BLOQUES Y PIPELINE ================= -->
-            @if($viewMode !== 'shots')
-                <div class="space-y-6">
-                    @forelse($activeScene->scriptBlocks as $block)
-                        @php
-                            $userLocks = $block->user_locks ?? [];
-                            $hasLocks = !empty($userLocks['locked_fields']) || !empty($userLocks['pinned_terms']) || !empty($userLocks['manual_diffs']);
-                        @endphp
-
-                    <div class="rounded-2xl bg-white dark:bg-slate-900/90 border {{ $hasLocks ? 'border-amber-400 dark:border-amber-500/40 shadow-amber-950/10' : 'border-slate-200 dark:border-slate-800' }} shadow-sm dark:shadow-xl overflow-hidden transition">
-                        @php
-                            $activeTab = $this->getActiveTabForBlock($block);
-                        @endphp
-
-                        <!-- Cabecera del Bloque: Orden, Pestañas de Etapas Completadas y Acción Contextual -->
-                        <div class="bg-slate-50/90 dark:bg-slate-950/70 border-b border-slate-200 dark:border-slate-800 px-5 py-3 flex flex-wrap items-center justify-between gap-3">
-                            <div class="flex items-center gap-3">
-                                <span class="text-xs font-mono font-bold text-slate-800 dark:text-slate-300">
-                                    BLOQUE #{{ $block->block_order }}
-                                </span>
-
-                                <!-- Pestañas de Etapas del Pipeline (SOLO las Completadas) -->
-                                <div class="inline-flex items-center gap-1 bg-slate-200/70 dark:bg-slate-900/90 p-1 rounded-xl border border-slate-200 dark:border-slate-800 {{ $editingBlockId === $block->id ? 'opacity-60 cursor-not-allowed' : '' }}"
-                                     @if($editingBlockId === $block->id) title="Guarda o cancela la edición para cambiar de pestaña" @endif>
-                                    <!-- Pestaña 1: Bruto (Siempre Completada) -->
-                                    <button @if($editingBlockId === $block->id) disabled @else wire:click="setBlockTab('{{ $block->id }}', 'raw')" @endif
-                                            type="button"
-                                            class="px-3 py-1 rounded-lg text-xs font-semibold transition {{ $activeTab === 'raw' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }} {{ $editingBlockId === $block->id ? 'cursor-not-allowed' : 'cursor-pointer' }}">
-                                        Bruto
-                                    </button>
-
-                                    <!-- Pestaña 2: Tratamiento (Solo si Completada) -->
-                                    @if(!empty($block->structured_text))
-                                        <button @if($editingBlockId === $block->id) disabled @else wire:click="setBlockTab('{{ $block->id }}', 'structured')" @endif
-                                                type="button"
-                                                class="px-3 py-1 rounded-lg text-xs font-semibold transition {{ $activeTab === 'structured' ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 font-bold shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }} {{ $editingBlockId === $block->id ? 'cursor-not-allowed' : 'cursor-pointer' }}">
-                                            Tratamiento
-                                        </button>
-                                    @endif
-
-                                    <!-- Pestaña 3: Guión (Solo si Completada) -->
-                                    @if(!empty($block->screenplay_content))
-                                        <button @if($editingBlockId === $block->id) disabled @else wire:click="setBlockTab('{{ $block->id }}', 'screenplay')" @endif
-                                                type="button"
-                                                class="px-3 py-1 rounded-lg text-xs font-semibold transition {{ $activeTab === 'screenplay' ? 'bg-white dark:bg-slate-800 text-amber-600 dark:text-amber-400 font-bold shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }} {{ $editingBlockId === $block->id ? 'cursor-not-allowed' : 'cursor-pointer' }}">
-                                            Guión
-                                        </button>
-                                    @endif
-
-                                    <!-- Pestaña 4: Planos (Solo si Completada) -->
-                                    @if($block->shots->isNotEmpty())
-                                        <button @if($editingBlockId === $block->id) disabled @else wire:click="setBlockTab('{{ $block->id }}', 'shots')" @endif
-                                                type="button"
-                                                class="px-3 py-1 rounded-lg text-xs font-semibold transition {{ $activeTab === 'shots' ? 'bg-white dark:bg-slate-800 text-cyan-600 dark:text-cyan-400 font-bold shadow-xs' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }} {{ $editingBlockId === $block->id ? 'cursor-not-allowed' : 'cursor-pointer' }}">
-                                            Planos ({{ $block->shots->count() }})
-                                        </button>
-                                    @endif
-                                </div>
-                            </div>
-
-                            <!-- Acciones del Bloque Contextuales a la Etapa Activa -->
-                            <div class="flex items-center gap-1.5 flex-wrap">
-                                @if($editingBlockId !== $block->id)
-                                    @if($activeTab === 'raw')
-                                        <!-- Botón Estructurar (pasa a Tratamiento y activa dicha pestaña) -->
-                                        <button wire:click="structureBlock('{{ $block->id }}')"
-                                                wire:loading.attr="disabled"
-                                                wire:target="structureBlock('{{ $block->id }}')"
-                                                type="button"
-                                                title="Normalizar texto bruto a tratamiento dramático con IA"
-                                                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 transition disabled:opacity-50">
-                                            <span wire:loading.remove wire:target="structureBlock('{{ $block->id }}')">⚡</span>
-                                            <svg wire:loading wire:target="structureBlock('{{ $block->id }}')" class="animate-spin h-3 w-3 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                            </svg>
-                                            <span>Estructurar</span>
-                                        </button>
-                                    @elseif($activeTab === 'structured')
-                                        <!-- Botón Convertir a Guion (pasa a Guión y activa dicha pestaña) -->
-                                        <button wire:click="formatBlockToScreenplay('{{ $block->id }}')"
-                                                wire:loading.attr="disabled"
-                                                wire:target="formatBlockToScreenplay('{{ $block->id }}')"
-                                                type="button"
-                                                title="Convertir tratamiento a formato estándar de guion Fountain con IA"
-                                                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 transition disabled:opacity-50">
-                                            <span wire:loading.remove wire:target="formatBlockToScreenplay('{{ $block->id }}')">🎬</span>
-                                            <svg wire:loading wire:target="formatBlockToScreenplay('{{ $block->id }}')" class="animate-spin h-3 w-3 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                            </svg>
-                                            <span>Convertir a Guion</span>
-                                        </button>
-                                    @elseif($activeTab === 'screenplay')
-                                        <!-- Botón Desglosar Planos (pasa a Planos y activa dicha pestaña) -->
-                                        <button wire:click="breakdownBlockShots('{{ $block->id }}')"
-                                                wire:loading.attr="disabled"
-                                                wire:target="breakdownBlockShots('{{ $block->id }}')"
-                                                type="button"
-                                                title="Generar planos técnicos canónicos --- shot N (tipo) --- con IA"
-                                                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30 transition disabled:opacity-50">
-                                            <span wire:loading.remove wire:target="breakdownBlockShots('{{ $block->id }}')">📹</span>
-                                            <svg wire:loading wire:target="breakdownBlockShots('{{ $block->id }}')" class="animate-spin h-3 w-3 text-cyan-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                            </svg>
-                                            <span>Desglosar Planos</span>
-                                        </button>
-                                    @elseif($activeTab === 'shots')
-                                        <!-- En la pestaña de planos: Desglosar Planos (regenerar con IA) y Añadir Plano -->
-                                        <button wire:click="breakdownBlockShots('{{ $block->id }}')"
-                                                wire:loading.attr="disabled"
-                                                wire:target="breakdownBlockShots('{{ $block->id }}')"
-                                                type="button"
-                                                title="Regenerar desglose técnico con IA"
-                                                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30 transition disabled:opacity-50">
-                                            <span wire:loading.remove wire:target="breakdownBlockShots('{{ $block->id }}')">📹</span>
-                                            <svg wire:loading wire:target="breakdownBlockShots('{{ $block->id }}')" class="animate-spin h-3 w-3 text-cyan-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                            </svg>
-                                            <span>Desglosar Planos</span>
-                                        </button>
-                                        <button wire:click="startNewShotForBlock('{{ $block->id }}')"
-                                                type="button"
-                                                title="Añadir plano técnico a este bloque manualmente"
-                                                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 transition">
-                                            <span>+</span>
-                                            <span>Añadir Plano</span>
-                                        </button>
-                                    @endif
-                                @endif
-
-                                @if($editingBlockId === $block->id)
-                                    <button wire:click="saveBlock"
-                                            type="button"
-                                            class="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-sm">
-                                        ✓ Guardar {{ match($activeTab) { 'raw' => 'Bruto', 'structured' => 'Tratamiento', 'screenplay' => 'Guión', 'shots' => 'Planos', default => 'Bloque' } }}
-                                    </button>
-                                    <button wire:click="$set('editingBlockId', null)"
-                                            type="button"
-                                            class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:text-white text-xs">
-                                        Cancelar
-                                    </button>
-                                @else
-                                    <button wire:click="startEditBlock('{{ $block->id }}')"
-                                            type="button"
-                                            class="px-2.5 py-1 rounded-lg text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 dark:border-slate-700 transition">
-                                        ✏️ Editar {{ match($activeTab) { 'raw' => 'Bruto', 'structured' => 'Tratamiento', 'screenplay' => 'Guión', 'shots' => 'Planos', default => 'Bloque' } }}
-                                    </button>
-                                @endif
-                            </div>
-                        </div>
-
-                        <!-- Detalle de Términos Fijos con candado y opción de borrado -->
-                        @if(!empty($userLocks['pinned_terms']))
-                            <div class="px-5 py-2 bg-amber-50/80 border-b border-amber-200 text-xs text-amber-900 dark:bg-amber-950/20 dark:border-amber-500/20 dark:text-amber-300/90 flex items-center gap-2 flex-wrap">
-                                <span class="font-bold text-[11px] uppercase tracking-wider flex items-center gap-1.5">
-                                    <span>🔒</span>
-                                    <span>Términos Fijos:</span>
-                                </span>
-                                @foreach($userLocks['pinned_terms'] as $original => $fixed)
-                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200 font-mono text-[11px] group">
-                                        <span>{{ $original }} ➜ {{ $fixed }}</span>
-                                        <button wire:click="removePinnedTerm('{{ $block->id }}', '{{ $original }}')"
-                                                type="button"
-                                                title="Eliminar término fijo '{{ $original }}'"
-                                                class="text-amber-700/60 dark:text-amber-400/60 hover:text-rose-600 dark:hover:text-rose-400 font-bold ml-0.5 cursor-pointer transition">
-                                            ✕
-                                        </button>
-                                    </span>
-                                @endforeach
-                            </div>
-                        @endif
-
-                        <!-- Contenido del Bloque -->
-                        <div class="p-5">
-                            @if($editingBlockId === $block->id)
-                                <!-- Modo Edición de Bloque: SOLO EL STEP EN CURSO -->
-                                <div class="space-y-3">
-                                    @if($activeTab === 'raw')
-                                        <div>
-                                            <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-200 dark:border-slate-800">
-                                                <label class="block text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider font-mono">
-                                                    1. Texto Bruto / Estímulo Libre:
-                                                </label>
-                                                <span class="text-[11px] text-slate-400 font-mono">Edición de entrada original</span>
-                                            </div>
-                                            <textarea wire:model="editRawText"
-                                                      rows="8"
-                                                      placeholder="Escribe aquí las notas, ideas o texto bruto de la escena..."
-                                                      class="w-full px-4 py-3 text-sm rounded-xl bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-sans leading-relaxed focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition shadow-inner"></textarea>
-                                        </div>
-                                    @elseif($activeTab === 'structured')
-                                        <div>
-                                            <div class="flex items-center justify-between pb-2 mb-2 border-b border-indigo-200 dark:border-indigo-950">
-                                                <label class="block text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider font-mono">
-                                                    2. Texto Estructurado / Tratamiento Cinematográfico:
-                                                </label>
-                                                <span class="text-[11px] text-indigo-500/80 font-mono">Acciones en presente continuo</span>
-                                            </div>
-                                            <textarea wire:model="editStructuredText"
-                                                      rows="8"
-                                                      placeholder="Escribe el tratamiento dramático en presente continuo..."
-                                                      class="w-full px-4 py-3 text-sm rounded-xl bg-white dark:bg-slate-950 border border-indigo-300 dark:border-indigo-800/80 text-slate-900 dark:text-white font-sans leading-relaxed focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition shadow-inner"></textarea>
-                                        </div>
-                                    @elseif($activeTab === 'screenplay')
-                                        <div>
-                                            <div class="flex items-center justify-between pb-2 mb-2 border-b border-amber-200 dark:border-amber-950">
-                                                <label class="block text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider font-mono">
-                                                    3. Guión Literario (Formato Estándar Fountain / Diálogos):
-                                                </label>
-                                                <span class="text-[11px] text-amber-500/80 font-mono">Formato canónico Fountain</span>
-                                            </div>
-                                            <textarea wire:model="editScreenplayContent"
-                                                      rows="12"
-                                                      placeholder="ESCENA - DÍA/NOCHE&#10;&#10;Acción descriptiva...&#10;&#10;PERSONAJE&#10;Línea de diálogo..."
-                                                      class="w-full px-4 py-3 text-sm rounded-xl bg-white dark:bg-slate-950 border border-amber-300 dark:border-amber-500/50 text-slate-900 dark:text-amber-100 font-mono leading-relaxed focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition shadow-inner"></textarea>
-                                        </div>
-                                    @elseif($activeTab === 'shots')
-                                        <div>
-                                            <div class="flex items-center justify-between pb-2 mb-2 border-b border-cyan-200 dark:border-cyan-950">
-                                                <label class="block text-xs font-bold text-cyan-700 dark:text-cyan-400 uppercase tracking-wider font-mono">
-                                                    4. Planos Técnicos / Guión con Delimitadores:
-                                                </label>
-                                                <span class="text-[11px] text-cyan-500/80 font-mono">Sintaxis: --- shot N (tipo) ---</span>
-                                            </div>
-                                            <textarea wire:model="editScreenplayContent"
-                                                      rows="12"
-                                                      placeholder="--- shot 1 (PG) ---&#10;Acción descriptiva...&#10;&#10;--- shot 2 (PM) ---&#10;Diálogo..."
-                                                      class="w-full px-4 py-3 text-sm rounded-xl bg-white dark:bg-slate-950 border border-cyan-300 dark:border-cyan-500/50 text-slate-900 dark:text-cyan-100 font-mono leading-relaxed focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition shadow-inner"></textarea>
-                                        </div>
-                                    @endif
-                                </div>
-                            @else
-                                <!-- Modo Visualización: SOLO UNA ETAPA A LA VEZ SEGÚN LA PESTAÑA ACTIVA -->
-                                @if($activeTab === 'raw')
-                                    <!-- Vista Etapa 1: Bruto -->
-                                    <div class="space-y-3">
-                                        <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800/60">
-                                            <span class="text-[11px] font-mono uppercase tracking-wider font-bold text-slate-500">
-                                                1. Bruto (Texto del Autor)
-                                            </span>
-                                            <span class="text-[10px] text-slate-400 font-mono">Entrada original</span>
-                                        </div>
-                                        <p class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-line py-1">
-                                            {{ $block->raw_text ?: 'Sin contenido bruto.' }}
-                                        </p>
-                                    </div>
-                                @elseif($activeTab === 'structured')
-                                    <!-- Vista Etapa 2: Tratamiento -->
-                                    <div class="space-y-3">
-                                        <div class="flex items-center justify-between pb-2 border-b border-indigo-100 dark:border-indigo-950/60">
-                                            <span class="text-[11px] font-mono uppercase tracking-wider font-bold text-indigo-600 dark:text-indigo-400">
-                                                2. Tratamiento Dramático / Acciones
-                                            </span>
-                                            <button wire:click="openAiTrace('{{ $block->id }}', 'structured')"
-                                                    type="button"
-                                                    title="Ver trazabilidad de inferencia de IA y pasos seguidos"
-                                                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/50 dark:hover:bg-indigo-900/60 dark:text-indigo-300 dark:border-indigo-800/60 transition shadow-xs">
-                                                <span>⚡</span>
-                                                <span>Trazabilidad IA</span>
-                                            </button>
-                                        </div>
-                                        <p class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-line py-1">
-                                            {{ $block->structured_text }}
-                                        </p>
-                                    </div>
-                                @elseif($activeTab === 'screenplay')
-                                    <!-- Vista Etapa 3: Guión Literario (Fountain) -->
-                                    <div class="space-y-3">
-                                        <div class="flex items-center justify-between pb-2 border-b border-amber-100 dark:border-amber-950/60">
-                                            <span class="text-[11px] font-mono uppercase tracking-wider font-bold text-amber-600 dark:text-amber-400">
-                                                3. Guión Literario (Fountain / Courier)
-                                            </span>
-                                            <button wire:click="openAiTrace('{{ $block->id }}', 'screenplay')"
-                                                    type="button"
-                                                    title="Ver trazabilidad de inferencia de IA y pasos seguidos"
-                                                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 dark:bg-amber-950/50 dark:hover:bg-amber-900/60 dark:text-amber-300 dark:border-amber-800/60 transition shadow-xs">
-                                                <span>⚡</span>
-                                                <span>Trazabilidad IA</span>
-                                            </button>
-                                        </div>
-                                        <div class="bg-amber-50/20 dark:bg-slate-950 p-6 rounded-xl border border-amber-200/50 dark:border-amber-500/20 shadow-xs">
-                                            <div class="font-screenplay text-sm text-slate-900 dark:text-amber-100 leading-relaxed whitespace-pre-wrap max-w-2xl mx-auto">
-                                                {{ $block->screenplay_content }}
-                                            </div>
-                                        </div>
-                                    </div>
-                                @elseif($activeTab === 'shots')
-                                    <!-- Vista Etapa 4: Desglose Técnico Completo de Planos y Tomas -->
-                                    <div class="space-y-5">
-                                        <div class="flex items-center justify-between pb-2 border-b border-cyan-100 dark:border-cyan-950/60">
-                                            <div class="flex items-center gap-2">
-                                                <span class="text-[11px] font-mono uppercase tracking-wider font-bold text-cyan-600 dark:text-cyan-400">
-                                                    4. Desglose Técnico de Planos y Tomas ({{ $block->shots->count() }})
-                                                </span>
-                                                <span class="text-[10px] text-slate-400 font-mono hidden sm:inline">
-                                                    Sintaxis <code class="font-mono text-cyan-600 dark:text-cyan-400">--- shot N (tipo) ---</code>
-                                                </span>
-                                            </div>
-                                            <div class="flex items-center gap-2">
-                                                <button wire:click="startNewShotForBlock('{{ $block->id }}')"
-                                                        type="button"
-                                                        class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition flex items-center gap-1 shadow-xs font-bold">
-                                                    <span>+</span>
-                                                    <span>Añadir Plano</span>
-                                                </button>
-                                                <button wire:click="openAiTrace('{{ $block->id }}', 'shots')"
-                                                        type="button"
-                                                        title="Ver trazabilidad del desglose de planos con IA"
-                                                        class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-cyan-50 hover:bg-cyan-100 text-cyan-700 border border-cyan-200 dark:bg-cyan-950/50 dark:hover:bg-cyan-900/60 dark:text-cyan-300 dark:border-cyan-800/60 transition shadow-xs">
-                                                    <span>⚡</span>
-                                                    <span>Trazabilidad IA</span>
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        @if($block->shots->isEmpty())
-                                            <div class="text-center py-8 bg-slate-50 dark:bg-slate-950/40 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 space-y-3">
-                                                <span class="text-3xl">📹</span>
-                                                <p class="text-xs text-slate-500 dark:text-slate-400">Este bloque todavía no tiene planos técnicos desglosados.</p>
-                                                <div class="flex items-center justify-center gap-2 pt-1">
-                                                    <button wire:click="breakdownBlockShots('{{ $block->id }}')"
-                                                            type="button"
-                                                            class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold transition shadow-sm">
-                                                        ⚡ Desglosar Planos con IA
-                                                    </button>
-                                                    <button wire:click="startNewShotForBlock('{{ $block->id }}')"
-                                                            type="button"
-                                                            class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-200 hover:bg-slate-300 text-slate-800 dark:bg-slate-800 dark:text-slate-200 transition">
-                                                        + Añadir Plano Manualmente
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        @else
-                                            <div class="space-y-4">
-                                                @foreach($block->shots as $shot)
-                                                    <div class="rounded-xl bg-slate-50/70 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800/80 p-4 space-y-3 transition">
-                                                        <!-- Cabecera del Plano -->
-                                                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-2.5 border-b border-slate-200 dark:border-slate-800/60">
-                                                            <div class="flex items-center gap-2.5">
-                                                                <span class="font-mono font-bold text-cyan-700 bg-cyan-50 border border-cyan-200 dark:text-cyan-300 dark:bg-cyan-950/40 dark:border-cyan-800/50 text-xs px-2 py-0.5 rounded-md">
-                                                                    --- shot {{ $shot->shot_number }} ({{ $shot->shot_type }}) ---
-                                                                </span>
-                                                                <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                                                                    {{ $shot->takes->count() }} tomas registradas
-                                                                </span>
-                                                            </div>
-
-                                                            <button wire:click="$set('addingTakeShotId', '{{ $shot->id }}')"
-                                                                    type="button"
-                                                                    class="text-xs text-cyan-700 hover:text-cyan-600 dark:text-cyan-400 dark:hover:text-cyan-300 font-semibold self-start sm:self-auto flex items-center gap-1">
-                                                                <span>+</span>
-                                                                <span>Registrar Toma</span>
-                                                            </button>
-                                                        </div>
-
-                                                        <!-- Descripción Técnica del Plano -->
-                                                        <p class="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-                                                            {{ $shot->description }}
-                                                        </p>
-
-                                                        <!-- Formulario Inline para registrar nueva toma si está activo -->
-                                                        @if($addingTakeShotId === $shot->id)
-                                                            <div class="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-cyan-300 dark:border-cyan-500/40 space-y-2.5 shadow-sm">
-                                                                <h5 class="text-xs font-bold text-cyan-700 dark:text-cyan-400">Registrar Nueva Toma para Plano {{ $shot->shot_number }}</h5>
-                                                                <div>
-                                                                    <input type="text"
-                                                                           wire:model="newTakeEditorialNotes"
-                                                                           placeholder="Observaciones editoriales (ej: Foco preciso, ritmo fluido)..."
-                                                                           class="w-full px-3 py-1.5 text-xs rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white">
-                                                                </div>
-                                                                <div class="flex items-center gap-2">
-                                                                    <label class="text-xs text-slate-700 dark:text-slate-300 flex items-center gap-2 cursor-pointer">
-                                                                        <input type="checkbox" wire:model="newTakeIsGood" class="rounded bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-cyan-500 focus:ring-cyan-500">
-                                                                        <span>Marcar como Toma Buena (Aprobada para montaje)</span>
-                                                                    </label>
-                                                                </div>
-                                                                <div class="flex justify-end gap-2 pt-1">
-                                                                    <button wire:click="$set('addingTakeShotId', null)" class="px-2.5 py-1 text-xs text-slate-500 dark:text-slate-400">Cancelar</button>
-                                                                    <button wire:click="saveNewTake" class="px-3 py-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs rounded-lg shadow-xs">Guardar Toma</button>
-                                                                </div>
-                                                            </div>
-                                                        @endif
-
-                                                        <!-- Listado de Tomas del Plano -->
-                                                        @if($shot->takes->isNotEmpty())
-                                                            <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-1">
-                                                                @foreach($shot->takes as $take)
-                                                                    <div class="p-3 rounded-lg bg-white dark:bg-slate-900 border {{ $take->is_good_take ? 'border-emerald-400 dark:border-emerald-500/40 shadow-xs' : 'border-slate-200 dark:border-slate-800/80' }} flex flex-col justify-between gap-2.5">
-                                                                        <div>
-                                                                            <!-- Cabecera de la toma: Número, Toggle Buena y Eliminar -->
-                                                                            <div class="flex items-center justify-between gap-2 mb-2">
-                                                                                <span class="font-mono text-xs font-bold text-slate-800 dark:text-slate-200">
-                                                                                    TOMA {{ $take->take_number }}
-                                                                                </span>
-
-                                                                                <div class="flex items-center gap-1.5">
-                                                                                    <button wire:click="toggleGoodTake('{{ $take->id }}')"
-                                                                                            type="button"
-                                                                                            class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase transition flex items-center gap-1 {{ $take->is_good_take ? 'bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-300 dark:border-slate-700 hover:text-slate-900 dark:hover:text-slate-200' }}">
-                                                                                        <span>{{ $take->is_good_take ? '✓ TOMA BUENA' : '○ Descarte' }}</span>
-                                                                                    </button>
-
-                                                                                    <button wire:click="deleteTake('{{ $take->id }}')"
-                                                                                            wire:confirm="¿Seguro que deseas eliminar la Toma {{ $take->take_number }} y su archivo de vídeo si existe?"
-                                                                                            type="button"
-                                                                                            class="text-slate-400 hover:text-rose-500 p-1 text-xs transition"
-                                                                                            title="Eliminar Toma">
-                                                                                        ✕
-                                                                                    </button>
-                                                                                </div>
-                                                                            </div>
-
-                                                                            <!-- Archivo de Vídeo -->
-                                                                            <div class="mb-2">
-                                                                                @if($uploadingTakeId === $take->id)
-                                                                                    <div class="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-cyan-300 dark:border-cyan-500/30 space-y-2">
-                                                                                        <label class="block text-[10px] font-bold text-cyan-700 dark:text-cyan-400 uppercase">
-                                                                                            Seleccionar Vídeo (MP4, MOV, WEBM)
-                                                                                        </label>
-                                                                                        <input type="file"
-                                                                                               wire:model="videoUpload"
-                                                                                               accept="video/mp4,video/quicktime,video/webm,video/x-m4v"
-                                                                                               class="w-full text-[11px] text-slate-600 dark:text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:bg-cyan-500 file:text-slate-950 file:font-bold">
-                                                                                        <div wire:loading wire:target="videoUpload" class="text-cyan-600 dark:text-cyan-400 text-[10px] flex items-center gap-1">
-                                                                                            <span>⏳ Subiendo vídeo a memoria...</span>
-                                                                                        </div>
-                                                                                        <div class="flex justify-end gap-1.5 pt-1">
-                                                                                            <button wire:click="$set('uploadingTakeId', null)" type="button" class="px-2 py-0.5 text-slate-500 dark:text-slate-400 text-[10px]">Cancelar</button>
-                                                                                            <button wire:click="uploadTakeVideo" wire:loading.attr="disabled" type="button" class="px-2.5 py-0.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded text-[10px]">
-                                                                                                Guardar Vídeo
-                                                                                            </button>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                @elseif($take->file_path)
-                                                                                    <div class="flex items-center justify-between gap-2 p-1.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs">
-                                                                                        <a href="{{ $take->video_url }}" target="_blank" class="text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 flex items-center gap-1.5 font-mono text-[11px] truncate" title="{{ $take->file_path }}">
-                                                                                            <span>🎥</span>
-                                                                                            <span class="truncate">{{ basename($take->file_path) }}</span>
-                                                                                        </a>
-                                                                                        <button wire:click="startUploadVideo('{{ $take->id }}')" type="button" class="text-[10px] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 underline">
-                                                                                            Cambiar
-                                                                                        </button>
-                                                                                    </div>
-                                                                                @else
-                                                                                    <button wire:click="startUploadVideo('{{ $take->id }}')"
-                                                                                            type="button"
-                                                                                            class="w-full py-1.5 px-2 rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-900 border border-dashed border-slate-300 hover:border-slate-400 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-[11px] flex items-center justify-center gap-1.5 transition">
-                                                                                        <span>📤</span>
-                                                                                        <span>Subir Vídeo</span>
-                                                                                    </button>
-                                                                                @endif
-                                                                            </div>
-
-                                                                            <!-- Notas Editoriales -->
-                                                                            <div>
-                                                                                @if($editingTakeNotesId === $take->id)
-                                                                                    <div class="space-y-1.5">
-                                                                                        <textarea wire:model="editingTakeNotesText"
-                                                                                                  rows="2"
-                                                                                                  class="w-full p-2 text-xs rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400"
-                                                                                                  placeholder="Anotaciones de dirección y posproducción..."></textarea>
-                                                                                        <div class="flex justify-end gap-1.5">
-                                                                                            <button wire:click="$set('editingTakeNotesId', null)" type="button" class="px-2 py-0.5 text-slate-500 dark:text-slate-400 text-[10px]">Cancelar</button>
-                                                                                            <button wire:click="saveTakeNotes" type="button" class="px-2.5 py-0.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[10px] font-bold">Guardar</button>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                @else
-                                                                                    <div class="flex items-start justify-between gap-1 group">
-                                                                                        <p class="text-xs text-slate-600 dark:text-slate-300 italic leading-relaxed">
-                                                                                            {{ $take->editorial_notes ? '"'.$take->editorial_notes.'"' : 'Sin notas editoriales.' }}
-                                                                                        </p>
-                                                                                        <button wire:click="startEditTakeNotes('{{ $take->id }}')"
-                                                                                                type="button"
-                                                                                                class="text-slate-400 hover:text-cyan-500 text-[10px] opacity-0 group-hover:opacity-100 transition"
-                                                                                                title="Editar Notas">
-                                                                                            ✏️
-                                                                                        </button>
-                                                                                    </div>
-                                                                                @endif
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                @endforeach
-                                                            </div>
-                                                        @endif
-                                                    </div>
-                                                @endforeach
-                                            </div>
-                                        @endif
-                                    </div>
-                                @endif
-                            @endif
-                        </div>
-                    </div>
-                @empty
-                    <div class="text-center py-12 bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-slate-200 dark:border-slate-800">
-                        <span class="text-3xl">📝</span>
-                        <p class="text-sm text-slate-500 dark:text-slate-400 mt-2">Esta escena no tiene bloques de guión todavía.</p>
-                        <button wire:click="addBlock" type="button" class="mt-4 px-4 py-2 bg-amber-500 text-slate-950 font-bold rounded-xl text-xs hover:bg-amber-400 transition">
-                            + Añadir Primer Bloque
-                        </button>
-                    </div>
-                @endforelse
             </div>
         @endif
 
-        <!-- ================= SECCIÓN DE PLANOS Y TOMAS (SOLO EN SUBVISTA DEDICADA DE PLANOS) ================= -->
-        @if($viewMode === 'shots')
-            <div class="mt-8 pt-6 border-t border-slate-200 dark:border-slate-800">
-                <div class="flex items-center justify-between mb-4">
-                    <div>
-                        <h3 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                            <span>📹</span>
-                            <span>Desglose Técnico de Planos y Tomas</span>
-                        </h3>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                            Planos detectados según la sintaxis canónica <code class="font-mono text-amber-600 dark:text-amber-400">--- shot N (tipo) ---</code> y control de tomas de rodaje.
-                        </p>
+        @if($activeScene)
+            <!-- Encabezado de la Escena Activa (Slugline) -->
+            <div class="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition">
+                <div>
+                    <div class="flex items-center gap-2 text-xs font-mono text-amber-600 dark:text-amber-400 mb-1">
+                        <span class="px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 font-bold">ESCENA {{ $activeScene->scene_order }}</span>
+                        <span>•</span>
+                        <span class="text-slate-500 dark:text-slate-400">{{ $activeScene->time_of_day }}</span>
+                        @if($activeScene->location)
+                            <span>•</span>
+                            <span class="text-slate-700 dark:text-slate-300 font-bold">{{ $activeScene->location->name }} ({{ $activeScene->location->type }})</span>
+                        @endif
                     </div>
-
-                    <button wire:click="$set('showNewShotModal', true)"
-                            type="button"
-                            class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold transition flex items-center gap-1.5 shadow-md">
-                        <span>+</span>
-                        <span>Añadir Plano</span>
-                    </button>
+                    <h2 class="text-lg sm:text-xl font-bold font-mono tracking-tight text-slate-900 dark:text-white uppercase">
+                        {{ $activeScene->slugline }}
+                    </h2>
                 </div>
 
-                <div class="space-y-6">
-                    @forelse($activeScene->shots as $shot)
-                        <div class="rounded-2xl bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 p-5 shadow-sm dark:shadow-lg space-y-4 transition-colors">
-                            <!-- Cabecera del Plano -->
-                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-slate-100 dark:border-slate-800/80">
-                                <div class="flex items-center gap-3">
-                                    <span class="font-mono font-bold text-amber-700 bg-amber-50 border border-amber-200 dark:text-amber-400 dark:bg-slate-950 dark:border-slate-800 text-sm tracking-wider px-2.5 py-1 rounded-lg">
-                                        --- shot {{ $shot->shot_number }} ({{ $shot->shot_type }}) ---
+                <div class="text-xs text-slate-500 dark:text-slate-400 font-mono">
+                    <span>{{ $activeScene->scriptBlocks->count() }} bloques en escena</span>
+                </div>
+            </div>
+
+            @if($pipelineStage === 'timeline')
+                <!-- Subvista de Montaje / RoughCutTimeline -->
+                <livewire:studio.rough-cut-timeline :project="$project" :active-scene-id="$activeSceneId" :key="'timeline-'.$activeSceneId" />
+            @else
+                <!-- ================= FEED CONTINUO DE BLOQUES DE LA HISTORIA ================= -->
+                <div class="py-2 space-y-1">
+                    <!-- Botón Gutenberg Inicial (Insertar antes del primer bloque) -->
+                    <div class="relative group my-2 py-1 flex items-center justify-center">
+                        <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                            <div class="w-full border-t border-transparent group-hover:border-amber-400/40 dark:group-hover:border-amber-500/30 transition-colors"></div>
+                        </div>
+                        <button wire:click="openNewBlockModal(0)"
+                                type="button"
+                                title="Insertar bloque al inicio"
+                                class="relative inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 group-hover:text-amber-700 dark:group-hover:text-amber-300 group-hover:bg-amber-100 dark:group-hover:bg-amber-950/80 border border-slate-300 dark:border-slate-700 group-hover:border-amber-400 dark:group-hover:border-amber-500/60 shadow-xs transition-all transform group-hover:scale-110 cursor-pointer">
+                            <span class="text-xs font-bold leading-none">+</span>
+                        </button>
+                    </div>
+
+                    @forelse($activeScene->scriptBlocks as $block)
+                        @php
+                            $isSelected = ($selectedBlockId === $block->id);
+                            $userLocks = $block->user_locks ?? [];
+                            $hasLocks = !empty($userLocks['pinned_terms']);
+                        @endphp
+
+                        <!-- Elemento Continuo de Bloque -->
+                        <div id="block-{{ $block->id }}"
+                             wire:click="selectBlock('{{ $block->id }}')"
+                             class="group relative rounded-xl p-4 sm:p-5 transition-all cursor-pointer border-l-4 {{ $isSelected ? 'bg-amber-50/60 dark:bg-slate-900/90 border-amber-500 dark:border-amber-400 shadow-sm' : 'border-transparent hover:bg-slate-100/70 dark:hover:bg-slate-900/40 hover:border-slate-300 dark:hover:border-slate-700' }}">
+
+                            <!-- Barra de Herramientas y Metadatos del Bloque -->
+                            <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-200/50 dark:border-slate-800/50 text-xs">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="font-mono font-bold text-[11px] {{ $isSelected ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400 dark:text-slate-500' }}">
+                                        BLOQUE #{{ $block->block_order }}
                                     </span>
-                                    <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                                        {{ $shot->takes->count() }} tomas registradas
-                                    </span>
+                                    <span class="text-[10px] text-slate-400 font-mono">1. Bruto (Texto del Autor)</span>
+                                    @if($block->shots->isNotEmpty())
+                                        <span class="text-[11px] text-cyan-600 dark:text-cyan-400 font-mono font-semibold">Planos ({{ $block->shots->count() }})</span>
+                                    @endif
+                                    @if($hasLocks)
+                                        <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-[11px] font-mono text-amber-800 dark:text-amber-200">
+                                            <span>🔒 Términos Fijos:</span>
+                                            @foreach($userLocks['pinned_terms'] as $orig => $rep)
+                                                <span>{{ $orig }} ➜ {{ $rep }}</span>
+                                            @endforeach
+                                        </div>
+                                    @endif
                                 </div>
 
-                                <button wire:click="$set('addingTakeShotId', '{{ $shot->id }}')"
+                                <!-- Icono / Botón para Abrir Modal Lateral Derecho de Detalles -->
+                                <button wire:click.stop="openBlockDetails('{{ $block->id }}')"
                                         type="button"
-                                        class="text-xs text-amber-700 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300 font-semibold self-start sm:self-auto flex items-center gap-1">
-                                    <span>+</span>
-                                    <span>Registrar Toma</span>
+                                        title="Abrir detalles y etapas en panel lateral"
+                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:border-amber-400 dark:hover:border-amber-500/60 hover:text-amber-700 dark:hover:text-amber-300 transition shadow-2xs cursor-pointer">
+                                    <span class="text-sm">📑</span>
+                                    <span class="text-[11px]">Detalles</span>
                                 </button>
                             </div>
 
-                            <!-- Descripción Técnica del Plano -->
-                            <p class="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-                                {{ $shot->description }}
-                            </p>
-
-                            <!-- Formulario Inline para registrar nueva toma si está activo -->
-                            @if($addingTakeShotId === $shot->id)
-                                <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-amber-300 dark:border-amber-500/30 space-y-3">
-                                    <h5 class="text-xs font-bold text-amber-700 dark:text-amber-400">Registrar Nueva Toma para Plano {{ $shot->shot_number }}</h5>
-                                    <div>
-                                        <input type="text"
-                                               wire:model="newTakeEditorialNotes"
-                                               placeholder="Observaciones editoriales (ej: Corte limpio, mejorar luz)..."
-                                               class="w-full px-3 py-1.5 text-xs rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white">
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <label class="text-xs text-slate-700 dark:text-slate-300 flex items-center gap-2 cursor-pointer">
-                                            <input type="checkbox" wire:model="newTakeIsGood" class="rounded bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-amber-500 focus:ring-amber-500">
-                                            <span>Marcar como Toma Buena (Aprobada para montaje)</span>
-                                        </label>
-                                    </div>
-                                    <div class="flex justify-end gap-2 pt-1">
-                                        <button wire:click="$set('addingTakeShotId', null)" class="px-2.5 py-1 text-xs text-slate-500 dark:text-slate-400">Cancelar</button>
-                                        <button wire:click="saveNewTake" class="px-3 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded">Guardar Toma</button>
-                                    </div>
+                            <!-- Contenido del Bloque Según Etapa del Menú Superior -->
+                            @if($pipelineStage === 'idea')
+                                <!-- Etapa 1: Idea / Original / Texto Bruto -->
+                                <div class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed font-sans whitespace-pre-line">
+                                    {{ $block->raw_text ?: 'Sin notas o texto en bruto.' }}
                                 </div>
-                            @endif
-
-                            <!-- Listado de Tomas del Plano -->
-                            @if($shot->takes->isNotEmpty())
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
-                                    @foreach($shot->takes as $take)
-                                        <div class="p-3.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/80 border {{ $take->is_good_take ? 'border-emerald-400 dark:border-emerald-500/40 shadow-xs' : 'border-slate-200 dark:border-slate-800/80' }} flex flex-col justify-between gap-3">
-                                            <div>
-                                                <!-- Cabecera de la toma: Número, Toggle Buena y Eliminar -->
-                                                <div class="flex items-center justify-between gap-2 mb-2">
-                                                    <span class="font-mono text-xs font-bold text-slate-800 dark:text-slate-200">
-                                                        TOMA {{ $take->take_number }}
-                                                    </span>
-
-                                                    <div class="flex items-center gap-1.5">
-                                                        <!-- Botón reactivo toggle toma buena -->
-                                                        <button wire:click="toggleGoodTake('{{ $take->id }}')"
-                                                                type="button"
-                                                                class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase transition flex items-center gap-1 {{ $take->is_good_take ? 'bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30' : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-300 dark:border-slate-700 hover:text-slate-900 dark:hover:text-slate-200' }}">
-                                                            <span>{{ $take->is_good_take ? '✓ TOMA BUENA' : '○ Descarte' }}</span>
-                                                        </button>
-
-                                                        <!-- Eliminar toma -->
-                                                        <button wire:click="deleteTake('{{ $take->id }}')"
-                                                                wire:confirm="¿Seguro que deseas eliminar la Toma {{ $take->take_number }} y su archivo de vídeo si existe?"
-                                                                type="button"
-                                                                class="text-slate-400 hover:text-rose-500 p-1 text-xs transition"
-                                                                title="Eliminar Toma">
-                                                            ✕
-                                                        </button>
-                                                    </div>
-                                                </div>
-
-                                                <!-- Archivo de Vídeo -->
-                                                <div class="mb-2">
-                                                    @if($uploadingTakeId === $take->id)
-                                                        <div class="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-500/30 space-y-2">
-                                                            <label class="block text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase">
-                                                                Seleccionar Vídeo (MP4, MOV, WEBM)
-                                                            </label>
-                                                            <input type="file"
-                                                                   wire:model="videoUpload"
-                                                                   accept="video/mp4,video/quicktime,video/webm,video/x-m4v"
-                                                                   class="w-full text-[11px] text-slate-600 dark:text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:bg-amber-500 file:text-slate-950 file:font-bold">
-                                                            <div wire:loading wire:target="videoUpload" class="text-amber-600 dark:text-amber-400 text-[10px] flex items-center gap-1">
-                                                                <span>⏳ Subiendo vídeo a memoria...</span>
-                                                            </div>
-                                                            <div class="flex justify-end gap-1.5 pt-1">
-                                                                <button wire:click="$set('uploadingTakeId', null)" type="button" class="px-2 py-0.5 text-slate-500 dark:text-slate-400 text-[10px]">Cancelar</button>
-                                                                <button wire:click="uploadTakeVideo" wire:loading.attr="disabled" type="button" class="px-2.5 py-0.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded text-[10px]">
-                                                                    Guardar Vídeo
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    @elseif($take->file_path)
-                                                        <div class="flex items-center justify-between gap-2 p-2 rounded-lg bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 text-xs">
-                                                            <a href="{{ $take->video_url }}" target="_blank" class="text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 flex items-center gap-1.5 font-mono text-[11px] truncate" title="{{ $take->file_path }}">
-                                                                <span>🎥</span>
-                                                                <span class="truncate">{{ basename($take->file_path) }}</span>
-                                                            </a>
-                                                            <button wire:click="startUploadVideo('{{ $take->id }}')" type="button" class="text-[10px] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 underline">
-                                                                Cambiar
-                                                            </button>
-                                                        </div>
-                                                    @else
-                                                        <button wire:click="startUploadVideo('{{ $take->id }}')"
-                                                                type="button"
-                                                                class="w-full py-1.5 px-2 rounded-lg bg-white hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-dashed border-slate-300 hover:border-slate-400 dark:border-slate-700 dark:hover:border-slate-600 text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 text-[11px] flex items-center justify-center gap-1.5 transition">
-                                                            <span>📤</span>
-                                                            <span>Subir Archivo de Vídeo</span>
-                                                        </button>
-                                                    @endif
-                                                </div>
-
-                                                <!-- Notas Editoriales -->
-                                                <div class="mb-2">
-                                                    @if($editingTakeNotesId === $take->id)
-                                                        <div class="space-y-1.5">
-                                                            <textarea wire:model="editingTakeNotesText"
-                                                                      rows="2"
-                                                                      class="w-full p-2 text-xs rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400"
-                                                                      placeholder="Anotaciones de dirección y posproducción..."></textarea>
-                                                            <div class="flex justify-end gap-1.5">
-                                                                <button wire:click="$set('editingTakeNotesId', null)" type="button" class="px-2 py-0.5 text-slate-500 dark:text-slate-400 text-[10px]">Cancelar</button>
-                                                                <button wire:click="saveTakeNotes" type="button" class="px-2.5 py-0.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[10px] font-bold">Guardar</button>
-                                                            </div>
-                                                        </div>
-                                                    @else
-                                                        <div class="flex items-start justify-between gap-1 group">
-                                                            <p class="text-xs text-slate-600 dark:text-slate-300 italic leading-relaxed">
-                                                                {{ $take->editorial_notes ? '"'.$take->editorial_notes.'"' : 'Sin notas editoriales.' }}
-                                                            </p>
-                                                            <button wire:click="startEditTakeNotes('{{ $take->id }}')"
-                                                                    type="button"
-                                                                    class="text-slate-400 hover:text-amber-500 text-[10px] opacity-0 group-hover:opacity-100 transition"
-                                                                    title="Editar Notas">
-                                                                ✏️
-                                                            </button>
-                                                        </div>
-                                                    @endif
-                                                </div>
-                                            </div>
-
-                                            <!-- Metadatos Técnicos (JSONB) -->
-                                            @if($take->technical_meta)
-                                                <div class="pt-2 border-t border-slate-200 dark:border-slate-800/60 flex flex-wrap items-center gap-2 text-[10px] font-mono text-slate-500 dark:text-slate-400">
-                                                    @if(isset($take->technical_meta['resolution']))
-                                                        <span class="bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
-                                                             {{ $take->technical_meta['resolution'] }}
-                                                        </span>
-                                                    @endif
-                                                    @if(isset($take->technical_meta['codec']))
-                                                        <span class="bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
-                                                            {{ $take->technical_meta['codec'] }}
-                                                        </span>
-                                                    @endif
-                                                    @if(isset($take->technical_meta['fps']))
-                                                        <span class="bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
-                                                            {{ $take->technical_meta['fps'] }} fps
-                                                        </span>
-                                                    @endif
-                                                    @if(isset($take->technical_meta['duration_seconds']))
-                                                        <span class="bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-800 text-amber-700 dark:text-amber-400">
-                                                            {{ $take->technical_meta['duration_seconds'] }}s
-                                                        </span>
-                                                    @endif
-                                                </div>
-                                            @endif
+                            @elseif($pipelineStage === 'structured')
+                                <!-- Etapa 2: Tratamiento Cinematográfico -->
+                                @if(!empty($block->structured_text))
+                                    <div class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed font-sans whitespace-pre-line">
+                                        {{ $block->structured_text }}
+                                    </div>
+                                @else
+                                    <div class="py-2 flex items-center justify-between text-xs italic text-slate-400 dark:text-slate-500">
+                                        <span>[Tratamiento pendiente de estructurar para este bloque]</span>
+                                        <button wire:click.stop="openBlockDetails('{{ $block->id }}', 'structured')" class="text-indigo-600 dark:text-indigo-400 font-semibold hover:underline cursor-pointer">
+                                            ⚡ Abrir detalles para estructurar ➔
+                                        </button>
+                                    </div>
+                                @endif
+                            @elseif($pipelineStage === 'screenplay')
+                                <!-- Etapa 3: Guión Literario (Fountain) -->
+                                @if(!empty($block->screenplay_content))
+                                    <div class="p-4 bg-amber-50/20 dark:bg-slate-950/60 rounded-xl border border-amber-200/40 dark:border-amber-500/20">
+                                        <div class="font-screenplay text-sm text-slate-900 dark:text-amber-100 leading-relaxed whitespace-pre-wrap max-w-2xl mx-auto">
+                                            {{ $block->screenplay_content }}
                                         </div>
-                                    @endforeach
-                                </div>
+                                    </div>
+                                @else
+                                    <div class="py-2 flex items-center justify-between text-xs italic text-slate-400 dark:text-slate-500">
+                                        <span>[Guión literario pendiente de formatear para este bloque]</span>
+                                        <button wire:click.stop="openBlockDetails('{{ $block->id }}', 'screenplay')" class="text-amber-600 dark:text-amber-400 font-semibold hover:underline cursor-pointer">
+                                            🎬 Abrir detalles para convertir a guión ➔
+                                        </button>
+                                    </div>
+                                @endif
+                            @elseif($pipelineStage === 'shots')
+                                <!-- Etapa 4: Planos y Tomas -->
+                                @if($block->shots->isNotEmpty())
+                                    <div class="space-y-2.5">
+                                        @foreach($block->shots as $shot)
+                                            <div class="p-3 rounded-lg bg-slate-50/80 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="font-mono font-bold text-cyan-700 bg-cyan-50 dark:text-cyan-300 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-800/50 px-2 py-0.5 rounded">
+                                                        --- shot {{ $shot->shot_number }} ({{ $shot->shot_type }}) ---
+                                                    </span>
+                                                    <span class="text-slate-700 dark:text-slate-300">{{ $shot->description }}</span>
+                                                </div>
+                                                <span class="text-[11px] text-slate-500 font-mono">{{ $shot->takes->count() }} tomas</span>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <div class="py-2 flex items-center justify-between text-xs italic text-slate-400 dark:text-slate-500">
+                                        <span>[Sin planos técnicos desglosados en este bloque]</span>
+                                        <button wire:click.stop="openBlockDetails('{{ $block->id }}', 'shots')" class="text-cyan-600 dark:text-cyan-400 font-semibold hover:underline cursor-pointer">
+                                            📹 Abrir detalles para desglosar planos ➔
+                                        </button>
+                                    </div>
+                                @endif
                             @endif
                         </div>
+
+                        <!-- Divisor Gutenberg Intermedio (Insertar entre bloques) -->
+                        <div class="relative group my-2 py-1 flex items-center justify-center">
+                            <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                                <div class="w-full border-t border-transparent group-hover:border-amber-400/40 dark:group-hover:border-amber-500/30 transition-colors"></div>
+                            </div>
+                            <button wire:click="openNewBlockModal({{ $block->block_order }})"
+                                    type="button"
+                                    title="Añadir bloque aquí"
+                                    class="relative inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 group-hover:text-amber-700 dark:group-hover:text-amber-300 group-hover:bg-amber-100 dark:group-hover:bg-amber-950/80 border border-slate-300 dark:border-slate-700 group-hover:border-amber-400 dark:group-hover:border-amber-500/60 shadow-xs transition-all transform group-hover:scale-110 cursor-pointer">
+                                <span class="text-xs font-bold leading-none">+</span>
+                            </button>
+                        </div>
                     @empty
-                        <p class="text-xs text-slate-400 py-6 text-center">No hay planos desglosados para esta escena aún.</p>
+                        <div class="text-center py-12 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 p-6 space-y-3">
+                            <span class="text-3xl">📝</span>
+                            <p class="text-sm text-slate-600 dark:text-slate-400 font-medium">No hay bloques en esta escena todavía.</p>
+                            <button wire:click="openNewBlockModal" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-sm">
+                                + Crear Primer Bloque
+                            </button>
+                        </div>
                     @endforelse
+                </div>
+            @endif
+        @else
+            <div class="text-center py-16 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 space-y-4">
+                <span class="text-4xl">🎬</span>
+                <h3 class="text-base font-bold text-slate-900 dark:text-white">Selecciona o crea una escena para comenzar</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">Cada escena organiza la acción dramática mediante bloques encadenados a través del pipeline cinematográfico.</p>
+                <button wire:click="$set('showNewSceneModal', true)" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-md">
+                    + Crear Escena
+                </button>
+            </div>
+        @endif
+    </div>
+
+    <!-- ================= MODAL LATERAL DERECHO AL 60% (DETALLES Y EDICIÓN DE BLOQUE) ================= -->
+    @if($detailBlockId)
+        @php
+            $detailBlock = \App\Models\ScriptBlock::with('scene.location', 'shots.takes')->find($detailBlockId);
+            $detailLocks = $detailBlock?->user_locks ?? [];
+        @endphp
+
+        @if($detailBlock)
+            <!-- Fondo backdrop suave: NO muy oscurecido como solicitó el usuario -->
+            <div class="fixed inset-0 z-50 bg-slate-950/30 backdrop-blur-[2px] transition-opacity"
+                 x-data
+                 @keydown.escape.window="$wire.closeBlockDetails()"
+                 wire:click="closeBlockDetails">
+
+                <!-- Drawer lateral ocupando el 60% alineado a la derecha -->
+                <div class="fixed inset-y-0 right-0 w-full md:w-[60%] lg:w-[60%] z-50 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col transition-transform"
+                     @click.stop>
+
+                    <!-- Header del Drawer -->
+                    <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/80 flex items-center justify-between gap-4 shrink-0">
+                        <div class="flex items-center gap-3">
+                            <span class="text-xl">📑</span>
+                            <div>
+                                <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                    <span>Detalle del Bloque #{{ $detailBlock->block_order }}</span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 uppercase font-bold">
+                                        Etapa: {{ $detailActiveTab }}
+                                    </span>
+                                </h3>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                    Escena #{{ $detailBlock->scene?->scene_order }} · {{ $detailBlock->scene?->slugline }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <button wire:click="closeBlockDetails"
+                                    type="button"
+                                    title="Cerrar panel lateral (Esc)"
+                                    class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 transition flex items-center gap-1.5 cursor-pointer">
+                                <span>✕</span>
+                                <span>Cerrar</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Pestañas internas para navegar por todas las etapas del bloque -->
+                    <div class="px-6 pt-2 border-b border-slate-200 dark:border-slate-800 bg-slate-100/50 dark:bg-slate-950 flex items-center gap-2 overflow-x-auto shrink-0">
+                        <button wire:click="setDetailTab('raw')"
+                                type="button"
+                                class="px-3.5 py-2 border-b-2 text-xs font-semibold transition {{ $detailActiveTab === 'raw' ? 'border-amber-500 text-amber-600 dark:text-amber-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                            1. Idea / Bruto
+                        </button>
+                        <button wire:click="setDetailTab('structured')"
+                                type="button"
+                                class="px-3.5 py-2 border-b-2 text-xs font-semibold transition {{ $detailActiveTab === 'structured' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                            2. Tratamiento
+                        </button>
+                        <button wire:click="setDetailTab('screenplay')"
+                                type="button"
+                                class="px-3.5 py-2 border-b-2 text-xs font-semibold transition {{ $detailActiveTab === 'screenplay' ? 'border-amber-500 text-amber-600 dark:text-amber-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                            3. Guión Literario
+                        </button>
+                        <button wire:click="setDetailTab('shots')"
+                                type="button"
+                                class="px-3.5 py-2 border-b-2 text-xs font-semibold transition {{ $detailActiveTab === 'shots' ? 'border-cyan-500 text-cyan-600 dark:text-cyan-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                            4. Planos ({{ $detailBlock->shots->count() }})
+                        </button>
+                    </div>
+
+                    <!-- Cuerpo scrolleable del Drawer -->
+                    <div class="flex-1 overflow-y-auto p-6 space-y-6">
+                        <!-- Barra de Términos Fijos y Candados si existen -->
+                        @if(!empty($detailLocks['pinned_terms']))
+                            <div class="p-3 rounded-xl bg-amber-50/80 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-500/20 text-xs text-amber-900 dark:text-amber-300 flex items-center justify-between flex-wrap gap-2">
+                                <span class="font-bold text-[11px] uppercase tracking-wider flex items-center gap-1.5">
+                                    <span>🔒</span>
+                                    <span>Términos Fijos Protegidos:</span>
+                                </span>
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    @foreach($detailLocks['pinned_terms'] as $orig => $rep)
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-[11px] font-mono">
+                                            <span>{{ $orig }} ➜ {{ $rep }}</span>
+                                            <button wire:click="removePinnedTerm('{{ $detailBlock->id }}', '{{ $orig }}')" class="text-rose-500 hover:text-rose-700 ml-1">✕</button>
+                                        </span>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
+
+                        <!-- Contenido y Edición según la pestaña seleccionada en el Drawer -->
+                        @if($isEditingInDrawer)
+                            <!-- Modo Edición dentro del Drawer -->
+                            <div class="space-y-4">
+                                @if($detailActiveTab === 'raw')
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider font-mono mb-1.5">
+                                            Edición: Texto Bruto / Idea
+                                        </label>
+                                        <textarea wire:model="editRawText" rows="12" class="w-full px-4 py-3 text-sm rounded-xl bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-sans leading-relaxed focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition shadow-inner"></textarea>
+                                    </div>
+                                @elseif($detailActiveTab === 'structured')
+                                    <div>
+                                        <label class="block text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider font-mono mb-1.5">
+                                            Edición: Tratamiento Cinematográfico
+                                        </label>
+                                        <textarea wire:model="editStructuredText" rows="12" class="w-full px-4 py-3 text-sm rounded-xl bg-white dark:bg-slate-950 border border-indigo-300 dark:border-indigo-700 text-slate-900 dark:text-white font-sans leading-relaxed focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition shadow-inner"></textarea>
+                                    </div>
+                                @elseif($detailActiveTab === 'screenplay')
+                                    <div>
+                                        <label class="block text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider font-mono mb-1.5">
+                                            Edición: Guión Literario (Fountain)
+                                        </label>
+                                        <textarea wire:model="editScreenplayContent" rows="14" class="w-full px-4 py-3 text-sm rounded-xl bg-white dark:bg-slate-950 border border-amber-300 dark:border-amber-500/50 text-slate-900 dark:text-amber-100 font-mono leading-relaxed focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition shadow-inner"></textarea>
+                                    </div>
+                                @elseif($detailActiveTab === 'shots')
+                                    <div>
+                                        <label class="block text-xs font-bold text-cyan-700 dark:text-cyan-400 uppercase tracking-wider font-mono mb-1.5">
+                                            Edición: Delimitadores de Planos Técnicos
+                                        </label>
+                                        <textarea wire:model="editScreenplayContent" rows="14" class="w-full px-4 py-3 text-sm rounded-xl bg-white dark:bg-slate-950 border border-cyan-300 dark:border-cyan-700 text-slate-900 dark:text-cyan-100 font-mono leading-relaxed focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition shadow-inner"></textarea>
+                                    </div>
+                                @endif
+
+                                <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                                    <button wire:click="cancelEditingInDrawer" type="button" class="px-3 py-1.5 rounded-lg text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
+                                        Cancelar
+                                    </button>
+                                    <button wire:click="saveBlockFromDrawer" type="button" class="px-4 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm transition">
+                                        ✓ Guardar Cambios
+                                    </button>
+                                </div>
+                            </div>
+                        @else
+                            <!-- Modo Visualización en el Drawer con Acciones de IA y Trazabilidad -->
+                            <div class="space-y-5">
+                                <!-- Barra de Acciones del Drawer según la etapa -->
+                                <div class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                                    <div class="flex items-center gap-2">
+                                        <button wire:click="startEditingInDrawer"
+                                                type="button"
+                                                class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 hover:border-amber-400 transition shadow-2xs">
+                                            ✏️ Editar Texto
+                                        </button>
+                                        <button wire:click="openAiTrace('{{ $detailBlock->id }}', '{{ $detailActiveTab === 'raw' ? 'structured' : $detailActiveTab }}')"
+                                                type="button"
+                                                class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800/60 transition flex items-center gap-1.5">
+                                            <span>⚡</span>
+                                            <span>Trazabilidad IA</span>
+                                        </button>
+                                    </div>
+
+                                    <!-- Botones de Acción de IA Contextual -->
+                                    <div>
+                                        @if($detailActiveTab === 'raw')
+                                            <button wire:click="structureBlock('{{ $detailBlock->id }}')"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="structureBlock('{{ $detailBlock->id }}')"
+                                                    type="button"
+                                                    class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm transition flex items-center gap-1.5">
+                                                <span>⚡ Estructurar Tratamiento</span>
+                                            </button>
+                                        @elseif($detailActiveTab === 'structured')
+                                            <button wire:click="formatBlockToScreenplay('{{ $detailBlock->id }}')"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="formatBlockToScreenplay('{{ $detailBlock->id }}')"
+                                                    type="button"
+                                                    class="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-sm transition flex items-center gap-1.5 font-mono">
+                                                <span>🎬 Convertir a Guión</span>
+                                            </button>
+                                        @elseif($detailActiveTab === 'screenplay')
+                                            <button wire:click="breakdownBlockShots('{{ $detailBlock->id }}')"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="breakdownBlockShots('{{ $detailBlock->id }}')"
+                                                    type="button"
+                                                    class="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-600 hover:bg-cyan-500 text-white shadow-sm transition flex items-center gap-1.5">
+                                                <span>📹 Desglosar Planos</span>
+                                            </button>
+                                        @elseif($detailActiveTab === 'shots')
+                                            <div class="flex items-center gap-2">
+                                                <button wire:click="breakdownBlockShots('{{ $detailBlock->id }}')"
+                                                        type="button"
+                                                        class="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-600 hover:bg-cyan-500 text-white shadow-sm transition">
+                                                    ⚡ Regenerar Planos
+                                                </button>
+                                                <button wire:click="startNewShotForBlock('{{ $detailBlock->id }}')"
+                                                        type="button"
+                                                        class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200">
+                                                    + Añadir Plano
+                                                </button>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+
+                                <!-- Vista de Texto según la etapa en el Drawer -->
+                                @if($detailActiveTab === 'raw')
+                                    <div class="p-5 rounded-xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 space-y-2">
+                                        <span class="text-xs font-mono font-bold uppercase tracking-wider text-slate-500">1. Texto Bruto Original:</span>
+                                        <p class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-line">
+                                            {{ $detailBlock->raw_text ?: 'Sin notas brutas.' }}
+                                        </p>
+                                    </div>
+                                @elseif($detailActiveTab === 'structured')
+                                    <div class="p-5 rounded-xl bg-indigo-50/20 dark:bg-slate-950/70 border border-indigo-200/50 dark:border-indigo-900/40 space-y-2">
+                                        <span class="text-xs font-mono font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">2. Tratamiento Dramático:</span>
+                                        <p class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-line">
+                                            {{ $detailBlock->structured_text ?: 'Aún no se ha estructurado el tratamiento para este bloque.' }}
+                                        </p>
+                                    </div>
+                                @elseif($detailActiveTab === 'screenplay')
+                                    <div class="p-5 rounded-xl bg-amber-50/20 dark:bg-slate-950/70 border border-amber-200/50 dark:border-amber-900/40 space-y-2">
+                                        <span class="text-xs font-mono font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">3. Guión Literario (Fountain):</span>
+                                        <div class="font-screenplay text-sm text-slate-900 dark:text-amber-100 leading-relaxed whitespace-pre-wrap">
+                                            {{ $detailBlock->screenplay_content ?: 'Aún no se ha formateado a guión literario.' }}
+                                        </div>
+                                    </div>
+                                @elseif($detailActiveTab === 'shots')
+                                    <div class="space-y-4">
+                                        <span class="text-xs font-mono font-bold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">4. Desglose Técnico de Planos y Tomas:</span>
+                                        @forelse($detailBlock->shots as $shot)
+                                            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2.5">
+                                                <div class="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+                                                    <span class="font-mono font-bold text-cyan-700 bg-cyan-50 dark:text-cyan-300 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-800/50 px-2 py-0.5 rounded text-xs">
+                                                        --- shot {{ $shot->shot_number }} ({{ $shot->shot_type }}) ---
+                                                    </span>
+                                                    <span class="text-xs text-slate-500 font-mono">{{ $shot->takes->count() }} tomas</span>
+                                                </div>
+                                                <p class="text-xs text-slate-700 dark:text-slate-300">{{ $shot->description }}</p>
+
+                                                @if($shot->takes->isNotEmpty())
+                                                    <div class="space-y-1.5 pt-2 border-t border-slate-100 dark:border-slate-800/60">
+                                                        @foreach($shot->takes as $take)
+                                                            <div class="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs">
+                                                                <span class="font-mono font-bold text-slate-800 dark:text-slate-200">TOMA {{ $take->take_number }}</span>
+                                                                <button wire:click="toggleGoodTake('{{ $take->id }}')"
+                                                                        type="button"
+                                                                        class="px-2 py-0.5 rounded text-[11px] font-mono font-bold border transition cursor-pointer {{ $take->is_good_take ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-300 dark:border-slate-700' }}">
+                                                                    {{ $take->is_good_take ? '✓ TOMA BUENA' : '○ Descarte' }}
+                                                                </button>
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        @empty
+                                            <div class="text-center py-6 text-xs text-slate-500">No hay planos desglosados en este bloque.</div>
+                                        @endforelse
+                                    </div>
+                                @endif
+                            </div>
+                        @endif
+                    </div>
                 </div>
             </div>
         @endif
     @endif
-    @else
-        <div class="text-center py-20 bg-slate-50 dark:bg-slate-900/30 rounded-2xl border border-slate-200 dark:border-slate-800">
-            <span class="text-4xl">🎬</span>
-            <h3 class="text-lg font-bold text-slate-900 dark:text-white mt-3">Comienza creando una escena</h3>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
-                Las escenas ordenan los bloques dramáticos y permiten el desglose técnico de planos.
-            </p>
-            <button wire:click="$set('showNewSceneModal', true)" class="mt-4 px-4 py-2 bg-amber-500 text-slate-950 font-bold rounded-xl text-xs hover:bg-amber-400 transition">
-                + Crear Primera Escena
-            </button>
+
+    <!-- ================= MODAL DE CREAR NUEVO BLOQUE (ESTILO GUTENBERG, SOLO TEXTO BRUTO) ================= -->
+    @if($showNewBlockModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-xs transition"
+             x-data
+             @keydown.escape.window="$wire.closeNewBlockModal()"
+             wire:click.self="closeNewBlockModal">
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 w-full max-w-lg space-y-4 transition">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <span>+</span>
+                            <span>Añadir Nuevo Bloque</span>
+                        </h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                            @if($insertAfterOrder !== null && $insertAfterOrder > 0)
+                                Se insertará a continuación del Bloque #{{ $insertAfterOrder }}.
+                            @elseif($insertAfterOrder === 0)
+                                Se insertará al principio de la escena.
+                            @else
+                                Se insertará al final de la escena.
+                            @endif
+                        </p>
+                    </div>
+                    <button wire:click="closeNewBlockModal" type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-white text-xs font-bold">✕</button>
+                </div>
+
+                <!-- SOLO EL CAMPO TEXTO BRUTO COMO PIDIÓ EL USUARIO -->
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider font-mono">
+                        Texto bruto / Idea original *
+                    </label>
+                    <textarea wire:model="newBlockRawText"
+                              rows="6"
+                              placeholder="Escribe aquí la acción en bruto, notas, estímulos o diálogos..."
+                              class="w-full px-4 py-3 text-sm rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-sans leading-relaxed focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition shadow-inner"
+                              autofocus></textarea>
+                    @error('newBlockRawText')
+                        <span class="text-rose-500 text-xs block">{{ $message }}</span>
+                    @enderror
+                </div>
+
+                <div class="pt-3 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
+                    <button wire:click="closeNewBlockModal" type="button" class="px-3.5 py-1.5 text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl">
+                        Cancelar
+                    </button>
+                    <button wire:click="createNewBlock" type="button" class="px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-md transition">
+                        Crear e Insertar Bloque
+                    </button>
+                </div>
+            </div>
         </div>
     @endif
 
-    <!-- Modal para Nueva Escena -->
+    <!-- ================= MODAL NUEVA ESCENA ================= -->
     @if($showNewSceneModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4">
-            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs"
+             x-data
+             @keydown.escape.window="$wire.set('showNewSceneModal', false)"
+             wire:click.self="$set('showNewSceneModal', false)">
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 w-full max-w-md space-y-4">
                 <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-                    <h3 class="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">Nueva Escena</h3>
-                    <button wire:click="$set('showNewSceneModal', false)" class="text-slate-400 hover:text-slate-600 dark:hover:text-white">✕</button>
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-white">Nueva Escena Cinematográfica</h3>
+                    <button wire:click="$set('showNewSceneModal', false)" class="text-slate-400 hover:text-slate-600 dark:hover:text-white text-xs font-bold">✕</button>
                 </div>
-                <div class="mt-4 space-y-3">
+
+                <div class="space-y-3">
                     <div>
-                        <label class="block text-xs text-slate-700 dark:text-slate-300 mb-1">Encabezado Cinematográfico (Slugline) *</label>
+                        <label class="block text-xs text-slate-700 dark:text-slate-300 mb-1">Encabezado Canónico (Slugline) *</label>
                         <input type="text"
                                wire:model="newSceneSlugline"
-                               placeholder="Ej: INT. BAR CENTRAL - NOCHE 1"
+                               placeholder="INT. HABITACIÓN - DÍA 1"
                                class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono uppercase">
                         @error('newSceneSlugline') <span class="text-rose-500 text-xs">{{ $message }}</span> @enderror
                     </div>
@@ -869,49 +629,47 @@
                     </div>
                     <div class="pt-3 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
                         <button wire:click="$set('showNewSceneModal', false)" class="px-3 py-1.5 text-xs text-slate-500 dark:text-slate-400">Cancelar</button>
-                        <button wire:click="createScene" class="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-md">Crear Escena</button>
+                        <button wire:click="createScene" class="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-md">Guardar Escena</button>
                     </div>
                 </div>
             </div>
         </div>
     @endif
 
-    <!-- Modal para Nuevo Plano -->
+    <!-- ================= MODAL NUEVO PLANO TÉCNICO ================= -->
     @if($showNewShotModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4">
-            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs"
+             x-data
+             @keydown.escape.window="$wire.set('showNewShotModal', false)"
+             wire:click.self="$set('showNewShotModal', false)">
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 w-full max-w-md space-y-4">
                 <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-                    <h3 class="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">Añadir Plano Técnico</h3>
-                    <button wire:click="$set('showNewShotModal', false)" class="text-slate-400 hover:text-slate-600 dark:hover:text-white">✕</button>
+                    <h3 class="text-sm font-bold text-slate-900 dark:text-white">Añadir Plano Técnico</h3>
+                    <button wire:click="$set('showNewShotModal', false)" class="text-slate-400 hover:text-slate-600 dark:hover:text-white text-xs font-bold">✕</button>
                 </div>
-                <div class="mt-4 space-y-3">
+
+                <div class="space-y-3">
                     <div>
-                        <label class="block text-xs text-slate-700 dark:text-slate-300 mb-1">Tipo de Plano *</label>
+                        <label class="block text-xs text-slate-700 dark:text-slate-300 mb-1">Escala de Plano *</label>
                         <select wire:model="newShotType" class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-mono">
-                            <option value="PM">PM (Plano Medio)</option>
-                            <option value="PG">PG (Plano General)</option>
-                            <option value="PP">PP (Primer Plano)</option>
-                            <option value="PD">PD (Plano Detalle)</option>
-                            <option value="PA">PA (Plano Americano)</option>
-                            <option value="GPG">GPG (Gran Plano General)</option>
+                            <option value="PG">PG - Plano General</option>
+                            <option value="PE">PE - Plano Entero</option>
+                            <option value="PA">PA - Plano Americano</option>
+                            <option value="PM">PM - Plano Medio</option>
+                            <option value="PMC">PMC - Plano Medio Corto</option>
+                            <option value="PP">PP - Primer Plano</option>
+                            <option value="PPP">PPP - Primerísimo Primer Plano</option>
+                            <option value="PD">PD - Plano Detalle</option>
+                            <option value="INSERT">INSERT - Inserto</option>
                         </select>
                     </div>
                     <div>
                         <label class="block text-xs text-slate-700 dark:text-slate-300 mb-1">Descripción Técnica del Plano *</label>
                         <textarea wire:model="newShotDescription"
                                   rows="3"
-                                  placeholder="Describe la cobertura visual, encuadre o movimiento de cámara..."
+                                  placeholder="Describe la cobertura visual o movimiento de cámara..."
                                   class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"></textarea>
                         @error('newShotDescription') <span class="text-rose-500 text-xs">{{ $message }}</span> @enderror
-                    </div>
-                    <div>
-                        <label class="block text-xs text-slate-700 dark:text-slate-300 mb-1">Vincular a Bloque de Guión (Opcional)</label>
-                        <select wire:model="newShotBlockId" class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white">
-                            <option value="">-- General de la escena --</option>
-                            @foreach($activeScene->scriptBlocks as $blk)
-                                <option value="{{ $blk->id }}">Bloque #{{ $blk->block_order }} ({{ substr($blk->raw_text, 0, 40) }}...)</option>
-                            @endforeach
-                        </select>
                     </div>
                     <div class="pt-3 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
                         <button wire:click="$set('showNewShotModal', false)" class="px-3 py-1.5 text-xs text-slate-500 dark:text-slate-400">Cancelar</button>
@@ -952,7 +710,6 @@
                         <span class="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
                             200 OK
                         </span>
-                        <!-- Botón explícito para cerrar con icono y texto -->
                         <button wire:click="closeAiTraceModal"
                                 type="button"
                                 title="Cerrar modal (Esc)"
@@ -997,15 +754,12 @@
                 <!-- Modal Body Content (ÁREA SCROLLEABLE INTERNA CON PROPORCIÓN FIJA) -->
                 <div class="p-6 bg-white dark:bg-slate-900" style="flex: 1 1 0%; min-height: 0; overflow-y: auto; overflow-x: hidden;">
                     @if($aiTraceActiveTab === 'steps')
-                        <!-- Timeline con número de paso grande y centrado a la izquierda en cada fila -->
                         <div class="space-y-3.5">
                             @foreach($aiTraceData['steps'] ?? [] as $step)
                                 <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center gap-4 transition hover:border-slate-300 dark:hover:border-slate-700">
-                                    <!-- Número del paso GRANDE y CENTRADO a la izquierda -->
                                     <div class="flex items-center justify-center w-12 h-12 rounded-xl bg-indigo-600/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-mono text-xl font-black shrink-0 border border-indigo-500/30 shadow-xs">
                                         {{ $step['number'] ?? 1 }}
                                     </div>
-                                    <!-- Contenido de la fila del paso -->
                                     <div class="flex-1 min-w-0">
                                         <div class="flex items-center justify-between gap-2 mb-1">
                                             <h4 class="text-xs font-bold text-slate-900 dark:text-white truncate">{{ $step['title'] }}</h4>
@@ -1075,3 +829,19 @@
         </div>
     @endif
 </div>
+
+@push('scripts')
+<script>
+    document.addEventListener('livewire:initialized', () => {
+        Livewire.on('scroll-to-selected-block', ({ blockId }) => {
+            if (!blockId) return;
+            setTimeout(() => {
+                const el = document.getElementById('block-' + blockId);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }, 60);
+        });
+    });
+</script>
+@endpush

@@ -24,9 +24,6 @@ services:
       JG_AGENTE_SECRET: "${JG_AGENTE_SECRET:-test-secret-ecosystem-2026}"
       LLM_PROVIDER: "${LLM_PROVIDER:-groq}"
       LLM_MODEL: "${LLM_MODEL:-llama-3.3-70b-versatile}"
-      GROQ_API_KEY: "${GROQ_API_KEY:-${GLOBAL_GROQ_API_KEY:-}}"
-      GLOBAL_GROQ_API_KEY: "${GLOBAL_GROQ_API_KEY:-}"
-      GLOBAL_GOOGLE_API_KEY: "${GLOBAL_GOOGLE_API_KEY:-}"
     env_file:
       - .env
     volumes:

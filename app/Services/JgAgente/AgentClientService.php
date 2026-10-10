@@ -278,21 +278,33 @@ class AgentClientService
             $structured = [];
 
             foreach ($paragraphs as $para) {
-                // Purgar cualquier residuo previo de "En LOCALIZACIÓN:" para mantener prosa pura
-                $cleaned = preg_replace('/^En [^:]+:\s*/i', '', $para);
+                // Purgar cualquier residuo previo de "En LOCALIZACIÓN:" y meta-comentarios de borrador
+                $cleaned = preg_replace('/^En [^:]+:\s*/iu', '', $para);
+                $cleaned = preg_replace('/^(?:he pensado que|la idea es que|aquí|en esta escena|el autor propone que|vemos como|se ve como)\s+/iu', '', $cleaned);
                 $cleaned = trim((string) preg_replace('/\s+/', ' ', (string) $cleaned));
 
+                if (empty($cleaned)) {
+                    continue;
+                }
+
+                // Asegurar primera letra en mayúscula
+                $cleaned = mb_strtoupper(mb_substr($cleaned, 0, 1)).mb_substr($cleaned, 1);
+
+                // Normalizar nombres de personajes del contexto
                 foreach ($characters as $char) {
                     if (is_array($char) && ! empty($char['name'])) {
-                        $cname = $char['name'];
-                        $pattern = '/\b'.preg_quote($cname, '/').'\b/i';
-                        $cleaned = preg_replace($pattern, $cname, $cleaned);
+                        $cname = trim($char['name']);
+                        $pattern = '/\b'.preg_quote($cname, '/').'\b/iu';
+                        $cleaned = preg_replace($pattern, ucfirst(strtolower($cname)), $cleaned);
                     }
                 }
 
-                if ($cleaned !== '') {
-                    $structured[] = $cleaned;
+                // Asegurar puntuación final si no termina en punto, exclamación o interrogación
+                if (! preg_match('/[.?!:»"]$/u', $cleaned)) {
+                    $cleaned .= '.';
                 }
+
+                $structured[] = $cleaned;
             }
 
             $output = implode("\n\n", $structured);

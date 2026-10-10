@@ -45,7 +45,30 @@ return [
     'llm' => [
         'provider' => env('LLM_PROVIDER', 'groq'),
         'model' => env('LLM_MODEL', 'llama-3.3-70b-versatile'),
-        'api_key' => env('LLM_API_KEY', env('GROQ_API_KEY', env('GLOBAL_GROQ_API_KEY', env('GLOBAL_GOOGLE_API_KEY', env('GEMINI_API_KEY'))))),
+        'api_key' => (function () {
+            $key = env('LLM_API_KEY') ?: (env('GROQ_API_KEY') ?: (env('GLOBAL_GROQ_API_KEY') ?: (env('GLOBAL_GOOGLE_API_KEY') ?: env('GEMINI_API_KEY'))));
+            if (! empty($key)) {
+                return $key;
+            }
+            $envPath = base_path('.env');
+            if (file_exists($envPath)) {
+                $lines = @file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
+                foreach ($lines as $line) {
+                    $line = trim($line);
+                    foreach (['LLM_API_KEY', 'GROQ_API_KEY', 'GLOBAL_GROQ_API_KEY', 'GLOBAL_GOOGLE_API_KEY', 'GEMINI_API_KEY'] as $envKey) {
+                        if (str_starts_with($line, $envKey.'=')) {
+                            $val = trim(substr($line, strlen($envKey) + 1));
+                            $val = trim($val, "\"'");
+                            if (! empty($val)) {
+                                return $val;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return null;
+        })(),
         'timeout' => env('LLM_TIMEOUT', 45),
     ],
 

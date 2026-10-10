@@ -138,4 +138,63 @@ class LivewireScriptEditorTest extends TestCase
 
         $this->assertEquals('Chaqueta de cuero oscura', $character->fresh()->costume_notes);
     }
+
+    public function test_can_insert_block_intermediately_with_raw_text_only(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create(['project_id' => $project->id]);
+
+        $b1 = ScriptBlock::factory()->create(['scene_id' => $scene->id, 'block_order' => 1, 'raw_text' => 'Primero']);
+        $b2 = ScriptBlock::factory()->create(['scene_id' => $scene->id, 'block_order' => 2, 'raw_text' => 'Segundo']);
+
+        Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->call('openNewBlockModal', 1)
+            ->assertSet('showNewBlockModal', true)
+            ->assertSet('insertAfterOrder', 1)
+            ->set('newBlockRawText', 'Acción intermedia insertada con Gutenberg')
+            ->call('createNewBlock')
+            ->assertSet('showNewBlockModal', false);
+
+        $this->assertEquals(3, $scene->scriptBlocks()->count());
+        $this->assertEquals(1, $b1->fresh()->block_order);
+        $this->assertEquals(3, $b2->fresh()->block_order);
+
+        $inserted = $scene->scriptBlocks()->where('block_order', 2)->first();
+        $this->assertNotNull($inserted);
+        $this->assertEquals('Acción intermedia insertada con Gutenberg', $inserted->raw_text);
+        $this->assertEquals('raw', $inserted->stage);
+    }
+
+    public function test_drawer_opens_for_block_and_allows_pipeline_stage_navigation(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create(['project_id' => $project->id]);
+        $block = ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'block_order' => 1,
+            'raw_text' => 'Idea inicial en bruto',
+            'structured_text' => 'Tratamiento inicial',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->call('openBlockDetails', $block->id, 'raw')
+            ->assertSet('detailBlockId', $block->id)
+            ->assertSet('detailActiveTab', 'raw')
+            ->call('setDetailTab', 'structured')
+            ->assertSet('detailActiveTab', 'structured')
+            ->call('startEditingInDrawer')
+            ->assertSet('isEditingInDrawer', true)
+            ->set('editStructuredText', 'Tratamiento modificado desde el drawer al 60%')
+            ->call('saveBlockFromDrawer')
+            ->assertSet('isEditingInDrawer', false)
+            ->call('setPipelineStage', 'screenplay')
+            ->assertSet('pipelineStage', 'screenplay')
+            ->assertDispatched('scroll-to-selected-block');
+
+        $this->assertEquals('Tratamiento modificado desde el drawer al 60%', $block->fresh()->structured_text);
+    }
 }

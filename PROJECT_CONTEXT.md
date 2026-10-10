@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 2.4.0  
+**Versión del documento:** 2.5.0  
 **Fecha de consolidación:** 10 de octubre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 3/4, Tailwind CSS v4, PHP 8.4, PostgreSQL / SQLite, FFmpeg, PHPUnit 12, Laravel Pint  
-**Estado:** Fases 1 a 9 implementadas al 100% (Arquitectura UUIDs, UI Reactiva Livewire 3 con tema claro/oscuro, Conexión HMAC-SHA256 con jg_agente, Rodaje/Takes con subida física, NLE Rough Cut Timeline con ensamble FFmpeg, Inferencia Cognitiva Real con LLM en Groq llama-3.3-70b-versatile leído dinámicamente de variables de entorno, Navegación de Etapas por Pestañas Completadas por Bloque, Modal de Trazabilidad e Inspección Cognitiva IA estilo jg_hub / jg_dashboard con dimensiones fijas en los cuatro lados y scroll interior, Acciones particulares en Grafo & Saltos con nombres reales de entidades detectadas, Botones de Acción Contextuales por Etapa Activa con Conmutación Automática, Desglose Técnico Completo Embebido en Pestaña de Planos, Menú de Usuario con Contador de Slots estilo jg_hub).
+**Estado:** Fases 1 a 10 implementadas al 100% (Feed Continuo de Lectura de Historia sin marcos pesados, Menú Sticky Superior Ordenado estrictamente en Idea > Tratamiento > Guión > Planos / Tomas > 🎬 Montaje, Inserción de Bloques Intermedios estilo Gutenberg con modal exclusivo para Texto Bruto, Selección Persistente de Bloques con Auto-Scroll, Modal Lateral Derecho Drawer al 60% con fondo suave para navegación y edición de todas las etapas con IA, Conexión y Detección Robusta de LLM con Groq/Gemini y Enriquecimiento Semántico en Fallback).
 
 ---
 
@@ -175,7 +175,8 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
 - `TakeMediaManagementTest.php`: Verifica subida física de vídeo, validaciones y tomas válidas (5 tests).
 - `RoughCutAssemblyTest.php`: Verifica ordenación de timeline, renderizado con FFmpeg y fallbacks (4 tests).
 - `LivewirePipelineReactiveTest.php`: Verifica flujo end-to-end entre etapas y candados (4 tests).
-- **Total:** 28 tests PHPUnit pasando al 100% (144 aserciones).
+- `LivewireScriptEditorTest.php`: Verifica renderizado del slugline, feed de bloques, creación e inserción Gutenberg intermedia, Drawer lateral al 60% con edición y cambio de etapas del pipeline, eliminación de términos fijos y toggling de tomas (6 tests).
+- **Total:** 31 tests PHPUnit pasando al 100% (165 aserciones).
 
 ---
 
@@ -186,6 +187,12 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
 - Dispone de pipeline CI/CD en `.gitlab-ci.yml` con etapas de pruebas (`test:phpunit`) y construcción de contenedor Docker limpio sin ofuscación (`build:docker`).
 - Soporta el ciclo completo desde la creación del proyecto hasta el renderizado de vídeo concatenado con FFmpeg.
 - Dispone de interfaz adaptativa en tema Claro (blanco puro estilo `jg_hub`/`jg_dashboard`) y tema Oscuro con selector interactivo y persistencia en `localStorage`.
+- **Feed Continuo de Lectura Cinematográfica (Fase 10):** Se eliminaron las cajas cuadradas y contenedores pesados del editor. Los bloques narrativos fluyen secuencialmente como una lectura continua y limpia de la historia, manteniendo una tipografía cuidada y acento visual de selección sutil.
+- **Menú Superior Sticky Reordenado:** La barra de navegación se mantiene siempre visible (`sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md`) al hacer scroll. Su orden estricto es **`Idea` > `Tratamiento` > `Guión` > `Planos / Tomas` > `🎬 Montaje`**. Al conmutar de etapa, el feed renderiza únicamente el campo correspondiente a dicha etapa en todos los bloques.
+- **Inserción de Bloques Intermedios estilo Gutenberg (WordPress):** Entre cada par de bloques (y al inicio y final de la escena) se renderiza un divisor interactivo con un botón circular `+` hoverable. Al pulsarlo, se despliega el modal **"Añadir Nuevo Bloque"** que solicita **exclusivamente el campo "Texto bruto / Idea original"** (sin campos de las demás etapas) y reordena automáticamente los bloques posteriores desplazando su `block_order`.
+- **Selección Persistente de Bloques y Sincronización de Scroll:** Hacer clic en un bloque lo selecciona (`selectedBlockId`). Al conmutar de etapa en el menú sticky (e.g. de Idea a Tratamiento), el sistema mantiene el foco en el bloque seleccionado mediante auto-scroll reactivo continuo vía Livewire y Alpine.js.
+- **Modal Lateral Derecho (Drawer al 60%):** Cada bloque cuenta con un botón de detalles (`📑`) que abre un drawer lateral al 60% alineado a la derecha sobre un fondo suave (`bg-slate-950/30 backdrop-blur-[2px]`). Desde este panel lateral se consultan y editan los textos de todas las etapas (`Idea`, `Tratamiento`, `Guión`, `Planos`), se ejecutan las acciones de IA correspondientes y se consulta la trazabilidad cognitiva.
+- **Inferencia Cognitiva y Fallback Semántico:** Corrección de la inyección de API keys en Docker sin sobreescrituras vacías, y enriquecimiento del fallback semántico de `treatment_structuring` y `screenplay_formatter` para asegurar transformaciones dramáticas tangibles y vivas en lugar de copias literales.
 - **Inferencia Cognitiva Real:** Integra llamada semántica en vivo al modelo `llama-3.3-70b-versatile` en Groq (o el modelo configurado en `LLM_MODEL`), resolviendo transformaciones narrativas complejas (estilo indirecto a diálogos canónicos Fountain con acotaciones y personajes en mayúsculas). En entorno de pruebas y CI/CD opera bajo aislamiento mock determinista estricto con consumo zero de tokens.
 - **Limpieza de Interfaz y Navegación por Pestañas:** Cada bloque de guion renderiza una sola etapa a la vez. El cambio entre etapas se realiza mediante pestañas en la cabecera que muestran **únicamente aquellas etapas que hayan sido completadas** (`raw` siempre; `structured` si tiene tratamiento; `screenplay` si tiene guión; `shots` si tiene planos).
 - **Botones de Acción Contextuales y Conmutación Automática:** En la cabecera de cada bloque de guion se renderiza de forma exclusiva el botón correspondiente a la etapa actualmente activa en la pestaña (`raw` ➔ `⚡ Estructurar`; `structured` ➔ `🎬 Convertir a Guión`; `screenplay` ➔ `📹 Desglosar Planos`; `shots` ➔ `📹 Desglosar Planos` / `+ Añadir Plano`). Al accionar dicho botón, el sistema procesa el siguiente paso con IA y conmuta de forma automática e inmediata la vista a dicha pestaña resultante.
