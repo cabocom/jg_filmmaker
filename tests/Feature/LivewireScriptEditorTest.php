@@ -198,4 +198,36 @@ class LivewireScriptEditorTest extends TestCase
 
         $this->assertEquals('Tratamiento modificado desde el drawer al 60%', $block->fresh()->structured_text);
     }
+
+    public function test_reorder_block_moves_positions_atomically(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create(['project_id' => $project->id]);
+
+        $b1 = ScriptBlock::factory()->create(['scene_id' => $scene->id, 'block_order' => 1, 'raw_text' => 'Bloque 1']);
+        $b2 = ScriptBlock::factory()->create(['scene_id' => $scene->id, 'block_order' => 2, 'raw_text' => 'Bloque 2']);
+        $b3 = ScriptBlock::factory()->create(['scene_id' => $scene->id, 'block_order' => 3, 'raw_text' => 'Bloque 3']);
+
+        // Drag Block 1 and drop at position 3
+        Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->set('activeSceneId', $scene->id)
+            ->call('reorderBlock', $b1->id, 3)
+            ->assertSet('selectedBlockId', $b1->id);
+
+        $this->assertEquals(1, $b2->fresh()->block_order);
+        $this->assertEquals(2, $b3->fresh()->block_order);
+        $this->assertEquals(3, $b1->fresh()->block_order);
+
+        // Drag Block 1 back to position 1
+        Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->set('activeSceneId', $scene->id)
+            ->call('reorderBlock', $b1->id, 1);
+
+        $this->assertEquals(1, $b1->fresh()->block_order);
+        $this->assertEquals(2, $b2->fresh()->block_order);
+        $this->assertEquals(3, $b3->fresh()->block_order);
+    }
 }

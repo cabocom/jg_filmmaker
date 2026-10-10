@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 2.5.0  
+**Versión del documento:** 2.6.0  
 **Fecha de consolidación:** 10 de octubre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 3/4, Tailwind CSS v4, PHP 8.4, PostgreSQL / SQLite, FFmpeg, PHPUnit 12, Laravel Pint  
-**Estado:** Fases 1 a 10 implementadas al 100% (Feed Continuo de Lectura de Historia sin marcos pesados, Menú Sticky Superior Ordenado estrictamente en Idea > Tratamiento > Guión > Planos / Tomas > 🎬 Montaje, Inserción de Bloques Intermedios estilo Gutenberg con modal exclusivo para Texto Bruto, Selección Persistente de Bloques con Auto-Scroll, Modal Lateral Derecho Drawer al 60% con fondo suave para navegación y edición de todas las etapas con IA, Conexión y Detección Robusta de LLM con Groq/Gemini y Enriquecimiento Semántico en Fallback).
+**Estado:** Fases 1 a 11 implementadas al 100% (Feed Continuo de Lectura Fluida con espaciado ultra-compacto y divisores Gutenberg zero-gap en reposo, Reordenación de Bloques mediante Drag & Drop con handle sutil y actualización atómica en base de datos, Modal de Trazabilidad Cognitiva 100% reactivo en cliente con Alpine.js para 0 latencia y eliminación total de PayloadTooLargeException con livewire.payload.max_size de 10MB, Menú Sticky Superior Ordenado estrictamente en Idea > Tratamiento > Guión > Planos / Tomas > 🎬 Montaje, Drawer Lateral al 60% para detalles y edición profunda).
 
 ---
 
@@ -204,6 +204,10 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
 - **Gobernanza de Candados y Borrado de Términos Fijos:** La barra de candados permite eliminar interactivamente cualquier término fijo individual (`pinned_terms`) mediante un botón de borrado (`✕`), sincronizando al instante la base de datos y la telemetría.
 - **Búsqueda Continua de Personajes y Localizaciones:** La inferencia dramática analiza continuamente tanto la Biblia de Proyecto como el texto libre del bloque (detectando interlocutores explícitos como Juan y entornos dramáticos).
 - **Tipografía Homogénea del Ecosistema (Estilo jg_hub):** Unificación de todas las fuentes bajo `JetBrains Mono` e `Inter` con tamaño base de 13px y altura de línea 1.6, asegurando coherencia visual idéntica con la consola `jg_hub`. Los bloques de código y telemetría utilizan Highlight.js (`atom-one-dark`) con texto claro de alto contraste sobre fondo oscuro slate-950 / #0f172a.
+- **Lectura Continua de Prosa y Drag & Drop de Bloques (Fase 11):** 
+  - Ajuste ergonómico de márgenes y padding vertical (`py-1`, `space-y-0.5`, `px-3 py-1.5`) para conseguir una sensación genuina de lectura continua de novela o guión, eliminando espacios muertos entre párrafos. Los divisores Gutenberg intermedios adoptan altura mínima en reposo (`h-3 -my-0.5`), revelando la línea naranja y el botón `+` únicamente en hover sin forzar separaciones visuales.
+  - Implementación de Drag and Drop nativo con Alpine.js mediante un manipulador táctil vertical discreto (`⋮⋮`) que aparece suavemente a la izquierda al hacer hover sobre cualquier bloque. Al arrastrar y soltar, `reorderBlock` reordena los bloques atómicamente dentro de una transacción `DB::transaction`, recalculando los `block_order` sin saltos ni duplicados.
+  - Eliminación de roundtrips pesados en el Modal de Trazabilidad IA: la navegación interna entre pestañas (`⚡ Grafo & Saltos`, `💬 System Prompt & Entrada`, `📄 Salida Cinematográfica`, `{ } JSON Técnico`) pasa a gestionarse puramente en el cliente vía Alpine.js (`x-data="{ activeTab: 'steps' }"`, `x-show="activeTab === '...'"`), garantizando 0 ms de latencia, eliminando congelamientos de interfaz y erradicando el error `PayloadTooLargeException`, respaldado además por una ampliación de `payload.max_size` a 10MB en `config/livewire.php`.
 
 ### 7.2. Deudas Técnicas Conocidas
 1. **Autenticación y Multiusuario:**

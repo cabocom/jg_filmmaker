@@ -122,16 +122,16 @@
                 <livewire:studio.rough-cut-timeline :project="$project" :active-scene-id="$activeSceneId" :key="'timeline-'.$activeSceneId" />
             @else
                 <!-- ================= FEED CONTINUO DE BLOQUES DE LA HISTORIA ================= -->
-                <div class="py-2 space-y-1">
+                <div class="py-1 space-y-0.5">
                     <!-- Botón Gutenberg Inicial (Insertar antes del primer bloque, visible SOLO en hover) -->
-                    <div class="relative group my-3 py-2 flex items-center justify-center cursor-pointer">
-                        <div class="absolute inset-0 flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" aria-hidden="true">
-                            <div class="w-full border-t-2 border-amber-500 shadow-xs"></div>
+                    <div class="relative group h-3 -my-0.5 flex items-center justify-center cursor-pointer z-10">
+                        <div class="absolute inset-0 flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none" aria-hidden="true">
+                            <div class="w-full border-t border-amber-500 shadow-xs"></div>
                         </div>
                         <button wire:click="openNewBlockModal(0)"
                                 type="button"
                                 title="Insertar bloque al inicio"
-                                class="relative z-10 opacity-0 group-hover:opacity-100 inline-flex items-center justify-center w-8 h-8 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-base shadow-lg shadow-amber-500/30 border-2 border-white dark:border-slate-900 transition-all transform hover:scale-125 cursor-pointer">
+                                class="relative z-10 opacity-0 group-hover:opacity-100 inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm shadow-md shadow-amber-500/20 border-2 border-white dark:border-slate-900 transition-all transform hover:scale-110 cursor-pointer">
                             <span class="leading-none pb-0.5">+</span>
                         </button>
                     </div>
@@ -141,12 +141,42 @@
                             $isSelected = ($selectedBlockId === $block->id);
                         @endphp
 
-                        <!-- Elemento Continuo de Bloque (Sin barra superior de metadatos, pura lectura fluida) -->
+                        <!-- Elemento Continuo de Bloque con soporte Drag & Drop y lectura fluida -->
                         <div id="block-{{ $block->id }}"
+                             x-data="{ isDragging: false, isOver: false }"
+                             @dragover.prevent="isOver = true"
+                             @dragleave="isOver = false"
+                             @drop.prevent="
+                                 isOver = false;
+                                 const srcId = event.dataTransfer.getData('text/plain');
+                                 if (srcId && srcId !== '{{ $block->id }}') {
+                                     $wire.reorderBlock(srcId, {{ $block->block_order }});
+                                 }
+                             "
+                             :class="{
+                                 'opacity-40': isDragging,
+                                 'border-amber-500 ring-2 ring-amber-500/50 bg-amber-50/50 dark:bg-amber-950/30': isOver
+                             }"
                              wire:click="selectBlock('{{ $block->id }}')"
-                             class="group relative rounded-2xl p-5 transition-all cursor-pointer border-l-4 {{ $isSelected ? 'bg-amber-50/50 dark:bg-slate-900/90 border-amber-500 dark:border-amber-400 shadow-xs' : 'border-transparent hover:bg-slate-100/60 dark:hover:bg-slate-900/40 hover:border-slate-300 dark:hover:border-slate-700' }}">
+                             class="group relative rounded-xl px-3 py-1.5 transition-all cursor-pointer border-l-2 {{ $isSelected ? 'bg-amber-500/10 dark:bg-amber-400/10 border-amber-500 shadow-2xs' : 'border-transparent hover:bg-slate-100/60 dark:hover:bg-slate-900/40 hover:border-slate-300 dark:hover:border-slate-700' }}">
 
-                            <div class="flex items-start justify-between gap-6">
+                            <div class="flex items-start gap-2.5">
+                                <!-- Handle para Drag & Drop (Aparece en hover a la izquierda) -->
+                                <div draggable="true"
+                                     @dragstart.stop="event.dataTransfer.setData('text/plain', '{{ $block->id }}'); event.dataTransfer.effectAllowed = 'move'; isDragging = true"
+                                     @dragend="isDragging = false"
+                                     title="Arrastrar para mover de posición"
+                                     class="shrink-0 pt-0.5 opacity-0 group-hover:opacity-40 hover:!opacity-100 transition-opacity cursor-grab active:cursor-grabbing text-slate-400 dark:text-slate-500 hover:text-amber-500 select-none">
+                                    <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                                        <circle cx="7" cy="4" r="1.5" />
+                                        <circle cx="13" cy="4" r="1.5" />
+                                        <circle cx="7" cy="10" r="1.5" />
+                                        <circle cx="13" cy="10" r="1.5" />
+                                        <circle cx="7" cy="16" r="1.5" />
+                                        <circle cx="13" cy="16" r="1.5" />
+                                    </svg>
+                                </div>
+
                                 <!-- Texto de la Historia según la etapa del menú superior -->
                                 <div class="flex-1 min-w-0">
                                     @if($pipelineStage === 'idea')
@@ -161,7 +191,7 @@
                                                 {{ $block->structured_text }}
                                             </div>
                                         @else
-                                            <div class="py-1 flex items-center justify-between text-xs italic text-slate-400 dark:text-slate-500">
+                                            <div class="py-0.5 flex items-center justify-between text-xs italic text-slate-400 dark:text-slate-500">
                                                 <span>[Tratamiento pendiente de estructurar para este bloque]</span>
                                                 <button wire:click.stop="openBlockDetails('{{ $block->id }}', 'structured')" class="text-indigo-600 dark:text-indigo-400 font-semibold hover:underline cursor-pointer">
                                                     ⚡ Abrir detalles para estructurar ➔
@@ -171,13 +201,11 @@
                                     @elseif($pipelineStage === 'screenplay')
                                         <!-- Etapa 3: Guión Literario (Fountain) -->
                                         @if(!empty($block->screenplay_content))
-                                            <div class="p-4 bg-amber-50/20 dark:bg-slate-950/60 rounded-xl border border-amber-200/40 dark:border-amber-500/20">
-                                                <div class="font-screenplay text-sm text-slate-900 dark:text-amber-100 leading-relaxed whitespace-pre-wrap max-w-2xl mx-auto">
-                                                    {{ $block->screenplay_content }}
-                                                </div>
+                                            <div class="font-screenplay text-sm text-slate-900 dark:text-amber-100 leading-relaxed whitespace-pre-wrap max-w-2xl">
+                                                {{ $block->screenplay_content }}
                                             </div>
                                         @else
-                                            <div class="py-1 flex items-center justify-between text-xs italic text-slate-400 dark:text-slate-500">
+                                            <div class="py-0.5 flex items-center justify-between text-xs italic text-slate-400 dark:text-slate-500">
                                                 <span>[Guión literario pendiente de formatear para este bloque]</span>
                                                 <button wire:click.stop="openBlockDetails('{{ $block->id }}', 'screenplay')" class="text-amber-600 dark:text-amber-400 font-semibold hover:underline cursor-pointer">
                                                     🎬 Abrir detalles para convertir a guión ➔
@@ -187,11 +215,11 @@
                                     @elseif($pipelineStage === 'shots')
                                         <!-- Etapa 4: Planos y Tomas -->
                                         @if($block->shots->isNotEmpty())
-                                            <div class="space-y-2.5">
+                                            <div class="space-y-1.5">
                                                 @foreach($block->shots as $shot)
-                                                    <div class="p-3 rounded-lg bg-slate-50/80 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+                                                    <div class="p-2 rounded-lg bg-slate-50/80 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
                                                         <div class="flex items-center gap-2">
-                                                            <span class="font-mono font-bold text-cyan-700 bg-cyan-50 dark:text-cyan-300 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-800/50 px-2 py-0.5 rounded">
+                                                            <span class="font-mono font-bold text-cyan-700 bg-cyan-50 dark:text-cyan-300 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-800/50 px-1.5 py-0.5 rounded text-[11px]">
                                                                 --- shot {{ $shot->shot_number }} ({{ $shot->shot_type }}) ---
                                                             </span>
                                                             <span class="text-slate-700 dark:text-slate-300">{{ $shot->description }}</span>
@@ -201,7 +229,7 @@
                                                 @endforeach
                                             </div>
                                         @else
-                                            <div class="py-1 flex items-center justify-between text-xs italic text-slate-400 dark:text-slate-500">
+                                            <div class="py-0.5 flex items-center justify-between text-xs italic text-slate-400 dark:text-slate-500">
                                                 <span>[Sin planos técnicos desglosados en este bloque]</span>
                                                 <button wire:click.stop="openBlockDetails('{{ $block->id }}', 'shots')" class="text-cyan-600 dark:text-cyan-400 font-semibold hover:underline cursor-pointer">
                                                     📹 Abrir detalles para desglosar planos ➔
@@ -212,27 +240,27 @@
                                 </div>
 
                                 <!-- Botón de Detalles flotando a la derecha a la misma altura que la primera línea de texto -->
-                                <div class="shrink-0 pt-0.5">
+                                <div class="shrink-0 pt-0.5 opacity-25 group-hover:opacity-100 transition-opacity">
                                     <button wire:click.stop="openBlockDetails('{{ $block->id }}')"
                                             type="button"
                                             title="Abrir detalles y etapas en panel lateral"
-                                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-700 dark:hover:text-amber-300 transition shadow-2xs cursor-pointer">
-                                        <span class="text-sm">📑</span>
-                                        <span class="text-xs font-bold">Detalles</span>
+                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-700 dark:hover:text-amber-300 transition shadow-2xs cursor-pointer">
+                                        <span class="text-xs">📑</span>
+                                        <span class="text-[11px] font-bold">Detalles</span>
                                     </button>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Divisor Gutenberg Intermedio (Círculo naranja y línea SOLO en hover) -->
-                        <div class="relative group my-3 py-2 flex items-center justify-center cursor-pointer">
-                            <div class="absolute inset-0 flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" aria-hidden="true">
-                                <div class="w-full border-t-2 border-amber-500 shadow-xs"></div>
+                        <div class="relative group h-3 -my-0.5 flex items-center justify-center cursor-pointer z-10">
+                            <div class="absolute inset-0 flex items-center opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none" aria-hidden="true">
+                                <div class="w-full border-t border-amber-500 shadow-xs"></div>
                             </div>
                             <button wire:click="openNewBlockModal({{ $block->block_order }})"
                                     type="button"
                                     title="Añadir bloque aquí"
-                                    class="relative z-10 opacity-0 group-hover:opacity-100 inline-flex items-center justify-center w-8 h-8 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-base shadow-lg shadow-amber-500/30 border-2 border-white dark:border-slate-900 transition-all transform hover:scale-125 cursor-pointer">
+                                    class="relative z-10 opacity-0 group-hover:opacity-100 inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm shadow-md shadow-amber-500/20 border-2 border-white dark:border-slate-900 transition-all transform hover:scale-110 cursor-pointer">
                                 <span class="leading-none pb-0.5">+</span>
                             </button>
                         </div>
@@ -669,7 +697,7 @@
     <!-- ================= MODAL DE TRAZABILIDAD E INSPECCIÓN DE IA ================= -->
     @if($showAiTraceModal)
         <div class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-black/90 backdrop-blur-md transition"
-             x-data
+             x-data="{ activeTab: 'steps' }"
              @keydown.escape.window="$wire.closeAiTraceModal()"
              wire:click.self="closeAiTraceModal">
             <!-- Contenedor del Modal con PROPORCIONES FIJAS POR LOS CUATRO LADOS Y CENTRADO -->
@@ -717,89 +745,91 @@
                     </div>
                 </div>
 
-                <!-- Navigation Tabs inside Modal (Fijo) -->
+                <!-- Navigation Tabs inside Modal (Fijo con Alpine.js para 0 latencia y 0 payload) -->
                 <div class="px-6 pt-2 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-2 shrink-0" style="flex-shrink: 0;">
-                    <button wire:click="switchAiTraceTab('steps')" type="button"
-                            class="px-3.5 py-2 border-b-2 text-xs font-semibold transition {{ $aiTraceActiveTab === 'steps' ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                    <button @click="activeTab = 'steps'" type="button"
+                            :class="activeTab === 'steps' ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'"
+                            class="px-3.5 py-2 border-b-2 text-xs font-semibold transition cursor-pointer">
                         ⚡ Grafo & Saltos
                     </button>
-                    <button wire:click="switchAiTraceTab('prompt')" type="button"
-                            class="px-3.5 py-2 border-b-2 text-xs font-semibold transition {{ $aiTraceActiveTab === 'prompt' ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                    <button @click="activeTab = 'prompt'" type="button"
+                            :class="activeTab === 'prompt' ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'"
+                            class="px-3.5 py-2 border-b-2 text-xs font-semibold transition cursor-pointer">
                         💬 System Prompt & Entrada
                     </button>
-                    <button wire:click="switchAiTraceTab('output')" type="button"
-                            class="px-3.5 py-2 border-b-2 text-xs font-semibold transition {{ $aiTraceActiveTab === 'output' ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                    <button @click="activeTab = 'output'" type="button"
+                            :class="activeTab === 'output' ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'"
+                            class="px-3.5 py-2 border-b-2 text-xs font-semibold transition cursor-pointer">
                         📄 Salida Cinematográfica
                     </button>
-                    <button wire:click="switchAiTraceTab('json')" type="button"
-                            class="px-3.5 py-2 border-b-2 text-xs font-semibold transition {{ $aiTraceActiveTab === 'json' ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300' }}">
+                    <button @click="activeTab = 'json'" type="button"
+                            :class="activeTab === 'json' ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'"
+                            class="px-3.5 py-2 border-b-2 text-xs font-semibold transition cursor-pointer">
                         { } JSON Técnico
                     </button>
                 </div>
 
                 <!-- Modal Body Content (ÁREA SCROLLEABLE INTERNA CON PROPORCIÓN FIJA) -->
                 <div class="p-6 bg-white dark:bg-slate-900" style="flex: 1 1 0%; min-height: 0; overflow-y: auto; overflow-x: hidden;">
-                    @if($aiTraceActiveTab === 'steps')
-                        <div class="space-y-3.5">
-                            @foreach($aiTraceData['steps'] ?? [] as $step)
-                                <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center gap-4 transition hover:border-slate-300 dark:hover:border-slate-700">
-                                    <div class="flex items-center justify-center w-12 h-12 rounded-xl bg-indigo-600/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-mono text-xl font-black shrink-0 border border-indigo-500/30 shadow-xs">
-                                        {{ $step['number'] ?? 1 }}
-                                    </div>
-                                    <div class="flex-1 min-w-0">
-                                        <div class="flex items-center justify-between gap-2 mb-1">
-                                            <h4 class="text-xs font-bold text-slate-900 dark:text-white truncate">{{ $step['title'] }}</h4>
-                                            <span class="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold border border-emerald-500/30 shrink-0">
-                                                {{ $step['status'] ?? 'COMPLETED' }}
-                                            </span>
-                                        </div>
-                                        <p class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-mono">{{ $step['detail'] }}</p>
-                                    </div>
+                    <div x-show="activeTab === 'steps'" class="space-y-3.5">
+                        @foreach($aiTraceData['steps'] ?? [] as $step)
+                            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center gap-4 transition hover:border-slate-300 dark:hover:border-slate-700">
+                                <div class="flex items-center justify-center w-12 h-12 rounded-xl bg-indigo-600/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-mono text-xl font-black shrink-0 border border-indigo-500/30 shadow-xs">
+                                    {{ $step['number'] ?? 1 }}
                                 </div>
-                            @endforeach
-                        </div>
-                    @elseif($aiTraceActiveTab === 'prompt')
-                        <div class="space-y-5">
-                            <div>
-                                <span class="block text-xs font-mono uppercase font-bold text-slate-600 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-                                    <span>⚙️</span>
-                                    <span>System Prompt Inyectado (Biblia de Proyecto + Reglas)</span>
-                                </span>
-                                <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto border border-slate-300 dark:border-slate-800 shadow-inner">
-                                    {{ $aiTraceData['system_prompt'] ?? 'Sin prompt de sistema disponible.' }}
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center justify-between gap-2 mb-1">
+                                        <h4 class="text-xs font-bold text-slate-900 dark:text-white truncate">{{ $step['title'] }}</h4>
+                                        <span class="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold border border-emerald-500/30 shrink-0">
+                                            {{ $step['status'] ?? 'COMPLETED' }}
+                                        </span>
+                                    </div>
+                                    <p class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-mono">{{ $step['detail'] }}</p>
                                 </div>
                             </div>
-                            <div>
-                                <span class="block text-xs font-mono uppercase font-bold text-slate-600 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-                                    <span>📝</span>
-                                    <span>Entrada del Autor / Texto Suministrado</span>
-                                </span>
-                                <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto border border-slate-300 dark:border-slate-800 shadow-inner">
-                                    {{ $aiTraceData['user_prompt'] ?? $aiTraceData['input_text'] ?? 'Sin entrada registrada.' }}
-                                </div>
-                            </div>
-                        </div>
-                    @elseif($aiTraceActiveTab === 'output')
-                        <div class="space-y-2">
+                        @endforeach
+                    </div>
+
+                    <div x-show="activeTab === 'prompt'" class="space-y-5">
+                        <div>
                             <span class="block text-xs font-mono uppercase font-bold text-slate-600 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
-                                <span>🎬</span>
-                                <span>Salida Cinematográfica Generada</span>
+                                <span>⚙️</span>
+                                <span>System Prompt Inyectado (Biblia de Proyecto + Reglas)</span>
                             </span>
-                            <div class="p-5 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs border border-slate-300 dark:border-slate-800 whitespace-pre-wrap leading-relaxed overflow-y-auto shadow-inner" style="min-height: 280px; max-height: 380px;">
-                                {{ $aiTraceData['output'] ?? $aiTraceData['raw_response'] ?? 'Sin salida registrada.' }}
+                            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto border border-slate-300 dark:border-slate-800 shadow-inner">
+                                {{ $aiTraceData['system_prompt'] ?? 'Sin prompt de sistema disponible.' }}
                             </div>
                         </div>
-                    @elseif($aiTraceActiveTab === 'json')
-                        <div class="flex flex-col space-y-2">
-                            <span class="block text-xs font-mono uppercase font-bold text-slate-600 dark:text-slate-300 shrink-0 flex items-center gap-1.5">
-                                <span>{ }</span>
-                                <span>Payload & Telemetría Completa (JSON)</span>
+                        <div>
+                            <span class="block text-xs font-mono uppercase font-bold text-slate-600 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+                                <span>📝</span>
+                                <span>Entrada del Autor / Texto Suministrado</span>
                             </span>
-                            <div class="rounded-xl border border-slate-800 bg-[#0f172a] p-4 shadow-inner" style="min-height: 280px; max-height: 380px; overflow: auto;">
-                                <pre class="m-0 p-0 bg-transparent border-0"><code class="language-json font-mono text-xs leading-relaxed block" style="color: #38bdf8 !important;">{{ json_encode($aiTraceData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</code></pre>
+                            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto border border-slate-300 dark:border-slate-800 shadow-inner">
+                                {{ $aiTraceData['user_prompt'] ?? $aiTraceData['input_text'] ?? 'Sin entrada registrada.' }}
                             </div>
                         </div>
-                    @endif
+                    </div>
+
+                    <div x-show="activeTab === 'output'" class="space-y-2">
+                        <span class="block text-xs font-mono uppercase font-bold text-slate-600 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
+                            <span>🎬</span>
+                            <span>Salida Cinematográfica Generada</span>
+                        </span>
+                        <div class="p-5 rounded-xl bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-mono text-xs border border-slate-300 dark:border-slate-800 whitespace-pre-wrap leading-relaxed overflow-y-auto shadow-inner" style="min-height: 280px; max-height: 380px;">
+                            {{ $aiTraceData['output'] ?? $aiTraceData['raw_response'] ?? 'Sin salida registrada.' }}
+                        </div>
+                    </div>
+
+                    <div x-show="activeTab === 'json'" class="flex flex-col space-y-2">
+                        <span class="block text-xs font-mono uppercase font-bold text-slate-600 dark:text-slate-300 shrink-0 flex items-center gap-1.5">
+                            <span>{ }</span>
+                            <span>Payload & Telemetría Completa (JSON)</span>
+                        </span>
+                        <div class="rounded-xl border border-slate-800 bg-[#0f172a] p-4 shadow-inner" style="min-height: 280px; max-height: 380px; overflow: auto;">
+                            <pre class="m-0 p-0 bg-transparent border-0"><code class="language-json font-mono text-xs leading-relaxed block" style="color: #38bdf8 !important;">{{ json_encode($aiTraceData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</code></pre>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Modal Footer (Fijo) -->

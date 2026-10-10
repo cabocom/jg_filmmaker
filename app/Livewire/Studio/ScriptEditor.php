@@ -8,6 +8,7 @@ use App\Models\ScriptBlock;
 use App\Models\Shot;
 use App\Models\Take;
 use App\Services\ScriptPipelineService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -289,6 +290,42 @@ class ScriptEditor extends Component
 
         $this->dispatch('scroll-to-selected-block', blockId: $newBlock->id);
         session()->flash('success', "Bloque #{$newBlock->block_order} creado e insertado en la escena.");
+    }
+
+    public function reorderBlock(string $draggedBlockId, int $targetOrder): void
+    {
+        if (! $this->activeSceneId) {
+            return;
+        }
+
+        DB::transaction(function () use ($draggedBlockId, $targetOrder) {
+            $blocks = ScriptBlock::where('scene_id', $this->activeSceneId)
+                ->orderBy('block_order')
+                ->get();
+
+            $dragged = $blocks->firstWhere('id', $draggedBlockId);
+            if (! $dragged) {
+                return;
+            }
+
+            $remaining = $blocks->reject(fn ($b) => $b->id === $draggedBlockId)->values();
+            $targetIndex = max(0, min($targetOrder - 1, $remaining->count()));
+
+            $newBlocks = $remaining->slice(0, $targetIndex)
+                ->concat([$dragged])
+                ->concat($remaining->slice($targetIndex))
+                ->values();
+
+            foreach ($newBlocks as $idx => $block) {
+                $order = $idx + 1;
+                if ($block->block_order !== $order) {
+                    $block->update(['block_order' => $order]);
+                }
+            }
+        });
+
+        $this->selectedBlockId = $draggedBlockId;
+        session()->flash('success', 'Bloque reordenado correctamente.');
     }
 
     public function createScene(): void
