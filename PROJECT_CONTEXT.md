@@ -414,15 +414,12 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
         - `saveBlock`, `structureBlock`, `formatBlockToScreenplay`: capturan `scene_id`, `scene_order`, `scene_slugline`, `block_order`, `stage`, textos completos de Idea, Tratamiento y Guion.
         - `confirmDeleteBlock`: registra la escena y orden exacto del fragmento eliminado.
         - `savePlotHoleJustification`: registra la inconsistencia detectada, la etapa y la justificación explicativa redactada por el autor.
-    - **Visor Dual de Snapshots en Historial (`[Visual | JSON]`):**
-      * Selector en la cabecera del snapshot para alternar entre:
-        1. **Modo Visual:** Tarjetas limpias de alto contraste con tipografía legible, badges de escena/etapa y contenedores específicos para inconsistencias dramáticas y textos de bloque.
-        2. **Modo JSON:** Bloque `<pre>` con colores forzados de alto contraste (`#6ee7b7` sobre fondo `#020617` con `word-break: break-all`) que garantiza lectura inmediata sin interferencia de herencia CSS o modo oscuro.
-    - **Auditoría y Optimización Responsive Móvil para Despliegue Web:**
-      * **Barra Superior Sticky Adaptativa:** Layout vertical en pantallas pequeñas (`flex-col md:flex-row`), truncado elástico del título de proyecto, scroll horizontal fluido (`overflow-x-auto`) en la navegación de etapas (`Pipeline`, `Idea`, `Tratamiento`, `Guión`, `Planos`).
-      * **Drawer Lateral Adaptativo:** Sustituido el ancho rígido `60vw` por `w-full sm:w-[540px] md:w-[620px] lg:w-[60vw]` con `px-3.5 sm:px-6`, permitiendo operar al 100% de la pantalla en teléfonos móviles sin cortes ni barras de desplazamiento horizontal no deseadas.
-      * **Accesibilidad Táctil para Dispositivos Móviles:** Regla CSS `@media (hover: none) and (pointer: coarse)` para revelar con opacidad óptima (0.75) los divisores Gutenberg intermedios y visibilidad activa del botón de detalles sin depender de pseudo-estados `:hover`.
-      * **Modales Adaptativos con Scroll Interno:** Todos los diálogos modales (`showNewBlockModal`, `showNewSceneModal`, `showEditSceneModal`, `showDeleteBlockModal`, `showDeleteSceneModal`, `showJustifyModal`, `showPlotHoleConfirmModal`, `showActivityHistoryModal`) normalizados con `p-3 sm:p-4`, `max-h-[90vh]` / `max-h-[92vh]` y scroll interior vertical garantizado.
+    - **Visor Dual de Snapshots y Desglose Directo de Inconsistencias en Historial:**
+      * **Detección Directa en Tarjetas de Auditoría:** Al auditar agujeros (`analyze_plot_holes`), la tarjeta del log en el historial renderiza directamente un bloque con el desglose de todas las inconsistencias detectadas (escena, bloque, etapa, fallo narrativo y previsualización textual).
+      * **Modo JSON con Texto Negro:** Selector de snapshot con bloque `<pre>` en texto negro puro (`#000000 !important; font-weight: 500;`) sobre fondo suave (`bg-slate-100`), garantizando lectura inmediata y eliminando cualquier estilización verde o fondo oscuro ilegible.
+    - **Restauración de Cabecera y Estética Minimalista del Editor:**
+      * **Cabecera Horizontal Limpia:** Preservación estricta del layout horizontal con título de proyecto, escenas, Biblia, Agujeros, Historial y Tokens a la izquierda y el pipeline a la derecha, sin colapsos ni apilamientos verticales indebidos.
+      * **Lienzo de Escritura Despejado:** Botón "Detalles" discreto y visible exclusivamente en hover (`opacity-0 group-hover:opacity-100`), retirando elementos flotantes que interferían con la lectura de los bloques de guion.
 
 ### 7.2. Deudas Técnicas Conocidas
 1. **Actualización Dinámica de Tarifas de Tokens:**

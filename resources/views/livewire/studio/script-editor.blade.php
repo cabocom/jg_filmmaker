@@ -44,38 +44,27 @@
             pointer-events: auto !important;
             z-index: 6 !important;
         }
-        @media (hover: none) and (pointer: coarse) {
-            .gutenberg-divider-line {
-                opacity: 0.25 !important;
-            }
-            .gutenberg-divider-btn {
-                opacity: 0.75 !important;
-                pointer-events: auto !important;
-                transform: scale(0.9) !important;
-                z-index: 6 !important;
-            }
-        }
     </style>
 
     <!-- ================= BARRA SUPERIOR STICKY: TÍTULO DEL PROYECTO Y NAVEGACIÓN STORY ARCHITECT ================= -->
-    <div class="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 shadow-xs backdrop-blur-md px-3 sm:px-6 lg:px-8 py-2 sm:py-2.5 transition-colors">
-        <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-2.5 sm:gap-4">
-            <!-- Herramientas del Proyecto: Título, Escenas, Biblia, Agujeros, Historial y Tokens (Izquierda / Fila 1 en móvil) -->
-            <div class="flex items-center flex-wrap gap-1.5 sm:gap-2.5 min-w-0">
-                <span class="text-xs sm:text-sm font-bold font-mono uppercase tracking-wider text-slate-900 dark:text-white truncate max-w-[130px] sm:max-w-xs md:max-w-md">
+    <div class="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 shadow-xs backdrop-blur-md px-4 sm:px-6 lg:px-8 py-2.5 transition-colors">
+        <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
+            <!-- Herramientas del Proyecto: Título, Escenas, Biblia, Agujeros, Historial y Tokens (Izquierda) -->
+            <div class="flex items-center flex-wrap gap-2.5 min-w-0">
+                <span class="text-sm font-bold font-mono uppercase tracking-wider text-slate-900 dark:text-white truncate">
                     {{ $project->title }}
                 </span>
-                <span class="px-2 py-0.5 rounded-md text-[11px] sm:text-xs font-bold font-mono bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
+                <span class="px-2 py-0.5 rounded-md text-xs font-bold font-mono bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
                     {{ $scenes->count() }} {{ $scenes->count() === 1 ? 'escena' : 'escenas' }}
                 </span>
 
                 <!-- Botón de la Biblia de Proyecto -->
                 <button type="button"
                         onclick="Livewire.dispatch('toggle-bible-drawer')"
-                        class="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 hover:border-amber-500/40 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 transition shadow-2xs cursor-pointer shrink-0"
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 hover:border-amber-500/40 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 transition shadow-2xs cursor-pointer shrink-0"
                         title="Biblia de Proyecto (Personajes y Localizaciones)">
                     <span>📖</span>
-                    <span class="hidden sm:inline">Biblia</span>
+                    <span>Biblia</span>
                 </button>
 
                 <!-- Botón del Filtro de Agujeros de Guión con Menú Desplegable -->
@@ -88,11 +77,11 @@
                         <button wire:click="promptAnalyzePlotHoles"
                                 wire:loading.attr="disabled"
                                 type="button"
-                                class="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 text-xs font-mono font-medium {{ $totalPlotHoles > 0 ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 hover:bg-rose-100' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200' }} transition cursor-pointer shrink-0 disabled:opacity-50"
+                                class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono font-medium {{ $totalPlotHoles > 0 ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 hover:bg-rose-100' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200' }} transition cursor-pointer shrink-0 disabled:opacity-50"
                                 title="Pasar filtro de agujeros de guión con IA (informa del coste en tokens antes de ejecutar)">
                             <span wire:loading.remove wire:target="promptAnalyzePlotHoles, analyzePlotHoles">🕳️</span>
                             <span wire:loading wire:target="promptAnalyzePlotHoles, analyzePlotHoles" class="animate-spin text-xs">⏳</span>
-                            <span class="hidden sm:inline">Agujeros</span>
+                            <span>Agujeros</span>
                             @if($totalPlotHoles > 0)
                                 <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold {{ $showPlotHoleAlerts ? 'bg-rose-500 text-white animate-pulse' : 'bg-slate-400 text-white' }}"
                                       title="{{ $showPlotHoleAlerts ? 'Avisos activados' : 'Avisos desactivados' }}">
@@ -156,10 +145,10 @@
                 <!-- Botón de Historial y Trazabilidad del Proyecto -->
                 <button type="button"
                         wire:click="openActivityHistoryModal"
-                        class="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 hover:border-sky-500/40 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 transition shadow-2xs cursor-pointer shrink-0"
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 hover:border-sky-500/40 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 transition shadow-2xs cursor-pointer shrink-0"
                         title="Historial de acciones y trazabilidad en orden cronológico inverso">
                     <span>📜</span>
-                    <span class="hidden sm:inline">Historial</span>
+                    <span>Historial</span>
                 </button>
 
                 <!-- Contador de Tokens Diarios Disponibles -->
@@ -170,39 +159,39 @@
                     $usedToday = $currentUser ? $currentUser->getTokensUsedToday() : 0;
                     $percentLeft = $dailyLimit > 0 ? max(0, min(100, round(($availableTokens / $dailyLimit) * 100))) : 0;
                 @endphp
-                <div class="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 shadow-2xs shrink-0 cursor-default"
+                <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 shadow-2xs shrink-0 cursor-default"
                      title="Tokens de IA disponibles hoy: {{ number_format($availableTokens, 0, ',', '.') }} de {{ number_format($dailyLimit, 0, ',', '.') }} ({{ $percentLeft }}%). Consumidos hoy: {{ number_format($usedToday, 0, ',', '.') }}. Se renueva diariamente a las 00:00.">
                     <span class="{{ $percentLeft < 15 ? 'text-rose-500 animate-pulse' : ($percentLeft < 40 ? 'text-amber-500' : 'text-emerald-500') }}">⚡</span>
                     <span class="font-bold text-slate-900 dark:text-white">{{ number_format($availableTokens, 0, ',', '.') }}</span>
-                    <span class="hidden md:inline text-[11px] text-slate-400">/ {{ number_format($dailyLimit, 0, ',', '.') }}</span>
+                    <span class="hidden md:inline text-[11px] text-slate-400">/ {{ number_format($dailyLimit, 0, ',', '.') }} tokens</span>
                 </div>
             </div>
 
-            <!-- Menú Superior: Pipeline - Idea - Tratamiento - Guion - Planos/Tomas (Fila 2 en móvil con scroll horizontal) -->
-            <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200 dark:border-slate-700/80 shrink-0 overflow-x-auto w-full md:w-auto">
+            <!-- Menú Superior Alineado a la Derecha: Pipeline - Idea - Tratamiento - Guion - Planos/Tomas -->
+            <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200 dark:border-slate-700/80 shrink-0 overflow-x-auto">
                 <button wire:click="setActiveView('pipeline')"
                         type="button"
-                        class="px-2.5 sm:px-3 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'pipeline' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                        class="px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'pipeline' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
                     Pipeline
                 </button>
                 <button wire:click="setActiveView('idea')"
                         type="button"
-                        class="px-2.5 sm:px-3 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'idea' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                        class="px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'idea' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
                     Idea
                 </button>
                 <button wire:click="setActiveView('structured')"
                         type="button"
-                        class="px-2.5 sm:px-3 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'structured' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                        class="px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'structured' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
                     Tratamiento
                 </button>
                 <button wire:click="setActiveView('screenplay')"
                         type="button"
-                        class="px-2.5 sm:px-3 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'screenplay' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                        class="px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'screenplay' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
                     Guion
                 </button>
                 <button wire:click="setActiveView('shots')"
                         type="button"
-                        class="px-2.5 sm:px-3 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'shots' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
+                        class="px-2.5 py-1 rounded-lg text-xs font-mono transition cursor-pointer whitespace-nowrap {{ $activeView === 'shots' ? 'bg-amber-500 text-slate-950 font-bold shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
                     Planos/Tomas
                 </button>
             </div>
@@ -587,8 +576,8 @@
                                                 @endif
                                             </div>
 
-                                            <!-- Botón de Detalles flotando a la derecha -->
-                                            <div :class="isBlockHovered ? 'opacity-100' : 'opacity-100 sm:opacity-25'"
+                                            <!-- Botón de Detalles flotando a la derecha (visible solo al pasar el ratón) -->
+                                            <div :class="isBlockHovered ? 'opacity-100' : 'opacity-0'"
                                                  class="shrink-0 pt-0.5 transition-opacity group-hover:opacity-100 flex items-center gap-1.5">
                                                 @if($showPlotHoleAlerts && $block->hasPlotHole())
                                                     <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/30"
@@ -608,16 +597,6 @@
                                                         class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:border-amber-400 dark:hover:border-amber-500 hover:text-amber-700 dark:hover:text-amber-300 transition shadow-2xs cursor-pointer">
                                                     <span class="text-xs">📑</span>
                                                     <span class="text-[11px] font-bold">Detalles</span>
-                                                </button>
-
-                                                <!-- Botón Eliminar Bloque -->
-                                                <button wire:click.stop="openDeleteBlockModal('{{ $block->id }}')"
-                                                        type="button"
-                                                        title="Eliminar bloque permanentemente..."
-                                                        class="p-1 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 dark:hover:text-rose-400 transition cursor-pointer">
-                                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                    </svg>
                                                 </button>
                                             </div>
                                         </div>
@@ -2094,6 +2073,49 @@
                                     {{ $log->description }}
                                 </p>
 
+                                @if($log->action === 'analyze_plot_holes')
+                                    @php
+                                        $detectedHoles = $log->snapshot['detected_holes'] ?? [];
+                                        $totalDetected = $log->snapshot['total_detected'] ?? 0;
+                                    @endphp
+                                    @if(!empty($detectedHoles))
+                                        <div class="mt-2 p-3 rounded-xl bg-rose-50/90 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 space-y-2">
+                                            <div class="flex items-center justify-between text-[11px] font-mono font-bold text-rose-700 dark:text-rose-400">
+                                                <span>🕳️ Fallos detectados en este análisis ({{ count($detectedHoles) }}):</span>
+                                                @if(isset($log->snapshot['total_blocks_audited']))
+                                                    <span class="text-[10px] text-slate-500 font-normal">({{ $log->snapshot['total_blocks_audited'] }} bloques auditados)</span>
+                                                @endif
+                                            </div>
+                                            <div class="space-y-1.5">
+                                                @foreach($detectedHoles as $hole)
+                                                    <div class="p-2 rounded-lg bg-white dark:bg-slate-900 border border-rose-200/80 dark:border-rose-900/50 text-xs space-y-1 shadow-2xs">
+                                                        <div class="flex items-center justify-between text-[11px] font-mono">
+                                                            <span class="font-bold text-slate-900 dark:text-white">
+                                                                Escena #{{ $hole['scene_order'] ?? '?' }} @if(!empty($hole['scene_slugline'])) ({{ $hole['scene_slugline'] }}) @endif · Bloque #{{ $hole['block_order'] ?? '?' }}
+                                                            </span>
+                                                            <span class="px-1.5 py-0.2 rounded bg-rose-100 dark:bg-rose-900/70 text-rose-800 dark:text-rose-200 uppercase font-bold text-[9px]">
+                                                                {{ $hole['stage_label'] ?? $hole['stage'] ?? '' }}
+                                                            </span>
+                                                        </div>
+                                                        <p class="text-slate-800 dark:text-slate-200 font-sans text-xs leading-relaxed">
+                                                            <strong class="font-bold text-rose-700 dark:text-rose-400">Inconsistencia:</strong> {{ $hole['reason'] ?? '' }}
+                                                        </p>
+                                                        @if(!empty($hole['block_preview']))
+                                                            <div class="text-[11px] font-mono text-slate-500 dark:text-slate-400 italic pt-0.5 truncate">
+                                                                Fragmento: "{{ $hole['block_preview'] }}"
+                                                            </div>
+                                                        @endif
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    @elseif($totalDetected > 0)
+                                        <div class="mt-2 p-2 rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 text-xs text-rose-700 dark:text-rose-300 font-mono">
+                                            <span>🕳️ Inconsistencias detectadas: {{ $totalDetected }}</span>
+                                        </div>
+                                    @endif
+                                @endif
+
                                 @if(!empty($log->snapshot))
                                     <div class="pt-1.5" x-data="{ showSnapshot: false, viewMode: 'visual' }">
                                         <button type="button"
@@ -2247,12 +2269,11 @@
                                                 @endif
                                             </div>
 
-                                            <!-- 2. VISTA CÓDIGO TÉCNICO (JSON) CON CONTRASTE MÁXIMO GARANTIZADO -->
+                                            <!-- 2. VISTA CÓDIGO TÉCNICO (JSON) -->
                                             <div x-show="viewMode === 'json'"
                                                  style="display: none;"
-                                                 class="rounded-xl border border-slate-300 dark:border-slate-800 p-3 overflow-x-auto max-h-56"
-                                                 style="background-color: #020617 !important;">
-                                                <pre style="color: #6ee7b7 !important; background: transparent !important; white-space: pre-wrap; word-break: break-all; margin: 0; padding: 0; font-family: monospace; font-size: 11px; line-height: 1.45;">{{ json_encode($log->snapshot, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</pre>
+                                                 class="rounded-xl border border-slate-300 dark:border-slate-700 p-3 overflow-x-auto max-h-56 bg-slate-100 dark:bg-slate-900">
+                                                <pre style="color: #000000 !important; background: transparent !important; white-space: pre-wrap; word-break: break-all; margin: 0; padding: 0; font-family: monospace; font-size: 11px; line-height: 1.45; font-weight: 500;">{{ json_encode($log->snapshot, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}</pre>
                                             </div>
                                         </div>
                                     </div>
