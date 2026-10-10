@@ -236,7 +236,7 @@
                                     <button wire:click="saveBlock"
                                             type="button"
                                             class="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-sm">
-                                        ✓ Guardar Bloque
+                                        ✓ Guardar {{ match($activeTab) { 'raw' => 'Bruto', 'structured' => 'Tratamiento', 'screenplay' => 'Guión', 'shots' => 'Planos', default => 'Bloque' } }}
                                     </button>
                                     <button wire:click="$set('editingBlockId', null)"
                                             type="button"
@@ -247,7 +247,7 @@
                                     <button wire:click="startEditBlock('{{ $block->id }}')"
                                             type="button"
                                             class="px-2.5 py-1 rounded-lg text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 dark:border-slate-700 transition">
-                                        ✏️ Editar
+                                        ✏️ Editar {{ match($activeTab) { 'raw' => 'Bruto', 'structured' => 'Tratamiento', 'screenplay' => 'Guión', 'shots' => 'Planos', default => 'Bloque' } }}
                                     </button>
                                 @endif
                             </div>
@@ -277,35 +277,61 @@
                         <!-- Contenido del Bloque -->
                         <div class="p-5">
                             @if($editingBlockId === $block->id)
-                                <!-- Modo Edición de Bloque -->
-                                <div class="space-y-4">
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <!-- Modo Edición de Bloque: SOLO EL STEP EN CURSO -->
+                                <div class="space-y-3">
+                                    @if($activeTab === 'raw')
                                         <div>
-                                            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                                1. Texto Bruto / Estímulo Libre:
-                                            </label>
+                                            <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-200 dark:border-slate-800">
+                                                <label class="block text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider font-mono">
+                                                    1. Texto Bruto / Estímulo Libre:
+                                                </label>
+                                                <span class="text-[11px] text-slate-400 font-mono">Edición de entrada original</span>
+                                            </div>
                                             <textarea wire:model="editRawText"
-                                                      rows="4"
-                                                      class="w-full px-3 py-2 text-xs rounded-xl bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-sans"></textarea>
+                                                      rows="8"
+                                                      placeholder="Escribe aquí las notas, ideas o texto bruto de la escena..."
+                                                      class="w-full px-4 py-3 text-sm rounded-xl bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-sans leading-relaxed focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition shadow-inner"></textarea>
                                         </div>
+                                    @elseif($activeTab === 'structured')
                                         <div>
-                                            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                                                2. Texto Estructurado / Tratamiento Cinematográfico:
-                                            </label>
+                                            <div class="flex items-center justify-between pb-2 mb-2 border-b border-indigo-200 dark:border-indigo-950">
+                                                <label class="block text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider font-mono">
+                                                    2. Texto Estructurado / Tratamiento Cinematográfico:
+                                                </label>
+                                                <span class="text-[11px] text-indigo-500/80 font-mono">Acciones en presente continuo</span>
+                                            </div>
                                             <textarea wire:model="editStructuredText"
-                                                      rows="4"
-                                                      class="w-full px-3 py-2 text-xs rounded-xl bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white font-sans"></textarea>
+                                                      rows="8"
+                                                      placeholder="Escribe el tratamiento dramático en presente continuo..."
+                                                      class="w-full px-4 py-3 text-sm rounded-xl bg-white dark:bg-slate-950 border border-indigo-300 dark:border-indigo-800/80 text-slate-900 dark:text-white font-sans leading-relaxed focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition shadow-inner"></textarea>
                                         </div>
-                                    </div>
-
-                                    <div>
-                                        <label class="block text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1">
-                                            3. Guión Literario (Formato Estándar Fountain / Diálogos):
-                                        </label>
-                                        <textarea wire:model="editScreenplayContent"
-                                                  rows="6"
-                                                  class="w-full px-4 py-3 text-xs sm:text-sm rounded-xl bg-white dark:bg-slate-950 border border-amber-300 dark:border-amber-500/40 text-slate-900 dark:text-amber-100 font-screenplay leading-relaxed"></textarea>
-                                    </div>
+                                    @elseif($activeTab === 'screenplay')
+                                        <div>
+                                            <div class="flex items-center justify-between pb-2 mb-2 border-b border-amber-200 dark:border-amber-950">
+                                                <label class="block text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider font-mono">
+                                                    3. Guión Literario (Formato Estándar Fountain / Diálogos):
+                                                </label>
+                                                <span class="text-[11px] text-amber-500/80 font-mono">Formato canónico Fountain</span>
+                                            </div>
+                                            <textarea wire:model="editScreenplayContent"
+                                                      rows="12"
+                                                      placeholder="ESCENA - DÍA/NOCHE&#10;&#10;Acción descriptiva...&#10;&#10;PERSONAJE&#10;Línea de diálogo..."
+                                                      class="w-full px-4 py-3 text-sm rounded-xl bg-white dark:bg-slate-950 border border-amber-300 dark:border-amber-500/50 text-slate-900 dark:text-amber-100 font-mono leading-relaxed focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition shadow-inner"></textarea>
+                                        </div>
+                                    @elseif($activeTab === 'shots')
+                                        <div>
+                                            <div class="flex items-center justify-between pb-2 mb-2 border-b border-cyan-200 dark:border-cyan-950">
+                                                <label class="block text-xs font-bold text-cyan-700 dark:text-cyan-400 uppercase tracking-wider font-mono">
+                                                    4. Planos Técnicos / Guión con Delimitadores:
+                                                </label>
+                                                <span class="text-[11px] text-cyan-500/80 font-mono">Sintaxis: --- shot N (tipo) ---</span>
+                                            </div>
+                                            <textarea wire:model="editScreenplayContent"
+                                                      rows="12"
+                                                      placeholder="--- shot 1 (PG) ---&#10;Acción descriptiva...&#10;&#10;--- shot 2 (PM) ---&#10;Diálogo..."
+                                                      class="w-full px-4 py-3 text-sm rounded-xl bg-white dark:bg-slate-950 border border-cyan-300 dark:border-cyan-500/50 text-slate-900 dark:text-cyan-100 font-mono leading-relaxed focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition shadow-inner"></textarea>
+                                        </div>
+                                    @endif
                                 </div>
                             @else
                                 <!-- Modo Visualización: SOLO UNA ETAPA A LA VEZ SEGÚN LA PESTAÑA ACTIVA -->
