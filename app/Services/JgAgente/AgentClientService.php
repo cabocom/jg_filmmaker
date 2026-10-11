@@ -28,26 +28,40 @@ class AgentClientService
     public function __construct()
     {
         $this->baseUrl = rtrim(config('services.jg_agente.url', 'http://127.0.0.1:8001'), '/');
-        $this->secret = (string) config('services.jg_agente.secret', 'filmmaker_dev_secret_key_12345');
         $this->mock = (bool) config('services.jg_agente.mock', false);
         $this->timeout = (int) config('services.jg_agente.timeout', 30);
+
+        // Sin secreto por defecto en código (CWE-798): config > PERMANENT_AGENT_SECRET > fail-fast.
+        $secret = (string) (config('services.jg_agente.secret') ?: env('PERMANENT_AGENT_SECRET', ''));
+        if ($secret === '' && ! $this->mock) {
+            throw new \RuntimeException(
+                'Seguridad (CWE-798): secreto HMAC de jg_agente no configurado. '
+                .'Defina JG_AGENTE_SECRET o PERMANENT_AGENT_SECRET (o JG_AGENTE_MOCK=true para modo offline).'
+            );
+        }
+        $this->secret = $secret;
     }
 
     /**
      * Genera las cabeceras canónicas HMAC-SHA256 para una petición HTTP.
      *
+     * Contrato canónico: METHOD\nPATH\nTIMESTAMP\nSHA256(BODY)\nNONCE. El X-Nonce (UUID v4, de un
+     * solo uso) forma parte del material firmado, por lo que el receptor puede rechazar repeticiones.
+     *
      * @return array<string, string>
      */
-    public function generateSignatureHeaders(string $method, string $path, string $rawBody, ?int $timestamp = null): array
+    public function generateSignatureHeaders(string $method, string $path, string $rawBody, ?int $timestamp = null, ?string $nonce = null): array
     {
         $timestamp = $timestamp ?? time();
+        $nonce = $nonce ?? Str::uuid()->toString();
         $bodySha256 = hash('sha256', $rawBody);
-        $canonicalString = strtoupper($method)."\n".$path."\n".$timestamp."\n".$bodySha256;
+        $canonicalString = strtoupper($method)."\n".$path."\n".$timestamp."\n".$bodySha256."\n".$nonce;
         $signature = hash_hmac('sha256', $canonicalString, $this->secret);
 
         return [
             'X-Signature' => $signature,
             'X-Timestamp' => (string) $timestamp,
+            'X-Nonce' => $nonce,
             'X-Correlation-ID' => Str::uuid()->toString(),
             'X-Agent-ID' => 'jg_filmmaker',
             'Content-Type' => 'application/json',

@@ -37,7 +37,7 @@ return [
 
     'jg_agente' => [
         'url' => env('JG_AGENTE_URL', 'http://127.0.0.1:8001'),
-        'secret' => env('JG_AGENTE_SECRET', 'filmmaker_dev_secret_key_12345'),
+        'secret' => env('JG_AGENTE_SECRET', env('PERMANENT_AGENT_SECRET')),
         'mock' => env('JG_AGENTE_MOCK', false),
         'timeout' => env('JG_AGENTE_TIMEOUT', 30),
     ],

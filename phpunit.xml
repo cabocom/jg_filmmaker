@@ -29,6 +29,7 @@
         <env name="DB_DATABASE" value=":memory:" force="true"/>
         <server name="DB_DATABASE" value=":memory:" force="true"/>
         <env name="DB_URL" value=""/>
+        <env name="JG_AGENTE_SECRET" value="phpunit_agent_secret_not_for_production"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

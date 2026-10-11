@@ -40,7 +40,8 @@ class AgentClientHmacSignatureTest extends TestCase
 
         // 4. Verificación criptográfica exacta de la firma
         $bodyHash = hash('sha256', $rawBody);
-        $canonicalString = "POST\n/api/v1/tools/treatment_structuring\n1773090000\n{$bodyHash}";
+        $this->assertTrue(Str::isUuid($headers['X-Nonce']));
+        $canonicalString = "POST\n/api/v1/tools/treatment_structuring\n1773090000\n{$bodyHash}\n{$headers['X-Nonce']}";
         $expectedSignature = hash_hmac('sha256', $canonicalString, 'test_secret_key_abcdef123456');
 
         $this->assertSame($expectedSignature, $headers['X-Signature']);
@@ -97,7 +98,8 @@ class AgentClientHmacSignatureTest extends TestCase
             $bodySha = hash('sha256', $sentBody);
             $timestamp = $request->header('X-Timestamp')[0];
             $path = parse_url($request->url(), PHP_URL_PATH);
-            $canonical = "POST\n{$path}\n{$timestamp}\n{$bodySha}";
+            $nonce = $request->header('X-Nonce')[0] ?? '';
+            $canonical = "POST\n{$path}\n{$timestamp}\n{$bodySha}\n{$nonce}";
             $expected = hash_hmac('sha256', $canonical, 'auth_shared_secret');
 
             return $request->header('X-Signature')[0] === $expected;
@@ -119,5 +121,50 @@ class AgentClientHmacSignatureTest extends TestCase
         $this->assertStringContainsString('Ya están llegando.', $result);
         $this->assertStringContainsString('JUAN', $result);
         $this->assertStringContainsString('¿Quién está llegando?', $result);
+    }
+
+    public function test_each_request_carries_a_unique_nonce_covered_by_the_signature(): void
+    {
+        config(['services.jg_agente.secret' => 'secret_123']);
+        $client = new AgentClientService;
+
+        $a = $client->generateSignatureHeaders('POST', '/api/v1/tools/foo', '{}', 1773090000);
+        $b = $client->generateSignatureHeaders('POST', '/api/v1/tools/foo', '{}', 1773090000);
+
+        $this->assertNotSame($a['X-Nonce'], $b['X-Nonce']);
+        // Mismo método/ruta/timestamp/cuerpo: la firma difiere únicamente por el nonce
+        $this->assertNotSame($a['X-Signature'], $b['X-Signature']);
+    }
+
+    public function test_constructor_fails_fast_without_secret_when_not_in_mock_mode(): void
+    {
+        config([
+            'services.jg_agente.secret' => null,
+            'services.jg_agente.mock' => false,
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('CWE-798');
+
+        new AgentClientService;
+    }
+
+    public function test_constructor_allows_missing_secret_in_mock_mode(): void
+    {
+        config([
+            'services.jg_agente.secret' => null,
+            'services.jg_agente.mock' => true,
+        ]);
+
+        $this->assertInstanceOf(AgentClientService::class, new AgentClientService);
+    }
+
+    public function test_no_hardcoded_default_secret_remains_in_source(): void
+    {
+        $service = file_get_contents(app_path('Services/JgAgente/AgentClientService.php'));
+        $config = file_get_contents(config_path('services.php'));
+
+        $this->assertStringNotContainsString('filmmaker_dev_secret', $service);
+        $this->assertStringNotContainsString('filmmaker_dev_secret', $config);
     }
 }
