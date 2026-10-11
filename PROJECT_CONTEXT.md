@@ -453,8 +453,8 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
       * Configurada regla de Nginx en la VM (`/etc/nginx/sites-available/8010-films.cabocom.net` y enlace simbólico en `sites-enabled`) enrutando `https://films.cabocom.net` con SSL activo hacia la máquina local de desarrollo por la VPN (`http://10.8.0.8:8010`).
       * Habilita pruebas en tiempo real desde dispositivos móviles sin necesidad de redesplegar imágenes en producción ni saltarse el aislamiento de desarrollo.
     - **Optimización de Interfaz Móvil y Responsiva:**
-      * Topbar global (`layouts/app.blade.php`): Subtítulo colapsado en pantallas estrechas (`hidden md:flex`), avatar, tema y contador de tokens ajustados con `shrink-0` y protección `overflow-x-hidden`.
-      * Estudio y Editor de Guion (`script-editor.blade.php`): Barra superior adaptada a `flex-col md:flex-row` con scroll horizontal seguro para selector de etapas y cabecera de escena dividida en fila de metadatos/acciones y selector de pipeline.
+      * Topbar global (`layouts/app.blade.php`): Logo compacto, título y subtítulo unificados en una sola línea continua fluida sin columnas flex intermedias (`Pipeline Cinematográfico IA hecho por Javier Gálvez`), selector de tema y tokens ajustados para eliminar overflow en viewport móvil.
+      * Estudio y Editor de Guion (`script-editor.blade.php`): Barra superior del proyecto unificada en una sola fila horizontal fluida (`overflow-x-auto no-scrollbar`), selector de etapas contraído en un único botón con menú desplegable activo, y botones de estado/detalles (`🔒 Protegido`, `🕳️ Agujero`, `📑 Detalles`) posicionados de forma flotante (`absolute top-1.5 right-2`) en cada bloque para que el texto aproveche el 100% del ancho sin apelotonarse.
       * Listado de Proyectos (`project-list.blade.php`): Encabezado con `flex-wrap` y botón `shrink-0`.
     - **Gestión Segura de Secretos y Configuración:**
       * Variables inyectadas de forma unificada desde Vault (`APP_KEY`, `JG_AGENTE_SECRET`, `GLOBAL_GROQ_API_KEY`, `GLOBAL_GOOGLE_API_KEY`, `GLOBAL_MAIL_*`).
