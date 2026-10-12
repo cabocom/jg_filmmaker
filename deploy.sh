@@ -25,8 +25,8 @@ set -a
 source .env
 set +a
 
-# 1. Pull de imágenes desde el registro privado
-echo "▶ [1/5] Descargando últimas imágenes desde registry.cabocom.net..."
+# 1. Pull de imágenes desde GitLab Container Registry
+echo "▶ [1/5] Descargando últimas imágenes desde registry.gitlab.com..."
 docker compose pull
 echo "   ✓ Imágenes actualizadas."
 
