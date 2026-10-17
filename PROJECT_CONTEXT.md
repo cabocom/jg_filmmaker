@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.0.0  
-**Fecha de consolidación:** 10 de octubre de 2026  
+**Versión del documento:** 3.0.1  
+**Fecha de consolidación:** 17 de octubre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 3/4, Tailwind CSS v4, PHP 8.4, PostgreSQL / SQLite, FFmpeg, PHPUnit 12, Laravel Pint  
-**Estado:** Fases 1 a 16 implementadas al 100% (Autenticación passwordless por email idéntica a jg_hub con OTP en Localhost y detección de replay attacks, Panel de Administración `/admin` con control de roles `is_admin`, auditoría cuantitativa de obras con privacidad estricta, telemetría y costes de tokens en `agent_request_logs`, y catálogo interactivo de tarifas en `token_pricing_rates`).
+**Estado:** Fases 1 a 16 implementadas al 100%. Homogeneización visual de la plantilla transaccional de correo (`login-otp.blade.php`) bajo el estándar corporativo de `javiergalvez-ia` (tarjeta blanca 580px, cabecera oscura con badge de servicio, caja OTP monospace y pie legal RGPD/LOPDGDD). Autenticación passwordless por email con OTP y detección de replay attacks, Panel de Administración `/admin` con control de roles `is_admin`, auditoría cuantitativa de obras con privacidad estricta, telemetría y costes de tokens en `agent_request_logs`, y catálogo interactivo de tarifas en `token_pricing_rates`.
 
 ---
 
