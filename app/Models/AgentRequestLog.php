@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Concerns\HasVersion4Uuids as HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Cache;
 
 class AgentRequestLog extends Model
 {
@@ -32,6 +33,15 @@ class AgentRequestLog extends Model
             'estimated_cost_usd' => 'decimal:6',
             'meta' => 'array',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::created(function (AgentRequestLog $log): void {
+            if ($log->user_id) {
+                Cache::forget("user:{$log->user_id}:tokens_used_today");
+            }
+        });
     }
 
     public function user(): BelongsTo

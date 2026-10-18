@@ -25,6 +25,11 @@ class RoughCutTimeline extends Component
 
     public ?string $renderedVideoUrl = null;
 
+    /**
+     * @var Collection<int, Take>|null
+     */
+    protected ?Collection $memoizedGoodTakes = null;
+
     public function assembleRoughCut(RoughCutAssemblyService $assemblyService): void
     {
         Gate::authorize('view', $this->project);
@@ -54,11 +59,16 @@ class RoughCutTimeline extends Component
 
     /**
      * Obtiene la colección ordenada de tomas aprobadas (is_good_take = true).
+     * Memoizado por ciclo de petición.
      *
      * @return Collection<int, Take>
      */
     public function getGoodTakes(): Collection
     {
+        if ($this->memoizedGoodTakes !== null) {
+            return $this->memoizedGoodTakes;
+        }
+
         $query = Take::query()
             ->with(['shot.scene.location'])
             ->where('is_good_take', true)
@@ -75,7 +85,7 @@ class RoughCutTimeline extends Component
             ->orderBy('takes.take_number')
             ->select('takes.*');
 
-        return $query->get();
+        return $this->memoizedGoodTakes = $query->get();
     }
 
     public function selectTakeForPlayback(string $takeId): void
@@ -88,6 +98,7 @@ class RoughCutTimeline extends Component
     public function setSceneFilter(?string $sceneId): void
     {
         $this->filterSceneId = $sceneId ?: null;
+        $this->memoizedGoodTakes = null;
 
         $first = $this->getGoodTakes()->first();
         $this->currentPlayingTakeId = $first?->id;
@@ -105,7 +116,7 @@ class RoughCutTimeline extends Component
         $cuts = [];
 
         foreach ($takes as $index => $take) {
-            $duration = (float) ($take->technical_meta['duration_seconds'] ?? 5.0);
+            $duration = (float) ($take->technical_meta['duration_seconds'] ?? 0.0);
             $totalDuration += $duration;
 
             $cuts[] = [
@@ -122,10 +133,11 @@ class RoughCutTimeline extends Component
                 'is_good_take' => $take->is_good_take,
                 'editorial_notes' => $take->editorial_notes,
                 'technical_meta' => $take->technical_meta ?? [
-                    'duration_seconds' => $duration,
-                    'resolution' => '1920x1080',
-                    'fps' => 24.0,
-                    'codec' => 'h264',
+                    'probed' => false,
+                    'duration_seconds' => null,
+                    'resolution' => null,
+                    'fps' => null,
+                    'codec' => null,
                 ],
             ];
         }
@@ -160,7 +172,7 @@ class RoughCutTimeline extends Component
         }
 
         $totalEstimatedSeconds = $goodTakes->sum(function (Take $take) {
-            return (float) ($take->technical_meta['duration_seconds'] ?? 5.0);
+            return (float) ($take->technical_meta['duration_seconds'] ?? 0.0);
         });
 
         $scenes = $this->project->scenes()->orderBy('scene_order')->get();

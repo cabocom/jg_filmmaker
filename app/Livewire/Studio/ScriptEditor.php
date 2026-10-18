@@ -17,6 +17,7 @@ use App\Services\JgAgente\AgentClientService;
 use App\Services\ScriptPipelineService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -1797,28 +1798,95 @@ class ScriptEditor extends Component
 
         $this->videoUpload->storeAs('', $storagePath, 'local');
 
-        $currentMeta = $take->technical_meta ?? [];
-        if (empty($currentMeta['duration_seconds'])) {
-            $currentMeta['duration_seconds'] = 5.0;
-        }
-        if (empty($currentMeta['resolution'])) {
-            $currentMeta['resolution'] = '1920x1080';
-        }
-        if (empty($currentMeta['fps'])) {
-            $currentMeta['fps'] = 24.0;
-        }
-        if (empty($currentMeta['codec'])) {
-            $currentMeta['codec'] = strtolower($extension) === 'mov' ? 'prores' : 'h264';
-        }
+        $absolutePath = Storage::disk('local')->path($storagePath);
+        $probedMeta = $this->probeVideoFile($absolutePath);
 
         $take->update([
             'file_path' => $storagePath,
-            'technical_meta' => $currentMeta,
+            'technical_meta' => array_merge($take->technical_meta ?? [], $probedMeta),
         ]);
 
         $takeNumber = $take->take_number;
         $this->reset(['videoUpload', 'uploadingTakeId']);
-        session()->flash('success', "Vídeo de la Toma {$takeNumber} subido correctamente.");
+        session()->flash('success', "Vídeo de la Toma {$takeNumber} subido y analizado correctamente.");
+    }
+
+    /**
+     * Sonda metadatos técnicos reales del fichero de vídeo mediante ffprobe (ISSUE-027).
+     *
+     * @return array<string, mixed>
+     */
+    protected function probeVideoFile(string $absolutePath): array
+    {
+        $defaultMeta = [
+            'probed' => false,
+            'duration_seconds' => null,
+            'resolution' => null,
+            'fps' => null,
+            'codec' => null,
+        ];
+
+        if (! file_exists($absolutePath)) {
+            return $defaultMeta;
+        }
+
+        try {
+            $process = Process::timeout(15)->run([
+                'ffprobe',
+                '-v', 'error',
+                '-print_format', 'json',
+                '-show_format',
+                '-show_streams',
+                $absolutePath,
+            ]);
+
+            if (! $process->successful()) {
+                return $defaultMeta;
+            }
+
+            $data = json_decode($process->output(), true);
+            if (! is_array($data) || empty($data['streams'])) {
+                return $defaultMeta;
+            }
+
+            $videoStream = null;
+            foreach ($data['streams'] as $stream) {
+                if (($stream['codec_type'] ?? '') === 'video') {
+                    $videoStream = $stream;
+                    break;
+                }
+            }
+
+            if (! $videoStream) {
+                return $defaultMeta;
+            }
+
+            $duration = (float) ($videoStream['duration'] ?? $data['format']['duration'] ?? 0);
+            $width = (int) ($videoStream['width'] ?? 0);
+            $height = (int) ($videoStream['height'] ?? 0);
+            $codec = (string) ($videoStream['codec_name'] ?? '');
+
+            $fps = null;
+            $fpsRaw = (string) ($videoStream['r_frame_rate'] ?? $videoStream['avg_frame_rate'] ?? '');
+            if (! empty($fpsRaw) && str_contains($fpsRaw, '/')) {
+                [$num, $den] = explode('/', $fpsRaw, 2);
+                if ((float) $den > 0) {
+                    $fps = round((float) $num / (float) $den, 2);
+                }
+            }
+
+            return [
+                'probed' => true,
+                'duration_seconds' => $duration > 0 ? round($duration, 2) : null,
+                'resolution' => ($width > 0 && $height > 0) ? "{$width}x{$height}" : null,
+                'fps' => $fps,
+                'codec' => ! empty($codec) ? strtolower($codec) : null,
+                'pix_fmt' => (string) ($videoStream['pix_fmt'] ?? ''),
+                'bit_rate' => (int) ($videoStream['bit_rate'] ?? $data['format']['bit_rate'] ?? 0),
+            ];
+        } catch (\Throwable) {
+            return $defaultMeta;
+        }
     }
 
     public function deleteTake(string $takeId): void
@@ -2222,18 +2290,14 @@ class ScriptEditor extends Component
                 'location',
                 'scriptBlocks' => fn ($q) => $q->orderBy('block_order'),
                 'scriptBlocks.shots.takes',
+                'shots.takes',
             ])
             ->orderBy('scene_order')
             ->get();
 
-        $activeScene = null;
-        if ($this->activeSceneId) {
-            $activeScene = Scene::with([
-                'location',
-                'scriptBlocks.shots.takes',
-                'shots.takes',
-            ])->find($this->activeSceneId);
-        }
+        $activeScene = $this->activeSceneId
+            ? $scenes->firstWhere('id', $this->activeSceneId)
+            : null;
 
         $activityLogs = $this->showActivityHistoryModal
             ? $this->project->activityLogs()->with('user')->latest()->take(100)->get()

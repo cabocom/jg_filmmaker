@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class User extends Authenticatable
@@ -108,19 +109,26 @@ class User extends Authenticatable
     /**
      * Tokens consumidos hoy por todas las peticiones a la IA en los proyectos del usuario.
      */
-    public function getTokensUsedToday(): int
+    public function getTokensUsedToday(bool $fresh = false): int
     {
-        return (int) DB::table('agent_request_logs')
-            ->leftJoin('projects', 'agent_request_logs.project_id', '=', 'projects.id')
-            ->where(function ($query) {
-                $query->where('agent_request_logs.user_id', $this->id)
-                    ->orWhere(function ($q) {
-                        $q->whereNull('agent_request_logs.user_id')
-                            ->where('projects.user_id', $this->id);
-                    });
-            })
-            ->where('agent_request_logs.created_at', '>=', now()->startOfDay())
-            ->sum('agent_request_logs.total_tokens');
+        $cacheKey = "user:{$this->id}:tokens_used_today";
+        if ($fresh) {
+            Cache::forget($cacheKey);
+        }
+
+        return (int) Cache::remember($cacheKey, 30, function () {
+            return (int) DB::table('agent_request_logs')
+                ->leftJoin('projects', 'agent_request_logs.project_id', '=', 'projects.id')
+                ->where(function ($query) {
+                    $query->where('agent_request_logs.user_id', $this->id)
+                        ->orWhere(function ($q) {
+                            $q->whereNull('agent_request_logs.user_id')
+                                ->where('projects.user_id', $this->id);
+                        });
+                })
+                ->where('agent_request_logs.created_at', '>=', now()->startOfDay())
+                ->sum('agent_request_logs.total_tokens');
+        });
     }
 
     /**
