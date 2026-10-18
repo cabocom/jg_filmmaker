@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class Project extends Model
 {
@@ -25,6 +27,24 @@ class Project extends Model
         'synopsis',
         'status',
     ];
+
+    /**
+     * Boot the model and register cascade directory cleanup.
+     */
+    protected static function booted(): void
+    {
+        static::deleted(function (Project $project): void {
+            $projectId = $project->id;
+            DB::afterCommit(function () use ($projectId) {
+                if (Storage::disk('local')->exists("media/projects/{$projectId}")) {
+                    Storage::disk('local')->deleteDirectory("media/projects/{$projectId}");
+                }
+                if (Storage::disk('public')->exists("media/projects/{$projectId}")) {
+                    Storage::disk('public')->deleteDirectory("media/projects/{$projectId}");
+                }
+            });
+        });
+    }
 
     /**
      * User who owns the project.

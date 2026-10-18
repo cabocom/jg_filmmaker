@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Concerns\HasVersion4Uuids as HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class Take extends Model
@@ -47,14 +48,17 @@ class Take extends Model
      */
     protected static function booted(): void
     {
-        static::deleting(function (Take $take): void {
+        static::deleted(function (Take $take): void {
             if ($take->file_path) {
-                if (Storage::disk('local')->exists($take->file_path)) {
-                    Storage::disk('local')->delete($take->file_path);
-                }
-                if (Storage::disk('public')->exists($take->file_path)) {
-                    Storage::disk('public')->delete($take->file_path);
-                }
+                $filePath = $take->file_path;
+                DB::afterCommit(function () use ($filePath) {
+                    if (Storage::disk('local')->exists($filePath)) {
+                        Storage::disk('local')->delete($filePath);
+                    }
+                    if (Storage::disk('public')->exists($filePath)) {
+                        Storage::disk('public')->delete($filePath);
+                    }
+                });
             }
         });
     }

@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class Scene extends Model
 {
@@ -37,6 +39,32 @@ class Scene extends Model
         return [
             'scene_order' => 'integer',
         ];
+    }
+
+    /**
+     * Boot the model and register cascade media cleanup.
+     */
+    protected static function booted(): void
+    {
+        static::deleting(function (Scene $scene): void {
+            $filePaths = Take::whereHas('shot', fn ($q) => $q->where('scene_id', $scene->id))
+                ->whereNotNull('file_path')
+                ->pluck('file_path')
+                ->all();
+
+            if (! empty($filePaths)) {
+                DB::afterCommit(function () use ($filePaths) {
+                    foreach ($filePaths as $path) {
+                        if (Storage::disk('local')->exists($path)) {
+                            Storage::disk('local')->delete($path);
+                        }
+                        if (Storage::disk('public')->exists($path)) {
+                            Storage::disk('public')->delete($path);
+                        }
+                    }
+                });
+            }
+        });
     }
 
     /**

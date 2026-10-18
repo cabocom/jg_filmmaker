@@ -473,24 +473,27 @@ class ScriptEditor extends Component
 
         $scene = $this->projectScene($this->activeSceneId);
 
-        if ($this->insertAfterOrder !== null) {
-            // Desplazar bloques con orden mayor que el de inserción
-            $scene->scriptBlocks()
-                ->where('block_order', '>', $this->insertAfterOrder)
-                ->increment('block_order');
+        $newBlock = DB::transaction(function () use ($scene) {
+            if ($this->insertAfterOrder !== null) {
+                // Desplazar bloques con orden mayor que el de inserción
+                $scene->scriptBlocks()
+                    ->where('block_order', '>', $this->insertAfterOrder)
+                    ->lockForUpdate()
+                    ->increment('block_order');
 
-            $newOrder = $this->insertAfterOrder + 1;
-        } else {
-            $maxOrder = $scene->scriptBlocks()->max('block_order') ?? 0;
-            $newOrder = $maxOrder + 1;
-        }
+                $newOrder = $this->insertAfterOrder + 1;
+            } else {
+                $maxOrder = $scene->scriptBlocks()->lockForUpdate()->max('block_order') ?? 0;
+                $newOrder = $maxOrder + 1;
+            }
 
-        $newBlock = $scene->scriptBlocks()->create([
-            'block_order' => $newOrder,
-            'raw_text' => trim($this->newBlockRawText),
-            'stage' => 'raw',
-            'user_locks' => [],
-        ]);
+            return $scene->scriptBlocks()->create([
+                'block_order' => $newOrder,
+                'raw_text' => trim($this->newBlockRawText),
+                'stage' => 'raw',
+                'user_locks' => [],
+            ]);
+        });
 
         $this->logActivity('create_block', 'ScriptBlock', $newBlock->id, "Bloque #{$newBlock->block_order} creado en Escena #{$scene->scene_order}", [
             'scene_id' => $scene->id,
@@ -632,30 +635,35 @@ class ScriptEditor extends Component
             'newSceneTimeOfDay' => 'required',
         ]);
 
-        if ($this->insertSceneAfterOrder !== null) {
-            $this->project->scenes()
-                ->where('scene_order', '>', $this->insertSceneAfterOrder)
-                ->increment('scene_order');
-            $newOrder = $this->insertSceneAfterOrder + 1;
-        } else {
-            $maxOrder = $this->project->scenes()->max('scene_order') ?? 0;
-            $newOrder = $maxOrder + 1;
-        }
+        $scene = DB::transaction(function () {
+            if ($this->insertSceneAfterOrder !== null) {
+                $this->project->scenes()
+                    ->where('scene_order', '>', $this->insertSceneAfterOrder)
+                    ->lockForUpdate()
+                    ->increment('scene_order');
+                $newOrder = $this->insertSceneAfterOrder + 1;
+            } else {
+                $maxOrder = $this->project->scenes()->lockForUpdate()->max('scene_order') ?? 0;
+                $newOrder = $maxOrder + 1;
+            }
 
-        $scene = $this->project->scenes()->create([
-            'scene_order' => $newOrder,
-            'slugline' => strtoupper(trim($this->newSceneSlugline)),
-            'time_of_day' => strtoupper(trim($this->newSceneTimeOfDay)),
-            'location_id' => $this->newSceneLocationId ?: null,
-        ]);
+            $newScene = $this->project->scenes()->create([
+                'scene_order' => $newOrder,
+                'slugline' => strtoupper(trim($this->newSceneSlugline)),
+                'time_of_day' => strtoupper(trim($this->newSceneTimeOfDay)),
+                'location_id' => $this->newSceneLocationId ?: null,
+            ]);
 
-        // Crear bloque inicial vacío en la escena
-        $scene->scriptBlocks()->create([
-            'block_order' => 1,
-            'raw_text' => 'Escribe aquí la acción o idea en bruto...',
-            'stage' => 'raw',
-            'user_locks' => [],
-        ]);
+            // Crear bloque inicial vacío en la escena
+            $newScene->scriptBlocks()->create([
+                'block_order' => 1,
+                'raw_text' => 'Escribe aquí la acción o idea en bruto...',
+                'stage' => 'raw',
+                'user_locks' => [],
+            ]);
+
+            return $newScene;
+        });
 
         // Sincronizar localizaciones del proyecto y notificar a la Biblia
         app(ScriptPipelineService::class)->syncProjectLocations($this->project);
@@ -1685,26 +1693,31 @@ class ScriptEditor extends Component
         ]);
 
         $scene = $this->projectScene($this->activeSceneId);
-        $maxNumber = $scene->shots()->max('shot_number') ?? 0;
 
-        $shot = $scene->shots()->create([
-            'shot_number' => $maxNumber + 1,
-            'shot_type' => strtoupper(trim($this->newShotType)),
-            'description' => $this->newShotDescription,
-            'script_block_id' => $this->newShotBlockId ?: null,
-        ]);
+        $shot = DB::transaction(function () use ($scene) {
+            $maxNumber = $scene->shots()->lockForUpdate()->max('shot_number') ?? 0;
 
-        // Crear una toma inicial por defecto
-        $shot->takes()->create([
-            'take_number' => 1,
-            'is_good_take' => false,
-            'editorial_notes' => 'Toma inicial',
-            'technical_meta' => [
-                'resolution' => '3840x2160',
-                'codec' => 'prores422hq',
-                'fps' => 24.0,
-            ],
-        ]);
+            $newShot = $scene->shots()->create([
+                'shot_number' => $maxNumber + 1,
+                'shot_type' => strtoupper(trim($this->newShotType)),
+                'description' => $this->newShotDescription,
+                'script_block_id' => $this->newShotBlockId ?: null,
+            ]);
+
+            // Crear una toma inicial por defecto
+            $newShot->takes()->create([
+                'take_number' => 1,
+                'is_good_take' => false,
+                'editorial_notes' => 'Toma inicial',
+                'technical_meta' => [
+                    'resolution' => '3840x2160',
+                    'codec' => 'prores422hq',
+                    'fps' => 24.0,
+                ],
+            ]);
+
+            return $newShot;
+        });
 
         $this->reset(['showNewShotModal', 'newShotDescription', 'newShotBlockId']);
         session()->flash('success', "Plano {$shot->shot_number} ({$shot->shot_type}) añadido.");
@@ -1717,18 +1730,21 @@ class ScriptEditor extends Component
         }
 
         $shot = $this->projectShot($this->addingTakeShotId);
-        $maxTakeNumber = $shot->takes()->max('take_number') ?? 0;
 
-        $shot->takes()->create([
-            'take_number' => $maxTakeNumber + 1,
-            'is_good_take' => $this->newTakeIsGood,
-            'editorial_notes' => $this->newTakeEditorialNotes ?: null,
-            'technical_meta' => [
-                'resolution' => '3840x2160',
-                'codec' => 'prores422hq',
-                'fps' => 24.0,
-            ],
-        ]);
+        DB::transaction(function () use ($shot) {
+            $maxTakeNumber = $shot->takes()->lockForUpdate()->max('take_number') ?? 0;
+
+            $shot->takes()->create([
+                'take_number' => $maxTakeNumber + 1,
+                'is_good_take' => $this->newTakeIsGood,
+                'editorial_notes' => $this->newTakeEditorialNotes ?: null,
+                'technical_meta' => [
+                    'resolution' => '3840x2160',
+                    'codec' => 'prores422hq',
+                    'fps' => 24.0,
+                ],
+            ]);
+        });
 
         $this->reset(['addingTakeShotId', 'newTakeEditorialNotes', 'newTakeIsGood']);
         session()->flash('success', "Toma añadida al Plano {$shot->shot_number}.");
