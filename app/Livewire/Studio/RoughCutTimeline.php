@@ -6,14 +6,17 @@ use App\Models\Project;
 use App\Models\Take;
 use App\Services\RoughCutAssemblyService;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 #[Layout('layouts.app')]
 class RoughCutTimeline extends Component
 {
+    #[Locked]
     public Project $project;
 
     public ?string $filterSceneId = null;
@@ -24,6 +27,8 @@ class RoughCutTimeline extends Component
 
     public function assembleRoughCut(RoughCutAssemblyService $assemblyService): void
     {
+        Gate::authorize('view', $this->project);
+
         try {
             $result = $assemblyService->assemble($this->project, $this->filterSceneId);
             $this->renderedVideoUrl = $result['video_url'];
@@ -36,6 +41,8 @@ class RoughCutTimeline extends Component
 
     public function mount(Project $project, ?string $activeSceneId = null): void
     {
+        Gate::authorize('view', $project);
+
         $this->project = $project;
         $this->filterSceneId = $activeSceneId;
 
@@ -73,6 +80,8 @@ class RoughCutTimeline extends Component
 
     public function selectTakeForPlayback(string $takeId): void
     {
+        abort_unless($this->getGoodTakes()->contains('id', $takeId), 404);
+
         $this->currentPlayingTakeId = $takeId;
     }
 
@@ -89,6 +98,8 @@ class RoughCutTimeline extends Component
      */
     public function exportRoughCutJson(): StreamedResponse
     {
+        Gate::authorize('view', $this->project);
+
         $takes = $this->getGoodTakes();
         $totalDuration = 0.0;
         $cuts = [];
@@ -145,8 +156,7 @@ class RoughCutTimeline extends Component
 
         $currentTake = null;
         if ($this->currentPlayingTakeId) {
-            $currentTake = $goodTakes->firstWhere('id', $this->currentPlayingTakeId)
-                ?? Take::with(['shot.scene.location'])->find($this->currentPlayingTakeId);
+            $currentTake = $goodTakes->firstWhere('id', $this->currentPlayingTakeId);
         }
 
         $totalEstimatedSeconds = $goodTakes->sum(function (Take $take) {

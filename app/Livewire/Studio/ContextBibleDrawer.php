@@ -5,11 +5,14 @@ namespace App\Livewire\Studio;
 use App\Models\Character;
 use App\Models\Location;
 use App\Models\Project;
+use Illuminate\Support\Facades\Gate;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
 class ContextBibleDrawer extends Component
 {
+    #[Locked]
     public Project $project;
 
     public bool $isOpen = false;
@@ -66,6 +69,8 @@ class ContextBibleDrawer extends Component
 
     public function mount(Project $project): void
     {
+        Gate::authorize('view', $project);
+
         $this->project = $project;
     }
 
@@ -96,7 +101,7 @@ class ContextBibleDrawer extends Component
 
     public function startEditCharacter(string $characterId): void
     {
-        $char = Character::findOrFail($characterId);
+        $char = $this->project->characters()->findOrFail($characterId);
         $this->editingCharacterId = $char->id;
         $this->editingCharCostume = $char->costume_notes ?? '';
         $this->editingCharBio = $char->bio ?? '';
@@ -108,7 +113,7 @@ class ContextBibleDrawer extends Component
             return;
         }
 
-        $char = Character::findOrFail($this->editingCharacterId);
+        $char = $this->project->characters()->findOrFail($this->editingCharacterId);
         $char->update([
             'costume_notes' => $this->editingCharCostume,
             'bio' => $this->editingCharBio,
@@ -137,7 +142,7 @@ class ContextBibleDrawer extends Component
 
     public function startEditLocation(string $locationId): void
     {
-        $loc = Location::findOrFail($locationId);
+        $loc = $this->project->locations()->findOrFail($locationId);
         $this->editingLocationId = $loc->id;
         $this->editingLocArtNotes = $loc->art_department_notes ?? '';
         $this->editingLocLightingNotes = $loc->lighting_notes ?? '';
@@ -149,7 +154,7 @@ class ContextBibleDrawer extends Component
             return;
         }
 
-        $loc = Location::findOrFail($this->editingLocationId);
+        $loc = $this->project->locations()->findOrFail($this->editingLocationId);
         $loc->update([
             'art_department_notes' => $this->editingLocArtNotes,
             'lighting_notes' => $this->editingLocLightingNotes,
