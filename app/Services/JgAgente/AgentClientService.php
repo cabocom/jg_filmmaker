@@ -598,7 +598,9 @@ class AgentClientService
                     $links = '(?:que\s+quien|qué\s+quien|que\s+quién|qué\s+quién|que\s+qué|qué\s+qué|que\s+cómo|qué\s+cómo|que\s+dónde|qué\s+dónde|que\s+cuándo|qué\s+cuándo|que\s+por\s+qué|que\s+si|qué\s+|que\s+|si\s+|quién\s+|quien\s+|cómo\s+|dónde\s+|cuándo\s+|por\s+qué\s+)';
                     $ignoreWords = ['se', 'el', 'la', 'los', 'las', 'un', 'una', 'al', 'en', 'por', 'tras', 'luego', 'mientras', 'cuando', 'como', 'donde'];
 
-                    if (preg_match('/^(.*?)(?:[,\s]+y\s+|\s+y\s+|[,\s]+)?(?:(se|le|les|me|nos|te|lo|la|los|las)\s+)?'.$verbs.'\s*(.*?)\s*'.$links.'(.+)$/iu', $cleanPara, $m)) {
+                    $hasVerb = (bool) preg_match('/\b'.$verbs.'\b/iu', $cleanPara);
+
+                    if ($hasVerb && preg_match('/^([^.?!]{0,250}?)(?:[,\s]+y\s+|\s+y\s+|[,\s]+)?(?:(se|le|les|me|nos|te|lo|la|los|las)\s+)?\b'.$verbs.'\b\s*([^.?!]{0,100}?)\s*'.$links.'(.{1,5000})$/iu', $cleanPara, $m)) {
                         $prePart = trim($m[1] ?? '');
                         $verbMod = trim($m[3] ?? '');
                         $dialogueRest = trim(rtrim(trim($m[4] ?? ''), '.?!'));

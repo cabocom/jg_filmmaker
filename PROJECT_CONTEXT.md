@@ -226,8 +226,10 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
 - `PasswordlessAuthTest.php`: Verifica generación y envío de OTP, banner en localhost, un solo uso y detección de replay attacks en `security_breach_logs` (6 tests).
 - `AdminPanelAndTelemetryTest.php`: Verifica middleware `admin` 403, auditoría sin filtrar textos, persistencia de `agent_request_logs` con costes USD y actualización de tarifas (5 tests).
 - `ProjectTransferAdminTest.php`: Verifica permisos 403, privacidad sin filtrar textos y reasignación/transferencia atómica de obras entre usuarios tanto desde `UserDetail` como desde `ProjectManager` (4 tests).
-- `ScriptPipelineIntegrationTest.php`: Verifica transiciones entre etapas, inyección semántica de biblia de proyecto y normalización estricta de `user_locks` ante valores serializados o malformados (6 tests).
-- **Total:** 66 tests PHPUnit pasando al 100% (421 aserciones).
+- `TokenQuotaEnforcementTest.php`: Verifica la gobernanza centralizada de cuotas diarias de tokens de IA, excepciones `QuotaExceededException` e imputación indeleble de costes (4 tests).
+- `PinnedTermsSafetyTest.php`: Verifica la sanitización estricta de backreferences `$1` y escapes octales en términos fijos (3 tests).
+- `ReDosMitigationTest.php`: Verifica la protección contra ataques ReDoS, cuantificadores acotados y fast-path de expresiones regulares (3 tests).
+- **Total:** 143 tests PHPUnit pasando al 100% (686 aserciones).
 
 ---
 
