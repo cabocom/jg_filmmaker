@@ -6,6 +6,7 @@ use App\Models\Character;
 use App\Models\Location;
 use App\Models\Project;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -57,12 +58,16 @@ class ContextBibleDrawer extends Component
     public string $editingLocLightingNotes = '';
 
     // Modal de advertencia y confirmación de borrado
+    #[Locked]
     public ?string $deletingType = null; // 'character' o 'location'
 
+    #[Locked]
     public ?string $deletingId = null;
 
+    #[Locked]
     public ?string $deletingName = null;
 
+    #[Locked]
     public array $deletingUsages = [];
 
     public bool $showDeleteModal = false;
@@ -126,7 +131,18 @@ class ContextBibleDrawer extends Component
     public function createCharacter(): void
     {
         $this->validate([
-            'newCharName' => 'required|min:2|max:80',
+            'newCharName' => [
+                'required',
+                'min:2',
+                'max:80',
+                Rule::unique('characters', 'name')->where('project_id', $this->project->id),
+            ],
+            'newCharBio' => 'nullable|string|max:5000',
+            'newCharPsychology' => 'nullable|string|max:5000',
+            'newCharCostume' => 'nullable|string|max:5000',
+        ], [
+            'newCharName.required' => 'Debes indicar el nombre del personaje.',
+            'newCharName.unique' => 'Ya existe un personaje registrado con este nombre en la Biblia del proyecto.',
         ]);
 
         $this->project->characters()->create([
@@ -154,6 +170,11 @@ class ContextBibleDrawer extends Component
             return;
         }
 
+        $this->validate([
+            'editingLocArtNotes' => 'nullable|string|max:5000',
+            'editingLocLightingNotes' => 'nullable|string|max:5000',
+        ]);
+
         $loc = $this->project->locations()->findOrFail($this->editingLocationId);
         $loc->update([
             'art_department_notes' => $this->editingLocArtNotes,
@@ -167,8 +188,20 @@ class ContextBibleDrawer extends Component
     public function createLocation(): void
     {
         $this->validate([
-            'newLocName' => 'required|min:2|max:100',
+            'newLocName' => [
+                'required',
+                'min:2',
+                'max:100',
+                Rule::unique('locations', 'name')->where('project_id', $this->project->id),
+            ],
             'newLocType' => 'required|in:INT,EXT,INT/EXT',
+            'newLocArtNotes' => 'nullable|string|max:5000',
+            'newLocLightingNotes' => 'nullable|string|max:5000',
+            'newLocAddress' => 'nullable|string|max:255',
+        ], [
+            'newLocName.required' => 'Debes indicar el nombre de la localización.',
+            'newLocName.unique' => 'Ya existe una localización registrada con este nombre en la Biblia del proyecto.',
+            'newLocType.in' => 'El tipo de localización debe ser INT, EXT o INT/EXT.',
         ]);
 
         $this->project->locations()->create([
@@ -184,13 +217,13 @@ class ContextBibleDrawer extends Component
     }
 
     /**
-     * Solicita eliminar un personaje tras auditar deterministamente su uso en todo el guion.
+     * Audita deterministamente las apariciones de un personaje en escenas y bloques.
+     *
+     * @return list<string>
      */
-    public function requestDeleteCharacter(string $characterId): void
+    private function auditCharacterUsages(Character $char): array
     {
-        $char = $this->project->characters()->findOrFail($characterId);
         $charName = trim($char->name);
-
         $usages = [];
         $scenes = $this->project->scenes()->with('scriptBlocks')->orderBy('scene_order')->get();
 
@@ -216,22 +249,17 @@ class ContextBibleDrawer extends Component
             }
         }
 
-        $this->deletingType = 'character';
-        $this->deletingId = $char->id;
-        $this->deletingName = $char->name;
-        $this->deletingUsages = array_values(array_unique($usages));
-        $this->showDeleteModal = true;
-        $this->isOpen = true;
+        return array_values(array_unique($usages));
     }
 
     /**
-     * Solicita eliminar una localización tras auditar deterministamente su uso en escenas y bloques.
+     * Audita deterministamente las apariciones de una localización en escenas y bloques.
+     *
+     * @return list<string>
      */
-    public function requestDeleteLocation(string $locationId): void
+    private function auditLocationUsages(Location $loc): array
     {
-        $loc = $this->project->locations()->findOrFail($locationId);
         $locName = trim($loc->name);
-
         $usages = [];
         $scenes = $this->project->scenes()->with('scriptBlocks')->orderBy('scene_order')->get();
 
@@ -263,10 +291,35 @@ class ContextBibleDrawer extends Component
             }
         }
 
+        return array_values(array_unique($usages));
+    }
+
+    /**
+     * Solicita eliminar un personaje tras auditar deterministamente su uso en todo el guion.
+     */
+    public function requestDeleteCharacter(string $characterId): void
+    {
+        $char = $this->project->characters()->findOrFail($characterId);
+
+        $this->deletingType = 'character';
+        $this->deletingId = $char->id;
+        $this->deletingName = $char->name;
+        $this->deletingUsages = $this->auditCharacterUsages($char);
+        $this->showDeleteModal = true;
+        $this->isOpen = true;
+    }
+
+    /**
+     * Solicita eliminar una localización tras auditar deterministamente su uso en escenas y bloques.
+     */
+    public function requestDeleteLocation(string $locationId): void
+    {
+        $loc = $this->project->locations()->findOrFail($locationId);
+
         $this->deletingType = 'location';
         $this->deletingId = $loc->id;
         $this->deletingName = $loc->name;
-        $this->deletingUsages = array_values(array_unique($usages));
+        $this->deletingUsages = $this->auditLocationUsages($loc);
         $this->showDeleteModal = true;
         $this->isOpen = true;
     }
@@ -281,24 +334,35 @@ class ContextBibleDrawer extends Component
     }
 
     /**
-     * Confirma y ejecuta el borrado definitivo si el elemento no está en uso.
+     * Confirma y ejecuta el borrado definitivo tras re-auditar en el servidor que no existan usos activos.
      */
     public function confirmDelete(): void
     {
-        if (! empty($this->deletingUsages)) {
-            session()->flash('bible_error', 'No se puede eliminar: el elemento está siendo utilizado en el guión.');
-            $this->cancelDelete();
-
-            return;
-        }
-
         if ($this->deletingType === 'character' && $this->deletingId) {
             $char = $this->project->characters()->findOrFail($this->deletingId);
+            $serverUsages = $this->auditCharacterUsages($char);
+
+            if (! empty($serverUsages)) {
+                session()->flash('bible_error', 'No se puede eliminar: el elemento está siendo utilizado en el guión.');
+                $this->cancelDelete();
+
+                return;
+            }
+
             $name = $char->name;
             $char->delete();
             session()->flash('bible_success', "Personaje \"{$name}\" eliminado correctamente de la Biblia.");
         } elseif ($this->deletingType === 'location' && $this->deletingId) {
             $loc = $this->project->locations()->findOrFail($this->deletingId);
+            $serverUsages = $this->auditLocationUsages($loc);
+
+            if (! empty($serverUsages)) {
+                session()->flash('bible_error', 'No se puede eliminar: el elemento está siendo utilizado en el guión.');
+                $this->cancelDelete();
+
+                return;
+            }
+
             $name = $loc->name;
             $loc->delete();
             session()->flash('bible_success', "Localización \"{$name}\" eliminada correctamente de la Biblia.");

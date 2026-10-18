@@ -18,6 +18,7 @@ class ProjectList extends Component
     #[Rule('nullable|max:1000')]
     public string $synopsis = '';
 
+    #[Rule('required|in:draft,in_progress,completed,archived')]
     public string $status = 'draft';
 
     public function createProject(): void

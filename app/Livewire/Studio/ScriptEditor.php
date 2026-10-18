@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
@@ -356,7 +357,9 @@ class ScriptEditor extends Component
 
     public function setDetailTab(string $tab): void
     {
-        $this->detailActiveTab = $tab;
+        if (in_array($tab, ['raw', 'structured', 'screenplay', 'shots', 'diffs', 'locks'], true)) {
+            $this->detailActiveTab = $tab;
+        }
     }
 
     public function startEditingInDrawer(): void
@@ -385,6 +388,13 @@ class ScriptEditor extends Component
         if (! $this->detailBlockId) {
             return;
         }
+
+        $this->validate([
+            'editStage' => ['required', Rule::in(['raw', 'structured', 'screenplay', 'shots', 'editing'])],
+            'editRawText' => ['nullable', 'string', 'max:50000'],
+            'editStructuredText' => ['nullable', 'string', 'max:50000'],
+            'editScreenplayContent' => ['nullable', 'string', 'max:50000'],
+        ]);
 
         $blockId = $this->detailBlockId;
         $expectedVersion = $this->editLockVersion;
@@ -459,10 +469,11 @@ class ScriptEditor extends Component
         }
 
         $this->validate([
-            'newBlockRawText' => 'required|string|min:2',
+            'newBlockRawText' => 'required|string|min:2|max:50000',
         ], [
             'newBlockRawText.required' => 'Debes escribir el texto bruto o idea de la escena.',
             'newBlockRawText.min' => 'El texto debe tener al menos 2 caracteres.',
+            'newBlockRawText.max' => 'El texto bruto no puede superar los 50.000 caracteres.',
         ]);
 
         $scene = $this->projectScene($this->activeSceneId);
@@ -1009,6 +1020,13 @@ class ScriptEditor extends Component
         if (! $this->editingBlockId) {
             return;
         }
+
+        $this->validate([
+            'editStage' => ['required', Rule::in(['raw', 'structured', 'screenplay', 'shots', 'editing'])],
+            'editRawText' => ['nullable', 'string', 'max:50000'],
+            'editStructuredText' => ['nullable', 'string', 'max:50000'],
+            'editScreenplayContent' => ['nullable', 'string', 'max:50000'],
+        ]);
 
         $blockId = $this->editingBlockId;
         $expectedVersion = $this->editLockVersion;
@@ -1652,6 +1670,10 @@ class ScriptEditor extends Component
 
     public function setBlockStage(string $blockId, string $stage): void
     {
+        if (! in_array($stage, ['raw', 'structured', 'screenplay', 'shots', 'editing'], true)) {
+            return;
+        }
+
         $block = $this->projectBlock($blockId);
         $block->update(['stage' => $stage]);
     }
@@ -1819,6 +1841,10 @@ class ScriptEditor extends Component
         if (! $this->editingTakeNotesId) {
             return;
         }
+
+        $this->validate([
+            'editingTakeNotesText' => 'nullable|string|max:5000',
+        ]);
 
         $take = $this->projectTake($this->editingTakeNotesId);
         $take->update([
