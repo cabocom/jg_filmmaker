@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Character;
 use App\Models\Project;
 use App\Models\ScriptBlock;
 use App\Models\Shot;
@@ -31,19 +32,14 @@ class ScriptPipelineService
             $this->syncProjectLocations($project);
         }
 
-        $characters = $project ? $project->characters()->get()->map(fn ($c) => [
-            'name' => $c->name,
-            'role' => $c->role ?? 'personaje',
-            'personality_notes' => $c->personality_notes ?? '',
-        ])->toArray() : [];
+        $characters = $project ? $project->characters()->get()->map(fn (Character $c) => $c->toAgentContext())->toArray() : [];
 
         $location = null;
         if ($block->scene?->location) {
-            $location = [
-                'name' => $block->scene->location->name,
-                'type' => $block->scene->location->type,
-                'lighting_notes' => $block->scene->location->lighting_notes,
-            ];
+            $location = $block->scene->location->toAgentContext();
+            if ($block->scene?->time_of_day) {
+                $location['time_of_day'] = $block->scene->time_of_day;
+            }
         }
 
         if ($block->isStageLocked('structured')) {
@@ -117,20 +113,12 @@ class ScriptPipelineService
             $this->syncProjectLocations($project);
         }
 
-        $characters = $project ? $project->characters()->get()->map(fn ($c) => [
-            'name' => $c->name,
-            'role' => $c->role ?? 'personaje',
-            'personality_notes' => $c->personality_notes ?? '',
-        ])->toArray() : [];
+        $characters = $project ? $project->characters()->get()->map(fn (Character $c) => $c->toAgentContext())->toArray() : [];
 
         $location = null;
         if ($block->scene?->location) {
-            $location = [
-                'name' => $block->scene->location->name,
-                'type' => $block->scene->location->type,
-                'lighting_notes' => $block->scene->location->lighting_notes,
-                'time_of_day' => $block->scene->time_of_day ?? 'DÍA',
-            ];
+            $location = $block->scene->location->toAgentContext();
+            $location['time_of_day'] = $block->scene->time_of_day ?? 'DÍA';
         }
 
         if ($block->isStageLocked('screenplay')) {
@@ -346,11 +334,7 @@ class ScriptPipelineService
             }
         }
 
-        $existing = $project->characters->map(fn ($c) => [
-            'name' => $c->name,
-            'role' => $c->role ?? 'personaje',
-            'personality_notes' => $c->personality_notes ?? '',
-        ])->toArray();
+        $existing = $project->characters->map(fn (Character $c) => $c->toAgentContext())->toArray();
 
         $this->inferCharactersFromText($fullText, $existing, $project);
     }

@@ -46,4 +46,20 @@ class Character extends Model
     {
         return $this->belongsTo(Project::class);
     }
+
+    /**
+     * Serializa el personaje con el contrato canónico requerido por los agentes cognitivos.
+     *
+     * @return array{name: string, bio: string, psychology: string, costume_notes: string, custom_attributes: array<string, mixed>}
+     */
+    public function toAgentContext(): array
+    {
+        return [
+            'name' => (string) $this->name,
+            'bio' => (string) ($this->bio ?? ''),
+            'psychology' => (string) ($this->psychology ?? ''),
+            'costume_notes' => (string) ($this->costume_notes ?? ''),
+            'custom_attributes' => (array) ($this->custom_attributes ?? []),
+        ];
+    }
 }

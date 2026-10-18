@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Studio;
 
+use App\Models\Character;
+use App\Models\Location;
 use App\Models\Project;
 use App\Models\Scene;
 use App\Models\ScriptBlock;
@@ -1665,17 +1667,9 @@ class ScriptEditor extends Component
             return;
         }
 
-        $characters = $this->project->characters()->get()->map(fn ($c) => [
-            'name' => $c->name,
-            'role' => $c->role,
-            'description' => $c->description,
-        ])->toArray();
+        $characters = $this->project->characters()->get()->map(fn (Character $c) => $c->toAgentContext())->toArray();
 
-        $locations = $this->project->locations()->get()->map(fn ($l) => [
-            'name' => $l->name,
-            'type' => $l->type,
-            'description' => $l->description,
-        ])->toArray();
+        $locations = $this->project->locations()->get()->map(fn (Location $l) => $l->toAgentContext())->toArray();
 
         // Secuencia estricta de consolidados de más temprano a más tardío
         $stagesToAudit = [

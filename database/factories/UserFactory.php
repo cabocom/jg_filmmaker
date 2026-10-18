@@ -31,6 +31,7 @@ class UserFactory extends Factory
             'password' => static::$password ??= Hash::make('password'),
             'plan_tier' => 'pro',
             'paid_project_slots' => 5,
+            'is_admin' => false,
             'remember_token' => Str::random(10),
         ];
     }

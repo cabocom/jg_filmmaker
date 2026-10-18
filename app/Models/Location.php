@@ -43,4 +43,20 @@ class Location extends Model
     {
         return $this->hasMany(Scene::class);
     }
+
+    /**
+     * Serializa la localización con el contrato canónico requerido por los agentes cognitivos.
+     *
+     * @return array{name: string, type: string, art_department_notes: string, lighting_notes: string, address_reference: string}
+     */
+    public function toAgentContext(): array
+    {
+        return [
+            'name' => (string) $this->name,
+            'type' => (string) ($this->type ?? 'INT'),
+            'art_department_notes' => (string) ($this->art_department_notes ?? ''),
+            'lighting_notes' => (string) ($this->lighting_notes ?? ''),
+            'address_reference' => (string) ($this->address_reference ?? ''),
+        ];
+    }
 }

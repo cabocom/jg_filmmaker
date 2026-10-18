@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -16,6 +17,9 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Prevención estricta en desarrollo y tests contra acceso a atributos de modelo inexistentes (CWE-1068 / ISSUE-012)
+        Model::preventAccessingMissingAttributes(! $this->app->isProduction());
+
         // Fail-fast en arranque (CWE-798): en producción no se admiten claves o secretos inseguros
         if ($this->app->isProduction()) {
             $secret = (string) config('services.jg_agente.secret', '');
