@@ -27,11 +27,6 @@ services:
     env_file:
       - .env
     volumes:
-      - ./app:/var/www/html/app
-      - ./config:/var/www/html/config
-      - ./resources:/var/www/html/resources
-      - ./routes:/var/www/html/routes
-      - ./.env:/var/www/html/.env:ro
       - jg_filmmaker_storage:/var/www/html/storage
       - jg_filmmaker_database:/var/www/html/database
     ports:

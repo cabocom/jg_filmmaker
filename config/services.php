@@ -57,4 +57,8 @@ return [
         'timeout' => (int) env('LLM_TIMEOUT', 45),
     ],
 
+    'filmmaker' => [
+        'mock_ffmpeg' => (bool) env('MOCK_FFMPEG', false),
+    ],
+
 ];
