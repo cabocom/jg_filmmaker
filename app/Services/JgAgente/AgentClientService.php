@@ -387,14 +387,17 @@ class AgentClientService
                 if (! is_array($diff)) {
                     continue;
                 }
-                $diffStage = $diff['stage'] ?? null;
+                $diffStage = $diff['stage'] ?? $diff['target'] ?? null;
                 if ($diffStage && $diffStage !== $stage) {
                     continue;
                 }
-                $original = $diff['original_ai'] ?? null;
-                $override = $diff['user_override'] ?? null;
-                if ($original && $override && str_contains($result, $original)) {
-                    $result = str_replace($original, $override, $result);
+                $original = $diff['original_ai'] ?? $diff['original'] ?? null;
+                $override = $diff['user_override'] ?? $diff['modified'] ?? null;
+                if (! empty($original) && $override !== null) {
+                    $pos = strpos($result, (string) $original);
+                    if ($pos !== false) {
+                        $result = substr_replace($result, (string) $override, $pos, strlen((string) $original));
+                    }
                 }
             }
         }

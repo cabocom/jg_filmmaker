@@ -79,12 +79,21 @@ class ScriptPipelineService
             $freshLocks = $this->resolveUserLocks($fresh);
             unset($freshLocks['ai_telemetry']);
 
-            // Purgar diffs y bloqueos manuales obsoletos de 'structured' ya que ha sido regenerado por la IA desde el bruto
+            // Archivar diffs manuales de 'structured' en vez de destruirlos
             if (! empty($freshLocks['manual_diffs'])) {
-                $freshLocks['manual_diffs'] = array_values(array_filter(
-                    $freshLocks['manual_diffs'],
-                    fn ($diff) => ($diff['stage'] ?? null) !== 'structured'
-                ));
+                $archived = (array) ($freshLocks['archived_diffs'] ?? []);
+                $activeDiffs = [];
+                foreach ($freshLocks['manual_diffs'] as $diff) {
+                    $diffStage = $diff['stage'] ?? $diff['target'] ?? null;
+                    if ($diffStage === 'structured') {
+                        $diff['archived_at'] = now()->toIso8601String();
+                        $archived[] = $diff;
+                    } else {
+                        $activeDiffs[] = $diff;
+                    }
+                }
+                $freshLocks['archived_diffs'] = $archived;
+                $freshLocks['manual_diffs'] = $activeDiffs;
             }
             if (! empty($freshLocks['locked_fields'])) {
                 $freshLocks['locked_fields'] = array_values(array_filter(
@@ -174,12 +183,21 @@ class ScriptPipelineService
             $freshLocks = $this->resolveUserLocks($fresh);
             unset($freshLocks['ai_telemetry']);
 
-            // Purgar diffs y bloqueos manuales obsoletos de 'screenplay' ya que ha sido regenerado por la IA
+            // Archivar diffs manuales de 'screenplay' en vez de destruirlos
             if (! empty($freshLocks['manual_diffs'])) {
-                $freshLocks['manual_diffs'] = array_values(array_filter(
-                    $freshLocks['manual_diffs'],
-                    fn ($diff) => ($diff['stage'] ?? null) !== 'screenplay'
-                ));
+                $archived = (array) ($freshLocks['archived_diffs'] ?? []);
+                $activeDiffs = [];
+                foreach ($freshLocks['manual_diffs'] as $diff) {
+                    $diffStage = $diff['stage'] ?? $diff['target'] ?? null;
+                    if ($diffStage === 'screenplay') {
+                        $diff['archived_at'] = now()->toIso8601String();
+                        $archived[] = $diff;
+                    } else {
+                        $activeDiffs[] = $diff;
+                    }
+                }
+                $freshLocks['archived_diffs'] = $archived;
+                $freshLocks['manual_diffs'] = $activeDiffs;
             }
             if (! empty($freshLocks['locked_fields'])) {
                 $freshLocks['locked_fields'] = array_values(array_filter(
@@ -222,6 +240,10 @@ class ScriptPipelineService
         $block->loadMissing('scene.project');
         $project = $block->scene?->project;
 
+        if ($block->isStageLocked('shots')) {
+            return $block->shots()->orderBy('shot_number')->get();
+        }
+
         $sourceText = ! empty($block->screenplay_content)
             ? $block->screenplay_content
             : (! empty($block->structured_text) ? $block->structured_text : (string) $block->raw_text);
@@ -236,17 +258,27 @@ class ScriptPipelineService
             $shotType = (string) ($shotData['shot_type'] ?? 'PM');
             $description = (string) ($shotData['description'] ?? '');
 
-            $shot = Shot::updateOrCreate(
-                [
-                    'scene_id' => $block->scene_id,
-                    'script_block_id' => $block->id,
-                    'shot_number' => $shotNumber,
-                ],
-                [
-                    'shot_type' => $shotType,
-                    'description' => $description,
-                ]
-            );
+            // Si el plano ya existe y tiene tomas asociadas, preservar el plano existente sin sobreescribir destructivamente
+            $existingShot = Shot::where('scene_id', $block->scene_id)
+                ->where('script_block_id', $block->id)
+                ->where('shot_number', $shotNumber)
+                ->first();
+
+            if ($existingShot && $existingShot->takes()->count() > 0) {
+                $shot = $existingShot;
+            } else {
+                $shot = Shot::updateOrCreate(
+                    [
+                        'scene_id' => $block->scene_id,
+                        'script_block_id' => $block->id,
+                        'shot_number' => $shotNumber,
+                    ],
+                    [
+                        'shot_type' => $shotType,
+                        'description' => $description,
+                    ]
+                );
+            }
 
             // Asegurar al menos una toma base 1 si es un plano nuevo
             if ($shot->wasRecentlyCreated && $shot->takes()->count() === 0) {

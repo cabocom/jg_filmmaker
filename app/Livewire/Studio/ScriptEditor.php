@@ -1067,6 +1067,8 @@ class ScriptEditor extends Component
             return;
         }
 
+        $previousStructuredText = $block->structured_text;
+
         $pipelineService->transitionToStructured($block);
 
         $this->activeBlockTabs[$block->id] = 'structured';
@@ -1090,6 +1092,7 @@ class ScriptEditor extends Component
             'scene_slugline' => $scene?->slugline,
             'block_order' => $block->block_order,
             'stage' => 'structured',
+            'previous_structured_text' => $previousStructuredText,
             'raw_text' => $freshBlock->raw_text,
             'structured_text' => $freshBlock->structured_text,
         ]);
@@ -1106,6 +1109,8 @@ class ScriptEditor extends Component
 
             return;
         }
+
+        $previousScreenplayContent = $block->screenplay_content;
 
         $pipelineService->transitionToScreenplay($block);
 
@@ -1130,6 +1135,7 @@ class ScriptEditor extends Component
             'scene_slugline' => $scene?->slugline,
             'block_order' => $block->block_order,
             'stage' => 'screenplay',
+            'previous_screenplay_content' => $previousScreenplayContent,
             'structured_text' => $freshBlock->structured_text,
             'screenplay_content' => $freshBlock->screenplay_content,
         ]);
@@ -1139,14 +1145,24 @@ class ScriptEditor extends Component
 
     public function toggleStageLock(string $blockId, string $stage): void
     {
+        if (! in_array($stage, ['structured', 'screenplay', 'shots'], true)) {
+            return;
+        }
+
         $block = $this->projectBlock($blockId);
 
         $block->mutateUserLocks(function (array $userLocks) use ($stage) {
             $lockedFields = $userLocks['locked_fields'] ?? [];
 
             if (in_array($stage, $lockedFields, true)) {
-                $lockedFields = array_values(array_filter($lockedFields, fn ($f) => $f !== $stage));
-                session()->flash('info', "Etapa '{$stage}' desbloqueada (🔓). Ahora la IA podrá regenerarla si avanzas desde el paso anterior.");
+                // Al desbloquear 'structured', también se retira 'screenplay' para evitar que isStageLocked siga dando true
+                if ($stage === 'structured') {
+                    $lockedFields = array_values(array_filter($lockedFields, fn ($f) => ! in_array($f, ['structured', 'screenplay'], true)));
+                    session()->flash('info', "Etapa '{$stage}' desbloqueada (🔓). Tratamiento y guion listos para regenerar desde el bruto.");
+                } else {
+                    $lockedFields = array_values(array_filter($lockedFields, fn ($f) => $f !== $stage));
+                    session()->flash('info', "Etapa '{$stage}' desbloqueada (🔓). Ahora la IA podrá regenerarla si avanzas desde el paso anterior.");
+                }
             } else {
                 $lockedFields[] = $stage;
                 if ($stage === 'screenplay' && ! in_array('structured', $lockedFields, true)) {
@@ -1170,6 +1186,13 @@ class ScriptEditor extends Component
     public function breakdownBlockShots(string $blockId, ScriptPipelineService $pipelineService): void
     {
         $block = $this->projectBlock($blockId);
+
+        if ($block->isStageLocked('shots')) {
+            session()->flash('error', "El desglose de planos del Bloque {$block->block_order} está protegido (🔒) por candado. Desbloquéalo primero para regenerar los planos con IA.");
+
+            return;
+        }
+
         $createdShots = $pipelineService->generateShotsBreakdown($block);
 
         $this->activeBlockTabs[$block->id] = 'shots';

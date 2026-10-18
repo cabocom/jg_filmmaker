@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.2.0  
+**Versión del documento:** 3.3.0  
 **Fecha de consolidación:** 18 de octubre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 3/4, Tailwind CSS v4, PHP 8.4, PostgreSQL / SQLite, FFmpeg, PHPUnit 12, Laravel Pint  
-**Estado:** Sprint 0 y Sprint 1 COMPLETADOS al 100%. Sprint 2 (Gobernanza de Candados y Concurrencia) en progreso. Fases 1 a 16 implementadas. Resolución y blindaje:
+**Estado:** Sprint 0 y Sprint 1 COMPLETADOS al 100%. Sprint 2 (Gobernanza de Candados y Concurrencia) en progreso avanzado. Fases 1 a 16 implementadas. Resolución y blindaje:
 - ISSUE-001: saneamiento de subida de tomas contra RCE (derivación estricta de extensiones desde MIME type verificado por el servidor, lista blanca `ALLOWED_EXTENSIONS` en `Take`, bloqueo de ejecución PHP en `/storage/` en Nginx).
 - ISSUE-002: mitigación de fuga de OTP y toma de cuentas (bloqueo con `#[Locked]` de `$step` y `$devOtpCode`, eliminación de `$isLocalEnv`, comprobación estricta de `APP_ENV=local && APP_DEBUG=true` en servidor, erradicación de retención en sesión).
 - ISSUE-003: erradicación de IDOR y autorización por propietario (creación de `ProjectPolicy` con privacidad estricta donde ni los administradores acceden al editor de guión de terceros, middleware `can:view,project` en `routes/web.php`, `Gate::authorize` en `ScriptEditor::mount()`, propiedad `$project` bloqueada con `#[Locked]` y métodos auxiliares con ámbito de proyecto `projectBlock`, `projectScene`, `projectShot`, `projectTake`).
@@ -16,7 +16,8 @@
 - ISSUE-011: incorporación formal de `plot_hole_detector` en `jg_plugin_filmmaker` (creación del módulo de detección semántica y heurística `plot_holes.py`, definición del esquema Pydantic v2 `PlotHoleDetectorArgs`, registro como 4.ª herramienta canónica del plugin satélite y actualización de metadatos v2.3.0).
 - ISSUE-012: sincronización canónica del contrato de la Biblia dramática (creación de `Character::toAgentContext()` y `Location::toAgentContext()`, eliminación de accesos a propiedades espurias como `role`, `personality_notes` y `description`, enriquecimiento de prompts en `jg_plugin_filmmaker` con `bio`, `psychology` y `costume_notes`, y activación de `Model::preventAccessingMissingAttributes()` en `AppServiceProvider`).
 - ISSUE-013: gobernanza de concurrencia y erradicación de pérdida de `user_locks` (columna `lock_version` para bloqueo optimista en `saveBlock`/`saveBlockFromDrawer`, re-chequeo tardío de candados y transacciones con `lockForUpdate()` en `transitionToStructured`/`transitionToScreenplay`/`generateShotsBreakdown`, método atómico `mutateUserLocks` para alternar candados o términos fijados, y aislamiento atómico en auditoría y descarte de agujeros de guión).
-- ISSUE-014: extracción de telemetría IA de `user_locks` y erradicación de anidamiento recursivo (almacenamiento de telemetría técnica estructurada en `agent_request_logs.meta`, método `sanitizeUserLocksForAgent()` que extrae exclusivamente directrices de autoría hacia el agente, eliminación de `ai_telemetry` de la columna `user_locks` en `script_blocks`, desacoplamiento de `openAiTrace` para consultar `AgentRequestLog` y migración de purga histórica). Autenticación passwordless por email con OTP y detección de replay attacks, Panel de Administración `/admin` con control de roles `is_admin`, auditoría cuantitativa de obras con privacidad estricta, telemetría y costes de tokens en `agent_request_logs`, y catálogo interactivo de tarifas en `token_pricing_rates`.
+- ISSUE-014: extracción de telemetría IA de `user_locks` y erradicación de anidamiento recursivo (almacenamiento de telemetría técnica estructurada en `agent_request_logs.meta`, método `sanitizeUserLocksForAgent()` que extrae exclusivamente directrices de autoría hacia el agente, eliminación de `ai_telemetry` de la columna `user_locks` en `script_blocks`, desacoplamiento de `openAiTrace` para consultar `AgentRequestLog` y migración de purga histórica).
+- ISSUE-015: preservación de candados, diffs manuales y protección de planos técnicos (archivado no destructivo de diffs en `user_locks['archived_diffs']` con marca ISO-8601 `archived_at` ante regeneraciones, respeto al candado `isStageLocked('shots')` en pipeline y editor, protección de planos existentes con tomas grabadas en claqueta contra sobreescritura destructiva, sustitución posicional anclada de discrepancias con `substr_replace`, y registro de contenido previo en `activity_logs`). Autenticación passwordless por email con OTP y detección de replay attacks, Panel de Administración `/admin` con control de roles `is_admin`, auditoría cuantitativa de obras con privacidad estricta, telemetría y costes de tokens en `agent_request_logs`, y catálogo interactivo de tarifas en `token_pricing_rates`.
 
 ---
 
@@ -87,12 +88,20 @@ Para evitar que una regeneración cognitiva destruya las correcciones deliberada
 ### 3.1. Estructura JSONB
 ```json
 {
-  "locked_fields": ["structured_text", "screenplay_content"],
+  "locked_fields": ["structured", "screenplay", "shots"],
   "manual_diffs": [
     {
-      "field": "screenplay_content",
-      "timestamp": "2026-10-09T21:40:00Z",
-      "diff": "Corrección de acotación de tono en diálogo de Javier"
+      "stage": "screenplay",
+      "original_ai": "Javier entra al bar.",
+      "user_override": "Javier irrumpe en el local visiblemente alterado."
+    }
+  ],
+  "archived_diffs": [
+    {
+      "stage": "structured",
+      "original_ai": "Texto de borrador inicial",
+      "user_override": "Texto corregido manualmente",
+      "archived_at": "2026-10-18T20:15:00+02:00"
     }
   ],
   "pinned_terms": {
@@ -106,6 +115,9 @@ Para evitar que una regeneración cognitiva destruya las correcciones deliberada
 - **Control Optimista (`lock_version`):** Cada bloque en `script_blocks` posee una columna `lock_version` entera autoincremental. Al abrir la edición en el grid o drawer de `ScriptEditor`, se retiene la versión leída. Si un proceso concurrente o la IA modifica el bloque antes de pulsar guardar, la transacción rechaza la actualización y notifica al autor para evitar sobrescrituras perdidas o diffs manuales falsos.
 - **Transaccionalidad Post-Inferencia:** Las llamadas a la IA corren fuera de transacciones DB para no retener conexiones del pool. La persistencia posterior en `ScriptPipelineService` re-lee el bloque con `lockForUpdate()`, comprueba si el usuario bloqueó la etapa concurrentemente (abortando la sobreescritura si así fue) y fusiona sobre los `user_locks` frescos de la base de datos, preservando intactos términos fijados, justificaciones y candados de otras etapas.
 - **Mutación Atómica (`mutateUserLocks`):** Centraliza modificaciones atómicas sobre `user_locks` bajo transacción con bloqueo exclusivo de fila para `toggleStageLock`, `removePinnedTerm` y `savePlotHoleJustification`.
+- **Archivado No Destructivo de Diffs (`archived_diffs`):** Al regenerar una etapa con IA, los `manual_diffs` activos de esa etapa se trasladan a `archived_diffs` con su marca de tiempo ISO-8601 (`archived_at`), manteniendo la trazabilidad histórica del autor y evitando su eliminación irreversible.
+- **Protección de Desglose de Planos y Rodaje:** La etapa `shots` cuenta con soporte canónico de candado en `isStageLocked('shots')`. Tanto el pipeline como el editor abortan la regeneración si el candado está activo. Asimismo, los planos técnicos existentes que ya cuenten con tomas grabadas (`takes()->count() > 0`) quedan protegidos contra eliminación o alteración destructiva aunque la etapa no tenga candado activo.
+- **Sustitución Anclada de Diffs:** `AgentClientService::applyUserLocks()` ejecuta sustitución posicional única con `substr_replace` anclada a la primera coincidencia exacta, evitando sustituciones colaterales masivas.
 - **Aislamiento en Auditoría de Agujeros:** `analyzePlotHoles` y `clearPlotHoles` actualizan únicamente `plot_hole` y `plot_hole_stage` con `lockForUpdate()`, sin machacar la columna `user_locks` con colecciones en memoria desfasadas.
 
 ---
