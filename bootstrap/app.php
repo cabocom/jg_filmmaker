@@ -18,9 +18,6 @@ return Application::configure(basePath: dirname(__DIR__))
             'demo.auth' => EnsureDemoUserAuthenticated::class,
             'admin' => EnsureUserIsAdmin::class,
         ]);
-        $middleware->web(append: [
-            EnsureDemoUserAuthenticated::class,
-        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

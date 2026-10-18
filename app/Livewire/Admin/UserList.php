@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Models\AdminAuditLog;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
@@ -14,9 +15,39 @@ class UserList extends Component
 {
     public function toggleAdmin(string $userId): void
     {
+        $this->authorize('admin');
+
         $user = User::findOrFail($userId);
+
+        if ($user->id === auth()->id()) {
+            session()->flash('error', 'No puedes revocar tus propios privilegios de administrador.');
+
+            return;
+        }
+
+        if ($user->is_admin && User::where('is_admin', true)->count() <= 1) {
+            session()->flash('error', 'Operación cancelada: El sistema debe conservar al menos un administrador activo.');
+
+            return;
+        }
+
+        $previousRole = $user->is_admin;
         $user->is_admin = ! $user->is_admin;
         $user->save();
+
+        AdminAuditLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'toggle_admin',
+            'target_type' => User::class,
+            'target_id' => $user->id,
+            'details' => [
+                'target_email' => $user->email,
+                'target_name' => $user->name,
+                'previous_is_admin' => $previousRole,
+                'new_is_admin' => $user->is_admin,
+            ],
+            'ip_address' => request()->ip(),
+        ]);
 
         session()->flash('status', "Permisos de {$user->name} actualizados a ".($user->is_admin ? 'ADMIN' : 'USUARIO').'.');
     }

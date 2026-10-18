@@ -14,7 +14,15 @@ class EnsureUserIsAdmin
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (! Auth::check() || ! Auth::user()->is_admin) {
+        if (! Auth::check()) {
+            if ($request->expectsJson()) {
+                abort(401, 'No autenticado.');
+            }
+
+            return redirect()->route('login');
+        }
+
+        if (! Auth::user()->is_admin) {
             abort(403, 'Acceso denegado: Se requieren permisos de administrador.');
         }
 

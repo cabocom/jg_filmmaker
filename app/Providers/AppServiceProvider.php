@@ -2,8 +2,12 @@
 
 namespace App\Providers;
 
+use App\Http\Middleware\EnsureUserIsAdmin;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Livewire\Livewire;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,6 +23,16 @@ class AppServiceProvider extends ServiceProvider
     {
         // Prevención estricta en desarrollo y tests contra acceso a atributos de modelo inexistentes (CWE-1068 / ISSUE-012)
         Model::preventAccessingMissingAttributes(! $this->app->isProduction());
+
+        // Definición de Gate para acciones administrativas (ISSUE-021)
+        Gate::define('admin', fn (User $user) => (bool) $user->is_admin);
+
+        // Registro de middleware persistente en Livewire para asegurar que /livewire/update valide siempre el rol de admin (ISSUE-021)
+        if (class_exists(Livewire::class)) {
+            Livewire::addPersistentMiddleware([
+                EnsureUserIsAdmin::class,
+            ]);
+        }
 
         // Fail-fast en arranque (CWE-798): en producción no se admiten claves o secretos inseguros
         if ($this->app->isProduction()) {

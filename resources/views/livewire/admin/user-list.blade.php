@@ -11,6 +11,15 @@
             </div>
         @endif
 
+        @if(session()->has('error'))
+            <div class="p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-800 dark:text-red-200 text-xs flex items-center justify-between shadow-xs">
+                <div class="flex items-center gap-2 font-mono">
+                    <span>⚠️</span>
+                    <span>{{ session('error') }}</span>
+                </div>
+            </div>
+        @endif
+
         <div class="flex items-center justify-between">
             <div>
                 <h2 class="text-lg font-bold font-mono text-slate-900 dark:text-white uppercase tracking-wider">
