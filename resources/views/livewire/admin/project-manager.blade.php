@@ -163,6 +163,12 @@
                     </tbody>
                 </table>
             </div>
+
+            @if($projects->hasPages())
+                <div class="p-4 border-t border-slate-200 dark:border-slate-800">
+                    {{ $projects->links() }}
+                </div>
+            @endif
         </div>
     </div>
 

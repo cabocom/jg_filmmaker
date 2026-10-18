@@ -9,11 +9,14 @@ use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
 #[Title('Gestión y Migración de Proyectos - Administración jG Filmmaker')]
 class ProjectManager extends Component
 {
+    use WithPagination;
+
     public string $search = '';
 
     public string $filterUserId = '';
@@ -128,10 +131,10 @@ class ProjectManager extends Component
             $projectsQuery->where('user_id', $this->filterUserId);
         }
 
-        $projects = $projectsQuery->get();
+        $projects = $projectsQuery->paginate(20);
         $projectIds = $projects->pluck('id')->toArray();
 
-        // 1. Agregación cuantitativa de bloques por etapa
+        // 1. Agregación cuantitativa de bloques por etapa (exclusivamente para los proyectos de la página actual)
         $blockCountsByProject = [];
         if (! empty($projectIds)) {
             $blockStageRows = DB::table('script_blocks')
@@ -146,7 +149,7 @@ class ProjectManager extends Component
             }
         }
 
-        // 2. Telemetría de IA de cada proyecto
+        // 2. Telemetría de IA de cada proyecto (exclusivamente para los proyectos de la página actual)
         $aiMetricsByProject = [];
         if (! empty($projectIds)) {
             $aiRows = DB::table('agent_request_logs')
@@ -169,9 +172,10 @@ class ProjectManager extends Component
             }
         }
 
-        $allUsers = User::withCount('projects')
-            ->orderBy('name')
-            ->get();
+        // Cargar usuarios para el selector de transferencia únicamente si el modal está abierto (ISSUE-022)
+        $allUsers = $this->showTransferModal
+            ? User::withCount('projects')->orderBy('name')->get()
+            : collect();
 
         return view('livewire.admin.project-manager', [
             'projects' => $projects,

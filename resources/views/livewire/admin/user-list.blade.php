@@ -101,6 +101,12 @@
                     </tbody>
                 </table>
             </div>
+
+            @if($users->hasPages())
+                <div class="p-4 border-t border-slate-200 dark:border-slate-800">
+                    {{ $users->links() }}
+                </div>
+            @endif
         </div>
     </div>
 </div>

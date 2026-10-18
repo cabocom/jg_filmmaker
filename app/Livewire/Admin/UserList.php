@@ -8,11 +8,14 @@ use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
 #[Title('Gobernanza de Usuarios - Administración jG Filmmaker')]
 class UserList extends Component
 {
+    use WithPagination;
+
     public function toggleAdmin(string $userId): void
     {
         $this->authorize('admin');
@@ -56,17 +59,18 @@ class UserList extends Component
     {
         $users = User::withCount('projects')
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate(25);
 
-        // Calcular telemetría agrupada por usuario
-        $telemetryByUser = DB::table('agent_request_logs')
-            ->join('projects', 'agent_request_logs.project_id', '=', 'projects.id')
+        // Calcular telemetría agrupada exclusivamente para los usuarios de la página actual
+        $userIds = $users->pluck('id')->filter()->all();
+        $telemetryByUser = empty($userIds) ? collect() : DB::table('agent_request_logs')
+            ->whereIn('user_id', $userIds)
             ->select(
-                'projects.user_id',
-                DB::raw('SUM(agent_request_logs.total_tokens) as total_tokens'),
-                DB::raw('SUM(agent_request_logs.estimated_cost_usd) as total_cost_usd')
+                'user_id',
+                DB::raw('SUM(total_tokens) as total_tokens'),
+                DB::raw('SUM(estimated_cost_usd) as total_cost_usd')
             )
-            ->groupBy('projects.user_id')
+            ->groupBy('user_id')
             ->get()
             ->keyBy('user_id');
 

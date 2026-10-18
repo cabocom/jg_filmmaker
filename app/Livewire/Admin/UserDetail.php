@@ -132,28 +132,29 @@ class UserDetail extends Component
             }
         }
 
-        // 3. Totales acumulados del usuario
-        $userTotalTokens = DB::table('agent_request_logs')
-            ->join('projects', 'agent_request_logs.project_id', '=', 'projects.id')
-            ->where('projects.user_id', $this->user->id)
-            ->sum('agent_request_logs.total_tokens') ?: 0;
+        // 3. Totales acumulados del usuario (Calculados directamente desde agent_request_logs.user_id sin JOINs redundantes)
+        $userTotals = DB::table('agent_request_logs')
+            ->where('user_id', $this->user->id)
+            ->selectRaw('SUM(total_tokens) as total_tokens, SUM(estimated_cost_usd) as total_cost_usd')
+            ->first();
 
-        $userTotalCost = DB::table('agent_request_logs')
-            ->join('projects', 'agent_request_logs.project_id', '=', 'projects.id')
-            ->where('projects.user_id', $this->user->id)
-            ->sum('agent_request_logs.estimated_cost_usd') ?: 0.0;
+        $userTotalTokens = (int) ($userTotals->total_tokens ?? 0);
+        $userTotalCost = (float) ($userTotals->total_cost_usd ?? 0.0);
 
-        $availableUsers = User::where('id', '!=', $this->user->id)
-            ->withCount('projects')
-            ->orderBy('name')
-            ->get();
+        // Cargar usuarios bajo demanda únicamente cuando el modal de transferencia esté visible (ISSUE-022)
+        $availableUsers = $this->showTransferModal
+            ? User::where('id', '!=', $this->user->id)
+                ->withCount('projects')
+                ->orderBy('name')
+                ->get()
+            : collect();
 
         return view('livewire.admin.user-detail', [
             'projects' => $projects,
             'blockCountsByProject' => $blockCountsByProject,
             'aiMetricsByProject' => $aiMetricsByProject,
-            'userTotalTokens' => (int) $userTotalTokens,
-            'userTotalCost' => (float) $userTotalCost,
+            'userTotalTokens' => $userTotalTokens,
+            'userTotalCost' => $userTotalCost,
             'userTokensUsedToday' => $this->user->getTokensUsedToday(),
             'userTokensAvailableToday' => $this->user->getTokensAvailableToday(),
             'userDailyTokenLimit' => $this->user->getDailyTokenLimit(),
