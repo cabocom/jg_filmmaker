@@ -1485,8 +1485,22 @@ class ScriptEditor extends Component
         }
 
         $this->validate([
-            'videoUpload' => 'required|file|mimes:mp4,mov,webm,m4v,quicktime|max:102400',
+            'videoUpload' => 'required|file|mimes:mp4,mov,webm,m4v,quicktime|extensions:mp4,mov,webm,m4v|max:102400',
         ]);
+
+        $allowedMimes = [
+            'video/mp4' => 'mp4',
+            'video/quicktime' => 'mov',
+            'video/webm' => 'webm',
+            'video/x-m4v' => 'm4v',
+        ];
+
+        $mime = (string) $this->videoUpload->getMimeType();
+        if (! isset($allowedMimes[$mime])) {
+            $this->addError('videoUpload', 'Formato de vídeo o tipo MIME no permitido.');
+
+            return;
+        }
 
         $take = Take::with('shot.scene')->findOrFail($this->uploadingTakeId);
 
@@ -1495,7 +1509,7 @@ class ScriptEditor extends Component
             Storage::disk('public')->delete($take->file_path);
         }
 
-        $extension = $this->videoUpload->getClientOriginalExtension() ?: 'mp4';
+        $extension = $allowedMimes[$mime];
         $storagePath = $take->generateStoragePath($extension);
 
         $this->videoUpload->storeAs('', $storagePath, 'public');

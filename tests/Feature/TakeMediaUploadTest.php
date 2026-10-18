@@ -114,4 +114,46 @@ class TakeMediaUploadTest extends TestCase
         Storage::disk('public')->assertExists($newExpectedPath);
         $this->assertSame($newExpectedPath, $take->fresh()->file_path);
     }
+
+    public function test_generate_storage_path_rejects_unauthorized_extensions(): void
+    {
+        $take = Take::factory()->create();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Extensión de archivo de vídeo no permitida: php');
+
+        $take->generateStoragePath('php');
+    }
+
+    public function test_upload_take_video_rejects_dangerous_extensions_and_unauthorized_mimes(): void
+    {
+        Storage::fake('public');
+
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create(['project_id' => $project->id]);
+        $block = ScriptBlock::factory()->create(['scene_id' => $scene->id]);
+        $shot = Shot::factory()->create([
+            'scene_id' => $scene->id,
+            'script_block_id' => $block->id,
+            'shot_number' => 1,
+        ]);
+        $take = Take::factory()->create([
+            'shot_id' => $shot->id,
+            'take_number' => 1,
+            'file_path' => null,
+        ]);
+
+        // Intento de subir un archivo con extensión .php pero con MIME de vídeo
+        $maliciousPhp = UploadedFile::fake()->create('shell.php', 100, 'video/mp4');
+
+        Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->set('uploadingTakeId', $take->id)
+            ->set('videoUpload', $maliciousPhp)
+            ->call('uploadTakeVideo')
+            ->assertHasErrors(['videoUpload']);
+
+        $this->assertNull($take->fresh()->file_path);
+    }
 }

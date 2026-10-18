@@ -74,15 +74,22 @@ class Take extends Model
         return Storage::disk('public')->url($this->file_path);
     }
 
+    public const ALLOWED_EXTENSIONS = ['mp4', 'mov', 'webm', 'm4v'];
+
     /**
      * Genera la ruta física particionada canónica por UUID.
      */
     public function generateStoragePath(string $extension = 'mp4'): string
     {
+        $cleanExt = ltrim(strtolower($extension), '.');
+
+        if (! in_array($cleanExt, self::ALLOWED_EXTENSIONS, true)) {
+            throw new \InvalidArgumentException("Extensión de archivo de vídeo no permitida: {$cleanExt}");
+        }
+
         $this->loadMissing('shot.scene');
         $projectId = $this->shot?->scene?->project_id ?? 'unknown_project';
         $sceneId = $this->shot?->scene_id ?? 'unknown_scene';
-        $cleanExt = ltrim(strtolower($extension), '.');
 
         return "media/projects/{$projectId}/scenes/{$sceneId}/takes/{$this->id}.{$cleanExt}";
     }

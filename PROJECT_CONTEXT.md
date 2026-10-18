@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.0.1  
-**Fecha de consolidación:** 17 de octubre de 2026  
+**Versión del documento:** 3.1.0  
+**Fecha de consolidación:** 18 de octubre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 3/4, Tailwind CSS v4, PHP 8.4, PostgreSQL / SQLite, FFmpeg, PHPUnit 12, Laravel Pint  
-**Estado:** Fases 1 a 16 implementadas al 100%. Homogeneización visual de la plantilla transaccional de correo (`login-otp.blade.php`) bajo el estándar corporativo de `javiergalvez-ia` (tarjeta blanca 580px, cabecera oscura con badge de servicio, caja OTP monospace y pie legal RGPD/LOPDGDD). Autenticación passwordless por email con OTP y detección de replay attacks, Panel de Administración `/admin` con control de roles `is_admin`, auditoría cuantitativa de obras con privacidad estricta, telemetría y costes de tokens en `agent_request_logs`, y catálogo interactivo de tarifas en `token_pricing_rates`.
+**Estado:** Sprint 0 en curso. Fases 1 a 16 implementadas. Resolución y blindaje de seguridad crítica ISSUE-001: saneamiento de subida de tomas contra RCE (derivación estricta de extensiones desde MIME type verificado por el servidor, lista blanca `ALLOWED_EXTENSIONS` en `Take`, bloqueo de ejecución PHP en `/storage/` en Nginx). Autenticación passwordless por email con OTP y detección de replay attacks, Panel de Administración `/admin` con control de roles `is_admin`, auditoría cuantitativa de obras con privacidad estricta, telemetría y costes de tokens en `agent_request_logs`, y catálogo interactivo de tarifas en `token_pricing_rates`.
 
 ---
 
@@ -51,8 +51,8 @@ El pipeline narrativo y técnico se organiza en 6 etapas progresivas:
 ### Etapa 5: Rodaje y Tomas (Takes)
 - **Propósito:** Registro y gestión física del material rodado en set para cada plano técnico.
 - **Mecanismo:**
-  - Carga reactiva de archivos multimedia mediante Livewire (`WithFileUploads`) con validación estricta de extensiones (`mp4`, `mov`, `webm`, `avi`, `mkv`) y límite de 500MB por clip.
-  - Almacenamiento particionado por UUID: `media/projects/{project_id}/scenes/{scene_id}/takes/{take_id}.mp4` dentro del disco público de Laravel.
+  - Carga reactiva de archivos multimedia mediante Livewire (`WithFileUploads`) con validación estricta de extensiones (`mp4`, `mov`, `webm`, `m4v`) y derivación forzada de extensión según el tipo MIME real verificado por el servidor (mitigación CWE-434 / anti-RCE, [ISSUE-001]).
+  - Almacenamiento particionado por UUID: `media/projects/{project_id}/scenes/{scene_id}/takes/{take_id}.{ext}` dentro del disco público de Laravel, con lista blanca inmutable en modelo (`Take::ALLOWED_EXTENSIONS`) y protección en Nginx (`location ^~ /storage/`) que prohíbe la ejecución de scripts PHP y añade `X-Content-Type-Options: nosniff`.
   - Marcaje ágil de toma válida (`is_good_take = true`) para selección editorial con un solo clic.
   - Registro de notas de dirección (`editorial_notes`).
   - Extracción y almacenamiento de metadatos técnicos en JSONB (`takes.technical_meta`: resolución, duración, tasa de fotogramas, codec, tamaño de archivo).
