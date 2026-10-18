@@ -78,7 +78,11 @@ class AgentClientService
     public function callTool(string $toolName, array $payload): array
     {
         if ($this->mock) {
-            return $this->executeDeterministicFallback($toolName, $payload);
+            $fallback = $this->executeDeterministicFallback($toolName, $payload);
+            $fallback['source'] = 'deterministic_fallback';
+            $fallback['degraded'] = true;
+
+            return $fallback;
         }
 
         // 1. Intentar llamar a microservicio jg_agente (o Http::fake en tests)
@@ -90,31 +94,65 @@ class AgentClientService
         try {
             $response = Http::withHeaders($headers)
                 ->timeout($this->timeout)
+                ->retry(2, 200, function (Exception $exception) {
+                    return $exception instanceof ConnectionException;
+                }, throw: false)
                 ->withBody($rawBody, 'application/json')
                 ->post($url);
 
             if ($response->successful()) {
                 $data = $response->json();
-                if (is_array($data)) {
+                if (is_array($data) && ($data['success'] ?? true) === true) {
+                    $data['source'] = 'agent';
+                    $data['degraded'] = false;
+
                     return $data;
                 }
+
+                Log::warning("Respuesta no exitosa de jg_agente para herramienta [{$toolName}]", [
+                    'tool' => $toolName,
+                    'status' => $response->status(),
+                    'error' => is_array($data) ? ($data['error'] ?? 'flag success es false') : 'formato no json',
+                ]);
+            } else {
+                Log::warning("Llamada HTTP fallida a jg_agente para herramienta [{$toolName}]", [
+                    'tool' => $toolName,
+                    'status' => $response->status(),
+                ]);
             }
         } catch (ConnectionException $e) {
-            // Sin conexión a microservicio jg_agente
+            Log::warning("Sin conexión con microservicio jg_agente para herramienta [{$toolName}]", [
+                'tool' => $toolName,
+                'error' => $e->getMessage(),
+            ]);
         } catch (Exception $e) {
-            // Error en petición
+            Log::warning("Excepción durante la invocación a jg_agente para herramienta [{$toolName}]", [
+                'tool' => $toolName,
+                'error' => $e->getMessage(),
+            ]);
         }
 
-        // 2. En producción / runtime real (fuera de testing): inferencia directa con proveedor LLM (Groq)
-        if (! app()->environment('testing')) {
+        // 2. Fallback opcional a LLM directo (prohibido en producción y deshabilitado por defecto)
+        $allowDirectLlm = ! app()->isProduction()
+            && ! app()->environment('testing')
+            && (bool) config('services.llm.direct_enabled', false);
+
+        if ($allowDirectLlm) {
             $directResult = $this->callDirectLlm($toolName, $payload);
             if ($directResult !== null) {
+                $directResult['source'] = 'direct_llm';
+                $directResult['degraded'] = true;
+
                 return $directResult;
             }
         }
 
-        // 3. Fallback determinista limpio (cumple regla de oro offline y tests)
-        return $this->executeDeterministicFallback($toolName, $payload);
+        // 3. Fallback determinista limpio
+        $fallback = $this->executeDeterministicFallback($toolName, $payload);
+        $fallback['source'] = 'deterministic_fallback';
+        $fallback['degraded'] = true;
+
+        return $fallback;
     }
 
     /**
@@ -981,7 +1019,7 @@ class AgentClientService
                 ]);
 
             if (! $response->successful()) {
-                Log::warning("Direct LLM call failed ({$response->status()}): {$response->body()}");
+                Log::warning("Direct LLM call failed with HTTP status {$response->status()}");
 
                 return null;
             }
