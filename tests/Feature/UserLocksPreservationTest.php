@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\JgAgente\AgentClientService;
 use App\Services\ScriptPipelineService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -57,6 +58,8 @@ class UserLocksPreservationTest extends TestCase
                 'locked_fields' => [],
             ],
         ]);
+
+        Config::set('services.jg_agente.mock', false);
 
         Http::fake([
             '*/api/v1/tools/*' => Http::response([
@@ -145,6 +148,8 @@ class UserLocksPreservationTest extends TestCase
             'shot_id' => $shotWithTake->id,
             'take_number' => 1,
         ]);
+
+        Config::set('services.jg_agente.mock', false);
 
         Http::fake([
             '*/api/v1/tools/*' => Http::response([

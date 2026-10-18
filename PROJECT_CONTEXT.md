@@ -230,6 +230,7 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
 - `PinnedTermsSafetyTest.php`: Verifica la sanitización estricta de backreferences `$1` y escapes octales en términos fijos (3 tests).
 - `ReDosMitigationTest.php`: Verifica la protección contra ataques ReDoS, cuantificadores acotados, fast-path de expresiones regulares y resiliencia ante diálogos residuales vacíos (4 tests).
 - `ContractParityTest.php`: Verifica la paridad contractual bidireccional contra golden fixtures compartidos entre Laravel y el plugin satélite de Python (4 tests).
+- **Blindaje Hermético de Testing (ISSUE-029):** Toda la suite de pruebas ejecuta con `Http::preventStrayRequests()` en `TestCase::setUp()`, forzando `services.jg_agente.mock = true` y `JG_AGENTE_URL=http://agent.invalid` en `phpunit.xml`, impidiendo llamadas no simuladas hacia el exterior o consumo accidental de tokens.
 - **Total:** 148 tests PHPUnit pasando al 100% (708 aserciones).
 
 ---

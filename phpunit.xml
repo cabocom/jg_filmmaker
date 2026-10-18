@@ -30,6 +30,10 @@
         <server name="DB_DATABASE" value=":memory:" force="true"/>
         <env name="DB_URL" value=""/>
         <env name="JG_AGENTE_SECRET" value="phpunit_agent_secret_not_for_production"/>
+        <env name="JG_AGENTE_MOCK" value="true" force="true"/>
+        <env name="JG_AGENTE_URL" value="http://agent.invalid" force="true"/>
+        <env name="GROQ_API_KEY" value="" force="true"/>
+        <env name="LLM_API_KEY" value="" force="true"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
