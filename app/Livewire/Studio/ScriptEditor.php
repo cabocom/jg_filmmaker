@@ -1757,15 +1757,20 @@ class ScriptEditor extends Component
 
         $take = $this->projectTake($this->uploadingTakeId, ['shot.scene']);
 
-        // Si ya existía un archivo previo, eliminarlo físicamente
-        if ($take->file_path && Storage::disk('public')->exists($take->file_path)) {
-            Storage::disk('public')->delete($take->file_path);
+        // Si ya existía un archivo previo, eliminarlo físicamente de disco privado o público
+        if ($take->file_path) {
+            if (Storage::disk('local')->exists($take->file_path)) {
+                Storage::disk('local')->delete($take->file_path);
+            }
+            if (Storage::disk('public')->exists($take->file_path)) {
+                Storage::disk('public')->delete($take->file_path);
+            }
         }
 
         $extension = $allowedMimes[$mime];
         $storagePath = $take->generateStoragePath($extension);
 
-        $this->videoUpload->storeAs('', $storagePath, 'public');
+        $this->videoUpload->storeAs('', $storagePath, 'local');
 
         $currentMeta = $take->technical_meta ?? [];
         if (empty($currentMeta['duration_seconds'])) {

@@ -33,8 +33,8 @@ class RoughCutAssemblyService
             return (float) ($take->technical_meta['duration_seconds'] ?? 5.0);
         });
 
-        // Asegurar que el directorio de salida existe
-        $disk = Storage::disk('public');
+        // Asegurar que el directorio de salida existe en el disco privado
+        $disk = Storage::disk('local');
         $rendersDir = "media/projects/{$project->id}/renders";
         if (! $disk->exists($rendersDir)) {
             $disk->makeDirectory($rendersDir);
@@ -43,13 +43,15 @@ class RoughCutAssemblyService
         $isTestingOrMock = app()->environment('testing')
             || (bool) config('services.filmmaker.mock_ffmpeg', false);
 
-        // Obtener archivos físicos válidos acotados a la ruta del proyecto
+        // Obtener archivos físicos válidos acotados a la ruta del proyecto (priorizando disco local)
         $validFilePaths = [];
         $allowedPrefix = "media/projects/{$project->id}/";
         foreach ($goodTakes as $take) {
             if ($take->file_path && str_starts_with($take->file_path, $allowedPrefix) && ! str_contains($take->file_path, '..')) {
                 if ($disk->exists($take->file_path)) {
                     $validFilePaths[] = $disk->path($take->file_path);
+                } elseif (Storage::disk('public')->exists($take->file_path)) {
+                    $validFilePaths[] = Storage::disk('public')->path($take->file_path);
                 }
             }
         }
@@ -62,7 +64,7 @@ class RoughCutAssemblyService
             return [
                 'success' => true,
                 'render_path' => $relativeRenderPath,
-                'video_url' => $disk->url($relativeRenderPath),
+                'video_url' => route('media.render', ['project' => $project->id, 'filename' => basename($relativeRenderPath)]),
                 'total_takes' => $goodTakes->count(),
                 'total_duration_seconds' => round($totalDuration, 2),
                 'is_simulated' => true,
@@ -136,7 +138,7 @@ class RoughCutAssemblyService
             return [
                 'success' => true,
                 'render_path' => $relativeRenderPath,
-                'video_url' => $disk->url($relativeRenderPath),
+                'video_url' => route('media.render', ['project' => $project->id, 'filename' => basename($relativeRenderPath)]),
                 'total_takes' => $goodTakes->count(),
                 'total_duration_seconds' => round($totalDuration, 2),
                 'is_simulated' => false,
@@ -153,7 +155,7 @@ class RoughCutAssemblyService
      */
     public function pruneOldRenders(Project $project, int $keep = 5): void
     {
-        $disk = Storage::disk('public');
+        $disk = Storage::disk('local');
         $rendersDir = "media/projects/{$project->id}/renders";
 
         if (! $disk->exists($rendersDir)) {

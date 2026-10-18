@@ -21,6 +21,7 @@ class TakeMediaUploadTest extends TestCase
 
     public function test_take_video_can_be_uploaded_and_stored_in_uuid_partitioned_path(): void
     {
+        Storage::fake('local');
         Storage::fake('public');
 
         $user = User::factory()->create();
@@ -51,11 +52,12 @@ class TakeMediaUploadTest extends TestCase
 
         $this->assertSame($expectedPath, $freshTake->file_path);
         $this->assertNotNull($freshTake->video_url);
-        Storage::disk('public')->assertExists($expectedPath);
+        Storage::disk('local')->assertExists($expectedPath);
     }
 
     public function test_deleting_take_removes_physical_video_file_from_storage(): void
     {
+        Storage::fake('local');
         Storage::fake('public');
 
         $user = User::factory()->create();
@@ -68,10 +70,10 @@ class TakeMediaUploadTest extends TestCase
         ]);
 
         $storagePath = $take->generateStoragePath('mp4');
-        Storage::disk('public')->put($storagePath, 'fake-mp4-binary-content');
+        Storage::disk('local')->put($storagePath, 'fake-mp4-binary-content');
         $take->update(['file_path' => $storagePath]);
 
-        Storage::disk('public')->assertExists($storagePath);
+        Storage::disk('local')->assertExists($storagePath);
 
         // Eliminar a través del método Livewire
         Livewire::actingAs($user)
@@ -79,11 +81,12 @@ class TakeMediaUploadTest extends TestCase
             ->call('deleteTake', $take->id);
 
         $this->assertDatabaseMissing('takes', ['id' => $take->id]);
-        Storage::disk('public')->assertMissing($storagePath);
+        Storage::disk('local')->assertMissing($storagePath);
     }
 
     public function test_replacing_video_deletes_previous_physical_file(): void
     {
+        Storage::fake('local');
         Storage::fake('public');
 
         $user = User::factory()->create();
@@ -93,10 +96,10 @@ class TakeMediaUploadTest extends TestCase
         $take = Take::factory()->create(['shot_id' => $shot->id, 'take_number' => 1]);
 
         $oldPath = "media/projects/{$project->id}/scenes/{$scene->id}/takes/old_{$take->id}.mp4";
-        Storage::disk('public')->put($oldPath, 'old-video');
+        Storage::disk('local')->put($oldPath, 'old-video');
         $take->update(['file_path' => $oldPath]);
 
-        Storage::disk('public')->assertExists($oldPath);
+        Storage::disk('local')->assertExists($oldPath);
 
         $newVideo = UploadedFile::fake()->create('take_new.mov', 4000, 'video/quicktime');
 
@@ -107,11 +110,11 @@ class TakeMediaUploadTest extends TestCase
             ->call('uploadTakeVideo');
 
         // El archivo anterior debe haberse eliminado
-        Storage::disk('public')->assertMissing($oldPath);
+        Storage::disk('local')->assertMissing($oldPath);
 
         // El nuevo debe existir en la ruta con extensión mov
         $newExpectedPath = "media/projects/{$project->id}/scenes/{$scene->id}/takes/{$take->id}.mov";
-        Storage::disk('public')->assertExists($newExpectedPath);
+        Storage::disk('local')->assertExists($newExpectedPath);
         $this->assertSame($newExpectedPath, $take->fresh()->file_path);
     }
 

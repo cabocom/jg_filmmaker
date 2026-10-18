@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use Database\Factories\TakeFactory;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Concerns\HasVersion4Uuids as HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -48,8 +48,13 @@ class Take extends Model
     protected static function booted(): void
     {
         static::deleting(function (Take $take): void {
-            if ($take->file_path && Storage::disk('public')->exists($take->file_path)) {
-                Storage::disk('public')->delete($take->file_path);
+            if ($take->file_path) {
+                if (Storage::disk('local')->exists($take->file_path)) {
+                    Storage::disk('local')->delete($take->file_path);
+                }
+                if (Storage::disk('public')->exists($take->file_path)) {
+                    Storage::disk('public')->delete($take->file_path);
+                }
             }
         });
     }
@@ -63,7 +68,7 @@ class Take extends Model
     }
 
     /**
-     * URL pública directa al archivo de vídeo (si existe).
+     * URL protegida al endpoint de streaming de vídeo de la toma.
      */
     public function getVideoUrlAttribute(): ?string
     {
@@ -71,7 +76,7 @@ class Take extends Model
             return null;
         }
 
-        return Storage::disk('public')->url($this->file_path);
+        return route('media.take', ['take' => $this->id]);
     }
 
     public const ALLOWED_EXTENSIONS = ['mp4', 'mov', 'webm', 'm4v'];

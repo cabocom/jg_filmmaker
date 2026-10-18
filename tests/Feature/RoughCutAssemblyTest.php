@@ -22,10 +22,15 @@ class RoughCutAssemblyTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Storage::fake('local');
+        Storage::fake('public');
+    }
+
     public function test_assembly_service_produces_rendered_video_file_from_good_takes(): void
     {
-        Storage::fake('public');
-
         $user = User::factory()->create();
         $project = Project::factory()->create(['user_id' => $user->id]);
         $scene = Scene::factory()->create(['project_id' => $project->id, 'scene_order' => 1]);
@@ -38,7 +43,7 @@ class RoughCutAssemblyTest extends TestCase
             'file_path' => "media/projects/{$project->id}/scenes/{$scene->id}/takes/take1.mp4",
             'technical_meta' => ['duration_seconds' => 6.2],
         ]);
-        Storage::disk('public')->put($take->file_path, 'binary-take-data');
+        Storage::disk('local')->put($take->file_path, 'binary-take-data');
 
         $service = app(RoughCutAssemblyService::class);
         $result = $service->assemble($project);
@@ -47,7 +52,7 @@ class RoughCutAssemblyTest extends TestCase
         $this->assertNotEmpty($result['render_path']);
         $this->assertSame(1, $result['total_takes']);
         $this->assertEquals(6.2, $result['total_duration_seconds']);
-        Storage::disk('public')->assertExists($result['render_path']);
+        Storage::disk('local')->assertExists($result['render_path']);
     }
 
     public function test_assembly_service_throws_exception_when_no_good_takes_exist(): void
@@ -84,7 +89,7 @@ class RoughCutAssemblyTest extends TestCase
             'is_good_take' => true,
             'file_path' => "media/projects/{$project->id}/scenes/{$scene->id}/takes/take1.mp4",
         ]);
-        Storage::disk('public')->put($take->file_path, 'binary-take-data');
+        Storage::disk('local')->put($take->file_path, 'binary-take-data');
 
         $component = Livewire::actingAs($user)
             ->test(RoughCutTimeline::class, ['project' => $project])
@@ -97,11 +102,9 @@ class RoughCutAssemblyTest extends TestCase
 
     public function test_prune_old_renders_retains_only_most_recent_files(): void
     {
-        Storage::fake('public');
-
         $user = User::factory()->create();
         $project = Project::factory()->create(['user_id' => $user->id]);
-        $disk = Storage::disk('public');
+        $disk = Storage::disk('local');
         $rendersDir = "media/projects/{$project->id}/renders";
 
         // Crear 8 archivos con timestamps ficticios
@@ -118,8 +121,6 @@ class RoughCutAssemblyTest extends TestCase
 
     public function test_ffmpeg_retry_executes_transcoding_and_preserves_temp_list(): void
     {
-        Storage::fake('public');
-
         $user = User::factory()->create();
         $project = Project::factory()->create(['user_id' => $user->id]);
         $scene = Scene::factory()->create(['project_id' => $project->id]);
@@ -130,7 +131,7 @@ class RoughCutAssemblyTest extends TestCase
             'is_good_take' => true,
             'file_path' => "media/projects/{$project->id}/scenes/{$scene->id}/takes/take1.mp4",
         ]);
-        Storage::disk('public')->put($take->file_path, 'binary-take-data');
+        Storage::disk('local')->put($take->file_path, 'binary-take-data');
 
         // Forzar entorno de no simulación
         $this->app['env'] = 'production';
@@ -179,8 +180,6 @@ class RoughCutAssemblyTest extends TestCase
 
     public function test_ffmpeg_throws_runtime_exception_and_does_not_produce_false_positive_when_both_fail(): void
     {
-        Storage::fake('public');
-
         $user = User::factory()->create();
         $project = Project::factory()->create(['user_id' => $user->id]);
         $scene = Scene::factory()->create(['project_id' => $project->id]);
@@ -191,7 +190,7 @@ class RoughCutAssemblyTest extends TestCase
             'is_good_take' => true,
             'file_path' => "media/projects/{$project->id}/scenes/{$scene->id}/takes/take1.mp4",
         ]);
-        Storage::disk('public')->put($take->file_path, 'binary-take-data');
+        Storage::disk('local')->put($take->file_path, 'binary-take-data');
 
         $this->app['env'] = 'production';
         Config::set('services.filmmaker.mock_ffmpeg', false);

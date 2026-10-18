@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\MediaStreamController;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Livewire\Admin\PricingManager;
 use App\Livewire\Admin\ProjectManager;
@@ -33,6 +34,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/projects/{project}', ScriptEditor::class)
         ->middleware('can:view,project')
         ->name('projects.show');
+
+    // Streaming seguro de medios audiovisuales privados (ISSUE-006)
+    Route::get('/media/takes/{take}', [MediaStreamController::class, 'streamTake'])->name('media.take');
+    Route::get('/media/projects/{project}/renders/{filename}', [MediaStreamController::class, 'streamRender'])->name('media.render');
 });
 
 // Panel de Administración (Protegido por Middleware EnsureUserIsAdmin)
