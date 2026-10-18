@@ -228,8 +228,8 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
 - `ProjectTransferAdminTest.php`: Verifica permisos 403, privacidad sin filtrar textos y reasignación/transferencia atómica de obras entre usuarios tanto desde `UserDetail` como desde `ProjectManager` (4 tests).
 - `TokenQuotaEnforcementTest.php`: Verifica la gobernanza centralizada de cuotas diarias de tokens de IA, excepciones `QuotaExceededException` e imputación indeleble de costes (4 tests).
 - `PinnedTermsSafetyTest.php`: Verifica la sanitización estricta de backreferences `$1` y escapes octales en términos fijos (3 tests).
-- `ReDosMitigationTest.php`: Verifica la protección contra ataques ReDoS, cuantificadores acotados y fast-path de expresiones regulares (3 tests).
-- **Total:** 143 tests PHPUnit pasando al 100% (686 aserciones).
+- `ReDosMitigationTest.php`: Verifica la protección contra ataques ReDoS, cuantificadores acotados, fast-path de expresiones regulares y resiliencia ante diálogos residuales vacíos (4 tests).
+- **Total:** 144 tests PHPUnit pasando al 100% (689 aserciones).
 
 ---
 

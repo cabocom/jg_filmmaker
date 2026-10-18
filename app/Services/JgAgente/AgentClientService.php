@@ -969,6 +969,8 @@ class AgentClientService
         $res = preg_replace('/\s+y\s+(tienes|debes|ahora|no|vas)\b/iu', '. $1', $res);
 
         // Iteración 3: Mayúsculas y puntuación canónica
+        $core = trim($res, ".?!¿¡ \t\n\r\0\x0B");
+
         if (str_contains($verb, 'pregunta')) {
             if (preg_match('/^(?:quien|quién)\s+(.+)$/iu', $res, $mQ)) {
                 return '¿Quién '.$mQ[1].'?';
@@ -976,19 +978,31 @@ class AgentClientService
                 return '¿Quién '.$res.'?';
             }
 
-            return '¿'.ucfirst(rtrim($res, '.?!')).'?';
+            if ($core === '') {
+                return '¿...?';
+            }
+
+            return '¿'.ucfirst($core).'?';
         }
 
         if (str_contains($verb, 'grita')) {
-            return '¡'.ucfirst(rtrim($res, '.?!')).'!';
+            if ($core === '') {
+                return '¡...!';
+            }
+
+            return '¡'.ucfirst($core).'!';
         }
 
         $sentences = preg_split('/(?<=[.?!])\s+/u', $res);
-        $sentences = array_map(function ($s) {
-            $s = trim($s);
+        $sentences = array_filter(array_map(function ($s) {
+            $sCore = trim($s, ".?!¿¡ \t\n\r\0\x0B");
 
-            return ucfirst($s);
-        }, $sentences);
+            return $sCore !== '' ? ucfirst($sCore) : null;
+        }, $sentences));
+
+        if (empty($sentences)) {
+            return $core !== '' ? ucfirst($core).'.' : '...';
+        }
 
         return rtrim(implode(' ', $sentences), '.?!').'.';
     }

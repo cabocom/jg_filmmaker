@@ -65,4 +65,21 @@ class ReDosMitigationTest extends TestCase
         $this->assertStringContainsString('JUAN', $result['output']);
         $this->assertStringContainsStringIgnoringCase('no piensa marcharse jamás', $result['output']);
     }
+
+    public function test_format_screenplay_fallback_handles_empty_and_punctuation_dialogue_safely(): void
+    {
+        Config::set('services.jg_agente.mock', true);
+
+        $service = app(AgentClientService::class);
+
+        $text = "JUAN mira hacia la puerta y le pregunta qué ?\n\nMARÍA se asusta y le grita que !\n\nJUAN dice que ...";
+
+        $result = $service->callTool('screenplay_formatter', [
+            'structured_text' => $text,
+        ]);
+
+        $this->assertTrue($result['success']);
+        $this->assertStringContainsString('¿...?', $result['output']);
+        $this->assertStringContainsString('¡...!', $result['output']);
+    }
 }
