@@ -464,18 +464,38 @@ class ScriptEditor extends Component
             return;
         }
 
-        DB::transaction(function () use ($draggedBlockId, $targetOrder, $sceneTargetId) {
-            $dragged = ScriptBlock::find($draggedBlockId);
-            if (! $dragged) {
-                return;
-            }
+        // Validar que la escena destino pertenezca a este proyecto
+        $targetScene = $this->projectScene($sceneTargetId);
 
-            if ($dragged->scene_id !== $sceneTargetId) {
-                $dragged->update(['scene_id' => $sceneTargetId]);
+        DB::transaction(function () use ($draggedBlockId, $targetOrder, $targetScene) {
+            // Validar que el bloque arrastrado pertenezca estrictamente a este proyecto
+            $dragged = $this->projectBlock($draggedBlockId);
+            $originSceneId = $dragged->scene_id;
+
+            if ($originSceneId !== $targetScene->id) {
+                // Reasignar bloque a la nueva escena
+                $dragged->update(['scene_id' => $targetScene->id]);
+
+                // Reasignar planos vinculados al bloque para preservar integridad referencial
+                Shot::where('script_block_id', $dragged->id)->update(['scene_id' => $targetScene->id]);
+
+                // Reindexar la escena de origen
+                $originBlocks = ScriptBlock::where('scene_id', $originSceneId)
+                    ->where('id', '!=', $dragged->id)
+                    ->orderBy('block_order')
+                    ->get();
+
+                foreach ($originBlocks as $idx => $b) {
+                    $order = $idx + 1;
+                    if ($b->block_order !== $order) {
+                        $b->update(['block_order' => $order]);
+                    }
+                }
+
                 $dragged->refresh();
             }
 
-            $blocks = ScriptBlock::where('scene_id', $sceneTargetId)
+            $blocks = ScriptBlock::where('scene_id', $targetScene->id)
                 ->orderBy('block_order')
                 ->get();
 
@@ -497,7 +517,7 @@ class ScriptEditor extends Component
 
         $this->logActivity('reorder_block', 'ScriptBlock', $draggedBlockId, "Bloque reordenado en escena a posición #{$targetOrder}", [
             'block_id' => $draggedBlockId,
-            'scene_id' => $sceneTargetId,
+            'scene_id' => $targetScene->id,
             'target_order' => $targetOrder,
         ]);
 
