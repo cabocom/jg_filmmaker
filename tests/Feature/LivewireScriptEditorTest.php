@@ -1082,7 +1082,10 @@ class LivewireScriptEditorTest extends TestCase
             'location_id' => null,
         ]);
 
-        // Al iniciar el componente ScriptEditor, debe sincronizar automáticamente
+        // En mount() ya no se ejecutan escrituras colaterales (ISSUE-019).
+        // Sincronizar explícitamente las localizaciones del proyecto.
+        app(ScriptPipelineService::class)->syncProjectLocations($project);
+
         $livewire = Livewire::actingAs($user)
             ->test(ScriptEditor::class, ['project' => $project]);
 
@@ -1097,15 +1100,17 @@ class LivewireScriptEditorTest extends TestCase
         // Ahora el usuario edita la Escena 2 cambiando el slugline de BAR CENTRAL a BAR
         $livewire->call('openEditSceneModal', $scene2->id)
             ->set('editingSceneSlugline', 'INT. BAR - NOCHE 1')
+            ->set('editingSceneLocationId', '')
             ->call('updateScene');
 
-        // La localización debe haberse renombrado en la Biblia a BAR y la escena estar vinculada
+        // La nueva localización debe haberse creado en la Biblia como BAR y la escena estar vinculada
         $this->assertDatabaseHas('locations', [
             'project_id' => $project->id,
             'name' => 'BAR',
             'type' => 'INT',
         ]);
-        $this->assertDatabaseMissing('locations', [
+        // BAR CENTRAL se preserva intacta en la Biblia para no destruir notas de arte (ISSUE-020)
+        $this->assertDatabaseHas('locations', [
             'project_id' => $project->id,
             'name' => 'BAR CENTRAL',
         ]);

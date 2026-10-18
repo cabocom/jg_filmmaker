@@ -209,11 +209,6 @@ class ScriptEditor extends Component
 
         $this->project = $project;
 
-        // Sincronizar y detectar automáticamente personajes y localizaciones del guión en la Biblia
-        $pipeline = app(ScriptPipelineService::class);
-        $pipeline->syncProjectCharacters($this->project);
-        $pipeline->syncProjectLocations($this->project);
-
         // Cargar primera escena disponible o dejar en null (sin auto-seleccionar bloque)
         $firstScene = $this->project->scenes()->first();
         if ($firstScene) {
@@ -811,10 +806,6 @@ class ScriptEditor extends Component
             }
         }
 
-        // Actualizar Biblia de proyecto
-        $pipeline = app(ScriptPipelineService::class);
-        $pipeline->syncProjectCharacters($this->project);
-        $pipeline->syncProjectLocations($this->project);
         $this->dispatch('bible-updated');
 
         $this->closeDeleteBlockModal();
@@ -887,10 +878,6 @@ class ScriptEditor extends Component
             }
         }
 
-        // Actualizar Biblia de proyecto
-        $pipeline = app(ScriptPipelineService::class);
-        $pipeline->syncProjectCharacters($this->project);
-        $pipeline->syncProjectLocations($this->project);
         $this->dispatch('bible-updated');
 
         $this->closeDeleteSceneModal();

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Exceptions\QuotaExceededException;
 use App\Models\Character;
+use App\Models\Location;
 use App\Models\Project;
 use App\Models\ScriptBlock;
 use App\Models\Shot;
@@ -456,6 +457,10 @@ class ScriptPipelineService
     public function inferCharactersFromText(string $text, array $existingCharacters = [], ?Project $project = null): array
     {
         $existingLower = array_map(fn ($c) => mb_strtolower((string) ($c['name'] ?? ''), 'UTF-8'), $existingCharacters);
+        if ($project && $project->exists) {
+            $dbNames = $project->characters()->pluck('name')->map(fn ($n) => mb_strtolower((string) $n, 'UTF-8'))->all();
+            $existingLower = array_unique(array_merge($existingLower, $dbNames));
+        }
         $result = $existingCharacters;
 
         $candidates = [];
@@ -477,11 +482,7 @@ class ScriptPipelineService
             $candidates = array_merge($candidates, $mQuoted[1]);
         }
 
-        // 3. Nombres propios comunes y compuestos
-        preg_match_all('/\b(Juan|Pedro|Carlos|Javi|Javier|Ana|María|Laura|Lucía|Elena|David|Pablo|Sofía|Marcos|Antonio|Manuel|Marta|Diego|Luis|Miguel|Andrés|Carmen|Raquel|Estrella\s+Casilda)\b/u', $text, $mCommon);
-        $candidates = array_merge($candidates, $mCommon[1] ?? []);
-
-        // 4. Encabezados de diálogo estilo Fountain (ej: CAMARERO, ESTRELLA CASILDA)
+        // 3. Encabezados de diálogo estilo Fountain (ej: CAMARERO, ESTRELLA CASILDA)
         if (preg_match_all('/^[ \t]*([A-ZÁÉÍÓÚÑ\s]{2,25})(?:\s*\([^)]*\))?[ \t]*$/m', $text, $mFountain)) {
             $candidates = array_merge($candidates, $mFountain[1]);
         }
@@ -507,16 +508,13 @@ class ScriptPipelineService
                 ];
                 $existingLower[] = $lower;
 
-                // Sincronizar y registrar en la base de datos del proyecto si procede
+                // Sincronizar y registrar en la base de datos del proyecto si procede (evitando N+1 queries)
                 if ($project && $project->exists) {
-                    $existsInDb = $project->characters()->whereRaw('LOWER(name) = ?', [$lower])->exists();
-                    if (! $existsInDb) {
-                        $project->characters()->create([
-                            'name' => $clean,
-                            'bio' => 'Personaje dramático detectado automáticamente en la acción narrativa.',
-                            'psychology' => 'Interviene activamente en el desarrollo de la escena.',
-                        ]);
-                    }
+                    $project->characters()->create([
+                        'name' => $clean,
+                        'bio' => 'Personaje dramático detectado automáticamente en la acción narrativa.',
+                        'psychology' => 'Interviene activamente en el desarrollo de la escena.',
+                    ]);
                 }
             }
         }
@@ -639,6 +637,14 @@ class ScriptPipelineService
             return;
         }
 
+        // Precargar en memoria todas las localizaciones existentes del proyecto (O(1) lookups)
+        /** @var Collection<int, Location> $locations */
+        $locations = $project->locations()->get();
+        $locMap = [];
+        foreach ($locations as $loc) {
+            $locMap[mb_strtoupper($loc->name, 'UTF-8')] = $loc;
+        }
+
         foreach ($scenes as $scene) {
             if (empty($scene->slugline)) {
                 continue;
@@ -654,79 +660,19 @@ class ScriptPipelineService
                 $scene->update(['time_of_day' => $parsedTime]);
             }
 
-            // Si la escena ya tiene una localización asociada
-            if ($scene->location_id) {
-                $currentLoc = $project->locations()->find($scene->location_id);
-                if ($currentLoc) {
-                    $currentName = mb_strtoupper($currentLoc->name, 'UTF-8');
-                    // Si el nombre en el slugline cambió respecto a la localización asociada
-                    if ($currentName !== $parsedName) {
-                        // Comprobar si ya existe una localización con el nuevo nombre en el proyecto
-                        $targetLoc = $project->locations()
-                            ->whereRaw('UPPER(name) = ?', [$parsedName])
-                            ->first();
-
-                        if ($targetLoc) {
-                            // Asociar la escena a la localización con el nuevo nombre
-                            $scene->update(['location_id' => $targetLoc->id]);
-
-                            // Si la localización antigua no la usa ninguna otra escena, la eliminamos
-                            $otherUsages = $project->scenes()
-                                ->where('id', '!=', $scene->id)
-                                ->where('location_id', $currentLoc->id)
-                                ->count();
-                            if ($otherUsages === 0) {
-                                $currentLoc->delete();
-                            }
-                        } else {
-                            // Si ninguna otra escena usa la localización antigua, la renombramos directamente
-                            $otherUsages = $project->scenes()
-                                ->where('id', '!=', $scene->id)
-                                ->where('location_id', $currentLoc->id)
-                                ->count();
-                            if ($otherUsages === 0) {
-                                $currentLoc->update([
-                                    'name' => $parsedName,
-                                    'type' => $parsedType,
-                                ]);
-                            } else {
-                                // Otras escenas siguen usando la antigua, creamos la nueva localización para esta escena
-                                $newLoc = $project->locations()->create([
-                                    'name' => $parsedName,
-                                    'type' => $parsedType,
-                                    'art_department_notes' => 'Localización detectada automáticamente en el guión.',
-                                ]);
-                                $scene->update(['location_id' => $newLoc->id]);
-                            }
-                        }
-                    } else {
-                        // El nombre coincide, asegurar tipo consistente si difiere
-                        if (empty($currentLoc->type) || $currentLoc->type !== $parsedType) {
-                            $currentLoc->update(['type' => $parsedType]);
-                        }
-                    }
-                } else {
-                    // El location_id apuntaba a una localización inexistente, resetear y buscar/crear
-                    $scene->update(['location_id' => null]);
-                }
+            $targetLoc = $locMap[$parsedName] ?? null;
+            if (! $targetLoc) {
+                $targetLoc = $project->locations()->create([
+                    'name' => $parsedName,
+                    'type' => $parsedType,
+                    'art_department_notes' => 'Localización detectada automáticamente en el guión.',
+                ]);
+                $locMap[$parsedName] = $targetLoc;
             }
 
-            // Si la escena NO tiene localización asociada (o se reseteó arriba)
-            if (! $scene->location_id) {
-                // Buscar si ya existe una localización con este nombre
-                $loc = $project->locations()
-                    ->whereRaw('UPPER(name) = ?', [$parsedName])
-                    ->first();
-
-                if (! $loc) {
-                    $loc = $project->locations()->create([
-                        'name' => $parsedName,
-                        'type' => $parsedType,
-                        'art_department_notes' => 'Localización detectada automáticamente en el guión.',
-                    ]);
-                }
-
-                $scene->update(['location_id' => $loc->id]);
+            // Asociar a la escena sólo si difiere
+            if ($scene->location_id !== $targetLoc->id) {
+                $scene->update(['location_id' => $targetLoc->id]);
             }
         }
 
