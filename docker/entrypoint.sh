@@ -47,14 +47,21 @@ chmod -R 775 /var/lib/nginx /var/log/nginx
 # Limpiar manifiestos residuales de bootstrap
 rm -f /var/www/html/bootstrap/cache/*.php
 
+# Determinar entorno de ejecución
+CURRENT_ENV="${APP_ENV:-production}"
+
 # Validación o generación de APP_KEY
 if [ -z "$APP_KEY" ]; then
-    echo "⚠️ [Seguridad] APP_KEY no configurada. Generando clave temporal de aplicación..."
-    php artisan key:generate --force || true
+    if [ "$CURRENT_ENV" = "production" ]; then
+        echo "❌ [Seguridad] APP_KEY obligatoria no configurada en producción. Abortando arranque."
+        exit 1
+    else
+        echo "⚠️ [Seguridad] APP_KEY no configurada. Generando clave temporal de desarrollo..."
+        php artisan key:generate --force || true
+    fi
 fi
 
 # Desactivar APP_DEBUG en producción si no está explicitamente forzado
-CURRENT_ENV="${APP_ENV:-production}"
 if [ "$CURRENT_ENV" = "production" ] && [ "$APP_DEBUG" = "true" ]; then
     echo "⚠️ [Seguridad] APP_DEBUG detectado como 'true' en producción. Forzando APP_DEBUG=false."
     export APP_DEBUG="false"
@@ -73,12 +80,16 @@ echo "🎨 Publicando assets estáticos de Livewire..."
 php artisan livewire:publish --assets || true
 
 # Migraciones y seeders de base de datos
-if [ "$RUN_MIGRATIONS" = "true" ] || [ "$APP_ENV" = "production" ]; then
+if [ "$RUN_MIGRATIONS" = "true" ] || [ "$CURRENT_ENV" = "production" ]; then
     echo "📦 Ejecutando migraciones de base de datos..."
-    php artisan migrate --force || true
+    php artisan migrate --force
     if [ "$SEED_DEMO" = "true" ]; then
-        echo "🌱 Ejecutando seeders de demostración..."
-        php artisan db:seed --force || true
+        if [ "$CURRENT_ENV" = "production" ]; then
+            echo "⚠️ [Seguridad] SEED_DEMO=true ignorado en producción para proteger cuentas de usuario."
+        else
+            echo "🌱 Ejecutando seeders de demostración..."
+            php artisan db:seed --force
+        fi
     fi
 fi
 

@@ -11,17 +11,17 @@ services:
     restart: unless-stopped
     environment:
       APP_NAME: "jG Filmmaker"
-      APP_ENV: ${APP_ENV:-local}
-      APP_KEY: "${APP_KEY:-base64:fH7i9N2bV5kM8qR3tY6wP1sL4xJ7aB0cDeFgHiJkLmN=}"
-      APP_DEBUG: ${APP_DEBUG:-true}
+      APP_ENV: ${APP_ENV:-production}
+      APP_KEY: "${APP_KEY:?Error: APP_KEY requerida. Genere una valida con php artisan key:generate}"
+      APP_DEBUG: ${APP_DEBUG:-false}
       APP_URL: ${APP_URL:-http://localhost:8010}
       DB_CONNECTION: sqlite
       DB_DATABASE: /var/www/html/database/database.sqlite
       RUN_MIGRATIONS: "true"
-      SEED_DEMO: "true"
+      SEED_DEMO: "${SEED_DEMO:-false}"
       JG_AGENTE_MOCK: "${JG_AGENTE_MOCK:-false}"
       JG_AGENTE_URL: "${JG_AGENTE_URL:-http://127.0.0.1:8001}"
-      JG_AGENTE_SECRET: "${JG_AGENTE_SECRET:-test-secret-ecosystem-2026}"
+      JG_AGENTE_SECRET: "${JG_AGENTE_SECRET:?Error: JG_AGENTE_SECRET requerido. Proporcione el secreto HMAC del ecosistema}"
       LLM_PROVIDER: "${LLM_PROVIDER:-groq}"
       LLM_MODEL: "${LLM_MODEL:-openai/gpt-oss-120b}"
     env_file:
