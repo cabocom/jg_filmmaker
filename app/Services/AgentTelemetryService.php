@@ -57,6 +57,14 @@ class AgentTelemetryService
         $estimatedCost = ($inputTokens * ($inputCostPerMillion / 1000000)) + ($outputTokens * ($outputCostPerMillion / 1000000));
         $estimatedCost = round($estimatedCost, 6);
 
+        $sanitizedTelemetry = null;
+        if (is_array($telemetry)) {
+            $sanitizedTelemetry = $telemetry;
+            if (isset($sanitizedTelemetry['user_locks']['ai_telemetry'])) {
+                unset($sanitizedTelemetry['user_locks']['ai_telemetry']);
+            }
+        }
+
         // 3. Persistir log de telemetría
         return AgentRequestLog::create([
             'project_id' => $projectId,
@@ -66,6 +74,7 @@ class AgentTelemetryService
             'output_tokens' => $outputTokens,
             'total_tokens' => $totalTokens,
             'estimated_cost_usd' => $estimatedCost,
+            'meta' => $sanitizedTelemetry,
         ]);
     }
 }

@@ -57,14 +57,14 @@ class ScriptPipelineService
             rawText: $rawText,
             characters: $characters,
             location: $location,
-            userLocks: $userLocks
+            userLocks: $this->sanitizeUserLocksForAgent($userLocks)
         );
 
         $structuredText = $this->capitalizeCharacterNames($structuredText, $characters, 'structured');
 
         $telemetry = $this->agentClient->getLastTelemetry();
 
-        $updatedBlock = DB::transaction(function () use ($block, $structuredText, $telemetry) {
+        $updatedBlock = DB::transaction(function () use ($block, $structuredText) {
             /** @var ScriptBlock|null $fresh */
             $fresh = ScriptBlock::whereKey($block->id)->lockForUpdate()->first();
             if (! $fresh) {
@@ -77,10 +77,7 @@ class ScriptPipelineService
             }
 
             $freshLocks = $this->resolveUserLocks($fresh);
-
-            if ($telemetry) {
-                $freshLocks['ai_telemetry']['structured'] = $telemetry;
-            }
+            unset($freshLocks['ai_telemetry']);
 
             // Purgar diffs y bloqueos manuales obsoletos de 'structured' ya que ha sido regenerado por la IA desde el bruto
             if (! empty($freshLocks['manual_diffs'])) {
@@ -154,7 +151,7 @@ class ScriptPipelineService
         $screenplayContent = $this->agentClient->formatScreenplay(
             structuredText: $sourceText,
             characters: $characters,
-            userLocks: $userLocks,
+            userLocks: $this->sanitizeUserLocksForAgent($userLocks),
             location: $location
         );
 
@@ -162,7 +159,7 @@ class ScriptPipelineService
 
         $telemetry = $this->agentClient->getLastTelemetry();
 
-        $updatedBlock = DB::transaction(function () use ($block, $screenplayContent, $telemetry) {
+        $updatedBlock = DB::transaction(function () use ($block, $screenplayContent) {
             /** @var ScriptBlock|null $fresh */
             $fresh = ScriptBlock::whereKey($block->id)->lockForUpdate()->first();
             if (! $fresh) {
@@ -175,10 +172,7 @@ class ScriptPipelineService
             }
 
             $freshLocks = $this->resolveUserLocks($fresh);
-
-            if ($telemetry) {
-                $freshLocks['ai_telemetry']['screenplay'] = $telemetry;
-            }
+            unset($freshLocks['ai_telemetry']);
 
             // Purgar diffs y bloqueos manuales obsoletos de 'screenplay' ya que ha sido regenerado por la IA
             if (! empty($freshLocks['manual_diffs'])) {
@@ -269,7 +263,7 @@ class ScriptPipelineService
 
         $telemetry = $this->agentClient->getLastTelemetry();
 
-        DB::transaction(function () use ($block, $telemetry) {
+        DB::transaction(function () use ($block) {
             /** @var ScriptBlock|null $fresh */
             $fresh = ScriptBlock::whereKey($block->id)->lockForUpdate()->first();
             if (! $fresh) {
@@ -277,9 +271,7 @@ class ScriptPipelineService
             }
 
             $freshLocks = $this->resolveUserLocks($fresh);
-            if ($telemetry) {
-                $freshLocks['ai_telemetry']['shots'] = $telemetry;
-            }
+            unset($freshLocks['ai_telemetry']);
 
             $fresh->update([
                 'user_locks' => $freshLocks,
@@ -669,5 +661,21 @@ class ScriptPipelineService
         }
 
         $project->load('locations');
+    }
+
+    /**
+     * Sanitiza el esquema de candados para el agente, enviando exclusivamente términos de gobernanza y autoría.
+     * Previene fugas de telemetría histórica o sobrecostes de tokens.
+     *
+     * @param  array<string, mixed>  $userLocks
+     * @return array{pinned_terms: array<string, string>, manual_diffs: array<int, mixed>, locked_fields: list<string>}
+     */
+    public function sanitizeUserLocksForAgent(array $userLocks): array
+    {
+        return [
+            'pinned_terms' => (array) ($userLocks['pinned_terms'] ?? []),
+            'manual_diffs' => (array) ($userLocks['manual_diffs'] ?? []),
+            'locked_fields' => (array) ($userLocks['locked_fields'] ?? []),
+        ];
     }
 }

@@ -470,7 +470,7 @@ class AgentClientService
                 'output' => $output,
                 'characters_context' => $characters,
                 'location_context' => $payload['location_context'] ?? null,
-                'user_locks' => $userLocks,
+                'user_locks' => $this->sanitizeTelemetryLocks((array) $userLocks),
                 'steps' => [
                     [
                         'number' => 1,
@@ -710,7 +710,7 @@ class AgentClientService
                 'output' => $output,
                 'characters_context' => $characters,
                 'location_context' => $location,
-                'user_locks' => $userLocks,
+                'user_locks' => $this->sanitizeTelemetryLocks((array) $userLocks),
                 'steps' => [
                     [
                         'number' => 1,
@@ -1073,7 +1073,7 @@ class AgentClientService
                 'output' => $output,
                 'characters_context' => $payload['characters_context'] ?? [],
                 'location_context' => $payload['location_context'] ?? null,
-                'user_locks' => $payload['user_locks'] ?? [],
+                'user_locks' => $this->sanitizeTelemetryLocks((array) ($payload['user_locks'] ?? [])),
                 'steps' => [
                     [
                         'number' => 1,
@@ -1321,5 +1321,20 @@ class AgentClientService
         }
 
         return null;
+    }
+
+    /**
+     * Sanitiza los candados almacenados en telemetría para retener solo términos de autoría y evitar anidamiento recursivo.
+     *
+     * @param  array<string, mixed>  $locks
+     * @return array{pinned_terms: array<string, string>, manual_diffs: array<int, mixed>, locked_fields: list<string>}
+     */
+    protected function sanitizeTelemetryLocks(array $locks): array
+    {
+        return [
+            'pinned_terms' => (array) ($locks['pinned_terms'] ?? []),
+            'manual_diffs' => (array) ($locks['manual_diffs'] ?? []),
+            'locked_fields' => (array) ($locks['locked_fields'] ?? []),
+        ];
     }
 }

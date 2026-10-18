@@ -19,6 +19,7 @@ class AgentRequestLog extends Model
         'output_tokens',
         'total_tokens',
         'estimated_cost_usd',
+        'meta',
     ];
 
     protected function casts(): array
@@ -28,6 +29,7 @@ class AgentRequestLog extends Model
             'output_tokens' => 'integer',
             'total_tokens' => 'integer',
             'estimated_cost_usd' => 'decimal:6',
+            'meta' => 'array',
         ];
     }
 

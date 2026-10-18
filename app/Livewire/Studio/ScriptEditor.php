@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Studio;
 
+use App\Models\AgentRequestLog;
 use App\Models\Character;
 use App\Models\Location;
 use App\Models\Project;
@@ -1223,8 +1224,20 @@ class ScriptEditor extends Component
     public function openAiTrace(string $blockId, string $stage): void
     {
         $block = $this->projectBlock($blockId, ['scene.project.characters', 'scene.location', 'shots']);
-        $userLocks = $block->user_locks ?? [];
-        $telemetry = $userLocks['ai_telemetry'][$stage] ?? null;
+
+        $toolName = match ($stage) {
+            'structured' => 'treatment_structuring',
+            'screenplay' => 'screenplay_formatter',
+            'shots' => 'shot_breakdown_detector',
+            default => 'treatment_structuring',
+        };
+
+        $log = AgentRequestLog::where('script_block_id', $block->id)
+            ->where('tool_name', $toolName)
+            ->latest()
+            ->first();
+
+        $telemetry = is_array($log?->meta) ? $log->meta : null;
 
         if (! $telemetry) {
             $telemetry = $this->generateFallbackTelemetry($block, $stage);
@@ -1524,7 +1537,10 @@ class ScriptEditor extends Component
             'output' => $output,
             'characters_context' => $characters,
             'location_context' => $location,
-            'user_locks' => $userLocks,
+            'user_locks' => [
+                'pinned_terms' => $userLocks['pinned_terms'] ?? [],
+                'locked_fields' => $userLocks['locked_fields'] ?? [],
+            ],
         ];
 
         $telemetry['steps'] = $this->buildGranularSteps($block, $stage, $telemetry);
