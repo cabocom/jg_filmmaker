@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 
 class ScriptBlock extends Model
 {
@@ -28,6 +29,7 @@ class ScriptBlock extends Model
         'screenplay_content',
         'user_locks',
         'stage',
+        'lock_version',
         'plot_hole',
     ];
 
@@ -40,6 +42,7 @@ class ScriptBlock extends Model
     {
         return [
             'block_order' => 'integer',
+            'lock_version' => 'integer',
         ];
     }
 
@@ -87,6 +90,27 @@ class ScriptBlock extends Model
     }
 
     /**
+     * Modifica user_locks de manera atómica bajo bloqueo pesimista y actualiza lock_version.
+     *
+     * @param  callable(array<string, mixed>, static): array<string, mixed>  $mutator
+     */
+    public function mutateUserLocks(callable $mutator): self
+    {
+        return DB::transaction(function () use ($mutator) {
+            /** @var static $fresh */
+            $fresh = static::whereKey($this->id)->lockForUpdate()->firstOrFail();
+            $locks = $fresh->user_locks ?? [];
+            $fresh->user_locks = $mutator($locks, $fresh);
+            $fresh->lock_version = ($fresh->lock_version ?? 1) + 1;
+            $fresh->save();
+
+            $this->setRawAttributes($fresh->getAttributes(), true);
+
+            return $this;
+        });
+    }
+
+    /**
      * Default model attributes.
      *
      * @var array<string, mixed>
@@ -94,6 +118,7 @@ class ScriptBlock extends Model
     protected $attributes = [
         'user_locks' => '{}',
         'stage' => 'raw',
+        'lock_version' => 1,
     ];
 
     /**

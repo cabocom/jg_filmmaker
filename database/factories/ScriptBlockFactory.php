@@ -27,6 +27,7 @@ class ScriptBlockFactory extends Factory
                 'pinned_terms' => ['Juan' => 'Javier'],
             ],
             'stage' => 'raw',
+            'lock_version' => 1,
         ];
     }
 }

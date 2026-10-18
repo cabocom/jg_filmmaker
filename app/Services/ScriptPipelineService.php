@@ -9,6 +9,7 @@ use App\Models\Shot;
 use App\Models\Take;
 use App\Services\JgAgente\AgentClientService;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 
 class ScriptPipelineService
 {
@@ -62,9 +63,48 @@ class ScriptPipelineService
         $structuredText = $this->capitalizeCharacterNames($structuredText, $characters, 'structured');
 
         $telemetry = $this->agentClient->getLastTelemetry();
-        if ($telemetry) {
-            $userLocks['ai_telemetry']['structured'] = $telemetry;
-        }
+
+        $updatedBlock = DB::transaction(function () use ($block, $structuredText, $telemetry) {
+            /** @var ScriptBlock|null $fresh */
+            $fresh = ScriptBlock::whereKey($block->id)->lockForUpdate()->first();
+            if (! $fresh) {
+                return $block;
+            }
+
+            // Si mientras se ejecutaba la inferencia de IA el usuario bloqueó la etapa, respetamos su candado
+            if ($fresh->isStageLocked('structured')) {
+                return $fresh;
+            }
+
+            $freshLocks = $this->resolveUserLocks($fresh);
+
+            if ($telemetry) {
+                $freshLocks['ai_telemetry']['structured'] = $telemetry;
+            }
+
+            // Purgar diffs y bloqueos manuales obsoletos de 'structured' ya que ha sido regenerado por la IA desde el bruto
+            if (! empty($freshLocks['manual_diffs'])) {
+                $freshLocks['manual_diffs'] = array_values(array_filter(
+                    $freshLocks['manual_diffs'],
+                    fn ($diff) => ($diff['stage'] ?? null) !== 'structured'
+                ));
+            }
+            if (! empty($freshLocks['locked_fields'])) {
+                $freshLocks['locked_fields'] = array_values(array_filter(
+                    $freshLocks['locked_fields'],
+                    fn ($field) => $field !== 'structured'
+                ));
+            }
+
+            $fresh->update([
+                'structured_text' => $structuredText,
+                'user_locks' => $freshLocks,
+                'stage' => 'structured',
+                'lock_version' => ($fresh->lock_version ?? 1) + 1,
+            ]);
+
+            return $fresh;
+        });
 
         if ($project) {
             $this->telemetryService->record(
@@ -77,27 +117,7 @@ class ScriptPipelineService
             );
         }
 
-        // Purgar diffs y bloqueos manuales obsoletos de 'structured' ya que ha sido regenerado por la IA desde el bruto
-        if (! empty($userLocks['manual_diffs'])) {
-            $userLocks['manual_diffs'] = array_values(array_filter(
-                $userLocks['manual_diffs'],
-                fn ($diff) => ($diff['stage'] ?? null) !== 'structured'
-            ));
-        }
-        if (! empty($userLocks['locked_fields'])) {
-            $userLocks['locked_fields'] = array_values(array_filter(
-                $userLocks['locked_fields'],
-                fn ($field) => $field !== 'structured'
-            ));
-        }
-
-        $block->update([
-            'structured_text' => $structuredText,
-            'user_locks' => $userLocks,
-            'stage' => 'structured',
-        ]);
-
-        return $block->refresh();
+        return $updatedBlock->refresh();
     }
 
     /**
@@ -141,9 +161,48 @@ class ScriptPipelineService
         $screenplayContent = $this->capitalizeCharacterNames($screenplayContent, $characters, 'screenplay');
 
         $telemetry = $this->agentClient->getLastTelemetry();
-        if ($telemetry) {
-            $userLocks['ai_telemetry']['screenplay'] = $telemetry;
-        }
+
+        $updatedBlock = DB::transaction(function () use ($block, $screenplayContent, $telemetry) {
+            /** @var ScriptBlock|null $fresh */
+            $fresh = ScriptBlock::whereKey($block->id)->lockForUpdate()->first();
+            if (! $fresh) {
+                return $block;
+            }
+
+            // Si mientras se ejecutaba la inferencia de IA el usuario bloqueó la etapa, respetamos su candado
+            if ($fresh->isStageLocked('screenplay')) {
+                return $fresh;
+            }
+
+            $freshLocks = $this->resolveUserLocks($fresh);
+
+            if ($telemetry) {
+                $freshLocks['ai_telemetry']['screenplay'] = $telemetry;
+            }
+
+            // Purgar diffs y bloqueos manuales obsoletos de 'screenplay' ya que ha sido regenerado por la IA
+            if (! empty($freshLocks['manual_diffs'])) {
+                $freshLocks['manual_diffs'] = array_values(array_filter(
+                    $freshLocks['manual_diffs'],
+                    fn ($diff) => ($diff['stage'] ?? null) !== 'screenplay'
+                ));
+            }
+            if (! empty($freshLocks['locked_fields'])) {
+                $freshLocks['locked_fields'] = array_values(array_filter(
+                    $freshLocks['locked_fields'],
+                    fn ($field) => $field !== 'screenplay'
+                ));
+            }
+
+            $fresh->update([
+                'screenplay_content' => $screenplayContent,
+                'user_locks' => $freshLocks,
+                'stage' => 'screenplay',
+                'lock_version' => ($fresh->lock_version ?? 1) + 1,
+            ]);
+
+            return $fresh;
+        });
 
         if ($project) {
             $this->telemetryService->record(
@@ -156,27 +215,7 @@ class ScriptPipelineService
             );
         }
 
-        // Purgar diffs y bloqueos manuales obsoletos de 'screenplay' ya que ha sido regenerado por la IA
-        if (! empty($userLocks['manual_diffs'])) {
-            $userLocks['manual_diffs'] = array_values(array_filter(
-                $userLocks['manual_diffs'],
-                fn ($diff) => ($diff['stage'] ?? null) !== 'screenplay'
-            ));
-        }
-        if (! empty($userLocks['locked_fields'])) {
-            $userLocks['locked_fields'] = array_values(array_filter(
-                $userLocks['locked_fields'],
-                fn ($field) => $field !== 'screenplay'
-            ));
-        }
-
-        $block->update([
-            'screenplay_content' => $screenplayContent,
-            'user_locks' => $userLocks,
-            'stage' => 'screenplay',
-        ]);
-
-        return $block->refresh();
+        return $updatedBlock->refresh();
     }
 
     /**
@@ -228,11 +267,26 @@ class ScriptPipelineService
             $createdShots->push($shot);
         }
 
-        $userLocks = $this->resolveUserLocks($block);
         $telemetry = $this->agentClient->getLastTelemetry();
-        if ($telemetry) {
-            $userLocks['ai_telemetry']['shots'] = $telemetry;
-        }
+
+        DB::transaction(function () use ($block, $telemetry) {
+            /** @var ScriptBlock|null $fresh */
+            $fresh = ScriptBlock::whereKey($block->id)->lockForUpdate()->first();
+            if (! $fresh) {
+                return;
+            }
+
+            $freshLocks = $this->resolveUserLocks($fresh);
+            if ($telemetry) {
+                $freshLocks['ai_telemetry']['shots'] = $telemetry;
+            }
+
+            $fresh->update([
+                'user_locks' => $freshLocks,
+                'stage' => 'shots',
+                'lock_version' => ($fresh->lock_version ?? 1) + 1,
+            ]);
+        });
 
         if ($project) {
             $this->telemetryService->record(
@@ -245,16 +299,11 @@ class ScriptPipelineService
             );
         }
 
-        $block->update([
-            'user_locks' => $userLocks,
-            'stage' => 'shots',
-        ]);
-
         return $createdShots;
     }
 
     /**
-     * Registra un cambio manual del usuario en el esquema user_locks del bloque.
+     * Registra un cambio manual del usuario en el esquema user_locks del bloque de forma atómica.
      */
     public function recordManualOverride(ScriptBlock $block, string $stage, string $originalText, string $overrideText): ScriptBlock
     {
@@ -262,34 +311,31 @@ class ScriptPipelineService
             return $block;
         }
 
-        $userLocks = $this->resolveUserLocks($block);
-        $manualDiffs = $userLocks['manual_diffs'] ?? [];
+        return $block->mutateUserLocks(function (array $userLocks) use ($stage, $originalText, $overrideText) {
+            $manualDiffs = $userLocks['manual_diffs'] ?? [];
 
-        $manualDiffs[] = [
-            'stage' => $stage,
-            'original_ai' => $originalText,
-            'user_override' => $overrideText,
-            'applied_at' => now()->toIso8601String(),
-        ];
+            $manualDiffs[] = [
+                'stage' => $stage,
+                'original_ai' => $originalText,
+                'user_override' => $overrideText,
+                'applied_at' => now()->toIso8601String(),
+            ];
 
-        $lockedFields = $userLocks['locked_fields'] ?? [];
-        if (! in_array($stage, $lockedFields, true)) {
-            $lockedFields[] = $stage;
-        }
+            $lockedFields = $userLocks['locked_fields'] ?? [];
+            if (! in_array($stage, $lockedFields, true)) {
+                $lockedFields[] = $stage;
+            }
 
-        // Si se bloquea el guión, también hay que bloquear el tratamiento para que no se pueda regenerar desde el bruto
-        if ($stage === 'screenplay' && ! in_array('structured', $lockedFields, true)) {
-            $lockedFields[] = 'structured';
-        }
+            // Si se bloquea el guión, también hay que bloquear el tratamiento para que no se pueda regenerar desde el bruto
+            if ($stage === 'screenplay' && ! in_array('structured', $lockedFields, true)) {
+                $lockedFields[] = 'structured';
+            }
 
-        $userLocks['manual_diffs'] = $manualDiffs;
-        $userLocks['locked_fields'] = $lockedFields;
+            $userLocks['manual_diffs'] = $manualDiffs;
+            $userLocks['locked_fields'] = $lockedFields;
 
-        $block->update([
-            'user_locks' => $userLocks,
-        ]);
-
-        return $block;
+            return $userLocks;
+        });
     }
 
     /**

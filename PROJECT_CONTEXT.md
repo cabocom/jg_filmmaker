@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.1.0  
+**Versión del documento:** 3.2.0  
 **Fecha de consolidación:** 18 de octubre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 3/4, Tailwind CSS v4, PHP 8.4, PostgreSQL / SQLite, FFmpeg, PHPUnit 12, Laravel Pint  
-**Estado:** Sprint 0 y Sprint 1 (Robustez del Pipeline y Contratos de IA) COMPLETADOS al 100%. Fases 1 a 16 implementadas. Resolución y blindaje:
+**Estado:** Sprint 0 y Sprint 1 COMPLETADOS al 100%. Sprint 2 (Gobernanza de Candados y Concurrencia) en progreso. Fases 1 a 16 implementadas. Resolución y blindaje:
 - ISSUE-001: saneamiento de subida de tomas contra RCE (derivación estricta de extensiones desde MIME type verificado por el servidor, lista blanca `ALLOWED_EXTENSIONS` en `Take`, bloqueo de ejecución PHP en `/storage/` en Nginx).
 - ISSUE-002: mitigación de fuga de OTP y toma de cuentas (bloqueo con `#[Locked]` de `$step` y `$devOtpCode`, eliminación de `$isLocalEnv`, comprobación estricta de `APP_ENV=local && APP_DEBUG=true` en servidor, erradicación de retención en sesión).
 - ISSUE-003: erradicación de IDOR y autorización por propietario (creación de `ProjectPolicy` con privacidad estricta donde ni los administradores acceden al editor de guión de terceros, middleware `can:view,project` en `routes/web.php`, `Gate::authorize` en `ScriptEditor::mount()`, propiedad `$project` bloqueada con `#[Locked]` y métodos auxiliares con ámbito de proyecto `projectBlock`, `projectScene`, `projectShot`, `projectTake`).
@@ -14,7 +14,8 @@
 - ISSUE-009: robustez en ensamblado FFmpeg (conservación del descriptor temporal concat mediante bloque `finally` para reintento seguro con `libx264` ante disparidad de códecs, eliminación total de falsos positivos con archivos corruptos simulados, nombres de archivo con UUIDv4 deterministas `rough_cut_{uuid}.mp4`, saneamiento estricto de rutas de tomas contra path traversal, y política de retención automática que purga renders antiguos conservando únicamente los 5 más recientes).
 - ISSUE-010: saneamiento de `AgentClientService` y erradicación de bypass no autorizado (logging estructurado de fallos HTTP y excepciones sin volcar PII, reintentos de red automáticos con `retry`, bloqueo de llamadas a LLM directos comerciales en producción con salvaguarda `services.llm.direct_enabled`, validación del flag de éxito del contrato `ToolResult` y reporte de origen `source` y `degraded`).
 - ISSUE-011: incorporación formal de `plot_hole_detector` en `jg_plugin_filmmaker` (creación del módulo de detección semántica y heurística `plot_holes.py`, definición del esquema Pydantic v2 `PlotHoleDetectorArgs`, registro como 4.ª herramienta canónica del plugin satélite y actualización de metadatos v2.3.0).
-- ISSUE-012: sincronización canónica del contrato de la Biblia dramática (creación de `Character::toAgentContext()` y `Location::toAgentContext()`, eliminación de accesos a propiedades espurias como `role`, `personality_notes` y `description`, enriquecimiento de prompts en `jg_plugin_filmmaker` con `bio`, `psychology` y `costume_notes`, y activación de `Model::preventAccessingMissingAttributes()` en `AppServiceProvider`). Autenticación passwordless por email con OTP y detección de replay attacks, Panel de Administración `/admin` con control de roles `is_admin`, auditoría cuantitativa de obras con privacidad estricta, telemetría y costes de tokens en `agent_request_logs`, y catálogo interactivo de tarifas en `token_pricing_rates`.
+- ISSUE-012: sincronización canónica del contrato de la Biblia dramática (creación de `Character::toAgentContext()` y `Location::toAgentContext()`, eliminación de accesos a propiedades espurias como `role`, `personality_notes` y `description`, enriquecimiento de prompts en `jg_plugin_filmmaker` con `bio`, `psychology` y `costume_notes`, y activación de `Model::preventAccessingMissingAttributes()` en `AppServiceProvider`).
+- ISSUE-013: gobernanza de concurrencia y erradicación de pérdida de `user_locks` (columna `lock_version` para bloqueo optimista en `saveBlock`/`saveBlockFromDrawer`, re-chequeo tardío de candados y transacciones con `lockForUpdate()` en `transitionToStructured`/`transitionToScreenplay`/`generateShotsBreakdown`, método atómico `mutateUserLocks` para alternar candados o términos fijados, y aislamiento atómico en auditoría y descarte de agujeros de guión). Autenticación passwordless por email con OTP y detección de replay attacks, Panel de Administración `/admin` con control de roles `is_admin`, auditoría cuantitativa de obras con privacidad estricta, telemetría y costes de tokens en `agent_request_logs`, y catálogo interactivo de tarifas en `token_pricing_rates`.
 
 ---
 
@@ -100,10 +101,11 @@ Para evitar que una regeneración cognitiva destruya las correcciones deliberada
 }
 ```
 
-### 3.2. Algoritmo de Preservación (`UserLockResolver`)
-- **`isFieldLocked(ScriptBlock $block, string $field): bool`**: Comprueba si el campo específico está protegido contra regeneraciones globales.
-- **`applyLocks(ScriptBlock $block, string $newContent, string $field): string`**: Sustituye términos variantes por sus `pinned_terms` canónicos definidos por el autor y rechaza la sobrescritura si el campo se encuentra en `locked_fields`.
-- **`toggleFieldLock(ScriptBlock $block, string $field): ScriptBlock`**: Permite al usuario bloquear y desbloquear manualmente etapas desde la interfaz mediante el botón de candado.
+### 3.2. Gobernanza y Control de Concurrencia (Pesimista y Optimista)
+- **Control Optimista (`lock_version`):** Cada bloque en `script_blocks` posee una columna `lock_version` entera autoincremental. Al abrir la edición en el grid o drawer de `ScriptEditor`, se retiene la versión leída. Si un proceso concurrente o la IA modifica el bloque antes de pulsar guardar, la transacción rechaza la actualización y notifica al autor para evitar sobrescrituras perdidas o diffs manuales falsos.
+- **Transaccionalidad Post-Inferencia:** Las llamadas a la IA corren fuera de transacciones DB para no retener conexiones del pool. La persistencia posterior en `ScriptPipelineService` re-lee el bloque con `lockForUpdate()`, comprueba si el usuario bloqueó la etapa concurrentemente (abortando la sobreescritura si así fue) y fusiona sobre los `user_locks` frescos de la base de datos, preservando intactos términos fijados, justificaciones y candados de otras etapas.
+- **Mutación Atómica (`mutateUserLocks`):** Centraliza modificaciones atómicas sobre `user_locks` bajo transacción con bloqueo exclusivo de fila para `toggleStageLock`, `removePinnedTerm` y `savePlotHoleJustification`.
+- **Aislamiento en Auditoría de Agujeros:** `analyzePlotHoles` y `clearPlotHoles` actualizan únicamente `plot_hole` y `plot_hole_stage` con `lockForUpdate()`, sin machacar la columna `user_locks` con colecciones en memoria desfasadas.
 
 ---
 

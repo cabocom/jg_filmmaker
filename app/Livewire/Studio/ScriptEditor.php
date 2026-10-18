@@ -87,6 +87,8 @@ class ScriptEditor extends Component
     // Estado de edición de un bloque específico
     public ?string $editingBlockId = null;
 
+    public ?int $editLockVersion = null;
+
     public string $editRawText = '';
 
     public string $editStructuredText = '';
@@ -331,6 +333,7 @@ class ScriptEditor extends Component
         };
 
         $this->detailActiveTab = $targetTab;
+        $this->editLockVersion = $block->lock_version ?? 1;
         $this->editRawText = (string) ($block->raw_text ?? '');
         $this->editStructuredText = (string) ($block->structured_text ?? '');
         $this->editScreenplayContent = (string) ($block->screenplay_content ?? '');
@@ -341,6 +344,7 @@ class ScriptEditor extends Component
     {
         $this->detailBlockId = null;
         $this->isEditingInDrawer = false;
+        $this->editLockVersion = null;
     }
 
     public function setDetailTab(string $tab): void
@@ -355,6 +359,7 @@ class ScriptEditor extends Component
         }
 
         $block = $this->projectBlock($this->detailBlockId);
+        $this->editLockVersion = $block->lock_version ?? 1;
         $this->editRawText = (string) ($block->raw_text ?? '');
         $this->editStructuredText = (string) ($block->structured_text ?? '');
         $this->editScreenplayContent = (string) ($block->screenplay_content ?? '');
@@ -365,6 +370,7 @@ class ScriptEditor extends Component
     public function cancelEditingInDrawer(): void
     {
         $this->isEditingInDrawer = false;
+        $this->editLockVersion = null;
     }
 
     public function saveBlockFromDrawer(ScriptPipelineService $pipelineService): void
@@ -373,25 +379,53 @@ class ScriptEditor extends Component
             return;
         }
 
-        $block = $this->projectBlock($this->detailBlockId);
+        $blockId = $this->detailBlockId;
+        $expectedVersion = $this->editLockVersion;
 
-        if (! empty($block->structured_text) && $this->editStructuredText !== $block->structured_text) {
-            $pipelineService->recordManualOverride($block, 'structured', $block->structured_text, $this->editStructuredText);
+        $savedBlock = DB::transaction(function () use ($blockId, $expectedVersion, $pipelineService) {
+            /** @var ScriptBlock|null $fresh */
+            $fresh = ScriptBlock::whereKey($blockId)->lockForUpdate()->first();
+            if (! $fresh) {
+                return null;
+            }
+
+            // Detección de colisión concurrente (Optimistic Locking)
+            if ($expectedVersion !== null && (int) $fresh->lock_version !== (int) $expectedVersion) {
+                return false;
+            }
+
+            if (! empty($fresh->structured_text) && $this->editStructuredText !== $fresh->structured_text) {
+                $pipelineService->recordManualOverride($fresh, 'structured', $fresh->structured_text, $this->editStructuredText);
+            }
+
+            if (! empty($fresh->screenplay_content) && $this->editScreenplayContent !== $fresh->screenplay_content) {
+                $pipelineService->recordManualOverride($fresh, 'screenplay', $fresh->screenplay_content, $this->editScreenplayContent);
+            }
+
+            $fresh->update([
+                'raw_text' => $this->editRawText,
+                'structured_text' => $this->editStructuredText ?: null,
+                'screenplay_content' => $this->editScreenplayContent ?: null,
+                'stage' => $this->editStage,
+                'lock_version' => ($fresh->lock_version ?? 1) + 1,
+            ]);
+
+            return $fresh;
+        });
+
+        if ($savedBlock === false) {
+            session()->flash('error', 'El bloque fue modificado concurrentemente por otro proceso o por la IA. Por favor, recarga y revisa los cambios antes de volver a guardar.');
+
+            return;
         }
 
-        if (! empty($block->screenplay_content) && $this->editScreenplayContent !== $block->screenplay_content) {
-            $pipelineService->recordManualOverride($block, 'screenplay', $block->screenplay_content, $this->editScreenplayContent);
+        if (! $savedBlock) {
+            return;
         }
-
-        $block->update([
-            'raw_text' => $this->editRawText,
-            'structured_text' => $this->editStructuredText ?: null,
-            'screenplay_content' => $this->editScreenplayContent ?: null,
-            'stage' => $this->editStage,
-        ]);
 
         $this->isEditingInDrawer = false;
-        session()->flash('success', "Bloque #{$block->block_order} guardado correctamente.");
+        $this->editLockVersion = $savedBlock->lock_version;
+        session()->flash('success', "Bloque #{$savedBlock->block_order} guardado correctamente.");
     }
 
     public function openNewBlockModal(?int $afterOrder = null, ?string $sceneId = null): void
@@ -946,6 +980,7 @@ class ScriptEditor extends Component
     {
         $block = $this->projectBlock($blockId);
         $this->editingBlockId = $block->id;
+        $this->editLockVersion = $block->lock_version ?? 1;
         $this->editRawText = $block->raw_text ?? '';
         $this->editStructuredText = $block->structured_text ?? '';
         $this->editScreenplayContent = $block->screenplay_content ?? '';
@@ -958,31 +993,58 @@ class ScriptEditor extends Component
             return;
         }
 
-        $block = $this->projectBlock($this->editingBlockId);
+        $blockId = $this->editingBlockId;
+        $expectedVersion = $this->editLockVersion;
 
-        // Retener modificaciones manuales en user_locks si el usuario editó etapas ya procesadas
-        if (! empty($block->structured_text) && $this->editStructuredText !== $block->structured_text) {
-            $pipelineService->recordManualOverride($block, 'structured', $block->structured_text, $this->editStructuredText);
+        $savedBlock = DB::transaction(function () use ($blockId, $expectedVersion, $pipelineService) {
+            /** @var ScriptBlock|null $fresh */
+            $fresh = ScriptBlock::whereKey($blockId)->lockForUpdate()->first();
+            if (! $fresh) {
+                return null;
+            }
+
+            // Detección de colisión concurrente (Optimistic Locking)
+            if ($expectedVersion !== null && (int) $fresh->lock_version !== (int) $expectedVersion) {
+                return false;
+            }
+
+            // Retener modificaciones manuales en user_locks si el usuario editó etapas ya procesadas
+            if (! empty($fresh->structured_text) && $this->editStructuredText !== $fresh->structured_text) {
+                $pipelineService->recordManualOverride($fresh, 'structured', $fresh->structured_text, $this->editStructuredText);
+            }
+
+            if (! empty($fresh->screenplay_content) && $this->editScreenplayContent !== $fresh->screenplay_content) {
+                $pipelineService->recordManualOverride($fresh, 'screenplay', $fresh->screenplay_content, $this->editScreenplayContent);
+            }
+
+            $fresh->update([
+                'raw_text' => $this->editRawText,
+                'structured_text' => $this->editStructuredText ?: null,
+                'screenplay_content' => $this->editScreenplayContent ?: null,
+                'stage' => $this->editStage,
+                'lock_version' => ($fresh->lock_version ?? 1) + 1,
+            ]);
+
+            return $fresh;
+        });
+
+        if ($savedBlock === false) {
+            session()->flash('error', 'El bloque fue modificado concurrentemente por otro proceso o por la IA. Por favor, cancela y revisa la versión actualizada antes de guardar.');
+
+            return;
         }
 
-        if (! empty($block->screenplay_content) && $this->editScreenplayContent !== $block->screenplay_content) {
-            $pipelineService->recordManualOverride($block, 'screenplay', $block->screenplay_content, $this->editScreenplayContent);
+        if (! $savedBlock) {
+            return;
         }
 
-        $block->update([
-            'raw_text' => $this->editRawText,
-            'structured_text' => $this->editStructuredText ?: null,
-            'screenplay_content' => $this->editScreenplayContent ?: null,
-            'stage' => $this->editStage,
-        ]);
-
-        $scene = $block->scene;
-        $this->logActivity('update_block', 'ScriptBlock', $block->id, "Bloque #{$block->block_order} de Escena #{$scene?->scene_order} editado manualmente (Etapa: {$this->editStage})", [
-            'block_id' => $block->id,
+        $scene = $savedBlock->scene;
+        $this->logActivity('update_block', 'ScriptBlock', $savedBlock->id, "Bloque #{$savedBlock->block_order} de Escena #{$scene?->scene_order} editado manualmente (Etapa: {$this->editStage})", [
+            'block_id' => $savedBlock->id,
             'scene_id' => $scene?->id,
             'scene_order' => $scene?->scene_order,
             'scene_slugline' => $scene?->slugline,
-            'block_order' => $block->block_order,
+            'block_order' => $savedBlock->block_order,
             'stage' => $this->editStage,
             'raw_text' => $this->editRawText,
             'structured_text' => $this->editStructuredText ?: null,
@@ -990,7 +1052,8 @@ class ScriptEditor extends Component
         ]);
 
         $this->editingBlockId = null;
-        session()->flash('success', "Bloque {$block->block_order} actualizado y bloqueos retenidos.");
+        $this->editLockVersion = null;
+        session()->flash('success', "Bloque {$savedBlock->block_order} actualizado y bloqueos retenidos.");
     }
 
     public function structureBlock(string $blockId, ScriptPipelineService $pipelineService): void
@@ -1076,27 +1139,30 @@ class ScriptEditor extends Component
     public function toggleStageLock(string $blockId, string $stage): void
     {
         $block = $this->projectBlock($blockId);
-        $userLocks = $block->user_locks ?? [];
-        $lockedFields = $userLocks['locked_fields'] ?? [];
 
-        if (in_array($stage, $lockedFields, true)) {
-            $lockedFields = array_values(array_filter($lockedFields, fn ($f) => $f !== $stage));
-            session()->flash('info', "Etapa '{$stage}' desbloqueada (🔓). Ahora la IA podrá regenerarla si avanzas desde el paso anterior.");
-        } else {
-            $lockedFields[] = $stage;
-            if ($stage === 'screenplay' && ! in_array('structured', $lockedFields, true)) {
-                $lockedFields[] = 'structured';
+        $block->mutateUserLocks(function (array $userLocks) use ($stage) {
+            $lockedFields = $userLocks['locked_fields'] ?? [];
+
+            if (in_array($stage, $lockedFields, true)) {
+                $lockedFields = array_values(array_filter($lockedFields, fn ($f) => $f !== $stage));
+                session()->flash('info', "Etapa '{$stage}' desbloqueada (🔓). Ahora la IA podrá regenerarla si avanzas desde el paso anterior.");
+            } else {
+                $lockedFields[] = $stage;
+                if ($stage === 'screenplay' && ! in_array('structured', $lockedFields, true)) {
+                    $lockedFields[] = 'structured';
+                }
+                session()->flash('success', "Etapa '{$stage}' protegida con candado (🔒). No se sobreescribirá ante regeneraciones.");
             }
-            session()->flash('success', "Etapa '{$stage}' protegida con candado (🔒). No se sobreescribirá ante regeneraciones.");
-        }
 
-        $userLocks['locked_fields'] = array_values(array_unique($lockedFields));
-        $block->update(['user_locks' => $userLocks]);
+            $userLocks['locked_fields'] = array_values(array_unique($lockedFields));
+
+            return $userLocks;
+        });
 
         $this->logActivity('toggle_stage_lock', 'ScriptBlock', $block->id, "Candado de etapa '{$stage}' alternado en Bloque #{$block->block_order}", [
             'block_id' => $block->id,
             'stage' => $stage,
-            'locked_fields' => $lockedFields,
+            'locked_fields' => $block->user_locks['locked_fields'] ?? [],
         ]);
     }
 
@@ -1128,12 +1194,14 @@ class ScriptEditor extends Component
     public function removePinnedTerm(string $blockId, string $term): void
     {
         $block = $this->projectBlock($blockId);
-        $userLocks = $block->user_locks ?? [];
-        if (isset($userLocks['pinned_terms'][$term])) {
-            unset($userLocks['pinned_terms'][$term]);
-            $block->update(['user_locks' => $userLocks]);
-            session()->flash('success', "Término fijo '{$term}' eliminado.");
-        }
+        $block->mutateUserLocks(function (array $userLocks) use ($term) {
+            if (isset($userLocks['pinned_terms'][$term])) {
+                unset($userLocks['pinned_terms'][$term]);
+            }
+
+            return $userLocks;
+        });
+        session()->flash('success', "Término fijo '{$term}' eliminado.");
     }
 
     public function startNewShotForBlock(string $blockId): void
@@ -1774,24 +1842,36 @@ class ScriptEditor extends Component
         $stageCounts = ['raw' => 0, 'structured' => 0, 'screenplay' => 0];
 
         foreach ($allBlocks as $block) {
-            $userLocks = $block->user_locks ?? [];
+            $holeInfo = $earliestHoleByBlockId[$block->id] ?? null;
 
-            if (isset($earliestHoleByBlockId[$block->id])) {
-                $holeInfo = $earliestHoleByBlockId[$block->id];
-                $userLocks['plot_hole_stage'] = $holeInfo['stage'];
+            DB::transaction(function () use ($block, $holeInfo) {
+                /** @var ScriptBlock|null $fresh */
+                $fresh = ScriptBlock::whereKey($block->id)->lockForUpdate()->first();
+                if (! $fresh) {
+                    return;
+                }
+
+                $locks = $fresh->user_locks ?? [];
+
+                if ($holeInfo !== null) {
+                    $locks['plot_hole_stage'] = $holeInfo['stage'];
+                    $fresh->update([
+                        'plot_hole' => $holeInfo['reason'],
+                        'user_locks' => $locks,
+                        'lock_version' => ($fresh->lock_version ?? 1) + 1,
+                    ]);
+                } else {
+                    unset($locks['plot_hole_stage']);
+                    $fresh->update([
+                        'plot_hole' => null,
+                        'user_locks' => $locks,
+                        'lock_version' => ($fresh->lock_version ?? 1) + 1,
+                    ]);
+                }
+            });
+
+            if ($holeInfo !== null) {
                 $stageCounts[$holeInfo['stage']]++;
-
-                $block->update([
-                    'plot_hole' => $holeInfo['reason'],
-                    'user_locks' => $userLocks,
-                ]);
-            } else {
-                unset($userLocks['plot_hole_stage']);
-
-                $block->update([
-                    'plot_hole' => null,
-                    'user_locks' => $userLocks,
-                ]);
             }
         }
 
@@ -1873,33 +1953,33 @@ class ScriptEditor extends Component
         }
 
         $block = $this->projectBlock($this->justifyingBlockId);
-        $userLocks = $block->user_locks ?? [];
-        $justifiedHoles = (array) ($userLocks['justified_plot_holes'] ?? []);
-
         $reason = $this->justifyingHoleReason ?: (string) $block->plot_hole;
         $stage = $block->getPlotHoleStage() ?? 'raw';
         $stageLabel = $block->getPlotHoleStageLabel();
+        $justificationText = trim($this->justificationText);
 
-        $justifiedHoles[] = [
-            'id' => Str::uuid()->toString(),
-            'hole_reason' => $reason,
-            'original_reason' => $reason,
-            'stage' => $stage,
-            'stage_label' => $stageLabel,
-            'justification' => trim($this->justificationText),
-            'justified_at' => now()->toIso8601String(),
-        ];
+        $block->mutateUserLocks(function (array $userLocks, ScriptBlock $fresh) use ($reason, $stage, $stageLabel, $justificationText) {
+            $justifiedHoles = (array) ($userLocks['justified_plot_holes'] ?? []);
 
-        unset($userLocks['plot_hole_stage']);
-        $userLocks['justified_plot_holes'] = $justifiedHoles;
+            $justifiedHoles[] = [
+                'id' => Str::uuid()->toString(),
+                'hole_reason' => $reason,
+                'original_reason' => $reason,
+                'stage' => $stage,
+                'stage_label' => $stageLabel,
+                'justification' => $justificationText,
+                'justified_at' => now()->toIso8601String(),
+            ];
 
-        $block->update([
-            'plot_hole' => null,
-            'user_locks' => $userLocks,
-        ]);
+            unset($userLocks['plot_hole_stage']);
+            $userLocks['justified_plot_holes'] = $justifiedHoles;
+            $fresh->plot_hole = null;
+
+            return $userLocks;
+        });
 
         $scene = $block->scene;
-        $this->logActivity('justify_plot_hole', 'ScriptBlock', $block->id, "Agujero de guión justificado en Bloque #{$block->block_order} (Escena #{$scene?->scene_order}): \"".Str::limit(trim($this->justificationText), 80).'"', [
+        $this->logActivity('justify_plot_hole', 'ScriptBlock', $block->id, "Agujero de guión justificado en Bloque #{$block->block_order} (Escena #{$scene?->scene_order}): \"".Str::limit($justificationText, 80).'"', [
             'block_id' => $block->id,
             'scene_id' => $scene?->id,
             'scene_order' => $scene?->scene_order,
@@ -1908,7 +1988,7 @@ class ScriptEditor extends Component
             'hole_reason' => $reason,
             'stage' => $stage,
             'stage_label' => $stageLabel,
-            'justification' => trim($this->justificationText),
+            'justification' => $justificationText,
             'raw_text' => $block->raw_text,
         ]);
 
@@ -1953,12 +2033,19 @@ class ScriptEditor extends Component
         foreach ($this->project->scenes as $scene) {
             foreach ($scene->scriptBlocks as $block) {
                 if (filled($block->plot_hole)) {
-                    $userLocks = $block->user_locks ?? [];
-                    unset($userLocks['plot_hole_stage']);
-                    $block->update([
-                        'plot_hole' => null,
-                        'user_locks' => $userLocks,
-                    ]);
+                    DB::transaction(function () use ($block) {
+                        /** @var ScriptBlock|null $fresh */
+                        $fresh = ScriptBlock::whereKey($block->id)->lockForUpdate()->first();
+                        if ($fresh && filled($fresh->plot_hole)) {
+                            $locks = $fresh->user_locks ?? [];
+                            unset($locks['plot_hole_stage']);
+                            $fresh->update([
+                                'plot_hole' => null,
+                                'user_locks' => $locks,
+                                'lock_version' => ($fresh->lock_version ?? 1) + 1,
+                            ]);
+                        }
+                    });
                 }
             }
         }
