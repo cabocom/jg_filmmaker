@@ -51,7 +51,7 @@
             @elseif($step === 'verify')
                 <div class="space-y-5">
                     <!-- Banner Especial en Localhost / Desarrollo (Estilo jg_hub) -->
-                    @if($devOtpCode && ($isLocalEnv || app()->environment('local', 'testing')))
+                    @if($this->exposeDevOtp() && $devOtpCode)
                         <div class="p-4 rounded-xl bg-amber-500/10 border-2 border-dashed border-amber-500/60 text-amber-900 dark:text-amber-200 text-xs space-y-2">
                             <div class="flex items-center justify-between font-mono font-bold text-[11px] uppercase tracking-wider">
                                 <span class="flex items-center gap-1.5">

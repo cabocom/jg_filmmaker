@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
@@ -23,26 +24,26 @@ class Login extends Component
 
     public string $verification_code = '';
 
+    #[Locked]
     public string $step = 'request'; // 'request' | 'verify'
 
+    #[Locked]
     public ?string $devOtpCode = null;
-
-    public bool $isLocalEnv = false;
 
     public function mount(): void
     {
         if (Auth::check()) {
             redirect()->route('projects.index');
         }
+    }
 
-        $this->isLocalEnv = app()->environment('local')
-            || in_array(request()->ip(), ['127.0.0.1', '::1'], true)
-            || request()->getHost() === 'localhost'
-            || str_contains(request()->getHost(), '127.0.0.1');
-
-        if (session()->has('dev_otp_code') && ($this->isLocalEnv || app()->environment('local', 'testing'))) {
-            $this->devOtpCode = session('dev_otp_code');
-        }
+    /**
+     * Determina si se permite exponer el código OTP para facilitar el desarrollo local.
+     * Solo activo si el entorno es estrictamente 'local' y APP_DEBUG está activado.
+     */
+    public function exposeDevOtp(): bool
+    {
+        return app()->environment('local') && (bool) config('app.debug');
     }
 
     /**
@@ -102,10 +103,9 @@ class Login extends Component
             logger()->error('Error enviando código OTP a '.$emailClean.': '.$e->getMessage());
         }
 
-        // 6. Entorno local: exponer visualmente el código para agilizar desarrollo (estilo jg_hub)
-        if ($this->isLocalEnv || app()->environment('local')) {
+        // 6. Entorno local: exponer visualmente el código para agilizar desarrollo si corresponde
+        if ($this->exposeDevOtp()) {
             $this->devOtpCode = $code;
-            session(['dev_otp_code' => $code]);
         }
 
         $this->step = 'verify';
@@ -185,7 +185,6 @@ class Login extends Component
         // Token válido: marcar como usado y autenticar
         $matchedOtp->update(['used_at' => now()]);
         RateLimiter::clear($verifyThrottleKey);
-        session()->forget('dev_otp_code');
 
         Auth::login($user, remember: true);
         session()->regenerate();
@@ -195,7 +194,7 @@ class Login extends Component
 
     public function fillDevCode(): void
     {
-        if ($this->devOtpCode) {
+        if ($this->exposeDevOtp() && $this->devOtpCode) {
             $this->verification_code = $this->devOtpCode;
         }
     }

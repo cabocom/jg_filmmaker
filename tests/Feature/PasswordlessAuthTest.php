@@ -11,6 +11,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -53,10 +54,10 @@ class PasswordlessAuthTest extends TestCase
     public function test_local_environment_exposes_dev_code_in_interface(): void
     {
         Mail::fake();
+        app()->detectEnvironment(fn () => 'local');
+        config(['app.debug' => true]);
 
-        // En testing con devOtpCode activo en sesión o local
         $component = Livewire::test(Login::class);
-        $component->isLocalEnv = true;
 
         $component->set('email', 'director@cine.local')
             ->call('requestOtp')
@@ -66,6 +67,30 @@ class PasswordlessAuthTest extends TestCase
 
         $component->call('fillDevCode');
         $this->assertEquals($component->get('devOtpCode'), $component->get('verification_code'));
+    }
+
+    public function test_production_environment_never_exposes_dev_code_to_client(): void
+    {
+        Mail::fake();
+        app()->detectEnvironment(fn () => 'production');
+        config(['app.debug' => false]);
+
+        $component = Livewire::test(Login::class);
+
+        $component->set('email', 'director@cine.local')
+            ->call('requestOtp')
+            ->assertSet('step', 'verify');
+
+        $this->assertNull($component->get('devOtpCode'));
+        $component->assertDontSee('MODO DESARROLLO LOCAL');
+    }
+
+    public function test_locked_properties_cannot_be_mutated_by_client(): void
+    {
+        $this->expectException(CannotUpdateLockedPropertyException::class);
+
+        Livewire::test(Login::class)
+            ->set('devOtpCode', 'PWND-1337');
     }
 
     public function test_successful_otp_authentication_and_single_use(): void
@@ -86,7 +111,6 @@ class PasswordlessAuthTest extends TestCase
 
         Livewire::test(Login::class)
             ->set('email', 'actriz@cine.local')
-            ->set('step', 'verify')
             ->set('verification_code', 'ABCD-EFGH')
             ->call('verifyOtp')
             ->assertHasNoErrors()
@@ -120,7 +144,6 @@ class PasswordlessAuthTest extends TestCase
 
         Livewire::test(Login::class)
             ->set('email', 'productor@cine.local')
-            ->set('step', 'verify')
             ->set('verification_code', '1234-WXYZ')
             ->call('verifyOtp')
             ->assertHasErrors(['verification_code']);
@@ -153,7 +176,6 @@ class PasswordlessAuthTest extends TestCase
 
         Livewire::test(Login::class)
             ->set('email', 'camara@cine.local')
-            ->set('step', 'verify')
             ->set('verification_code', 'EXPI-RE01')
             ->call('verifyOtp')
             ->assertHasErrors(['verification_code']);

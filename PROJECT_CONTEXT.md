@@ -4,7 +4,9 @@
 **Fecha de consolidación:** 18 de octubre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 3/4, Tailwind CSS v4, PHP 8.4, PostgreSQL / SQLite, FFmpeg, PHPUnit 12, Laravel Pint  
-**Estado:** Sprint 0 en curso. Fases 1 a 16 implementadas. Resolución y blindaje de seguridad crítica ISSUE-001: saneamiento de subida de tomas contra RCE (derivación estricta de extensiones desde MIME type verificado por el servidor, lista blanca `ALLOWED_EXTENSIONS` en `Take`, bloqueo de ejecución PHP en `/storage/` en Nginx). Autenticación passwordless por email con OTP y detección de replay attacks, Panel de Administración `/admin` con control de roles `is_admin`, auditoría cuantitativa de obras con privacidad estricta, telemetría y costes de tokens en `agent_request_logs`, y catálogo interactivo de tarifas en `token_pricing_rates`.
+**Estado:** Sprint 0 en curso. Fases 1 a 16 implementadas. Resolución y blindaje de seguridad crítica:
+- ISSUE-001: saneamiento de subida de tomas contra RCE (derivación estricta de extensiones desde MIME type verificado por el servidor, lista blanca `ALLOWED_EXTENSIONS` en `Take`, bloqueo de ejecución PHP en `/storage/` en Nginx).
+- ISSUE-002: mitigación de fuga de OTP y toma de cuentas (bloqueo con `#[Locked]` de `$step` y `$devOtpCode`, eliminación de `$isLocalEnv`, comprobación estricta de `APP_ENV=local && APP_DEBUG=true` en servidor, erradicación de retención en sesión). Autenticación passwordless por email con OTP y detección de replay attacks, Panel de Administración `/admin` con control de roles `is_admin`, auditoría cuantitativa de obras con privacidad estricta, telemetría y costes de tokens en `agent_request_logs`, y catálogo interactivo de tarifas en `token_pricing_rates`.
 
 ---
 
