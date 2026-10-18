@@ -7,6 +7,7 @@ use App\Models\Take;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 class RoughCutAssemblyService
@@ -26,8 +27,8 @@ class RoughCutAssemblyService
             throw new RuntimeException('No hay tomas aprobadas (is_good_take = true) disponibles para ensamblar el pre-corte.');
         }
 
-        $timestamp = time();
-        $relativeRenderPath = "media/projects/{$project->id}/renders/rough_cut_{$timestamp}.mp4";
+        $renderUuid = (string) Str::uuid();
+        $relativeRenderPath = "media/projects/{$project->id}/renders/rough_cut_{$renderUuid}.mp4";
         $totalDuration = (float) $goodTakes->sum(function (Take $take) {
             return (float) ($take->technical_meta['duration_seconds'] ?? 5.0);
         });
@@ -40,20 +41,23 @@ class RoughCutAssemblyService
         }
 
         $isTestingOrMock = app()->environment('testing')
-            || (bool) config('services.filmmaker.mock_ffmpeg', false)
-            || ! $this->isFfmpegAvailable();
+            || (bool) config('services.filmmaker.mock_ffmpeg', false);
 
-        // Obtener archivos físicos válidos
+        // Obtener archivos físicos válidos acotados a la ruta del proyecto
         $validFilePaths = [];
+        $allowedPrefix = "media/projects/{$project->id}/";
         foreach ($goodTakes as $take) {
-            if ($take->file_path && $disk->exists($take->file_path)) {
-                $validFilePaths[] = $disk->path($take->file_path);
+            if ($take->file_path && str_starts_with($take->file_path, $allowedPrefix) && ! str_contains($take->file_path, '..')) {
+                if ($disk->exists($take->file_path)) {
+                    $validFilePaths[] = $disk->path($take->file_path);
+                }
             }
         }
 
-        if ($isTestingOrMock || empty($validFilePaths)) {
-            // Driver de simulación determinista para CI/CD y entornos sin archivos de vídeo binarios reales
+        if ($isTestingOrMock) {
+            // Driver de simulación determinista para pruebas automáticas o mock explícito
             $disk->put($relativeRenderPath, "SIMULATED_ROUGH_CUT_VIDEO_DATA_FOR_PROJECT_{$project->id}");
+            $this->pruneOldRenders($project, 5);
 
             return [
                 'success' => true,
@@ -65,60 +69,110 @@ class RoughCutAssemblyService
             ];
         }
 
-        // Ensamblado real mediante FFmpeg concat demuxer
+        if (empty($validFilePaths)) {
+            throw new RuntimeException('No se encontraron archivos de vídeo físicos válidos en el almacenamiento para las tomas aprobadas.');
+        }
+
+        if (! $this->isFfmpegAvailable()) {
+            throw new RuntimeException('El binario FFmpeg no se encuentra disponible en el servidor para ensamblar el pre-corte.');
+        }
+
+        // Ensamblado real mediante FFmpeg concat demuxer con reintento seguro
         $tempListFile = tempnam(sys_get_temp_dir(), 'ffmpeg_concat_');
-        $listContent = '';
-        foreach ($validFilePaths as $filePath) {
-            $escaped = str_replace("'", "'\\''", $filePath);
-            $listContent .= "file '{$escaped}'\n";
-        }
-        file_put_contents($tempListFile, $listContent);
-
-        $outputAbsolutePath = $disk->path($relativeRenderPath);
-
-        // Ejecutar comando FFmpeg
-        $process = Process::run([
-            'ffmpeg',
-            '-f', 'concat',
-            '-safe', '0',
-            '-i', $tempListFile,
-            '-c', 'copy',
-            $outputAbsolutePath,
-            '-y',
-        ]);
-
-        if (file_exists($tempListFile)) {
-            @unlink($tempListFile);
+        if ($tempListFile === false) {
+            throw new RuntimeException('No fue posible crear el archivo temporal de lista para FFmpeg.');
         }
 
-        if (! $process->successful() || ! file_exists($outputAbsolutePath)) {
-            // Si el reempaquetado -c copy falló por disparidad de códecs, re-codificar a h264 estándar
-            $retryProcess = Process::run([
+        try {
+            $listContent = '';
+            foreach ($validFilePaths as $filePath) {
+                $escaped = str_replace("'", "'\\''", $filePath);
+                $listContent .= "file '{$escaped}'\n";
+            }
+            file_put_contents($tempListFile, $listContent);
+
+            $outputAbsolutePath = $disk->path($relativeRenderPath);
+
+            // Intento 1: Concatenación directa sin transcodificación (-c copy)
+            $process = Process::timeout(120)->idleTimeout(30)->run([
                 'ffmpeg',
                 '-f', 'concat',
                 '-safe', '0',
                 '-i', $tempListFile,
-                '-c:v', 'libx264',
-                '-pix_fmt', 'yuv420p',
-                '-c:a', 'aac',
+                '-c', 'copy',
                 $outputAbsolutePath,
                 '-y',
             ]);
 
-            if (! $retryProcess->successful() || ! file_exists($outputAbsolutePath)) {
-                // Fallback seguro ante incompatibilidad de transcodificación
-                $disk->put($relativeRenderPath, "FALLBACK_RENDER_AFTER_FFMPEG_ERROR_{$project->id}");
+            if (! $process->successful() || ! file_exists($outputAbsolutePath) || filesize($outputAbsolutePath) === 0) {
+                if (file_exists($outputAbsolutePath)) {
+                    @unlink($outputAbsolutePath);
+                }
+
+                // Intento 2: Si -c copy falló por disparidad de códecs/parámetros, transcodificar a h264 estándar
+                $retryProcess = Process::timeout(300)->idleTimeout(45)->run([
+                    'ffmpeg',
+                    '-f', 'concat',
+                    '-safe', '0',
+                    '-i', $tempListFile,
+                    '-c:v', 'libx264',
+                    '-pix_fmt', 'yuv420p',
+                    '-c:a', 'aac',
+                    $outputAbsolutePath,
+                    '-y',
+                ]);
+
+                if (! $retryProcess->successful() || ! file_exists($outputAbsolutePath) || filesize($outputAbsolutePath) === 0) {
+                    if (file_exists($outputAbsolutePath)) {
+                        @unlink($outputAbsolutePath);
+                    }
+                    $errorDetails = trim($retryProcess->errorOutput() ?: $process->errorOutput());
+                    throw new RuntimeException("Error al ensamblar el pre-corte con FFmpeg: {$errorDetails}");
+                }
+            }
+
+            $this->pruneOldRenders($project, 5);
+
+            return [
+                'success' => true,
+                'render_path' => $relativeRenderPath,
+                'video_url' => $disk->url($relativeRenderPath),
+                'total_takes' => $goodTakes->count(),
+                'total_duration_seconds' => round($totalDuration, 2),
+                'is_simulated' => false,
+            ];
+        } finally {
+            if (file_exists($tempListFile)) {
+                @unlink($tempListFile);
             }
         }
+    }
 
-        return [
-            'success' => true,
-            'render_path' => $relativeRenderPath,
-            'video_url' => $disk->url($relativeRenderPath),
-            'total_takes' => $goodTakes->count(),
-            'total_duration_seconds' => round($totalDuration, 2),
-            'is_simulated' => false,
-        ];
+    /**
+     * Purga los renders antiguos del proyecto, conservando únicamente los más recientes.
+     */
+    public function pruneOldRenders(Project $project, int $keep = 5): void
+    {
+        $disk = Storage::disk('public');
+        $rendersDir = "media/projects/{$project->id}/renders";
+
+        if (! $disk->exists($rendersDir)) {
+            return;
+        }
+
+        $files = $disk->files($rendersDir);
+        if (count($files) <= $keep) {
+            return;
+        }
+
+        usort($files, function ($a, $b) use ($disk) {
+            return $disk->lastModified($b) <=> $disk->lastModified($a);
+        });
+
+        $filesToDelete = array_slice($files, $keep);
+        foreach ($filesToDelete as $file) {
+            $disk->delete($file);
+        }
     }
 
     /**
@@ -151,8 +205,8 @@ class RoughCutAssemblyService
      */
     public function isFfmpegAvailable(): bool
     {
-        $check = Process::run(['which', 'ffmpeg']);
+        $check = Process::run(['ffmpeg', '-version']);
 
-        return $check->successful() && ! empty(trim($check->output()));
+        return $check->successful() && str_contains($check->output(), 'ffmpeg version');
     }
 }
