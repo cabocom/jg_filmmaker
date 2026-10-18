@@ -313,8 +313,8 @@ class AgentClientService
             $blockText = (string) ($block['text'] ?? ($block['screenplay_content'] ?? ($block['structured_text'] ?? ($block['raw_text'] ?? ''))));
 
             // Filtro Anti-Falsos Positivos de Capitalización y Tipografía de Nombres:
-            // Discrepancias como 'Estrella Casilda' vs 'ESTRELLA CASILDA' o que mencionen mayúsculas/minúsculas jamás son agujeros de guión dramáticos
-            if (preg_match('/(?:may[uú]scula|min[uú]scula|capitaliz|escrito\s+como|inconsistencia\s+de\s+nombre|inconsistencia\s+en\s+el\s+nombre|diferente\s+a\s*["\'][^"\']+["\']|nombre\s+de\s+la\s+muñeca|nombre\s+del\s+personaje|mismo\s+personaje\s+con\s+distinto\s+nombre)/iu', $reason)) {
+            // Discrepancias tipográficas de mayúsculas/minúsculas jamás son agujeros de guión dramáticos
+            if (preg_match('/(?:may[uú]scula|min[uú]scula|capitaliz|escrito\s+como|inconsistencia\s+de\s+nombre|inconsistencia\s+en\s+el\s+nombre|diferente\s+a\s*["\'][^"\']+["\']|nombre\s+del\s+(?:personaje|objeto|elemento)|mismo\s+personaje\s+con\s+distinto\s+nombre)/iu', $reason)) {
                 continue;
             }
             if (preg_match_all('/["«\']([^"»\']+)["»\']/u', $reason, $quotedMatches)) {
@@ -1256,7 +1256,7 @@ class AgentClientService
                 ."4. CONTEXTO DE LOCALIZACIÓN:\n{$locDesc}\n"
                 ."Integra la atmósfera de este entorno dentro de la narración, pero NUNCA antepongas un encabezado o prefijo como 'En LOCALIZACIÓN: ' ni sluglines de guion.\n"
                 ."5. CANDADOS Y TÉRMINOS FIJADOS (REGLA INMUTABLE):\n{$locksDesc}\n"
-                ."6. PERSONAJES SIEMPRE EN MAYÚSCULAS: Escribe SIEMPRE los nombres propios de los personajes TOTALMENTE EN MAYÚSCULAS (ej: 'ESTRELLA CASILDA', 'JUAN PEDRO', 'JAVIER') en todas las menciones y oraciones del tratamiento narrativo.\n"
+                ."6. PERSONAJES SIEMPRE EN MAYÚSCULAS: Escribe SIEMPRE los nombres propios de los personajes TOTALMENTE EN MAYÚSCULAS (ej: 'PROTAGONISTA', 'JUAN PEDRO', 'DETECTIVE') en todas las menciones y oraciones del tratamiento narrativo.\n"
                 ."7. PROHIBICIONES Y FORMATO DE SALIDA:\n"
                 ."- NO incluyas encabezados de escena (sluglines como 'INT. BAR - DIA'), ni títulos, ni prefijos como 'En BAR CENTRAL:', ni metadatos.\n"
                 .'- Devuelve ÚNICAMENTE la prosa narrativa dramática en párrafos limpios, sin preámbulos ni conclusiones.';
@@ -1286,7 +1286,7 @@ class AgentClientService
                 ."   (susurrando al oído)\n"
                 ."   Tienes que volverte conmigo.\n"
                 ."3. INFERENCIA DE PERSONAJES: Detecta a todos los interlocutores (como JUAN) e infiere sus parlamentos en mayúsculas centradas aunque no estuviesen en la biblia previa.\n"
-                ."4. PERSONAJES SIEMPRE EN MAYÚSCULAS: Escribe SIEMPRE los nombres propios de los personajes TOTALMENTE EN MAYÚSCULAS (ej: 'ESTRELLA CASILDA', 'JUAN') tanto en las descripciones de acción como en los encabezados de diálogo.\n"
+                ."4. PERSONAJES SIEMPRE EN MAYÚSCULAS: Escribe SIEMPRE los nombres propios de los personajes TOTALMENTE EN MAYÚSCULAS (ej: 'PROTAGONISTA', 'JUAN') tanto en las descripciones de acción como en los encabezados de diálogo.\n"
                 ."5. FORMATO FOUNTAIN:\n"
                 ."   NOMBRE PERSONAJE\n"
                 ."   (acotación opcional en minúsculas)\n"
@@ -1313,7 +1313,7 @@ class AgentClientService
                 ."ITERACIÓN 2 (VERIFICACIÓN ESTRICTA DE EVIDENCIA TEXTUAL Y COTEJO LITERAL):\n"
                 ."- Para CADA posible anomalía, lee palabra por palabra el texto real de ese bloque.\n"
                 ."- REGLA DE ORO ANTI-FALSOS POSITIVOS DE PERSONAJES: Si tu análisis dice que un personaje (ej. 'Pedro') aparece o actúa en un lugar, COMPRUEBA si el nombre de ese personaje está explícitamente en el texto del bloque. Si no aparece, DESCÁRTALO DE INMEDIATO.\n"
-                ."- REGLA DE ORO ANTI-FALSOS POSITIVOS DE TIPOGRAFÍA: Las discrepancias de mayúsculas, minúsculas, formato o capitalización de nombres (como 'Estrella Casilda' vs 'ESTRELLA CASILDA') NUNCA son agujeros de guión ni inconsistencias dramáticas. Queda TERMINANTEMENTE PROHIBIDO reportarlas como agujeros de guión.\n"
+                ."- REGLA DE ORO ANTI-FALSOS POSITIVOS DE TIPOGRAFÍA: Las discrepancias de mayúsculas, minúsculas, formato o capitalización de nombres (como 'PERSONAJE' vs 'Personaje') NUNCA son agujeros de guión ni inconsistencias dramáticas. Queda TERMINANTEMENTE PROHIBIDO reportarlas como agujeros de guión.\n"
                 ."ITERACIÓN 3 (CONSENSO FINAL Y VEREDICTO CRÍTICO):\n"
                 ."- Conserva EXCLUSIVAMENTE los agujeros de guión que hayan superado las iteraciones anteriores con evidencia literal e irrefutable.\n\n"
                 ."FORMATO DE SALIDA (JSON ESTRICTO):\n"

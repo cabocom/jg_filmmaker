@@ -33,6 +33,10 @@ class Project extends Model
      */
     protected static function booted(): void
     {
+        static::deleting(function (Project $project): void {
+            $project->activityLogs()->delete();
+        });
+
         static::deleted(function (Project $project): void {
             $projectId = $project->id;
             DB::afterCommit(function () use ($projectId) {

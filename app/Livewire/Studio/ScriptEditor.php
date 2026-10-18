@@ -900,13 +900,27 @@ class ScriptEditor extends Component
      */
     protected function logActivity(string $action, string $entityType, ?string $entityId, string $description, ?array $snapshot = null): void
     {
-        $user = auth()->user() ?? $this->project->user;
-        if (! $user) {
+        $userId = auth()->id();
+        if (! $userId) {
             return;
         }
 
+        // Deduplicación de snapshots para evitar inflar SQLite con textos idénticos (ISSUE-040)
+        if ($snapshot !== null && $entityId) {
+            $lastLog = UserActivityLog::query()
+                ->where('project_id', $this->project->id)
+                ->where('entity_id', $entityId)
+                ->where('action', $action)
+                ->latest()
+                ->first();
+
+            if ($lastLog && $lastLog->snapshot === $snapshot) {
+                $snapshot = null;
+            }
+        }
+
         UserActivityLog::create([
-            'user_id' => $user->id,
+            'user_id' => $userId,
             'project_id' => $this->project->id,
             'action' => $action,
             'entity_type' => $entityType,
@@ -2300,7 +2314,12 @@ class ScriptEditor extends Component
             : null;
 
         $activityLogs = $this->showActivityHistoryModal
-            ? $this->project->activityLogs()->with('user')->latest()->take(100)->get()
+            ? $this->project->activityLogs()
+                ->select(['id', 'user_id', 'project_id', 'action', 'entity_type', 'entity_id', 'description', 'snapshot', 'created_at'])
+                ->with('user:id,name,email')
+                ->latest()
+                ->take(50)
+                ->get()
             : collect();
 
         return view('livewire.studio.script-editor', [
