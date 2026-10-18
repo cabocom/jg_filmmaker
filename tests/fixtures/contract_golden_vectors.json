@@ -1,0 +1,106 @@
+{
+  "treatment_structuring": {
+    "payload": {
+      "raw_text": "Javi llega al muelle de noche buscando a Elena para advertirle del peligro inminente.",
+      "characters_context": [
+        {
+          "id": 1,
+          "name": "Javier Gálvez",
+          "role": "protagonista",
+          "bio": "Detective privado cansado.",
+          "psychology": "Desconfiado y tenaz.",
+          "costume_notes": "Gabardina oscura."
+        },
+        {
+          "id": 2,
+          "name": "Elena Morales",
+          "role": "secundaria",
+          "bio": "Informante clave.",
+          "psychology": "Atemorizada por las mafias locales."
+        }
+      ],
+      "location_context": {
+        "id": 10,
+        "name": "MUELLE PESQUERO",
+        "type": "EXT",
+        "time_of_day": "NOCHE",
+        "lighting_notes": "Farolas parpadeantes y niebla espesa.",
+        "sound_notes": "Oleaje rompiendo contra el espigón."
+      },
+      "user_locks": {
+        "pinned_terms": {
+          "Javi": "Javier Gálvez"
+        },
+        "manual_diffs": [],
+        "locked_fields": []
+      }
+    },
+    "expected_substrings": [
+      "Javier Gálvez llega al muelle de noche",
+      "buscando a Elena"
+    ]
+  },
+  "screenplay_formatter": {
+    "payload": {
+      "structured_text": "Javier Gálvez se detiene frente a Elena y le dice que tienen que escapar ahora mismo.\n\nElena tiembla bajo la lluvia y le pregunta qué si están rodeados.",
+      "characters_context": [
+        {"name": "Javier Gálvez"},
+        {"name": "Elena Morales"}
+      ],
+      "location_context": {
+        "name": "MUELLE PESQUERO",
+        "type": "EXT",
+        "time_of_day": "NOCHE"
+      },
+      "user_locks": {
+        "pinned_terms": {}
+      }
+    },
+    "expected_substrings": [
+      "EXT. MUELLE PESQUERO - NOCHE 1",
+      "JAVIER",
+      "tienen que escapar ahora mismo",
+      "ELENA",
+      "¿"
+    ]
+  },
+  "shot_breakdown_detector": {
+    "payload": {
+      "screenplay_text": "EXT. MUELLE PESQUERO - NOCHE 1\n\nJavier Gálvez camina lentamente bajo la lluvia.\n\nDetalle de sus botas pisando los charcos helados.\n\nElena se gira bruscamente con un revolver en la mano."
+    },
+    "expected_substrings": [
+      "--- shot 1 (",
+      "--- shot 2 (",
+      "--- shot 3 ("
+    ]
+  },
+  "plot_hole_detector": {
+    "payload": {
+      "blocks": [
+        {
+          "uuid": "block-001",
+          "type": "slugline",
+          "content": "INT. SALON - DIA"
+        },
+        {
+          "uuid": "block-002",
+          "type": "action",
+          "content": "Juan deja las llaves sobre la mesa del recibidor."
+        },
+        {
+          "uuid": "block-003",
+          "type": "dialogue",
+          "character": "JUAN",
+          "content": "No hay nadie aquí."
+        }
+      ],
+      "characters": [
+        {"name": "Juan"}
+      ],
+      "locations": [
+        {"name": "SALON"}
+      ]
+    },
+    "expected_stage": "plot_holes"
+  }
+}

@@ -229,7 +229,8 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
 - `TokenQuotaEnforcementTest.php`: Verifica la gobernanza centralizada de cuotas diarias de tokens de IA, excepciones `QuotaExceededException` e imputación indeleble de costes (4 tests).
 - `PinnedTermsSafetyTest.php`: Verifica la sanitización estricta de backreferences `$1` y escapes octales en términos fijos (3 tests).
 - `ReDosMitigationTest.php`: Verifica la protección contra ataques ReDoS, cuantificadores acotados, fast-path de expresiones regulares y resiliencia ante diálogos residuales vacíos (4 tests).
-- **Total:** 144 tests PHPUnit pasando al 100% (689 aserciones).
+- `ContractParityTest.php`: Verifica la paridad contractual bidireccional contra golden fixtures compartidos entre Laravel y el plugin satélite de Python (4 tests).
+- **Total:** 148 tests PHPUnit pasando al 100% (708 aserciones).
 
 ---
 
