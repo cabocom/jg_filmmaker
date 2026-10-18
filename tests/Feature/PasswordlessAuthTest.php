@@ -186,4 +186,97 @@ class PasswordlessAuthTest extends TestCase
             'reason' => 'REUSED_OR_EXPIRED_TOKEN',
         ]);
     }
+
+    public function test_request_otp_invalidates_previous_active_otps(): void
+    {
+        Mail::fake();
+
+        $email = 'doble_otp@cine.local';
+        $component = Livewire::test(Login::class)->set('email', $email);
+
+        // Primer OTP
+        $component->call('requestOtp');
+        $user = User::where('email', $email)->first();
+        $firstOtp = OneTimePassword::where('user_id', $user->id)->first();
+        $this->assertNull($firstOtp->used_at);
+
+        // Segundo OTP (debe revocar el primero)
+        $component->call('changeEmail')->set('email', $email)->call('requestOtp');
+        $firstOtp->refresh();
+        $this->assertNotNull($firstOtp->used_at);
+
+        $activeOtps = OneTimePassword::where('user_id', $user->id)->whereNull('used_at')->count();
+        $this->assertSame(1, $activeOtps);
+    }
+
+    public function test_request_otp_throttled_per_destination_email_against_mail_bombing(): void
+    {
+        Mail::fake();
+        $email = 'bombing_victim@cine.local';
+
+        $component = Livewire::test(Login::class)->set('email', $email);
+
+        // Intentos 1, 2, 3 pasan
+        $component->call('requestOtp')->assertHasNoErrors();
+        $component->call('changeEmail')->set('email', $email)->call('requestOtp')->assertHasNoErrors();
+        $component->call('changeEmail')->set('email', $email)->call('requestOtp')->assertHasNoErrors();
+
+        // Intento 4 queda bloqueado por rate limit de email
+        $component->call('changeEmail')->set('email', $email)->call('requestOtp')
+            ->assertHasErrors(['email']);
+    }
+
+    public function test_verify_otp_invalidates_and_logs_breach_after_five_failed_attempts(): void
+    {
+        Mail::fake();
+        $user = User::factory()->create(['email' => 'bruteforce@cine.local']);
+
+        $canonical = 'SECR1234';
+        $hash = hash_hmac('sha256', $canonical, (string) config('app.key'));
+        $otp = OneTimePassword::create([
+            'user_id' => $user->id,
+            'code_hash' => $hash,
+            'expires_at' => now()->addMinutes(15),
+            'used_at' => null,
+            'attempts' => 0,
+        ]);
+
+        $component = Livewire::test(Login::class)
+            ->set('email', 'bruteforce@cine.local');
+
+        // Realizar 5 intentos erróneos
+        for ($i = 1; $i <= 5; $i++) {
+            $component->set('verification_code', 'WRON-000'.$i)->call('verifyOtp');
+        }
+
+        $otp->refresh();
+        $this->assertNotNull($otp->used_at);
+        $this->assertDatabaseHas('security_breach_logs', [
+            'user_id' => $user->id,
+            'reason' => 'OTP_MAX_ATTEMPTS_EXCEEDED',
+        ]);
+    }
+
+    public function test_prunable_query_identifies_expired_otps(): void
+    {
+        $user = User::factory()->create();
+
+        $oldOtp = OneTimePassword::create([
+            'user_id' => $user->id,
+            'code_hash' => 'hash1',
+            'expires_at' => now()->subDays(2),
+        ]);
+        $oldOtp->forceFill(['created_at' => now()->subDays(2)])->save();
+
+        $recentOtp = OneTimePassword::create([
+            'user_id' => $user->id,
+            'code_hash' => 'hash2',
+            'expires_at' => now()->addMinutes(15),
+        ]);
+
+        $prunableIds = (new OneTimePassword)->prunable()->pluck('id')->toArray();
+
+        $this->assertContains($oldOtp->id, $prunableIds);
+        $this->assertNotContains($recentOtp->id, $prunableIds);
+    }
 }

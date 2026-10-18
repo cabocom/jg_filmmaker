@@ -107,6 +107,17 @@
                             @enderror
                         </div>
 
+                        <!-- Opción de persistencia de sesión controlada por el usuario -->
+                        <div class="flex items-center gap-2 pt-1">
+                            <input wire:model="remember"
+                                   type="checkbox"
+                                   id="remember"
+                                   class="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-amber-500 focus:ring-amber-500/40 bg-slate-50 dark:bg-slate-950 cursor-pointer" />
+                            <label for="remember" class="text-xs text-slate-600 dark:text-slate-400 select-none cursor-pointer">
+                                Mantener sesión iniciada en este dispositivo
+                            </label>
+                        </div>
+
                         <button type="submit"
                                 wire:loading.attr="disabled"
                                 class="w-full py-2.5 px-4 rounded-xl font-bold text-xs font-mono uppercase tracking-wider bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50">
