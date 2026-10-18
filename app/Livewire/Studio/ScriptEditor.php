@@ -12,9 +12,11 @@ use App\Services\AgentTelemetryService;
 use App\Services\JgAgente\AgentClientService;
 use App\Services\ScriptPipelineService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -24,6 +26,7 @@ class ScriptEditor extends Component
 {
     use WithFileUploads;
 
+    #[Locked]
     public Project $project;
 
     public ?string $activeSceneId = null;
@@ -190,6 +193,8 @@ class ScriptEditor extends Component
 
     public function mount(Project $project): void
     {
+        Gate::authorize('view', $project);
+
         $this->project = $project;
 
         // Sincronizar y detectar automáticamente personajes y localizaciones del guión en la Biblia
@@ -211,6 +216,46 @@ class ScriptEditor extends Component
         foreach ($scenes as $sc) {
             $this->scenePipelineStages[$sc->id] = 'idea';
         }
+    }
+
+    /**
+     * Obtiene un bloque de guión verificando que pertenezca estrictamente a este proyecto.
+     *
+     * @param  array<int, string>  $with
+     */
+    protected function projectBlock(string $id, array $with = []): ScriptBlock
+    {
+        return ScriptBlock::whereHas('scene', fn ($q) => $q->where('project_id', $this->project->id))
+            ->when(! empty($with), fn ($q) => $q->with($with))
+            ->findOrFail($id);
+    }
+
+    /**
+     * Obtiene una escena verificando que pertenezca a este proyecto.
+     */
+    protected function projectScene(string $id): Scene
+    {
+        return $this->project->scenes()->findOrFail($id);
+    }
+
+    /**
+     * Obtiene un plano técnico verificando que pertenezca a este proyecto.
+     */
+    protected function projectShot(string $id): Shot
+    {
+        return Shot::whereHas('scene', fn ($q) => $q->where('project_id', $this->project->id))->findOrFail($id);
+    }
+
+    /**
+     * Obtiene una toma de rodaje verificando que pertenezca a este proyecto.
+     *
+     * @param  array<int, string>  $with
+     */
+    protected function projectTake(string $id, array $with = []): Take
+    {
+        return Take::whereHas('shot.scene', fn ($q) => $q->where('project_id', $this->project->id))
+            ->when(! empty($with), fn ($q) => $q->with($with))
+            ->findOrFail($id);
     }
 
     public function getScenePipelineStage(string $sceneId): string
@@ -270,7 +315,7 @@ class ScriptEditor extends Component
     #[On('open-block-details')]
     public function openBlockDetails(string $blockId, ?string $tab = null): void
     {
-        $block = ScriptBlock::findOrFail($blockId);
+        $block = $this->projectBlock($blockId);
         $this->detailBlockId = $block->id;
         $this->selectedBlockId = $block->id;
         $this->isEditingInDrawer = false;
@@ -307,7 +352,7 @@ class ScriptEditor extends Component
             return;
         }
 
-        $block = ScriptBlock::findOrFail($this->detailBlockId);
+        $block = $this->projectBlock($this->detailBlockId);
         $this->editRawText = (string) ($block->raw_text ?? '');
         $this->editStructuredText = (string) ($block->structured_text ?? '');
         $this->editScreenplayContent = (string) ($block->screenplay_content ?? '');
@@ -326,7 +371,7 @@ class ScriptEditor extends Component
             return;
         }
 
-        $block = ScriptBlock::findOrFail($this->detailBlockId);
+        $block = $this->projectBlock($this->detailBlockId);
 
         if (! empty($block->structured_text) && $this->editStructuredText !== $block->structured_text) {
             $pipelineService->recordManualOverride($block, 'structured', $block->structured_text, $this->editStructuredText);
@@ -377,7 +422,7 @@ class ScriptEditor extends Component
             'newBlockRawText.min' => 'El texto debe tener al menos 2 caracteres.',
         ]);
 
-        $scene = Scene::findOrFail($this->activeSceneId);
+        $scene = $this->projectScene($this->activeSceneId);
 
         if ($this->insertAfterOrder !== null) {
             // Desplazar bloques con orden mayor que el de inserción
@@ -567,7 +612,7 @@ class ScriptEditor extends Component
      */
     public function openEditSceneModal(string $sceneId): void
     {
-        $scene = Scene::findOrFail($sceneId);
+        $scene = $this->projectScene($sceneId);
         $this->editingSceneId = $scene->id;
         $this->editingSceneOrder = $scene->scene_order;
         $this->editingSceneSlugline = $scene->slugline;
@@ -598,7 +643,7 @@ class ScriptEditor extends Component
             'editingSceneTimeOfDay' => 'required',
         ]);
 
-        $scene = Scene::findOrFail($this->editingSceneId);
+        $scene = $this->projectScene($this->editingSceneId);
         $scene->update([
             'slugline' => strtoupper(trim($this->editingSceneSlugline)),
             'time_of_day' => strtoupper(trim($this->editingSceneTimeOfDay)),
@@ -626,7 +671,7 @@ class ScriptEditor extends Component
      */
     public function openDeleteBlockModal(string $blockId): void
     {
-        $block = ScriptBlock::with('scene')->findOrFail($blockId);
+        $block = $this->projectBlock($blockId, ['scene']);
         $this->deletingBlockId = $block->id;
         $this->deletingBlockOrder = $block->block_order;
         $this->deletingBlockSceneOrder = $block->scene?->scene_order;
@@ -653,7 +698,7 @@ class ScriptEditor extends Component
             return;
         }
 
-        $block = ScriptBlock::with('scene.project')->findOrFail($this->deletingBlockId);
+        $block = $this->projectBlock($this->deletingBlockId, ['scene.project']);
         $scene = $block->scene;
 
         $this->logActivity('delete_block', 'ScriptBlock', $block->id, "Bloque #{$block->block_order} de la Escena #{$scene->scene_order} ({$scene->slugline}) eliminado permanentemente", [
@@ -707,7 +752,7 @@ class ScriptEditor extends Component
      */
     public function openDeleteSceneModal(string $sceneId): void
     {
-        $scene = Scene::findOrFail($sceneId);
+        $scene = $this->projectScene($sceneId);
         $this->deletingSceneId = $scene->id;
         $this->deletingSceneOrder = $scene->scene_order;
         $this->deletingSceneSlugline = $scene->slugline;
@@ -732,7 +777,7 @@ class ScriptEditor extends Component
             return;
         }
 
-        $scene = Scene::findOrFail($this->deletingSceneId);
+        $scene = $this->projectScene($this->deletingSceneId);
 
         // Regla estricta: primero no tiene que haber ningún bloque en la escena
         $blockCount = $scene->scriptBlocks()->count();
@@ -877,7 +922,7 @@ class ScriptEditor extends Component
 
     public function startEditBlock(string $blockId): void
     {
-        $block = ScriptBlock::findOrFail($blockId);
+        $block = $this->projectBlock($blockId);
         $this->editingBlockId = $block->id;
         $this->editRawText = $block->raw_text ?? '';
         $this->editStructuredText = $block->structured_text ?? '';
@@ -891,7 +936,7 @@ class ScriptEditor extends Component
             return;
         }
 
-        $block = ScriptBlock::findOrFail($this->editingBlockId);
+        $block = $this->projectBlock($this->editingBlockId);
 
         // Retener modificaciones manuales en user_locks si el usuario editó etapas ya procesadas
         if (! empty($block->structured_text) && $this->editStructuredText !== $block->structured_text) {
@@ -928,7 +973,7 @@ class ScriptEditor extends Component
 
     public function structureBlock(string $blockId, ScriptPipelineService $pipelineService): void
     {
-        $block = ScriptBlock::findOrFail($blockId);
+        $block = $this->projectBlock($blockId);
 
         if ($block->isStageLocked('structured')) {
             session()->flash('error', "El tratamiento del Bloque {$block->block_order} está protegido (🔒) por modificaciones manuales. Desbloquéalo primero para permitir que la IA lo regenere.");
@@ -968,7 +1013,7 @@ class ScriptEditor extends Component
 
     public function formatBlockToScreenplay(string $blockId, ScriptPipelineService $pipelineService): void
     {
-        $block = ScriptBlock::findOrFail($blockId);
+        $block = $this->projectBlock($blockId);
 
         if ($block->isStageLocked('screenplay')) {
             session()->flash('error', "El guión del Bloque {$block->block_order} está protegido (🔒) por modificaciones manuales. Desbloquéalo primero en la pestaña de Guión para permitir que la IA lo regenere.");
@@ -1008,7 +1053,7 @@ class ScriptEditor extends Component
 
     public function toggleStageLock(string $blockId, string $stage): void
     {
-        $block = ScriptBlock::findOrFail($blockId);
+        $block = $this->projectBlock($blockId);
         $userLocks = $block->user_locks ?? [];
         $lockedFields = $userLocks['locked_fields'] ?? [];
 
@@ -1035,7 +1080,7 @@ class ScriptEditor extends Component
 
     public function breakdownBlockShots(string $blockId, ScriptPipelineService $pipelineService): void
     {
-        $block = ScriptBlock::findOrFail($blockId);
+        $block = $this->projectBlock($blockId);
         $createdShots = $pipelineService->generateShotsBreakdown($block);
 
         $this->activeBlockTabs[$block->id] = 'shots';
@@ -1060,7 +1105,7 @@ class ScriptEditor extends Component
 
     public function removePinnedTerm(string $blockId, string $term): void
     {
-        $block = ScriptBlock::findOrFail($blockId);
+        $block = $this->projectBlock($blockId);
         $userLocks = $block->user_locks ?? [];
         if (isset($userLocks['pinned_terms'][$term])) {
             unset($userLocks['pinned_terms'][$term]);
@@ -1087,7 +1132,7 @@ class ScriptEditor extends Component
 
     public function openAiTrace(string $blockId, string $stage): void
     {
-        $block = ScriptBlock::with('scene.project.characters', 'scene.location', 'shots')->findOrFail($blockId);
+        $block = $this->projectBlock($blockId, ['scene.project.characters', 'scene.location', 'shots']);
         $userLocks = $block->user_locks ?? [];
         $telemetry = $userLocks['ai_telemetry'][$stage] ?? null;
 
@@ -1399,13 +1444,13 @@ class ScriptEditor extends Component
 
     public function setBlockStage(string $blockId, string $stage): void
     {
-        $block = ScriptBlock::findOrFail($blockId);
+        $block = $this->projectBlock($blockId);
         $block->update(['stage' => $stage]);
     }
 
     public function toggleGoodTake(string $takeId): void
     {
-        $take = Take::findOrFail($takeId);
+        $take = $this->projectTake($takeId);
         $take->update([
             'is_good_take' => ! $take->is_good_take,
         ]);
@@ -1422,7 +1467,7 @@ class ScriptEditor extends Component
             'newShotDescription' => 'required|min:3',
         ]);
 
-        $scene = Scene::findOrFail($this->activeSceneId);
+        $scene = $this->projectScene($this->activeSceneId);
         $maxNumber = $scene->shots()->max('shot_number') ?? 0;
 
         $shot = $scene->shots()->create([
@@ -1454,7 +1499,7 @@ class ScriptEditor extends Component
             return;
         }
 
-        $shot = Shot::findOrFail($this->addingTakeShotId);
+        $shot = $this->projectShot($this->addingTakeShotId);
         $maxTakeNumber = $shot->takes()->max('take_number') ?? 0;
 
         $shot->takes()->create([
@@ -1502,7 +1547,7 @@ class ScriptEditor extends Component
             return;
         }
 
-        $take = Take::with('shot.scene')->findOrFail($this->uploadingTakeId);
+        $take = $this->projectTake($this->uploadingTakeId, ['shot.scene']);
 
         // Si ya existía un archivo previo, eliminarlo físicamente
         if ($take->file_path && Storage::disk('public')->exists($take->file_path)) {
@@ -1540,7 +1585,7 @@ class ScriptEditor extends Component
 
     public function deleteTake(string $takeId): void
     {
-        $take = Take::findOrFail($takeId);
+        $take = $this->projectTake($takeId);
         $shotNumber = $take->shot?->shot_number ?? 1;
         $takeNumber = $take->take_number;
 
@@ -1551,7 +1596,7 @@ class ScriptEditor extends Component
 
     public function startEditTakeNotes(string $takeId): void
     {
-        $take = Take::findOrFail($takeId);
+        $take = $this->projectTake($takeId);
         $this->editingTakeNotesId = $take->id;
         $this->editingTakeNotesText = (string) ($take->editorial_notes ?? '');
     }
@@ -1562,7 +1607,7 @@ class ScriptEditor extends Component
             return;
         }
 
-        $take = Take::findOrFail($this->editingTakeNotesId);
+        $take = $this->projectTake($this->editingTakeNotesId);
         $take->update([
             'editorial_notes' => $this->editingTakeNotesText ?: null,
         ]);
@@ -1790,7 +1835,7 @@ class ScriptEditor extends Component
 
     public function openJustifyModal(string $blockId): void
     {
-        $block = ScriptBlock::findOrFail($blockId);
+        $block = $this->projectBlock($blockId);
         $this->justifyingBlockId = $block->id;
         $this->justifyingHoleReason = (string) ($block->plot_hole ?? '');
         $this->justificationText = '';
@@ -1813,7 +1858,7 @@ class ScriptEditor extends Component
             return;
         }
 
-        $block = ScriptBlock::findOrFail($this->justifyingBlockId);
+        $block = $this->projectBlock($this->justifyingBlockId);
         $userLocks = $block->user_locks ?? [];
         $justifiedHoles = (array) ($userLocks['justified_plot_holes'] ?? []);
 

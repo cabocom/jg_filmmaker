@@ -30,7 +30,9 @@ Route::get('/', function () {
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/projects', ProjectList::class)->name('projects.index');
-    Route::get('/projects/{project}', ScriptEditor::class)->name('projects.show');
+    Route::get('/projects/{project}', ScriptEditor::class)
+        ->middleware('can:view,project')
+        ->name('projects.show');
 });
 
 // Panel de Administración (Protegido por Middleware EnsureUserIsAdmin)
