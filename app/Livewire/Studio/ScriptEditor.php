@@ -111,6 +111,11 @@ class ScriptEditor extends Component
 
     public string $justificationText = '';
 
+    // Creación de términos fijos (pinned_terms) en Drawer de bloque
+    public string $newPinnedTerm = '';
+
+    public string $newPinnedReplacement = '';
+
     // Formulario para nueva escena
     public bool $showNewSceneModal = false;
 
@@ -1242,6 +1247,51 @@ class ScriptEditor extends Component
 
         $this->activeBlockTabs[$blockId] = $tab;
         $this->openBlockDetails($blockId, $tab);
+    }
+
+    public function addPinnedTerm(string $blockId, ?string $term = null, ?string $replacement = null): void
+    {
+        $term = trim((string) ($term ?? $this->newPinnedTerm));
+        $replacement = trim((string) ($replacement ?? $this->newPinnedReplacement));
+
+        if ($term === '' || $replacement === '') {
+            session()->flash('error', 'El término original y su sustituto no pueden estar vacíos.');
+
+            return;
+        }
+
+        if (mb_strlen($term) > 80 || mb_strlen($replacement) > 80) {
+            session()->flash('error', 'Los términos fijados no pueden exceder los 80 caracteres de longitud.');
+
+            return;
+        }
+
+        $block = $this->projectBlock($blockId);
+
+        $success = false;
+        $block->mutateUserLocks(function (array $userLocks) use ($term, $replacement, &$success) {
+            $pinned = $userLocks['pinned_terms'] ?? [];
+            if (! is_array($pinned)) {
+                $pinned = [];
+            }
+
+            if (count($pinned) >= 50 && ! isset($pinned[$term])) {
+                session()->flash('error', 'Se ha alcanzado el límite máximo de 50 términos fijados para este bloque.');
+
+                return $userLocks;
+            }
+
+            $pinned[$term] = $replacement;
+            $userLocks['pinned_terms'] = $pinned;
+            $success = true;
+
+            return $userLocks;
+        });
+
+        if ($success) {
+            $this->reset(['newPinnedTerm', 'newPinnedReplacement']);
+            session()->flash('success', "Término fijo '{$term}' fijado como '{$replacement}'.");
+        }
     }
 
     public function removePinnedTerm(string $blockId, string $term): void

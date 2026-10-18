@@ -369,14 +369,28 @@ class AgentClientService
 
         $result = $text;
 
-        // 1. Pinned terms
+        // 1. Pinned terms (máx. 50 términos, máx. 80 caracteres por término/reemplazo)
         $pinnedTerms = $userLocks['pinned_terms'] ?? [];
         if (is_array($pinnedTerms)) {
+            $count = 0;
             foreach ($pinnedTerms as $term => $replacement) {
-                if ($term !== '' && $replacement !== '') {
-                    $pattern = '/\b'.preg_quote((string) $term, '/').'\b/iu';
-                    $result = preg_replace($pattern, (string) $replacement, $result);
+                if ($count >= 50) {
+                    break;
                 }
+                $termStr = (string) $term;
+                $repStr = (string) $replacement;
+
+                if ($termStr === '' || $repStr === '' || mb_strlen($termStr) > 80 || mb_strlen($repStr) > 80) {
+                    continue;
+                }
+
+                $quoted = preg_quote($termStr, '/');
+                $startBoundary = preg_match('/^\w/u', $termStr) ? '(?<![\p{L}\p{N}_])' : '';
+                $endBoundary = preg_match('/\w$/u', $termStr) ? '(?![\p{L}\p{N}_])' : '';
+                $pattern = '/'.$startBoundary.$quoted.$endBoundary.'/iu';
+
+                $result = (string) preg_replace_callback($pattern, fn () => $repStr, $result);
+                $count++;
             }
         }
 

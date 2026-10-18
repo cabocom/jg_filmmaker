@@ -1020,23 +1020,33 @@
                             </div>
                         @endif
 
-                        <!-- Barra de Términos Fijos y Candados si existen -->
-                        @if(!empty($detailLocks['pinned_terms']))
-                            <div class="p-3 rounded-xl bg-amber-50/80 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-500/20 text-xs text-amber-900 dark:text-amber-300 flex items-center justify-between flex-wrap gap-2">
+                        <!-- Barra de Términos Fijos y Candados -->
+                        <div class="p-3 rounded-xl bg-amber-50/80 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-500/20 text-xs text-amber-900 dark:text-amber-300 space-y-2">
+                            <div class="flex items-center justify-between flex-wrap gap-2">
                                 <span class="font-bold text-[11px] uppercase tracking-wider flex items-center gap-1.5">
                                     <span>🔒</span>
                                     <span>Términos Fijos:</span>
                                 </span>
-                                <div class="flex items-center gap-1.5 flex-wrap">
-                                    @foreach($detailLocks['pinned_terms'] as $orig => $rep)
-                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-[11px] font-mono">
-                                            <span>{{ $orig }} ➜ {{ $rep }}</span>
-                                            <button wire:click="removePinnedTerm('{{ $detailBlock->id }}', '{{ $orig }}')" class="text-rose-500 hover:text-rose-700 ml-1">✕</button>
-                                        </span>
-                                    @endforeach
-                                </div>
+                                @if(!empty($detailLocks['pinned_terms']))
+                                    <div class="flex items-center gap-1.5 flex-wrap">
+                                        @foreach($detailLocks['pinned_terms'] as $orig => $rep)
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-[11px] font-mono">
+                                                <span>{{ $orig }} ➜ {{ $rep }}</span>
+                                                <button wire:click="removePinnedTerm('{{ $detailBlock->id }}', '{{ $orig }}')" class="text-rose-500 hover:text-rose-700 ml-1 cursor-pointer">✕</button>
+                                            </span>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <span class="text-[11px] text-slate-500 dark:text-slate-400 italic">Ningún término fijado en este bloque.</span>
+                                @endif
                             </div>
-                        @endif
+                            <div class="flex items-center gap-2 pt-1 border-t border-amber-200/50 dark:border-amber-500/10 flex-wrap">
+                                <input type="text" wire:model="newPinnedTerm" placeholder="Término original (ej: Javi)" maxlength="80" class="text-xs px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white flex-1 min-w-[120px] focus:ring-1 focus:ring-amber-500" />
+                                <span class="text-amber-700 dark:text-amber-400">➜</span>
+                                <input type="text" wire:model="newPinnedReplacement" placeholder="Fijar como (ej: Javier)" maxlength="80" class="text-xs px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white flex-1 min-w-[120px] focus:ring-1 focus:ring-amber-500" />
+                                <button type="button" wire:click="addPinnedTerm('{{ $detailBlock->id }}')" class="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-2xs transition cursor-pointer">Fijar</button>
+                            </div>
+                        </div>
 
                         <!-- Contenido y Edición según la pestaña seleccionada en el Drawer -->
                         @if($isEditingInDrawer)
