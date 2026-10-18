@@ -12,6 +12,7 @@ class AgentRequestLog extends Model
     use HasFactory, HasUuids;
 
     protected $fillable = [
+        'user_id',
         'project_id',
         'script_block_id',
         'tool_name',
@@ -31,6 +32,11 @@ class AgentRequestLog extends Model
             'estimated_cost_usd' => 'decimal:6',
             'meta' => 'array',
         ];
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     public function project(): BelongsTo

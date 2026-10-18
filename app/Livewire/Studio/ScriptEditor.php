@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Studio;
 
+use App\Exceptions\QuotaExceededException;
 use App\Models\AgentRequestLog;
 use App\Models\Character;
 use App\Models\Location;
@@ -952,6 +953,16 @@ class ScriptEditor extends Component
         $estimatedResponseTokens = 750;
         $this->estimatedPlotHoleTokens = $estimatedPromptTokens + $estimatedResponseTokens;
         $this->estimatedBlocksToAudit = $blockCount;
+
+        $user = auth()->user() ?? $this->project->user;
+        if ($user && ! $user->hasDailyTokensAvailable($this->estimatedPlotHoleTokens)) {
+            $available = $user->getTokensAvailableToday();
+            $limit = $user->getDailyTokenLimit();
+            session()->flash('error', "Saldo insuficiente de tokens para auditar el proyecto ({$available} disponibles, ~{$this->estimatedPlotHoleTokens} requeridos de tu cupo de ".number_format($limit, 0, ',', '.').' tokens). El cupo se renovará automáticamente a las 00:00.');
+
+            return;
+        }
+
         $this->showPlotHoleConfirmModal = true;
     }
 
@@ -1069,7 +1080,13 @@ class ScriptEditor extends Component
 
         $previousStructuredText = $block->structured_text;
 
-        $pipelineService->transitionToStructured($block);
+        try {
+            $pipelineService->transitionToStructured($block);
+        } catch (QuotaExceededException $e) {
+            session()->flash('error', $e->getMessage());
+
+            return;
+        }
 
         $this->activeBlockTabs[$block->id] = 'structured';
 
@@ -1112,7 +1129,13 @@ class ScriptEditor extends Component
 
         $previousScreenplayContent = $block->screenplay_content;
 
-        $pipelineService->transitionToScreenplay($block);
+        try {
+            $pipelineService->transitionToScreenplay($block);
+        } catch (QuotaExceededException $e) {
+            session()->flash('error', $e->getMessage());
+
+            return;
+        }
 
         $this->activeBlockTabs[$block->id] = 'screenplay';
 
@@ -1193,7 +1216,13 @@ class ScriptEditor extends Component
             return;
         }
 
-        $createdShots = $pipelineService->generateShotsBreakdown($block);
+        try {
+            $createdShots = $pipelineService->generateShotsBreakdown($block);
+        } catch (QuotaExceededException $e) {
+            session()->flash('error', $e->getMessage());
+
+            return;
+        }
 
         $this->activeBlockTabs[$block->id] = 'shots';
 
@@ -1755,7 +1784,7 @@ class ScriptEditor extends Component
         $agentClient = $agentClient ?? app(AgentClientService::class);
 
         $user = auth()->user() ?? $this->project->user;
-        if ($user && ! $user->hasDailyTokensAvailable(10)) {
+        if ($user && ! $user->hasDailyTokensAvailable(50)) {
             session()->flash('error', 'Has alcanzado tu cupo diario de tokens de IA ('.number_format($user->getDailyTokenLimit(), 0, ',', '.').' tokens). El cupo se renovará automáticamente a las 00:00.');
 
             return;
@@ -1823,6 +1852,13 @@ class ScriptEditor extends Component
                 continue;
             }
 
+            // Comprobar disponibilidad de cuota para esta fase específica
+            $stageEstimated = max(50, (int) ceil(strlen(json_encode($stageBlocksData)) / 4) + 150);
+            if ($user && ! $user->hasDailyTokensAvailable($stageEstimated)) {
+                session()->flash('warning', 'La auditoría de agujeros se detuvo: saldo de tokens diario agotado antes de completar todas las etapas.');
+                break;
+            }
+
             $result = $agentClient->auditPlotHoles($stageBlocksData, $characters, $locations);
 
             // Registrar telemetría de tokens consumidos en agent_request_logs
@@ -1833,7 +1869,8 @@ class ScriptEditor extends Component
                 toolName: 'plot_hole_detector',
                 inputPayload: $stageBlocksData,
                 outputPayload: $result,
-                telemetry: $telemetry
+                telemetry: $telemetry,
+                userId: $user?->id
             );
 
             $detectedHoles = (array) ($result['detected_holes'] ?? []);

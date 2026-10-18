@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\QuotaExceededException;
 use App\Models\Character;
 use App\Models\Project;
 use App\Models\ScriptBlock;
@@ -18,6 +19,34 @@ class ScriptPipelineService
         protected ?AgentTelemetryService $telemetryService = null
     ) {
         $this->telemetryService = $this->telemetryService ?? app(AgentTelemetryService::class);
+    }
+
+    /**
+     * Valida la disponibilidad de cuota diaria de tokens de IA para el usuario del proyecto.
+     *
+     * @throws QuotaExceededException
+     */
+    public function assertUserQuotaAvailable(?Project $project, int $estimatedTokens = 100): void
+    {
+        if (! $project) {
+            return;
+        }
+
+        $user = $project->user ?? (auth()->check() ? auth()->user() : null);
+        if (! $user) {
+            return;
+        }
+
+        if (! $user->hasDailyTokensAvailable($estimatedTokens)) {
+            $limit = $user->getDailyTokenLimit();
+            $available = $user->getTokensAvailableToday();
+
+            throw new QuotaExceededException(
+                message: 'Has alcanzado tu cupo diario de tokens de IA ('.number_format($limit, 0, ',', '.').' tokens). El cupo se renovará automáticamente a las 00:00.',
+                requiredTokens: $estimatedTokens,
+                availableTokens: $available
+            );
+        }
     }
 
     /**
@@ -49,6 +78,9 @@ class ScriptPipelineService
 
         $userLocks = $this->resolveUserLocks($block);
         $rawText = $block->raw_text ?? '';
+
+        $estimatedTokens = max(50, (int) ceil(mb_strlen((string) $rawText) / 4) + 150);
+        $this->assertUserQuotaAvailable($project, $estimatedTokens);
 
         // Enriquecer contexto de personajes con nombres inferidos del texto (ej: Juan, Camarero)
         $characters = $this->inferCharactersFromText($rawText, $characters, $project);
@@ -154,6 +186,9 @@ class ScriptPipelineService
         $sourceText = ! empty($block->structured_text) ? $block->structured_text : (string) $block->raw_text;
         $userLocks = $this->resolveUserLocks($block);
 
+        $estimatedTokens = max(50, (int) ceil(mb_strlen((string) $sourceText) / 4) + 200);
+        $this->assertUserQuotaAvailable($project, $estimatedTokens);
+
         // Enriquecer contexto de personajes con nombres inferidos del texto (ej: Juan, Camarero)
         $characters = $this->inferCharactersFromText($sourceText, $characters, $project);
 
@@ -247,6 +282,9 @@ class ScriptPipelineService
         $sourceText = ! empty($block->screenplay_content)
             ? $block->screenplay_content
             : (! empty($block->structured_text) ? $block->structured_text : (string) $block->raw_text);
+
+        $estimatedTokens = max(50, (int) ceil(mb_strlen((string) $sourceText) / 4) + 150);
+        $this->assertUserQuotaAvailable($project, $estimatedTokens);
 
         $breakdownResult = $this->agentClient->breakdownShots($sourceText);
         $shotsList = $breakdownResult['shots'];

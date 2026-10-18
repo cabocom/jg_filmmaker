@@ -90,6 +90,14 @@ class User extends Authenticatable
     }
 
     /**
+     * AI agent request logs executed by or attributed to this user.
+     */
+    public function agentRequestLogs(): HasMany
+    {
+        return $this->hasMany(AgentRequestLog::class);
+    }
+
+    /**
      * Cupo diario configurado de tokens (por defecto 100.000).
      */
     public function getDailyTokenLimit(): int
@@ -103,8 +111,14 @@ class User extends Authenticatable
     public function getTokensUsedToday(): int
     {
         return (int) DB::table('agent_request_logs')
-            ->join('projects', 'agent_request_logs.project_id', '=', 'projects.id')
-            ->where('projects.user_id', $this->id)
+            ->leftJoin('projects', 'agent_request_logs.project_id', '=', 'projects.id')
+            ->where(function ($query) {
+                $query->where('agent_request_logs.user_id', $this->id)
+                    ->orWhere(function ($q) {
+                        $q->whereNull('agent_request_logs.user_id')
+                            ->where('projects.user_id', $this->id);
+                    });
+            })
             ->where('agent_request_logs.created_at', '>=', now()->startOfDay())
             ->sum('agent_request_logs.total_tokens');
     }

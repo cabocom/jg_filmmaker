@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\AgentRequestLog;
+use App\Models\Project;
 use App\Models\TokenPricingRate;
 
 class AgentTelemetryService
@@ -20,7 +21,8 @@ class AgentTelemetryService
         string $toolName,
         array|string $inputPayload,
         array|string $outputPayload,
-        ?array $telemetry = null
+        ?array $telemetry = null,
+        ?string $userId = null
     ): AgentRequestLog {
         // 1. Extraer o estimar tokens consumidos (~1 token = 4 caracteres)
         $inputTokens = 0;
@@ -65,8 +67,14 @@ class AgentTelemetryService
             }
         }
 
-        // 3. Persistir log de telemetría
+        // 3. Resolver usuario asociado para imputación indeleble de cuota
+        if (empty($userId)) {
+            $userId = Project::whereKey($projectId)->value('user_id');
+        }
+
+        // 4. Persistir log de telemetría
         return AgentRequestLog::create([
+            'user_id' => $userId,
             'project_id' => $projectId,
             'script_block_id' => $scriptBlockId,
             'tool_name' => $toolName,
