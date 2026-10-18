@@ -27,16 +27,16 @@ class AgentClientService
 
     public function __construct()
     {
-        $this->baseUrl = rtrim(config('services.jg_agente.url', 'http://127.0.0.1:8001'), '/');
+        $this->baseUrl = rtrim((string) config('services.jg_agente.url', 'http://127.0.0.1:8001'), '/');
         $this->mock = (bool) config('services.jg_agente.mock', false);
         $this->timeout = (int) config('services.jg_agente.timeout', 30);
 
-        // Sin secreto por defecto en código (CWE-798): config > PERMANENT_AGENT_SECRET > fail-fast.
-        $secret = (string) (config('services.jg_agente.secret') ?: env('PERMANENT_AGENT_SECRET', ''));
+        // Sin secreto por defecto en código (CWE-798): resolución limpia mediante config() determinista.
+        $secret = (string) config('services.jg_agente.secret', '');
         if ($secret === '' && ! $this->mock) {
             throw new \RuntimeException(
                 'Seguridad (CWE-798): secreto HMAC de jg_agente no configurado. '
-                .'Defina JG_AGENTE_SECRET o PERMANENT_AGENT_SECRET (o JG_AGENTE_MOCK=true para modo offline).'
+                .'Defina JG_AGENTE_SECRET en .env (o active JG_AGENTE_MOCK=true para modo offline).'
             );
         }
         $this->secret = $secret;
@@ -50,10 +50,18 @@ class AgentClientService
      *
      * @return array<string, string>
      */
-    public function generateSignatureHeaders(string $method, string $path, string $rawBody, ?int $timestamp = null, ?string $nonce = null): array
-    {
+    public function generateSignatureHeaders(
+        string $method,
+        string $path,
+        string $rawBody,
+        ?int $timestamp = null,
+        ?string $nonce = null,
+        ?string $correlationId = null
+    ): array {
         $timestamp = $timestamp ?? time();
         $nonce = $nonce ?? Str::uuid()->toString();
+        $correlationId = $correlationId ?? Str::uuid()->toString();
+        $keyId = (string) config('services.jg_agente.key_id', 'jg_filmmaker_v1');
         $bodySha256 = hash('sha256', $rawBody);
         $canonicalString = strtoupper($method)."\n".$path."\n".$timestamp."\n".$bodySha256."\n".$nonce;
         $signature = hash_hmac('sha256', $canonicalString, $this->secret);
@@ -62,7 +70,8 @@ class AgentClientService
             'X-Signature' => $signature,
             'X-Timestamp' => (string) $timestamp,
             'X-Nonce' => $nonce,
-            'X-Correlation-ID' => Str::uuid()->toString(),
+            'X-Correlation-ID' => $correlationId,
+            'X-Key-ID' => $keyId,
             'X-Agent-ID' => 'jg_filmmaker',
             'Content-Type' => 'application/json',
             'Accept' => 'application/json',
@@ -88,11 +97,21 @@ class AgentClientService
         // 1. Intentar llamar a microservicio jg_agente (o Http::fake en tests)
         $path = "/api/v1/tools/{$toolName}";
         $url = "{$this->baseUrl}{$path}";
-        $rawBody = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: '{}';
-        $headers = $this->generateSignatureHeaders('POST', $path, $rawBody);
 
         try {
+            $rawBody = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        } catch (\JsonException $e) {
+            Log::error("Error de serialización JSON en payload para jg_agente [{$toolName}]", ['error' => $e->getMessage()]);
+            throw new \InvalidArgumentException("Payload no serializable para {$toolName}: ".$e->getMessage(), 0, $e);
+        }
+
+        $headers = $this->generateSignatureHeaders('POST', $path, $rawBody);
+        $correlationId = $headers['X-Correlation-ID'];
+
+        try {
+            $verifyTls = (bool) config('services.jg_agente.verify_tls', true);
             $response = Http::withHeaders($headers)
+                ->withOptions(['verify' => $verifyTls])
                 ->timeout($this->timeout)
                 ->retry(2, 200, function (Exception $exception) {
                     return $exception instanceof ConnectionException;
@@ -111,23 +130,27 @@ class AgentClientService
 
                 Log::warning("Respuesta no exitosa de jg_agente para herramienta [{$toolName}]", [
                     'tool' => $toolName,
+                    'correlation_id' => $correlationId,
                     'status' => $response->status(),
                     'error' => is_array($data) ? ($data['error'] ?? 'flag success es false') : 'formato no json',
                 ]);
             } else {
                 Log::warning("Llamada HTTP fallida a jg_agente para herramienta [{$toolName}]", [
                     'tool' => $toolName,
+                    'correlation_id' => $correlationId,
                     'status' => $response->status(),
                 ]);
             }
         } catch (ConnectionException $e) {
             Log::warning("Sin conexión con microservicio jg_agente para herramienta [{$toolName}]", [
                 'tool' => $toolName,
+                'correlation_id' => $correlationId,
                 'error' => $e->getMessage(),
             ]);
         } catch (Exception $e) {
             Log::warning("Excepción durante la invocación a jg_agente para herramienta [{$toolName}]", [
                 'tool' => $toolName,
+                'correlation_id' => $correlationId,
                 'error' => $e->getMessage(),
             ]);
         }
