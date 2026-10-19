@@ -14,6 +14,7 @@ use App\Models\Take;
 use App\Models\UserActivityLog;
 use App\Services\AgentTelemetryService;
 use App\Services\JgAgente\AgentClientService;
+use App\Services\ScriptImportService;
 use App\Services\ScriptPipelineService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -203,6 +204,36 @@ class ScriptEditor extends Component
     public string $newTakeEditorialNotes = '';
 
     public bool $newTakeIsGood = true;
+
+    // Modificar Nombre y Detalles del Proyecto
+    public bool $showEditTitleModal = false;
+
+    public string $projectTitle = '';
+
+    public string $projectSynopsis = '';
+
+    // Renderizar / Procesar en Lote ("Renderizar todo de golpe")
+    public bool $showBatchModal = false;
+
+    public string $batchScope = 'scene'; // 'scene' o 'project'
+
+    public string $batchStage = 'all'; // 'all', 'structured', 'screenplay', 'shots'
+
+    public bool $isBatchProcessing = false;
+
+    // Subida e Importación de Guion (PDF/TXT) con aviso destructivo
+    public bool $showImportModal = false;
+
+    public string $importStep = 'upload'; // 'upload', 'preview'
+
+    public $importFile = null;
+
+    public bool $useAiForImport = false;
+
+    /** @var array<string, mixed> */
+    public array $parsedImportData = [];
+
+    public bool $confirmDestructiveImport = false;
 
     public function mount(Project $project): void
     {
@@ -2295,6 +2326,182 @@ class ScriptEditor extends Component
         $this->logActivity('clear_plot_holes', 'Project', $this->project->id, 'Todas las marcas de agujeros de guión eliminadas del proyecto');
 
         session()->flash('success', 'Todas las marcas de agujeros de guión han sido eliminadas del proyecto.');
+    }
+
+    public function openEditTitleModal(): void
+    {
+        $this->projectTitle = $this->project->title;
+        $this->projectSynopsis = (string) ($this->project->synopsis ?? '');
+        $this->showEditTitleModal = true;
+    }
+
+    public function updateProjectTitle(): void
+    {
+        $this->validate([
+            'projectTitle' => 'required|min:3|max:120',
+            'projectSynopsis' => 'nullable|max:1000',
+        ], [
+            'projectTitle.required' => 'El título de la obra es obligatorio.',
+            'projectTitle.min' => 'El título debe tener al menos 3 caracteres.',
+            'projectTitle.max' => 'El título no puede superar los 120 caracteres.',
+        ]);
+
+        $this->project->update([
+            'title' => $this->projectTitle,
+            'synopsis' => $this->projectSynopsis,
+        ]);
+
+        $this->logActivity('update_project_title', 'Project', $this->project->id, "Título del proyecto modificado a \"{$this->projectTitle}\"");
+
+        $this->showEditTitleModal = false;
+        session()->flash('success', "Título del proyecto modificado a \"{$this->projectTitle}\".");
+    }
+
+    public function openBatchModal(): void
+    {
+        $this->showBatchModal = true;
+    }
+
+    public function executeBatchProcessing(ScriptPipelineService $pipelineService): void
+    {
+        $this->isBatchProcessing = true;
+
+        if ($this->batchScope === 'scene') {
+            $scene = $this->activeSceneId
+                ? $this->projectScene($this->activeSceneId)
+                : $this->project->scenes()->first();
+
+            if (! $scene) {
+                session()->flash('error', 'No hay ninguna escena activa para procesar.');
+                $this->showBatchModal = false;
+                $this->isBatchProcessing = false;
+
+                return;
+            }
+
+            $blocks = $scene->scriptBlocks()->orderBy('block_order')->get();
+            $scopeDesc = "Escena #{$scene->scene_order} ({$scene->slugline})";
+        } else {
+            $blocks = ScriptBlock::whereIn('scene_id', $this->project->scenes()->pluck('id'))
+                ->orderBy('scene_id')
+                ->orderBy('block_order')
+                ->get();
+            $scopeDesc = 'Proyecto Completo ('.count($blocks).' bloques)';
+        }
+
+        if ($blocks->isEmpty()) {
+            session()->flash('error', "No hay bloques de texto disponibles para procesar en {$scopeDesc}.");
+            $this->showBatchModal = false;
+            $this->isBatchProcessing = false;
+
+            return;
+        }
+
+        try {
+            switch ($this->batchStage) {
+                case 'structured':
+                    $res = $pipelineService->batchStructureBlocks($blocks);
+                    $msg = "Procesamiento por lote a Tratamiento finalizado en {$scopeDesc}: {$res['processed']} procesados, {$res['skipped']} omitidos (protegidos o vacíos).";
+                    break;
+
+                case 'screenplay':
+                    $res = $pipelineService->batchFormatBlocksToScreenplay($blocks);
+                    $msg = "Procesamiento por lote a Guion Literario finalizado en {$scopeDesc}: {$res['processed']} procesados, {$res['skipped']} omitidos.";
+                    break;
+
+                case 'shots':
+                    $res = $pipelineService->batchGenerateShots($blocks);
+                    $msg = "Desglose por lote a Planos Técnicos finalizado en {$scopeDesc}: {$res['processed']} procesados, {$res['skipped']} omitidos.";
+                    break;
+
+                case 'all':
+                default:
+                    $res = $pipelineService->batchRunFullPipeline($blocks);
+                    $msg = "Pipeline Completo ejecutado en {$scopeDesc}: {$res['structured']} estructurados, {$res['screenplay']} formateados a guion, {$res['shots']} desglosados a planos.";
+                    break;
+            }
+
+            $this->logActivity('batch_pipeline_execution', 'Project', $this->project->id, $msg, [
+                'scope' => $this->batchScope,
+                'stage' => $this->batchStage,
+                'blocks_total' => count($blocks),
+            ]);
+
+            if (! empty($res['errors'])) {
+                session()->flash('error', $msg.' Se produjeron advertencias: '.implode(' | ', array_slice($res['errors'], 0, 3)));
+            } else {
+                session()->flash('success', $msg);
+            }
+        } catch (\Throwable $e) {
+            session()->flash('error', "Error en el procesamiento en lote: {$e->getMessage()}");
+        } finally {
+            $this->showBatchModal = false;
+            $this->isBatchProcessing = false;
+        }
+    }
+
+    public function openImportModal(): void
+    {
+        $this->reset(['importFile', 'useAiForImport', 'parsedImportData', 'confirmDestructiveImport']);
+        $this->importStep = 'upload';
+        $this->showImportModal = true;
+    }
+
+    public function processImportFile(ScriptImportService $importService): void
+    {
+        $this->resetErrorBag();
+        $this->validate([
+            'importFile' => 'required|file|mimes:txt,pdf|max:10240',
+        ], [
+            'importFile.required' => 'Debes seleccionar un archivo de guión (.txt o .pdf).',
+            'importFile.mimes' => 'Solo se admiten archivos en formato .txt o .pdf.',
+            'importFile.max' => 'El archivo no puede superar los 10 MB.',
+        ]);
+
+        try {
+            $rawText = $importService->extractTextFromFile($this->importFile);
+            $parsed = $importService->parseScreenplay($rawText, $this->useAiForImport, $this->project);
+
+            $this->parsedImportData = $parsed;
+            $this->importStep = 'preview';
+        } catch (\Throwable $e) {
+            $this->addError('importFile', $e->getMessage());
+        }
+    }
+
+    public function confirmAndExecuteDestructiveImport(ScriptImportService $importService): void
+    {
+        $this->resetErrorBag();
+        if (! $this->confirmDestructiveImport) {
+            $this->addError('confirmDestructiveImport', 'Debes marcar la casilla de confirmación para autorizar la sobreescritura destructiva.');
+
+            return;
+        }
+
+        if (empty($this->parsedImportData['scenes'])) {
+            $this->addError('importFile', 'No se encontraron escenas válidas para importar.');
+
+            return;
+        }
+
+        try {
+            $importService->importIntoProject($this->project, $this->parsedImportData, true);
+
+            $this->logActivity('destructive_script_import', 'Project', $this->project->id, 'Guion importado sobreescribiendo por completo el proyecto anterior', [
+                'scenes_imported' => $this->parsedImportData['scenes_count'] ?? 0,
+                'characters_imported' => count($this->parsedImportData['characters'] ?? []),
+                'locations_imported' => count($this->parsedImportData['locations'] ?? []),
+            ]);
+
+            $this->reset(['showImportModal', 'importStep', 'importFile', 'parsedImportData', 'confirmDestructiveImport']);
+
+            // Recargar escenas y activar la primera escena
+            $this->activeSceneId = $this->project->scenes()->first()?->id;
+
+            session()->flash('success', "Guión importado con éxito. Se han configurado {$this->project->scenes()->count()} escenas y {$this->project->characters()->count()} personajes.");
+        } catch (\Throwable $e) {
+            $this->addError('importFile', "Error al importar el guión: {$e->getMessage()}");
+        }
     }
 
     public function render()

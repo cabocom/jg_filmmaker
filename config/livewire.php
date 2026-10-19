@@ -130,7 +130,7 @@ return [
 
     'temporary_file_upload' => [
         'disk' => env('LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK'),
-        'rules' => ['required', 'file', 'mimes:mp4,mov,webm,m4v', 'max:102400'], // 100MB coherente con la validación de tomas (ISSUE-026)
+        'rules' => ['required', 'file', 'mimes:mp4,mov,webm,m4v,pdf,txt', 'max:102400'], // 100MB para tomas y soporte de guiones (PDF/TXT)
         'directory' => null,
         'middleware' => 'throttle:15,1',
         'preview_mimes' => [

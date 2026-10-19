@@ -694,4 +694,126 @@ class ScriptPipelineService
             'locked_fields' => (array) ($userLocks['locked_fields'] ?? []),
         ];
     }
+
+    /**
+     * Procesa en lote una colección de bloques hacia la etapa 'structured'.
+     *
+     * @param  iterable<ScriptBlock>  $blocks
+     * @return array{processed: int, skipped: int, errors: list<string>}
+     */
+    public function batchStructureBlocks(iterable $blocks): array
+    {
+        $processed = 0;
+        $skipped = 0;
+        $errors = [];
+
+        foreach ($blocks as $block) {
+            if ($block->isStageLocked('structured') || empty(trim((string) $block->raw_text))) {
+                $skipped++;
+
+                continue;
+            }
+
+            try {
+                $this->transitionToStructured($block);
+                $processed++;
+            } catch (QuotaExceededException $e) {
+                $errors[] = $e->getMessage();
+                break;
+            } catch (\Throwable $e) {
+                $errors[] = "Bloque {$block->block_order}: {$e->getMessage()}";
+            }
+        }
+
+        return ['processed' => $processed, 'skipped' => $skipped, 'errors' => $errors];
+    }
+
+    /**
+     * Procesa en lote una colección de bloques hacia la etapa 'screenplay'.
+     *
+     * @param  iterable<ScriptBlock>  $blocks
+     * @return array{processed: int, skipped: int, errors: list<string>}
+     */
+    public function batchFormatBlocksToScreenplay(iterable $blocks): array
+    {
+        $processed = 0;
+        $skipped = 0;
+        $errors = [];
+
+        foreach ($blocks as $block) {
+            $sourceText = ! empty($block->structured_text) ? $block->structured_text : (string) $block->raw_text;
+            if ($block->isStageLocked('screenplay') || empty(trim((string) $sourceText))) {
+                $skipped++;
+
+                continue;
+            }
+
+            try {
+                $this->transitionToScreenplay($block);
+                $processed++;
+            } catch (QuotaExceededException $e) {
+                $errors[] = $e->getMessage();
+                break;
+            } catch (\Throwable $e) {
+                $errors[] = "Bloque {$block->block_order}: {$e->getMessage()}";
+            }
+        }
+
+        return ['processed' => $processed, 'skipped' => $skipped, 'errors' => $errors];
+    }
+
+    /**
+     * Procesa en lote una colección de bloques hacia el desglose de planos ('shots').
+     *
+     * @param  iterable<ScriptBlock>  $blocks
+     * @return array{processed: int, skipped: int, errors: list<string>}
+     */
+    public function batchGenerateShots(iterable $blocks): array
+    {
+        $processed = 0;
+        $skipped = 0;
+        $errors = [];
+
+        foreach ($blocks as $block) {
+            if ($block->isStageLocked('shots') || empty(trim((string) $block->screenplay_content))) {
+                $skipped++;
+
+                continue;
+            }
+
+            try {
+                $this->generateShotsBreakdown($block);
+                $processed++;
+            } catch (QuotaExceededException $e) {
+                $errors[] = $e->getMessage();
+                break;
+            } catch (\Throwable $e) {
+                $errors[] = "Bloque {$block->block_order}: {$e->getMessage()}";
+            }
+        }
+
+        return ['processed' => $processed, 'skipped' => $skipped, 'errors' => $errors];
+    }
+
+    /**
+     * Ejecuta el pipeline completo de forma secuencial en lote (Bruto -> Tratamiento -> Guion -> Planos).
+     *
+     * @param  iterable<ScriptBlock>  $blocks
+     * @return array{structured: int, screenplay: int, shots: int, errors: list<string>}
+     */
+    public function batchRunFullPipeline(iterable $blocks): array
+    {
+        $resStructured = $this->batchStructureBlocks($blocks);
+        $freshBlocks = collect($blocks)->map(fn ($b) => $b->fresh())->filter();
+        $resScreenplay = $this->batchFormatBlocksToScreenplay($freshBlocks);
+        $freshBlocks = $freshBlocks->map(fn ($b) => $b->fresh())->filter();
+        $resShots = $this->batchGenerateShots($freshBlocks);
+
+        return [
+            'structured' => $resStructured['processed'],
+            'screenplay' => $resScreenplay['processed'],
+            'shots' => $resShots['processed'],
+            'errors' => array_merge($resStructured['errors'], $resScreenplay['errors'], $resShots['errors']),
+        ];
+    }
 }

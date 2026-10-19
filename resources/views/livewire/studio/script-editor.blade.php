@@ -49,10 +49,20 @@
     <!-- ================= BARRA SUPERIOR STICKY: TÍTULO DEL PROYECTO Y NAVEGACIÓN STORY ARCHITECT ================= -->
     <div class="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 shadow-xs backdrop-blur-md px-3 sm:px-6 lg:px-8 py-2 transition-colors">
         <div class="max-w-7xl mx-auto flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
-            <!-- Título del Proyecto -->
-            <span class="text-xs sm:text-sm font-bold font-mono uppercase tracking-wider text-slate-900 dark:text-white shrink-0" title="{{ $project->title }}">
-                {{ $project->title }}
-            </span>
+            <!-- Título del Proyecto con Botón de Edición -->
+            <div class="flex items-center gap-1.5 shrink-0">
+                <span class="text-xs sm:text-sm font-bold font-mono uppercase tracking-wider text-slate-900 dark:text-white" title="{{ $project->title }}">
+                    {{ $project->title }}
+                </span>
+                <button wire:click="openEditTitleModal"
+                        type="button"
+                        title="Modificar nombre del proyecto"
+                        class="p-1 rounded-md text-slate-400 hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                </button>
+            </div>
 
             <!-- Contador de Escenas -->
             <span class="px-2 py-1 rounded-lg text-xs font-bold font-mono bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
@@ -193,6 +203,24 @@
                     title="Historial de acciones y trazabilidad en orden cronológico inverso">
                 <span>📜</span>
                 <span>Historial</span>
+            </button>
+
+            <!-- Botón de Renderizado / Procesamiento en Lote ("Renderizar Todo de Golpe") -->
+            <button type="button"
+                    wire:click="openBatchModal"
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-xs cursor-pointer shrink-0"
+                    title="Renderizar todo de golpe: estructurar brutos, generar guiones y desglosar planos">
+                <span>⚡</span>
+                <span>Renderizar en Lote</span>
+            </button>
+
+            <!-- Botón de Importar Guión (PDF/TXT) -->
+            <button type="button"
+                    wire:click="openImportModal"
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 hover:border-amber-500/40 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 transition shadow-2xs cursor-pointer shrink-0"
+                    title="Importar guion en PDF o TXT reemplazando el contenido del proyecto">
+                <span>📥</span>
+                <span>Importar Guión</span>
             </button>
         </div>
     </div>
@@ -2310,6 +2338,307 @@
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- ================= MODAL: MODIFICAR NOMBRE Y DETALLES DEL PROYECTO ================= -->
+    @if($showEditTitleModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 dark:bg-slate-950/80 backdrop-blur-sm p-4">
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-lg w-full shadow-2xl relative animate-in fade-in zoom-in-95 duration-150">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <h3 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <span>✏️</span>
+                        <span>Modificar Nombre de la Obra</span>
+                    </h3>
+                    <button wire:click="$set('showEditTitleModal', false)" class="text-slate-400 hover:text-slate-600 dark:hover:text-white text-lg cursor-pointer">✕</button>
+                </div>
+
+                <form wire:submit="updateProjectTitle" class="mt-4 space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Título de la Obra *</label>
+                        <input type="text"
+                               wire:model="projectTitle"
+                               placeholder="Ej: El Laberinto de las Sombras"
+                               class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 focus:border-amber-500 text-slate-900 dark:text-white text-sm">
+                        @error('projectTitle') <span class="text-rose-500 dark:text-rose-400 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Sinopsis</label>
+                        <textarea wire:model="projectSynopsis"
+                                  rows="3"
+                                  placeholder="Sinopsis o premisa dramática..."
+                                  class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 focus:border-amber-500 text-slate-900 dark:text-white text-sm"></textarea>
+                        @error('projectSynopsis') <span class="text-rose-500 dark:text-rose-400 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div class="pt-4 flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-800">
+                        <button type="button"
+                                wire:click="$set('showEditTitleModal', false)"
+                                class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer">
+                            Cancelar
+                        </button>
+                        <button type="submit"
+                                class="px-4 py-2 rounded-xl text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-lg shadow-amber-500/30 transition cursor-pointer">
+                            Guardar Título
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+
+    <!-- ================= MODAL: RENDERIZAR EN LOTE ("RENDERIZAR TODO DE GOLPE") ================= -->
+    @if($showBatchModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 dark:bg-slate-950/80 backdrop-blur-sm p-4">
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-lg w-full shadow-2xl relative animate-in fade-in zoom-in-95 duration-150">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <h3 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <span>⚡</span>
+                        <span>Renderizar / Procesar en Lote</span>
+                    </h3>
+                    <button wire:click="$set('showBatchModal', false)" class="text-slate-400 hover:text-slate-600 dark:hover:text-white text-lg cursor-pointer">✕</button>
+                </div>
+
+                <div class="mt-4 space-y-4 text-xs font-sans">
+                    <p class="text-slate-600 dark:text-slate-300">
+                        Ejecuta de forma secuencial y automatizada el pipeline cinematográfico. Se respetarán estrictamente todos los bloques protegidos con candado (🔒).
+                    </p>
+
+                    <!-- Selector de Alcance -->
+                    <div>
+                        <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Alcance del Procesamiento</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button type="button"
+                                    wire:click="$set('batchScope', 'scene')"
+                                    class="p-2.5 rounded-xl border text-left transition cursor-pointer {{ $batchScope === 'scene' ? 'border-amber-500 bg-amber-500/10 text-amber-900 dark:text-amber-200 font-bold' : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800' }}">
+                                <span class="block font-bold">🎬 Escena Activa</span>
+                                <span class="block text-[11px] text-slate-500 dark:text-slate-400">Solo la escena seleccionada</span>
+                            </button>
+                            <button type="button"
+                                    wire:click="$set('batchScope', 'project')"
+                                    class="p-2.5 rounded-xl border text-left transition cursor-pointer {{ $batchScope === 'project' ? 'border-amber-500 bg-amber-500/10 text-amber-900 dark:text-amber-200 font-bold' : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800' }}">
+                                <span class="block font-bold">🌐 Todo el Proyecto</span>
+                                <span class="block text-[11px] text-slate-500 dark:text-slate-400">Todas las escenas y bloques</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Selector de Etapa -->
+                    <div>
+                        <label class="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Etapa a Renderizar</label>
+                        <div class="space-y-1.5">
+                            <label class="flex items-center gap-2.5 p-2 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer">
+                                <input type="radio" wire:model="batchStage" value="all" class="text-amber-600 focus:ring-amber-500">
+                                <div>
+                                    <span class="block font-bold text-slate-900 dark:text-white">🚀 Pipeline Completo (Recomendado)</span>
+                                    <span class="block text-[11px] text-slate-500">Estructura brutos ➔ Formatea a guion ➔ Desglosa planos técnicos</span>
+                                </div>
+                            </label>
+                            <label class="flex items-center gap-2.5 p-2 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer">
+                                <input type="radio" wire:model="batchStage" value="structured" class="text-amber-600 focus:ring-amber-500">
+                                <div>
+                                    <span class="block font-bold text-slate-900 dark:text-white">📝 Brutos ➔ Tratamiento</span>
+                                    <span class="block text-[11px] text-slate-500">Estructura todos los textos brutos a prosa dramática</span>
+                                </div>
+                            </label>
+                            <label class="flex items-center gap-2.5 p-2 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer">
+                                <input type="radio" wire:model="batchStage" value="screenplay" class="text-amber-600 focus:ring-amber-500">
+                                <div>
+                                    <span class="block font-bold text-slate-900 dark:text-white">📜 Tratamientos ➔ Guion Literario</span>
+                                    <span class="block text-[11px] text-slate-500">Convierte los tratamientos a formato canónico Fountain</span>
+                                </div>
+                            </label>
+                            <label class="flex items-center gap-2.5 p-2 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer">
+                                <input type="radio" wire:model="batchStage" value="shots" class="text-amber-600 focus:ring-amber-500">
+                                <div>
+                                    <span class="block font-bold text-slate-900 dark:text-white">🎥 Guiones ➔ Planos Técnicos</span>
+                                    <span class="block text-[11px] text-slate-500">Desglosa los guiones en planos para claqueta y rodaje</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-800">
+                        <button type="button"
+                                wire:click="$set('showBatchModal', false)"
+                                class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer">
+                            Cancelar
+                        </button>
+                        <button type="button"
+                                wire:click="executeBatchProcessing"
+                                wire:loading.attr="disabled"
+                                class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-lg shadow-amber-500/30 transition cursor-pointer">
+                            <span wire:loading.remove wire:target="executeBatchProcessing">⚡ Iniciar Renderizado en Lote</span>
+                            <span wire:loading wire:target="executeBatchProcessing" class="flex items-center gap-1.5">
+                                <span class="animate-spin text-sm">⏳</span>
+                                <span>Procesando pipeline...</span>
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- ================= MODAL: SUBIDA E IMPORTACIÓN DE GUIÓN (CON AVISO DESTRUCTIVO) ================= -->
+    @if($showImportModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 dark:bg-slate-950/80 backdrop-blur-sm p-4">
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-2xl w-full shadow-2xl relative animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <h3 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <span>📥</span>
+                        <span>Importar Guión (Reemplazo de Proyecto)</span>
+                    </h3>
+                    <button wire:click="$set('showImportModal', false)" class="text-slate-400 hover:text-slate-600 dark:hover:text-white text-lg cursor-pointer">✕</button>
+                </div>
+
+                @if($importStep === 'upload')
+                    <form wire:submit="processImportFile" class="mt-4 space-y-4">
+                        <div class="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-8 text-center bg-slate-50/50 dark:bg-slate-950/50 hover:border-amber-500/70 transition">
+                            <span class="text-4xl block mb-2">📄</span>
+                            <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1 cursor-pointer">
+                                <span>Selecciona un archivo de guión (.txt o .pdf)</span>
+                                <input type="file"
+                                       wire:model="importFile"
+                                       accept=".txt,.pdf"
+                                       class="sr-only">
+                            </label>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">
+                                Detección automática de encabezados de escena (INT./EXT.), personajes y diálogos. Máx. 10 MB.
+                            </p>
+
+                            @if($importFile)
+                                <div class="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs font-mono">
+                                    <span>📎 {{ $importFile->getClientOriginalName() }}</span>
+                                    <span>({{ number_format($importFile->getSize() / 1024, 1) }} KB)</span>
+                                </div>
+                            @endif
+
+                            @error('importFile')
+                                <span class="text-rose-500 dark:text-rose-400 text-xs mt-2 block font-medium">{{ $message }}</span>
+                            @enderror
+                        </div>
+
+                        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                            <div>
+                                <span class="block text-xs font-bold text-slate-800 dark:text-slate-200">Asistencia Cognitiva jg_plugin_filmmaker</span>
+                                <span class="block text-[11px] text-slate-500">Refinar detección de escenas y personajes con IA si el guion no tiene formato estricto.</span>
+                            </div>
+                            <input type="checkbox" wire:model="useAiForImport" class="rounded border-slate-300 text-amber-600 focus:ring-amber-500 h-4 w-4">
+                        </div>
+
+                        <div class="pt-4 flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-800">
+                            <button type="button"
+                                    wire:click="$set('showImportModal', false)"
+                                    class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer">
+                                Cancelar
+                            </button>
+                            <button type="submit"
+                                    wire:loading.attr="disabled"
+                                    class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-lg shadow-amber-500/30 transition cursor-pointer">
+                                <span wire:loading.remove wire:target="processImportFile">Analizar Guión</span>
+                                <span wire:loading wire:target="processImportFile">Extrayendo texto...</span>
+                            </button>
+                        </div>
+                    </form>
+                @elseif($importStep === 'preview')
+                    <div class="mt-4 space-y-4">
+                        <!-- AVISO DESTRUCTIVO DESTACADO -->
+                        <div class="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/60 border-2 border-rose-500 text-rose-800 dark:text-rose-200">
+                            <div class="flex items-start gap-3">
+                                <span class="text-2xl shrink-0">⚠️</span>
+                                <div class="text-xs space-y-1">
+                                    <span class="block font-bold text-sm uppercase tracking-wide text-rose-700 dark:text-rose-300">
+                                        Atención: Reemplazo Completo del Proyecto Actual
+                                    </span>
+                                    <p>
+                                        Si confirmas la importación, <strong>se sobreescribirá por completo el guion, todas las escenas, bloques de texto y tomas de rodaje</strong> de la obra actual <em>"{{ $project->title }}"</em>.
+                                    </p>
+                                    <p class="font-semibold text-rose-600 dark:text-rose-400">
+                                        Esta acción no se puede deshacer. Se reemplazará con el contenido detectado a continuación.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Resumen del Análisis -->
+                        <div class="grid grid-cols-3 gap-3 text-center">
+                            <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                                <span class="text-xs text-slate-500 dark:text-slate-400 block">Escenas detectadas</span>
+                                <span class="text-xl font-bold font-mono text-amber-600 dark:text-amber-400">{{ $parsedImportData['scenes_count'] ?? 0 }}</span>
+                            </div>
+                            <div class="p-3 rounded-xl bg-blue-500/10 border border-blue-500/30">
+                                <span class="text-xs text-slate-500 dark:text-slate-400 block">Personajes detectados</span>
+                                <span class="text-xl font-bold font-mono text-blue-600 dark:text-blue-400">{{ count($parsedImportData['characters'] ?? []) }}</span>
+                            </div>
+                            <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                                <span class="text-xs text-slate-500 dark:text-slate-400 block">Locaciones detectadas</span>
+                                <span class="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400">{{ count($parsedImportData['locations'] ?? []) }}</span>
+                            </div>
+                        </div>
+
+                        <!-- Previsualización de Escenas -->
+                        <div>
+                            <span class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Escenas que se importarán</span>
+                            <div class="max-h-48 overflow-y-auto space-y-1.5 p-2 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 font-mono text-xs">
+                                @forelse($parsedImportData['scenes'] ?? [] as $sc)
+                                    <div class="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800">
+                                        <span class="font-bold text-slate-800 dark:text-slate-200">#{{ $sc['scene_order'] }} {{ $sc['slugline'] }}</span>
+                                        <span class="text-[11px] text-slate-500">{{ count($sc['blocks'] ?? []) }} bloques</span>
+                                    </div>
+                                @empty
+                                    <div class="text-center py-4 text-slate-400">No se detectaron escenas</div>
+                                @endforelse
+                            </div>
+                        </div>
+
+                        <!-- Personajes Detectados -->
+                        @if(! empty($parsedImportData['characters']))
+                            <div>
+                                <span class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Personajes detectados para la Biblia</span>
+                                <div class="flex flex-wrap gap-1.5">
+                                    @foreach($parsedImportData['characters'] as $char)
+                                        <span class="px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20 text-xs font-mono font-bold">
+                                            {{ $char }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
+
+                        <!-- Checkbox de Confirmación Explícita -->
+                        <div class="p-3 rounded-xl bg-rose-50/70 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800">
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox"
+                                       wire:model="confirmDestructiveImport"
+                                       class="rounded border-rose-300 text-rose-600 focus:ring-rose-500 h-4 w-4 shrink-0">
+                                <span class="text-xs font-semibold text-rose-900 dark:text-rose-200">
+                                    Confirmo que deseo sobreescribir y reemplazar todo el guion actual de "{{ $project->title }}".
+                                </span>
+                            </label>
+                            @error('confirmDestructiveImport')
+                                <span class="text-rose-600 dark:text-rose-400 text-xs mt-1 block font-bold">{{ $message }}</span>
+                            @enderror
+                        </div>
+
+                        <div class="pt-4 flex items-center justify-between border-t border-slate-100 dark:border-slate-800">
+                            <button type="button"
+                                    wire:click="$set('importStep', 'upload')"
+                                    class="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer">
+                                ⬅️ Volver a subir
+                            </button>
+                            <button type="button"
+                                    wire:click="confirmAndExecuteDestructiveImport"
+                                    wire:loading.attr="disabled"
+                                    class="px-4 py-2 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white font-bold shadow-lg shadow-rose-600/30 transition cursor-pointer">
+                                <span wire:loading.remove wire:target="confirmAndExecuteDestructiveImport">🔥 Sobreescribir e Importar</span>
+                                <span wire:loading wire:target="confirmAndExecuteDestructiveImport">Importando guión...</span>
+                            </button>
+                        </div>
+                    </div>
+                @endif
             </div>
         </div>
     @endif

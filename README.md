@@ -8,9 +8,15 @@ Forma parte del ecosistema multi-servicio `javiergalvez-ia`, comunicándose de m
 
 ---
 
-## Características Implementadas (Fases 1 a 16)
+## Características Implementadas (Fases 1 a 17)
 
-### 1. Experiencia de Escritura y Edición Cinematográfica (Estudio)
+### 1. Ingesta, Importación y Renderizado en Lote (Fase 17)
+- **Importación Inteligente de Guiones (PDF y TXT):** Ingesta automática mediante `ScriptImportService` con parseo heurístico de sluglines (`INT./EXT.`), tiempos de día, personajes en mayúsculas, acotaciones y bloques de diálogo o acción.
+- **Ventana de Confirmación Destructiva:** Modal de previsualización que resume escenas, personajes y localizaciones detectadas, con requerimiento de confirmación explícita antes de sobreescribir la obra actual o crear un proyecto nuevo.
+- **Edición Ágil de la Obra:** Modificación inmediata del título del proyecto desde el propio editor continuo del estudio o desde la vista de proyectos.
+- **Renderizado y Procesamiento en Lote (Batch Processing):** Botón `⚡ Renderizar en Lote` para procesar por escena o proyecto completo brutos a tratamientos, tratamientos a guiones, guiones a planos técnicos o pipeline completo, respetando los candados de usuario (`user_locks`).
+
+### 2. Experiencia de Escritura y Edición Cinematográfica (Estudio)
 - **Modo Redacción StoryArchitect:** Acordeón vertical continuo donde todas las escenas se despliegan una tras otra para lectura fluida de guion de extremo a extremo sin saltar de pantalla.
 - **Drag & Drop Físico y Reordenación Atómica:** Tiradores táctiles verticales (`⋮⋮`) alineados con la primera línea de texto. Al arrastrar, desplaza visualmente la fila completa (`setDragImage`) y reordena atómicamente (`DB::transaction`) tanto escenas como bloques.
 - **Divisores Reactivos WordPress Gutenberg:** Espacios de inserción intermedia con línea horizontal ámbar continua visible en hover de lado a lado y botón central circular `+` para añadir texto bruto o crear escenas intermedias.
