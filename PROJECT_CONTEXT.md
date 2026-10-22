@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.17.1  
+**Versión del documento:** 3.17.2  
 **Fecha de consolidación:** 22 de octubre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 3/4, Tailwind CSS v4, PHP 8.4, PostgreSQL / SQLite, FFmpeg, PHPUnit 12, Laravel Pint  
-**Estado:** ¡AUDITORÍA TÉCNICA 100% COMPLETADA! Sprint 0, Sprint 1, Sprint 2, Sprint 3, Fase 4 (42 issues resueltos y consolidados con éxito), Fase 17 (Importación PDF/TXT, Edición de Obra y Renderizado en Lote) e ISSUE-043 (Blindaje UTF-8 y Resiliencia en Telemetría):
+**Estado:** ¡AUDITORÍA TÉCNICA 100% COMPLETADA! Sprint 0, Sprint 1, Sprint 2, Sprint 3, Fase 4 (42 issues resueltos y consolidados con éxito), Fase 17 (Importación PDF/TXT, Edición de Obra y Renderizado en Lote), ISSUE-043 (Blindaje UTF-8 y Resiliencia en Telemetría) e ISSUE-044 (Atribución Precisa de Personajes en Guion y Erradicación de Fallback Espurio):
 - **Importación Inteligente de Guiones PDF y TXT (`ScriptImportService`):** Ingesta y parseo automático de guiones literarios en formato PDF (vía `smalot/pdfparser` nativo y fallback a `pdftotext`) y TXT UTF-8. Motor heurístico de análisis dramático que detecta sluglines canónicos (`INT./EXT.`), tiempos de día, numeración, personajes en mayúsculas, acotaciones y bloques de acción/diálogo. Ventana interactiva de previsualización con resumen métrico y confirmación obligatoria con aviso de destrucción irreversible de datos antes de sobreescribir un proyecto o crear uno nuevo desde el catálogo.
 - **Edición Ágil del Nombre y Metadatos de la Obra:** Capacidad de modificar el título y sinopsis del proyecto tanto desde el listado general (`ProjectList`) como directamente en tiempo real desde el encabezado del estudio de rodaje (`ScriptEditor`).
 - **Renderizado y Procesamiento en Lote Multietapa (Batch Processing):** Nuevo servicio `ScriptPipelineService::batch*` y modal interactivo en el estudio para procesar en lote a nivel de Escena Activa o Proyecto Completo: Brutos ➔ Tratamientos, Tratamientos ➔ Guiones, Guiones ➔ Planos Técnicos o Pipeline Completo en cadena. Protección absoluta de candados de usuario (`user_locks['locked_fields']`) para no sobreescribir bloques protegidos por el cineasta.
@@ -13,7 +13,12 @@
   - Reemplazo de `ucfirst()` y `strtoupper()` no seguros por `mbUcfirst()` y `mb_strtoupper(..., 'UTF-8')`.
   - Corrección de delimitadores de palabra `\b` en la regex de habla indirecta para evitar la fragmentación de sustantivos comunes terminados en sufijos pronominales (`palo` -> `pa`).
   - Sanitización recursiva UTF-8 (`sanitizeUtf8Recursive`) en `AgentTelemetryService` y envoltura resiliente `try / catch` en `AgentRequestLog::create()` para garantizar que ninguna anomalía de codificación o red interrumpa el pipeline del cineasta con errores 500 (`JsonEncodingException`).
-- Suite ampliada a **200 tests automatizados pasando al 100%** con `AgentClientUtf8EncodingTest`.
+- **ISSUE-044: Atribución Precisa de Personajes en Guion y Erradicación de Fallback Espurio (`AgentClientService`):**
+  - Erradicación radical del fallback ciego `$characters[0]['name']` que asignaba indiscriminadamente los diálogos sin hablante identificado al primer personaje alfabético o de menor ID de la base de datos (p. ej. `CAMARERO`).
+  - Implementación de `resolveSpeakerFromPrePart()`: resolución sintáctica determinista que analiza la posición del sujeto frente a complementos preposicionales (`a Germán`), discrimina sujetos de objetos y soporta anáforas pronominales (`este le dice`) y nombres propios en mayúsculas o compuestos (`LEIDI MACARENA`, `ESTRELLA CASILDA`).
+  - Implementación de `splitParagraphIntoDialogueSegments()`: división de oraciones encadenadas y réplicas dentro de un mismo párrafo unidas por conjunciones (`y [Personaje] le contesta que...`).
+  - Soporte de gerundios e infinitivos con pronombres enclíticos (`diciéndole`, `preguntándole`, `contestándole`, etc.) y normalización de partículas interrogativas directas e indirectas en estilo directo dramático.
+- Suite ampliada a **202 tests automatizados pasando al 100%** con `ScreenplayAttributionTest` y `AgentClientUtf8EncodingTest`.
 
 - ISSUE-001: saneamiento de subida de tomas contra RCE (derivación estricta de extensiones desde MIME type verificado por el servidor, lista blanca `ALLOWED_EXTENSIONS` en `Take`, bloqueo de ejecución PHP en `/storage/` en Nginx).
 - ISSUE-002: mitigación de fuga de OTP y toma de cuentas (bloqueo con `#[Locked]` de `$step` y `$devOtpCode`, eliminación de `$isLocalEnv`, comprobación estricta de `APP_ENV=local && APP_DEBUG=true` en servidor, erradicación de retención en sesión).

@@ -574,11 +574,13 @@ class AgentClientService
                 $lines[] = '';
             }
 
+            $activeSpeaker = null;
+
             // 2. Procesar párrafos (diálogos explícitos vs acciones)
             foreach ($rawParagraphs as $para) {
                 // Si ya es un encabezado
                 if (preg_match('/^(INT|EXT|INT\/EXT)\./i', $para)) {
-                    $lines[] = strtoupper($para);
+                    $lines[] = mb_strtoupper($para, 'UTF-8');
                     $lines[] = '';
 
                     continue;
@@ -587,151 +589,121 @@ class AgentClientService
                 // Limpiar prefijos redundantes de tratamiento como "En BAR CENTRAL (INT): "
                 $cleanPara = preg_replace('/^En\s+[^:]+:\s*/iu', '', $para);
 
-                $dialogueMatched = false;
+                // Subdividir párrafos que contengan múltiples intercambios o frases conversacionales
+                $segments = $this->splitParagraphIntoDialogueSegments($cleanPara);
 
-                // Formato A: "PERSONAJE: Diálogo" o "PERSONAJE (acotación): Diálogo"
-                if (preg_match('/^([a-záéíóúñ\s]+?)(?:\s*\(([^)]+)\))?:\s*(.+)$/iu', $cleanPara, $m)) {
-                    $speaker = strtoupper(trim($m[1]));
-                    $parenthetical = ! empty($m[2]) ? trim($m[2]) : null;
-                    $speech = trim($m[3]);
+                foreach ($segments as $segment) {
+                    $dialogueMatched = false;
 
-                    $lines[] = $speaker;
-                    if ($parenthetical) {
-                        $lines[] = '('.strtolower($parenthetical).')';
-                    }
-                    $lines[] = $speech;
-                    $lines[] = '';
-                    $dialogueMatched = true;
-                    $activeSpeaker = $speaker;
-                }
-                // Formato B: "Personaje dice/pregunta: \"Diálogo\""
-                elseif (preg_match('/^([a-záéíóúñ\s]+?)\s+(?:dice|responde|susurra|grita|pregunta|afirma)\s*:\s*["«]([^"»]+)["»]$/iu', $cleanPara, $m)) {
-                    $speaker = strtoupper(trim($m[1]));
-                    $speech = trim($m[2]);
+                    // Formato A: "PERSONAJE: Diálogo" o "PERSONAJE (acotación): Diálogo"
+                    if (preg_match('/^([a-záéíóúñA-ZÁÉÍÓÚÑ\s]+?)(?:\s*\(([^)]+)\))?:\s*(.+)$/iu', $segment, $m)) {
+                        $speaker = mb_strtoupper(trim($m[1]), 'UTF-8');
+                        $parenthetical = ! empty($m[2]) ? trim($m[2]) : null;
+                        $speech = trim($m[3]);
 
-                    $lines[] = $speaker;
-                    $lines[] = $speech;
-                    $lines[] = '';
-                    $dialogueMatched = true;
-                    $activeSpeaker = $speaker;
-                }
-                // Formato C: Habla indirecta narrativa (con o sin acción previa, acotaciones de modo y destinatarios)
-                else {
-                    $verbs = '(?:dice|dijo|decir|diciendo|pregunta|preguntó|preguntar|preguntando|responde|respondió|responder|respondiendo|contesta|contestó|contestar|contestando|susurra|susurró|susurrar|susurrando|grita|gritó|gritar|gritando|afirma|afirmó|afirmar|afirmando|exclama|exclamó|exclamar|exclamando|pide|pidió|pedir|pidiendo|murmura|murmuró|murmurar|murmurando|advierte|advirtió|advirtiendo)';
-                    $links = '(?:que\s+quien|qué\s+quien|que\s+quién|qué\s+quién|que\s+qué|qué\s+qué|que\s+cómo|qué\s+cómo|que\s+dónde|qué\s+dónde|que\s+cuándo|qué\s+cuándo|que\s+por\s+qué|que\s+si|qué\s+|que\s+|si\s+|quién\s+|quien\s+|cómo\s+|dónde\s+|cuándo\s+|por\s+qué\s+)';
-                    $ignoreWords = ['se', 'el', 'la', 'los', 'las', 'un', 'una', 'al', 'en', 'por', 'tras', 'luego', 'mientras', 'cuando', 'como', 'donde'];
-
-                    $hasVerb = (bool) preg_match('/\b'.$verbs.'\b/iu', $cleanPara);
-
-                    if ($hasVerb && preg_match('/^([^.?!]{0,250}?)(?:[,\s]+y\s+|\s+y\s+|[,\s]+)?(?:\b(se|le|les|me|nos|te|lo|la|los|las)\s+)?\b'.$verbs.'\b\s*([^.?!]{0,100}?)\s*'.$links.'(.{1,5000})$/iu', $cleanPara, $m)) {
-                        $prePart = trim($m[1] ?? '');
-                        $verbMod = trim($m[3] ?? '');
-                        $dialogueRest = $this->cleanPunctuation($m[4] ?? '');
-
-                        preg_match('/'.$verbs.'/iu', $cleanPara, $mV);
-                        $verb = strtolower($mV[0] ?? 'dice');
-
-                        $actionPart = null;
-                        $speaker = null;
-
-                        // Destinatario explícito (ej: 'a Javier', 'a Juan')
-                        $recipient = null;
-                        if (preg_match('/(?:a|al)\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)/iu', $cleanPara, $mRec)) {
-                            $recipient = mb_strtoupper($mRec[1], 'UTF-8');
-                        }
-
-                        // Evaluar si prePart empieza con nombre propio
-                        if (preg_match('/^([A-ZÁÉÍÓÚÑ][a-záéíóúñ]{1,15})\b/u', $prePart, $mLead)) {
-                            $candidate = $mLead[1];
-                            if (! in_array(strtolower($candidate), $ignoreWords, true)) {
-                                $speaker = mb_strtoupper($candidate, 'UTF-8');
-                                if (! preg_match('/^'.preg_quote($candidate, '/').'$/iu', $prePart)) {
-                                    $actionPart = $prePart;
-                                }
-                            } else {
-                                $actionPart = $prePart;
-                            }
-                        } elseif (! empty($prePart)) {
-                            $actionPart = $prePart;
-                        }
-
-                        // Si no hay hablante explícito en la cláusula, inferir por descarte de destinatario
-                        if (! $speaker) {
-                            if ($recipient) {
-                                foreach ($characters as $char) {
-                                    $cName = mb_strtoupper($char['name'] ?? '', 'UTF-8');
-                                    if (! empty($cName) && $cName !== $recipient) {
-                                        $speaker = $cName;
-                                        break;
-                                    }
-                                }
-                            }
-                            if (! $speaker && ! empty($activeSpeaker)) {
-                                $speaker = $activeSpeaker;
-                            }
-                        }
-
-                        if (! $speaker) {
-                            $speaker = ! empty($characters[0]['name']) ? mb_strtoupper($characters[0]['name'], 'UTF-8') : 'PERSONAJE';
-                        }
-                        $activeSpeaker = $speaker;
-
-                        // Acotación circunstancial (parenthetical)
-                        $parenthetical = null;
-                        if (preg_match('/(?:al\s+o[ií]do)/iu', $verbMod)) {
-                            $parenthetical = 'susurrando al oído';
-                        } elseif (preg_match('/(?:en\s+voz\s+baja)/iu', $verbMod)) {
-                            $parenthetical = 'en voz baja';
-                        } elseif (preg_match('/(?:con\s+calma|tranquil[oa])/iu', $verbMod)) {
-                            $parenthetical = 'con calma';
-                        } elseif (preg_match('/(?:furios[oa]|enfadad[oa])/iu', $verbMod)) {
-                            $parenthetical = 'furioso';
-                        } elseif (str_contains($verb, 'susurra')) {
-                            $parenthetical = 'susurrando';
-                        }
-
-                        // Limpiar nexos anidados 'y que '
-                        $dialogueRest = preg_replace('/\s+y\s+que\s+/iu', ' y ', $dialogueRest);
-
-                        // Iteración y refinamiento dramático a estilo directo (segunda persona)
-                        $dialogue = $this->refineDialogueToDirectSpeech($dialogueRest, $verb);
-
-                        if (! empty($actionPart)) {
-                            $lines[] = $this->cleanPunctuation($actionPart).'.';
-                            $lines[] = '';
-                        }
                         $lines[] = $speaker;
                         if ($parenthetical) {
-                            $lines[] = '('.$parenthetical.')';
+                            $lines[] = '('.strtolower($parenthetical).')';
                         }
-                        $lines[] = $dialogue;
+                        $lines[] = $speech;
                         $lines[] = '';
                         $dialogueMatched = true;
+                        $activeSpeaker = $speaker;
                     }
-                }
+                    // Formato B: "Personaje dice/pregunta: \"Diálogo\""
+                    elseif (preg_match('/^([a-záéíóúñA-ZÁÉÍÓÚÑ\s]+?)\s+(?:dice|responde|susurra|grita|pregunta|afirma)\s*:\s*["«]([^"»]+)["»]$/iu', $segment, $m)) {
+                        $speaker = mb_strtoupper(trim($m[1]), 'UTF-8');
+                        $speech = trim($m[2]);
 
-                // Si no es un diálogo explícito ni indirecto, es un bloque de ACCIÓN cinematográfica
-                if (! $dialogueMatched) {
-                    $actionLine = $cleanPara;
-                    foreach ($characters as $char) {
-                        if (is_array($char) && ! empty($char['name'])) {
-                            $cname = trim($char['name']);
-                            $canonicalUpper = mb_strtoupper($cname, 'UTF-8');
-                            $pattern = '/\b'.preg_quote($cname, '/').'\b/iu';
-                            $actionLine = preg_replace($pattern, $canonicalUpper, $actionLine);
+                        $lines[] = $speaker;
+                        $lines[] = $speech;
+                        $lines[] = '';
+                        $dialogueMatched = true;
+                        $activeSpeaker = $speaker;
+                    }
+                    // Formato C: Habla indirecta narrativa (con o sin acción previa, acotaciones de modo y destinatarios)
+                    else {
+                        $verbs = '(?:dice|dijo|decir|decirle|decirles|diciendo|diciéndole|diciéndoles|pregunta|preguntó|preguntar|preguntarle|preguntarles|preguntando|preguntándole|preguntándoles|responde|respondió|responder|responderle|responderles|respondiendo|respondiéndole|respondiéndoles|contesta|contestó|contestar|contestarle|contestarles|contestando|contestándole|contestándoles|susurra|susurró|susurrar|susurrarle|susurrando|susurrándole|grita|gritó|gritar|gritarle|gritando|gritándole|afirma|afirmó|afirmar|afirmando|exclama|exclamó|exclamar|exclamando|exclamándole|pide|pidió|pedir|pedirle|pidiendo|pidiéndole|pidiéndoles|murmura|murmuró|murmurar|murmurando|murmurándole|advierte|advirtió|advertir|advertirle|advirtiendo|advirtiéndole)';
+                        $linkRegex = '((?:que\s+quien|qué\s+quien|que\s+quién|qué\s+quién|que\s+qué|qué\s+qué|que\s+cómo|qué\s+cómo|que\s+dónde|qué\s+dónde|que\s+cuándo|qué\s+cuándo|que\s+por\s+qué|que\s+si|qué|que|si|quién|quien|cómo|dónde|cuándo|por\s+qué))\s+';
+
+                        $hasVerb = (bool) preg_match('/\b'.$verbs.'\b/iu', $segment);
+
+                        if ($hasVerb && preg_match('/^([^.?!]{0,250}?)(?:[,\s]+y\s+|\s+y\s+|[,\s]+)?(?:\b(?:se|le|les|me|nos|te|lo|la|los|las)\s+)?\b('.$verbs.')\b\s*([^.?!]{0,100}?)\s*'.$linkRegex.'(.{1,5000})$/iu', $segment, $m)) {
+                            $prePart = trim($m[1] ?? '');
+                            $verb = strtolower(trim($m[2] ?? 'dice'));
+                            $verbMod = trim($m[3] ?? '');
+                            $linkRaw = strtolower(trim($m[4] ?? 'que'));
+                            $linkParts = preg_split('/\s+/u', $linkRaw);
+                            $particle = end($linkParts);
+                            $dialogueRest = $this->cleanPunctuation($m[5] ?? '');
+
+                            $resolved = $this->resolveSpeakerFromPrePart($prePart, $characters, $activeSpeaker);
+                            $speaker = $resolved['speaker'];
+                            $actionPart = $resolved['actionPart'];
+
+                            if (! $speaker) {
+                                $speaker = ! empty($activeSpeaker) ? $activeSpeaker : 'PERSONAJE';
+                            }
+                            $activeSpeaker = $speaker;
+
+                            // Acotación circunstancial (parenthetical)
+                            $parenthetical = null;
+                            if (preg_match('/(?:al\s+o[ií]do)/iu', $verbMod)) {
+                                $parenthetical = 'susurrando al oído';
+                            } elseif (preg_match('/(?:en\s+voz\s+baja)/iu', $verbMod)) {
+                                $parenthetical = 'en voz baja';
+                            } elseif (preg_match('/(?:con\s+calma|tranquil[oa])/iu', $verbMod)) {
+                                $parenthetical = 'con calma';
+                            } elseif (preg_match('/(?:furios[oa]|enfadad[oa])/iu', $verbMod)) {
+                                $parenthetical = 'furioso';
+                            } elseif (str_contains($verb, 'susurra')) {
+                                $parenthetical = 'susurrando';
+                            }
+
+                            // Limpiar nexos anidados 'y que '
+                            $dialogueRest = preg_replace('/\s+y\s+que\s+/iu', ' y ', $dialogueRest);
+
+                            // Iteración y refinamiento dramático a estilo directo (segunda persona)
+                            $dialogue = $this->refineDialogueToDirectSpeech($dialogueRest, $verb, $particle);
+
+                            if (! empty($actionPart)) {
+                                $lines[] = $this->cleanPunctuation($actionPart).'.';
+                                $lines[] = '';
+                            }
+                            $lines[] = $speaker;
+                            if ($parenthetical) {
+                                $lines[] = '('.$parenthetical.')';
+                            }
+                            $lines[] = $dialogue;
+                            $lines[] = '';
+                            $dialogueMatched = true;
                         }
                     }
 
-                    // Recordar último personaje que inició una acción
-                    $ignoreWords = ['se', 'el', 'la', 'los', 'las', 'un', 'una', 'al', 'en', 'por', 'tras', 'luego', 'mientras', 'cuando', 'como', 'donde'];
-                    if (preg_match('/\b([A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,15})\b/u', $actionLine, $mSpkAction)) {
-                        if (! in_array(strtolower($mSpkAction[1]), $ignoreWords, true)) {
-                            $activeSpeaker = mb_strtoupper($mSpkAction[1], 'UTF-8');
+                    // Si no es un diálogo explícito ni indirecto, es un bloque de ACCIÓN cinematográfica
+                    if (! $dialogueMatched) {
+                        $actionLine = $segment;
+                        foreach ($characters as $char) {
+                            if (is_array($char) && ! empty($char['name'])) {
+                                $cname = trim($char['name']);
+                                $canonicalUpper = mb_strtoupper($cname, 'UTF-8');
+                                $pattern = '/\b'.preg_quote($cname, '/').'\b/iu';
+                                $actionLine = preg_replace($pattern, $canonicalUpper, $actionLine);
+                            }
                         }
-                    }
 
-                    $lines[] = $actionLine;
-                    $lines[] = '';
+                        // Recordar último personaje que inició una acción
+                        $ignoreWords = ['se', 'el', 'la', 'los', 'las', 'un', 'una', 'al', 'en', 'por', 'tras', 'luego', 'mientras', 'cuando', 'como', 'donde'];
+                        if (preg_match('/\b([A-ZÁÉÍÓÚÑ][a-záéíóúñA-ZÁÉÍÓÚÑ]{1,15}(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñA-ZÁÉÍÓÚÑ]{1,15})?)\b/u', $actionLine, $mSpkAction)) {
+                            $firstWord = strtolower(explode(' ', $mSpkAction[1])[0]);
+                            if (! in_array($firstWord, $ignoreWords, true)) {
+                                $activeSpeaker = mb_strtoupper($mSpkAction[1], 'UTF-8');
+                            }
+                        }
+
+                        $lines[] = $actionLine;
+                        $lines[] = '';
+                    }
                 }
             }
 
@@ -958,11 +930,41 @@ class AgentClientService
     /**
      * Nodo de refinamiento dramático iterativo: convierte tercera persona narrativa a interlocución directa en segunda/primera persona.
      */
-    protected function refineDialogueToDirectSpeech(string $text, string $verb): string
+    protected function refineDialogueToDirectSpeech(string $text, string $verb, ?string $particle = null): string
     {
         $res = trim($text);
         $res = preg_replace('/^que\s+/iu', '', $res);
         $res = preg_replace('/(?<=[.?!])\s*que\s+/iu', ' ', $res);
+
+        $initialCore = $this->cleanPunctuation($res);
+        if ($initialCore === '') {
+            if (str_contains($verb, 'pregunta')) {
+                return '¿...?';
+            }
+            if (str_contains($verb, 'grita')) {
+                return '¡...!';
+            }
+
+            return '...';
+        }
+
+        if ($particle !== null) {
+            $canonicalParticle = match ($particle) {
+                'qué' => 'qué',
+                'quien', 'quién' => 'quién',
+                'como', 'cómo' => 'cómo',
+                'cuando', 'cuándo' => 'cuándo',
+                'donde', 'dónde' => 'dónde',
+                'por que', 'por qué' => 'por qué',
+                default => null,
+            };
+
+            if ($canonicalParticle !== null) {
+                if (! preg_match('/^\b'.preg_quote($canonicalParticle, '/').'\b/iu', $res)) {
+                    $res = $canonicalParticle.' '.$res;
+                }
+            }
+        }
 
         // Iteración 1: Pronombres y conjugaciones de 3ª persona del destinatario a 2ª persona y 1ª persona
         $replacements = [
@@ -981,6 +983,10 @@ class AgentClientService
             '/\bpara\s+recibir\s+su\b/iu' => 'para recibir tu',
             '/\bsus\s+actos\b/iu' => 'tus actos',
             '/\bsu\s+vida\b/iu' => 'tu vida',
+            '/\bse\s+calle\b/iu' => 'te calles',
+            '/\bno\s+se\s+meta\b/iu' => 'no te metas',
+            '/\ble\s+deje\b/iu' => 'me dejes',
+            '/\bestá\s+haciendo\b/iu' => 'estás haciendo',
         ];
 
         foreach ($replacements as $pat => $rep) {
@@ -997,7 +1003,19 @@ class AgentClientService
         if (str_contains($verb, 'pregunta')) {
             if (preg_match('/^(?:quien|quién)\s+(.+)$/iu', $res, $mQ)) {
                 return '¿Quién '.$mQ[1].'?';
-            } elseif (preg_match('/^(?:está|esta|llega|vienen|es|pasa)\b/iu', $res)) {
+            } elseif (preg_match('/^(?:por\s+qué|por\s+que|cómo|como|cuándo|cuando|dónde|donde|qué|que)\s+(.+)$/iu', $res, $mWh)) {
+                $firstWord = strtolower(explode(' ', $res)[0]);
+                $whWord = match ($firstWord) {
+                    'por' => '¿Por qué '.preg_replace('/^por\s+qu[eé]\s+/iu', '', $res).'?',
+                    'cómo', 'como' => '¿Cómo '.$mWh[1].'?',
+                    'cuándo', 'cuando' => '¿Cuándo '.$mWh[1].'?',
+                    'dónde', 'donde' => '¿Dónde '.$mWh[1].'?',
+                    'qué', 'que' => '¿Qué '.$mWh[1].'?',
+                    default => '¿'.$this->mbUcfirst($core).'?',
+                };
+
+                return $whWord;
+            } elseif (preg_match('/^(?:está|esta|llega|vienen|es|pasa)\b/iu', $res) && ($particle === null || $particle === 'que' || $particle === 'quién' || $particle === 'quien')) {
                 return '¿Quién '.$res.'?';
             }
 
@@ -1028,6 +1046,123 @@ class AgentClientService
         }
 
         return $this->cleanPunctuation(implode(' ', $sentences)).'.';
+    }
+
+    /**
+     * Subdivide un párrafo en oraciones o segmentos de habla si contiene múltiples intercambios dialógicos.
+     *
+     * @return list<string>
+     */
+    protected function splitParagraphIntoDialogueSegments(string $para): array
+    {
+        $para = trim($para);
+        if ($para === '') {
+            return [];
+        }
+
+        // Si ya es un diálogo explícito clásico (Formato A o B), no subdividir
+        if (preg_match('/^([a-záéíóúñA-ZÁÉÍÓÚÑ\s]+?)(?:\s*\(([^)]+)\))?:\s*(.+)$/iu', $para) ||
+            preg_match('/^([a-záéíóúñA-ZÁÉÍÓÚÑ\s]+?)\s+(?:dice|responde|susurra|grita|pregunta|afirma)\s*:\s*["«]([^"»]+)["»]$/iu', $para)) {
+            return [$para];
+        }
+
+        $speechVerbs = '(?:dice|dijo|decir|decirle|decirles|diciendo|diciéndole|diciéndoles|pregunta|preguntó|preguntar|preguntarle|preguntarles|preguntando|preguntándole|preguntándoles|responde|respondió|responder|responderle|responderles|respondiendo|respondiéndole|respondiéndoles|contesta|contestó|contestar|contestarle|contestarles|contestando|contestándole|contestándoles|susurra|susurró|susurrar|susurrarle|susurrando|susurrándole|grita|gritó|gritar|gritarle|gritando|gritándole|afirma|afirmó|afirmar|afirmando|exclama|exclamó|exclamar|exclamando|exclamándole|pide|pidió|pedir|pedirle|pidiendo|pidiéndole|pidiéndoles|murmura|murmuró|murmurar|murmurando|murmurándole|advierte|advirtió|advertir|advertirle|advirtiendo|advirtiéndole)';
+
+        // 1. Separar por oraciones con punto seguido
+        $sentences = preg_split('/(?<=[.?!])\s+/u', $para);
+        $result = [];
+
+        foreach ($sentences as $sentence) {
+            $s = trim($sentence);
+            if ($s === '') {
+                continue;
+            }
+
+            // 2. Si dentro de la oración hay una réplica unida por "y [Personaje] (le contesta|dice|...)", separarla
+            $subSegments = preg_split('/\s+y\s+(?=[A-ZÁÉÍÓÚÑ][\wáéíóúñÁÉÍÓÚÑ]+(?:\s+[A-ZÁÉÍÓÚÑ][\wáéíóúñÁÉÍÓÚÑ]+)?\s+(?:(?:\b(?:se|le|les|me|nos|te)\s+)?)\b'.$speechVerbs.'\b)/u', $s);
+
+            foreach ($subSegments as $sub) {
+                $trimmed = trim($sub);
+                if ($trimmed !== '') {
+                    $result[] = $trimmed;
+                }
+            }
+        }
+
+        return ! empty($result) ? $result : [$para];
+    }
+
+    /**
+     * Determina el personaje hablante a partir de la cláusula previa al verbo de habla.
+     *
+     * @param  array<int, array<string, mixed>>  $characters
+     * @return array{speaker: ?string, actionPart: ?string}
+     */
+    protected function resolveSpeakerFromPrePart(string $prePart, array $characters, ?string $activeSpeaker = null): array
+    {
+        $speaker = null;
+        $actionPart = null;
+        $ignoreWords = ['se', 'el', 'la', 'los', 'las', 'un', 'una', 'al', 'en', 'por', 'tras', 'luego', 'mientras', 'cuando', 'como', 'donde', 'este', 'esta'];
+
+        // 1. Buscar coincidencias con la lista de personajes del proyecto
+        $candidates = [];
+        foreach ($characters as $char) {
+            $cName = trim((string) ($char['name'] ?? ''));
+            if ($cName === '') {
+                continue;
+            }
+            if (preg_match_all('/\b'.preg_quote($cName, '/').'\b/iu', $prePart, $matches, PREG_OFFSET_CAPTURE)) {
+                foreach ($matches[0] as $match) {
+                    $offset = $match[1];
+                    $before = mb_substr($prePart, 0, $offset, 'UTF-8');
+                    $isObject = (bool) preg_match('/(?:^|\s)(?:a|al|hacia|contra|con)\s+$/iu', $before);
+                    $candidates[] = [
+                        'name' => mb_strtoupper($cName, 'UTF-8'),
+                        'offset' => $offset,
+                        'is_object' => $isObject,
+                    ];
+                }
+            }
+        }
+
+        if (! empty($candidates)) {
+            $subjects = array_filter($candidates, fn ($c) => ! $c['is_object']);
+            if (! empty($subjects)) {
+                usort($subjects, fn ($a, $b) => $a['offset'] <=> $b['offset']);
+                $speaker = $subjects[0]['name'];
+            } else {
+                usort($candidates, fn ($a, $b) => $a['offset'] <=> $b['offset']);
+                $speaker = $candidates[0]['name'];
+            }
+        }
+
+        // 2. Si no coincide con un personaje de la Biblia, buscar un nombre propio al inicio de $prePart
+        if (! $speaker && preg_match('/^([A-ZÁÉÍÓÚÑ][a-záéíóúñA-ZÁÉÍÓÚÑ]{1,15}(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñA-ZÁÉÍÓÚÑ]{1,15})?)\b/u', $prePart, $mLead)) {
+            $candidate = trim($mLead[1]);
+            $firstWord = strtolower(explode(' ', $candidate)[0]);
+            if (! in_array($firstWord, $ignoreWords, true)) {
+                $speaker = mb_strtoupper($candidate, 'UTF-8');
+            }
+        }
+
+        // 3. Pronombres anafóricos ("este le dice", "ella contesta")
+        if (! $speaker && preg_match('/^(?:este|esta|él|ella)\b/iu', $prePart)) {
+            $speaker = $activeSpeaker;
+        }
+
+        // Si prePart tiene más contenido descriptivo que solo el nombre, es acotación de acción previa
+        if (! empty($prePart)) {
+            $stripped = $speaker ? trim(preg_replace('/\b'.preg_quote($speaker, '/').'\b/iu', '', $prePart)) : $prePart;
+            $stripped = trim($stripped, " ,.-;:\t\n\r");
+            if (! empty($stripped)) {
+                $actionPart = $prePart;
+            }
+        }
+
+        return [
+            'speaker' => $speaker,
+            'actionPart' => $actionPart,
+        ];
     }
 
     /**
