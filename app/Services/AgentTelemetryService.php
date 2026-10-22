@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AgentRequestLog;
 use App\Models\Project;
 use App\Models\TokenPricingRate;
+use Illuminate\Support\Facades\Log;
 
 class AgentTelemetryService
 {
@@ -23,7 +24,7 @@ class AgentTelemetryService
         array|string $outputPayload,
         ?array $telemetry = null,
         ?string $userId = null
-    ): AgentRequestLog {
+    ): ?AgentRequestLog {
         // 1. Extraer o estimar tokens consumidos (~1 token = 4 caracteres)
         $inputTokens = 0;
         $outputTokens = 0;
@@ -61,7 +62,7 @@ class AgentTelemetryService
 
         $sanitizedTelemetry = null;
         if (is_array($telemetry)) {
-            $sanitizedTelemetry = $telemetry;
+            $sanitizedTelemetry = $this->sanitizeUtf8Recursive($telemetry);
             if (isset($sanitizedTelemetry['user_locks']['ai_telemetry'])) {
                 unset($sanitizedTelemetry['user_locks']['ai_telemetry']);
             }
@@ -72,17 +73,49 @@ class AgentTelemetryService
             $userId = Project::whereKey($projectId)->value('user_id');
         }
 
-        // 4. Persistir log de telemetría
-        return AgentRequestLog::create([
-            'user_id' => $userId,
-            'project_id' => $projectId,
-            'script_block_id' => $scriptBlockId,
-            'tool_name' => $toolName,
-            'input_tokens' => $inputTokens,
-            'output_tokens' => $outputTokens,
-            'total_tokens' => $totalTokens,
-            'estimated_cost_usd' => $estimatedCost,
-            'meta' => $sanitizedTelemetry,
-        ]);
+        // 4. Persistir log de telemetría de forma resiliente
+        try {
+            return AgentRequestLog::create([
+                'user_id' => $userId,
+                'project_id' => $projectId,
+                'script_block_id' => $scriptBlockId,
+                'tool_name' => $toolName,
+                'input_tokens' => $inputTokens,
+                'output_tokens' => $outputTokens,
+                'total_tokens' => $totalTokens,
+                'estimated_cost_usd' => $estimatedCost,
+                'meta' => $sanitizedTelemetry,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning("Fallo al persistir AgentRequestLog ({$toolName}): {$e->getMessage()}", [
+                'project_id' => $projectId,
+                'script_block_id' => $scriptBlockId,
+                'tool_name' => $toolName,
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Sanitiza recursivamente strings a UTF-8 válido para evitar JsonEncodingException en bases de datos relacionales.
+     */
+    protected function sanitizeUtf8Recursive(mixed $data): mixed
+    {
+        if (is_string($data)) {
+            return mb_convert_encoding($data, 'UTF-8', 'UTF-8');
+        }
+
+        if (is_array($data)) {
+            $sanitized = [];
+            foreach ($data as $key => $value) {
+                $cleanKey = is_string($key) ? mb_convert_encoding($key, 'UTF-8', 'UTF-8') : $key;
+                $sanitized[$cleanKey] = $this->sanitizeUtf8Recursive($value);
+            }
+
+            return $sanitized;
+        }
+
+        return $data;
     }
 }

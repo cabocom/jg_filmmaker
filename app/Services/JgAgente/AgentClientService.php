@@ -623,10 +623,10 @@ class AgentClientService
 
                     $hasVerb = (bool) preg_match('/\b'.$verbs.'\b/iu', $cleanPara);
 
-                    if ($hasVerb && preg_match('/^([^.?!]{0,250}?)(?:[,\s]+y\s+|\s+y\s+|[,\s]+)?(?:(se|le|les|me|nos|te|lo|la|los|las)\s+)?\b'.$verbs.'\b\s*([^.?!]{0,100}?)\s*'.$links.'(.{1,5000})$/iu', $cleanPara, $m)) {
+                    if ($hasVerb && preg_match('/^([^.?!]{0,250}?)(?:[,\s]+y\s+|\s+y\s+|[,\s]+)?(?:\b(se|le|les|me|nos|te|lo|la|los|las)\s+)?\b'.$verbs.'\b\s*([^.?!]{0,100}?)\s*'.$links.'(.{1,5000})$/iu', $cleanPara, $m)) {
                         $prePart = trim($m[1] ?? '');
                         $verbMod = trim($m[3] ?? '');
-                        $dialogueRest = trim(rtrim(trim($m[4] ?? ''), '.?!'));
+                        $dialogueRest = $this->cleanPunctuation($m[4] ?? '');
 
                         preg_match('/'.$verbs.'/iu', $cleanPara, $mV);
                         $verb = strtolower($mV[0] ?? 'dice');
@@ -637,14 +637,14 @@ class AgentClientService
                         // Destinatario explícito (ej: 'a Javier', 'a Juan')
                         $recipient = null;
                         if (preg_match('/(?:a|al)\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)/iu', $cleanPara, $mRec)) {
-                            $recipient = strtoupper($mRec[1]);
+                            $recipient = mb_strtoupper($mRec[1], 'UTF-8');
                         }
 
                         // Evaluar si prePart empieza con nombre propio
                         if (preg_match('/^([A-ZÁÉÍÓÚÑ][a-záéíóúñ]{1,15})\b/u', $prePart, $mLead)) {
                             $candidate = $mLead[1];
                             if (! in_array(strtolower($candidate), $ignoreWords, true)) {
-                                $speaker = strtoupper($candidate);
+                                $speaker = mb_strtoupper($candidate, 'UTF-8');
                                 if (! preg_match('/^'.preg_quote($candidate, '/').'$/iu', $prePart)) {
                                     $actionPart = $prePart;
                                 }
@@ -659,7 +659,7 @@ class AgentClientService
                         if (! $speaker) {
                             if ($recipient) {
                                 foreach ($characters as $char) {
-                                    $cName = strtoupper($char['name'] ?? '');
+                                    $cName = mb_strtoupper($char['name'] ?? '', 'UTF-8');
                                     if (! empty($cName) && $cName !== $recipient) {
                                         $speaker = $cName;
                                         break;
@@ -672,7 +672,7 @@ class AgentClientService
                         }
 
                         if (! $speaker) {
-                            $speaker = ! empty($characters[0]['name']) ? strtoupper($characters[0]['name']) : 'PERSONAJE';
+                            $speaker = ! empty($characters[0]['name']) ? mb_strtoupper($characters[0]['name'], 'UTF-8') : 'PERSONAJE';
                         }
                         $activeSpeaker = $speaker;
 
@@ -697,7 +697,7 @@ class AgentClientService
                         $dialogue = $this->refineDialogueToDirectSpeech($dialogueRest, $verb);
 
                         if (! empty($actionPart)) {
-                            $lines[] = rtrim($actionPart, '.?!').'.';
+                            $lines[] = $this->cleanPunctuation($actionPart).'.';
                             $lines[] = '';
                         }
                         $lines[] = $speaker;
@@ -726,7 +726,7 @@ class AgentClientService
                     $ignoreWords = ['se', 'el', 'la', 'los', 'las', 'un', 'una', 'al', 'en', 'por', 'tras', 'luego', 'mientras', 'cuando', 'como', 'donde'];
                     if (preg_match('/\b([A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,15})\b/u', $actionLine, $mSpkAction)) {
                         if (! in_array(strtolower($mSpkAction[1]), $ignoreWords, true)) {
-                            $activeSpeaker = strtoupper($mSpkAction[1]);
+                            $activeSpeaker = mb_strtoupper($mSpkAction[1], 'UTF-8');
                         }
                     }
 
@@ -992,7 +992,7 @@ class AgentClientService
         $res = preg_replace('/\s+y\s+(tienes|debes|ahora|no|vas)\b/iu', '. $1', $res);
 
         // Iteración 3: Mayúsculas y puntuación canónica
-        $core = trim($res, ".?!¿¡ \t\n\r\0\x0B");
+        $core = $this->cleanPunctuation($res);
 
         if (str_contains($verb, 'pregunta')) {
             if (preg_match('/^(?:quien|quién)\s+(.+)$/iu', $res, $mQ)) {
@@ -1005,7 +1005,7 @@ class AgentClientService
                 return '¿...?';
             }
 
-            return '¿'.ucfirst($core).'?';
+            return '¿'.$this->mbUcfirst($core).'?';
         }
 
         if (str_contains($verb, 'grita')) {
@@ -1013,21 +1013,43 @@ class AgentClientService
                 return '¡...!';
             }
 
-            return '¡'.ucfirst($core).'!';
+            return '¡'.$this->mbUcfirst($core).'!';
         }
 
         $sentences = preg_split('/(?<=[.?!])\s+/u', $res);
         $sentences = array_filter(array_map(function ($s) {
-            $sCore = trim($s, ".?!¿¡ \t\n\r\0\x0B");
+            $sCore = $this->cleanPunctuation($s);
 
-            return $sCore !== '' ? ucfirst($sCore) : null;
-        }, $sentences));
+            return $sCore !== '' ? $this->mbUcfirst($sCore) : null;
+        }, $sentences ?: []));
 
         if (empty($sentences)) {
-            return $core !== '' ? ucfirst($core).'.' : '...';
+            return $core !== '' ? $this->mbUcfirst($core).'.' : '...';
         }
 
-        return rtrim(implode(' ', $sentences), '.?!').'.';
+        return $this->cleanPunctuation(implode(' ', $sentences)).'.';
+    }
+
+    /**
+     * Limpia de forma segura caracteres de puntuación iniciales y finales respetando UTF-8 (sin corromper bytes multibyte).
+     */
+    protected function cleanPunctuation(string $str): string
+    {
+        return preg_replace('/^[\s.?!¿¡]+|[\s.?!¿¡]+$/u', '', $str) ?? trim($str);
+    }
+
+    /**
+     * Versión multibyte segura de ucfirst() para no corromper caracteres acentuados en UTF-8.
+     */
+    protected function mbUcfirst(string $str): string
+    {
+        if ($str === '') {
+            return '';
+        }
+        $first = mb_substr($str, 0, 1, 'UTF-8');
+        $rest = mb_substr($str, 1, null, 'UTF-8');
+
+        return mb_strtoupper($first, 'UTF-8').$rest;
     }
 
     /**
