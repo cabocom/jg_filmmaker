@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\MediaStreamController;
+use App\Http\Controllers\ScriptExportController;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Livewire\Admin\PricingManager;
 use App\Livewire\Admin\ProjectManager;
@@ -34,6 +35,11 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/projects/{project}', ScriptEditor::class)
         ->middleware('can:view,project')
         ->name('projects.show');
+
+    // Exportación del Guión Completo en PDF
+    Route::get('/projects/{project}/export-pdf', [ScriptExportController::class, 'exportPdf'])
+        ->middleware('can:view,project')
+        ->name('projects.export-pdf');
 
     // Streaming seguro de medios audiovisuales privados (ISSUE-006)
     Route::get('/media/takes/{take}', [MediaStreamController::class, 'streamTake'])->name('media.take');

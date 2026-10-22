@@ -48,7 +48,7 @@
 
     <!-- ================= BARRA SUPERIOR STICKY: TÍTULO DEL PROYECTO Y NAVEGACIÓN STORY ARCHITECT ================= -->
     <div class="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 shadow-xs backdrop-blur-md px-3 sm:px-6 lg:px-8 py-2 transition-colors">
-        <div class="max-w-7xl mx-auto flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+        <div class="max-w-7xl mx-auto flex items-center gap-2 flex-wrap py-1">
             <!-- Título del Proyecto con Botón de Edición -->
             <div class="flex items-center gap-1.5 shrink-0">
                 <span class="text-xs sm:text-sm font-bold font-mono uppercase tracking-wider text-slate-900 dark:text-white" title="{{ $project->title }}">
@@ -155,7 +155,7 @@
                     </button>
                 </div>
 
-                <!-- Dropdown Panel (Compacto: Ver, Ocultar, Borrar) -->
+                <!-- Dropdown Panel de Agujeros de Guión -->
                 <div x-show="holeMenuOpen"
                      x-transition:enter="transition ease-out duration-150"
                      x-transition:enter-start="opacity-0 scale-95"
@@ -163,35 +163,45 @@
                      x-transition:leave="transition ease-in duration-100"
                      x-transition:leave-start="opacity-100 scale-100"
                      x-transition:leave-end="opacity-0 scale-95"
-                     class="absolute left-0 top-full mt-1 w-32 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl p-1 z-50 space-y-0.5 font-mono text-xs"
-                     style="display: none;">
+                     class="absolute left-0 top-full mt-1.5 w-48 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl p-1 z-50 space-y-0.5 font-mono text-xs">
                     
+                    <!-- 1. Analizar con IA -->
+                    <button wire:click="promptAnalyzePlotHoles"
+                            @click="holeMenuOpen = false"
+                            type="button"
+                            class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">
+                        <span>🔍</span>
+                        <span>Analizar con IA</span>
+                    </button>
+
+                    <!-- 2. Ver u Ocultar Avisos -->
                     @if($showPlotHoleAlerts)
-                        <!-- 1. Ocultar (cuando están visibles) -->
                         <button wire:click="togglePlotHoleAlerts"
                                 @click="holeMenuOpen = false"
                                 type="button"
-                                class="w-full flex items-center px-2.5 py-1.5 rounded-lg text-left text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">
-                            <span>Ocultar</span>
+                                class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">
+                            <span>🙈</span>
+                            <span>Ocultar avisos</span>
                         </button>
                     @else
-                        <!-- 1. Ver (cuando están ocultos) -->
                         <button wire:click="togglePlotHoleAlerts"
                                 @click="holeMenuOpen = false"
                                 type="button"
-                                class="w-full flex items-center px-2.5 py-1.5 rounded-lg text-left text-amber-600 dark:text-amber-400 font-bold hover:bg-amber-500/10 transition cursor-pointer">
-                            <span>Ver</span>
+                                class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-amber-600 dark:text-amber-400 font-bold hover:bg-amber-500/10 transition cursor-pointer">
+                            <span>👁️</span>
+                            <span>Mostrar avisos</span>
                         </button>
                     @endif
 
                     <div class="border-t border-slate-100 dark:border-slate-800 my-0.5"></div>
 
-                    <!-- 3. Borrar -->
+                    <!-- 3. Borrar marcas -->
                     <button wire:click="clearPlotHoles"
                             @click="holeMenuOpen = false"
                             type="button"
-                            class="w-full flex items-center px-2.5 py-1.5 rounded-lg text-left text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition cursor-pointer">
-                        <span>Borrar</span>
+                            class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition cursor-pointer">
+                        <span>🗑️</span>
+                        <span>Borrar avisos</span>
                     </button>
                 </div>
             </div>
@@ -203,6 +213,17 @@
                     title="Historial de acciones y trazabilidad en orden cronológico inverso">
                 <span>📜</span>
                 <span>Historial</span>
+            </button>
+
+            <!-- Botón de Exportar Guión Completo a PDF -->
+            <button type="button"
+                    wire:click="exportPdf"
+                    wire:loading.attr="disabled"
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-xs cursor-pointer shrink-0 disabled:opacity-50"
+                    title="Exportar y descargar el guión cinematográfico completo en PDF estándar">
+                <span wire:loading.remove wire:target="exportPdf">📄</span>
+                <span wire:loading wire:target="exportPdf" class="animate-spin text-xs">⏳</span>
+                <span>Exportar PDF</span>
             </button>
 
             <!-- Botón de Renderizado / Procesamiento en Lote ("Renderizar Todo de Golpe") -->

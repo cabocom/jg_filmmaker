@@ -14,6 +14,7 @@ use App\Models\Take;
 use App\Models\UserActivityLog;
 use App\Services\AgentTelemetryService;
 use App\Services\JgAgente\AgentClientService;
+use App\Services\ScriptExportService;
 use App\Services\ScriptImportService;
 use App\Services\ScriptPipelineService;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +28,7 @@ use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithFileUploads;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 #[Layout('layouts.app')]
 class ScriptEditor extends Component
@@ -2355,6 +2357,20 @@ class ScriptEditor extends Component
 
         $this->showEditTitleModal = false;
         session()->flash('success', "Título del proyecto modificado a \"{$this->projectTitle}\".");
+    }
+
+    public function exportPdf(ScriptExportService $exportService): StreamedResponse
+    {
+        Gate::authorize('view', $this->project);
+
+        $this->logActivity('export_script_pdf', 'Project', $this->project->id, 'Exportación de guión completo a PDF');
+
+        $pdf = $exportService->generateScreenplayPdf($this->project);
+        $filename = Str::slug($this->project->title ?: 'guion').'-guion.pdf';
+
+        return response()->streamDownload(fn () => print ($pdf->output()), $filename, [
+            'Content-Type' => 'application/pdf',
+        ]);
     }
 
     public function openBatchModal(): void
