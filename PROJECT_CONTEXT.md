@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.18.0  
-**Fecha de consolidación:** 22 de octubre de 2026  
+**Versión del documento:** 3.19.0  
+**Fecha de consolidación:** 26 de octubre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
-**Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 3/4, Tailwind CSS v4, PHP 8.4, PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), PHPUnit 12, Laravel Pint  
-**Estado:** ¡AUDITORÍA TÉCNICA 100% COMPLETADA! Sprint 0, Sprint 1, Sprint 2, Sprint 3, Fase 4 (42 issues resueltos y consolidados con éxito), Fase 17 (Importación PDF/TXT, Edición de Obra y Renderizado en Lote), ISSUE-043 (Blindaje UTF-8 y Resiliencia en Telemetría), ISSUE-044 (Atribución Precisa de Personajes) e ISSUE-045 (Exportación de Guión Completo en PDF y Desplegables de Cabecera):
+**Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), PHPUnit 12, Laravel Pint  
+**Estado:** ¡AUDITORÍA DE SEGURIDAD Y PARCHEO COMPLETADOS! Runtime validado sobre PHP 8.4.27 (inmune a CVE-2026-109618 / CVE-2026-109619). Dependencia `livewire/livewire` actualizada a `v4.4.8` resolviendo la vulnerabilidad de autorización `PKSA-xhv3-nr94-h8db`. Suite completa con 206 tests automatizados pasando al 100% y Pint superado. Sprint 0 a Fase 17 consolidados.
 - **Importación Inteligente de Guiones PDF y TXT (`ScriptImportService`):** Ingesta y parseo automático de guiones literarios en formato PDF (vía `smalot/pdfparser` nativo y fallback a `pdftotext`) y TXT UTF-8. Motor heurístico de análisis dramático que detecta sluglines canónicos (`INT./EXT.`), tiempos de día, numeración, personajes en mayúsculas, acotaciones y bloques de acción/diálogo. Ventana interactiva de previsualización con resumen métrico y confirmación obligatoria con aviso de destrucción irreversible de datos antes de sobreescribir un proyecto o crear uno nuevo desde el catálogo.
 - **Edición Ágil del Nombre y Metadatos de la Obra:** Capacidad de modificar el título y sinopsis del proyecto tanto desde el listado general (`ProjectList`) como directamente en tiempo real desde el encabezado del estudio de rodaje (`ScriptEditor`).
 - **Renderizado y Procesamiento en Lote Multietapa (Batch Processing):** Nuevo servicio `ScriptPipelineService::batch*` y modal interactivo en el estudio para procesar en lote a nivel de Escena Activa o Proyecto Completo: Brutos ➔ Tratamientos, Tratamientos ➔ Guiones, Guiones ➔ Planos Técnicos o Pipeline Completo en cadena. Protección absoluta de candados de usuario (`user_locks['locked_fields']`) para no sobreescribir bloques protegidos por el cineasta.
