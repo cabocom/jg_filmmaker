@@ -1,7 +1,7 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.19.0  
-**Fecha de consolidación:** 26 de octubre de 2026  
+**Versión del documento:** 3.20.0  
+**Fecha de consolidación:** 1 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), PHPUnit 12, Laravel Pint  
 **Estado:** ¡AUDITORÍA DE SEGURIDAD Y PARCHEO COMPLETADOS! Runtime validado sobre PHP 8.4.27 (inmune a CVE-2026-109618 / CVE-2026-109619). Dependencia `livewire/livewire` actualizada a `v4.4.8` resolviendo la vulnerabilidad de autorización `PKSA-xhv3-nr94-h8db`. Suite completa con 206 tests automatizados pasando al 100% y Pint superado. Sprint 0 a Fase 17 consolidados.
@@ -13,7 +13,11 @@
   - Integración de `barryvdh/laravel-dompdf` para renderizado en PHP puro sin dependencias de C externas, con ruta HTTP protegida `projects.export-pdf` y acción Livewire `exportPdf()`.
   - Corrección del corte de desbordamiento CSS en la barra superior sustituyendo `overflow-x-auto` por `flex-wrap py-1`, permitiendo que todos los menús desplegables (`stageMenuOpen`, `holeMenuOpen`) se abran y floten hacia abajo sin ser recortados por el contenedor.
   - Enriquecimiento del desplegable de Agujeros de Guión con todas las opciones disponibles con icono y descripción (Analizar con IA, Ver/Ocultar avisos, Borrar marcas).
-- Suite ampliada a **206 tests automatizados pasando al 100%** con `ScriptPdfExportTest`.
+- **ISSUE-046: Compatibilidad Estricta con PostgreSQL en Concurrencia Pesimista (`ScriptEditor`):**
+  - Corrección del error `SQLSTATE[0A000]: Feature not supported: 7 ERROR: FOR UPDATE is not allowed with aggregate functions` producido al crear escenas, bloques, planos o tomas en PostgreSQL.
+  - La concurrencia pesimista en creación de entidades jerárquicas bloquea ahora la entidad padre con `lockForUpdate()->first()` (`Project`, `Scene` o `Shot`), calculando el orden correlativo `max(...)` escalarmente sin añadir `FOR UPDATE` a la consulta de agregación.
+  - Inicialización reactiva de `expandedSceneIds` y `scenePipelineStages` al crear nuevas escenas para garantizar su despliegue y visibilidad inmediata en el estudio.
+- Suite ampliada a **206 tests automatizados pasando al 100%** con Pint superado.
 
 - ISSUE-001: saneamiento de subida de tomas contra RCE (derivación estricta de extensiones desde MIME type verificado por el servidor, lista blanca `ALLOWED_EXTENSIONS` en `Take`, bloqueo de ejecución PHP en `/storage/` en Nginx).
 - ISSUE-002: mitigación de fuga de OTP y toma de cuentas (bloqueo con `#[Locked]` de `$step` y `$devOtpCode`, eliminación de `$isLocalEnv`, comprobación estricta de `APP_ENV=local && APP_DEBUG=true` en servidor, erradicación de retención en sesión).

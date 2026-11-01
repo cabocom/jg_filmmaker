@@ -508,16 +508,17 @@ class ScriptEditor extends Component
         $scene = $this->projectScene($this->activeSceneId);
 
         $newBlock = DB::transaction(function () use ($scene) {
+            Scene::whereKey($scene->id)->lockForUpdate()->first();
+
             if ($this->insertAfterOrder !== null) {
                 // Desplazar bloques con orden mayor que el de inserción
                 $scene->scriptBlocks()
                     ->where('block_order', '>', $this->insertAfterOrder)
-                    ->lockForUpdate()
                     ->increment('block_order');
 
                 $newOrder = $this->insertAfterOrder + 1;
             } else {
-                $maxOrder = $scene->scriptBlocks()->lockForUpdate()->max('block_order') ?? 0;
+                $maxOrder = $scene->scriptBlocks()->max('block_order') ?? 0;
                 $newOrder = $maxOrder + 1;
             }
 
@@ -670,14 +671,15 @@ class ScriptEditor extends Component
         ]);
 
         $scene = DB::transaction(function () {
+            Project::whereKey($this->project->id)->lockForUpdate()->first();
+
             if ($this->insertSceneAfterOrder !== null) {
                 $this->project->scenes()
                     ->where('scene_order', '>', $this->insertSceneAfterOrder)
-                    ->lockForUpdate()
                     ->increment('scene_order');
                 $newOrder = $this->insertSceneAfterOrder + 1;
             } else {
-                $maxOrder = $this->project->scenes()->lockForUpdate()->max('scene_order') ?? 0;
+                $maxOrder = $this->project->scenes()->max('scene_order') ?? 0;
                 $newOrder = $maxOrder + 1;
             }
 
@@ -698,6 +700,11 @@ class ScriptEditor extends Component
 
             return $newScene;
         });
+
+        if (! in_array($scene->id, $this->expandedSceneIds, true)) {
+            $this->expandedSceneIds[] = $scene->id;
+        }
+        $this->scenePipelineStages[$scene->id] = 'idea';
 
         // Sincronizar localizaciones del proyecto y notificar a la Biblia
         app(ScriptPipelineService::class)->syncProjectLocations($this->project);
@@ -1743,7 +1750,8 @@ class ScriptEditor extends Component
         $scene = $this->projectScene($this->activeSceneId);
 
         $shot = DB::transaction(function () use ($scene) {
-            $maxNumber = $scene->shots()->lockForUpdate()->max('shot_number') ?? 0;
+            Scene::whereKey($scene->id)->lockForUpdate()->first();
+            $maxNumber = $scene->shots()->max('shot_number') ?? 0;
 
             $newShot = $scene->shots()->create([
                 'shot_number' => $maxNumber + 1,
@@ -1780,7 +1788,8 @@ class ScriptEditor extends Component
         $shot = $this->projectShot($this->addingTakeShotId);
 
         DB::transaction(function () use ($shot) {
-            $maxTakeNumber = $shot->takes()->lockForUpdate()->max('take_number') ?? 0;
+            Shot::whereKey($shot->id)->lockForUpdate()->first();
+            $maxTakeNumber = $shot->takes()->max('take_number') ?? 0;
 
             $shot->takes()->create([
                 'take_number' => $maxTakeNumber + 1,
