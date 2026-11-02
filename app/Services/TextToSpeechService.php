@@ -33,7 +33,7 @@ class TextToSpeechService
         $this->cacheDir = storage_path('app/private/tts_cache');
 
         if (! File::exists($this->cacheDir)) {
-            File::makeDirectory($this->cacheDir, 0755, true, true);
+            File::makeDirectory($this->cacheDir, 0775, true, true);
         }
     }
 

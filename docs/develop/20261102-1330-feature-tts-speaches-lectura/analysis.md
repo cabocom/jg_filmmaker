@@ -21,21 +21,42 @@ El objetivo de esta funcionalidad es integrar el motor local de síntesis de voz
 
 ## 2. Arquitectura de la Solución
 
-```mermaid
-flowchart TD
-    UI[ScriptEditor: Botones Play en Bloque / Escena / Barra Superior] --> JS[Web Audio Player en Frontend]
-    JS --> EP[GET /projects/{project}/tts/stream]
-    EP --> Auth{can:view, project?}
-    Auth -- No --> Deny[403 Forbidden]
-    Auth -- Sí --> Cache{Existe en tts_cache?}
-    Cache -- Sí (Hit) --> Stream[Stream Audio WAV/MP3]
-    Cache -- No (Miss) --> Service[TextToSpeechService]
-    Service --> Parser[Detección Dramática: Narrador vs Personaje]
-    Parser --> Speaches[POST http://speaches:8000/v1/audio/speech]
-    Speaches --> Save[Persistencia en storage/app/tts_cache]
-    Save --> Stream
-    Stream --> JS
-    JS --> Sync[Resaltado Visual en Vivo del Bloque en Lectura]
+```text
++-----------------------------------------------------------------------------+
+|        ScriptEditor UI (Botón en Bloque / Cabecera Escena / Barra Sup.)     |
++-----------------------------------------------------------------------------+
+                                       |
+                                       v (Dispatch evento Livewire/Alpine)
++-----------------------------------------------------------------------------+
+|                    Reproductor Web Audio (Frontend Alpine.js)               |
++-----------------------------------------------------------------------------+
+          |                                                   ^
+          | (1. GET /tts/manifest)                            | (3. Stream WAV)
+          v                                                   |
++-----------------------------------------------------------------------------+
+|                           AudioStreamController                             |
+|          [Middleware de Autorización de Proyecto: can:view, project]         |
++-----------------------------------------------------------------------------+
+                                       |
+                                       v
+                             +-------------------+
+                             | ¿Existe en caché? |
+                             +-------------------+
+                              /                 \
+                     (Sí: Hit)                   (No: Miss)
+                            /                     \
+                           v                       v
+               +-----------------------+   +---------------------------------+
+               | storage/app/private/  |   |       TextToSpeechService       |
+               |       tts_cache       |   | - Parser Dramático              |
+               +-----------------------+   |   (Narrador vs Personajes)      |
+                           ^               +---------------------------------+
+                           |                               |
+                           | (Guarda audio .wav)           v (POST /v1/audio/speech)
+                           |               +---------------------------------+
+                           +---------------|     Motor Local Speaches-AI     |
+                                           |     (http://speaches:8000)      |
+                                           +---------------------------------+
 ```
 
 ---
