@@ -226,6 +226,15 @@
                 <span>Exportar PDF</span>
             </button>
 
+            <!-- Botón de Lectura de Guión Automatizada (TTS vía Speaches-AI) -->
+            <button type="button"
+                    @click="$dispatch('play-tts', { scope: 'project' })"
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-xs cursor-pointer shrink-0"
+                    title="Lectura dramática automatizada de todo el guión con voces sintetizadas por IA">
+                <span>🔊</span>
+                <span>Lectura de Guión</span>
+            </button>
+
             <!-- Botón de Renderizado / Procesamiento en Lote ("Renderizar Todo de Golpe") -->
             <button type="button"
                     wire:click="openBatchModal"
@@ -396,8 +405,17 @@
                                 </button>
                             </div>
 
-                            <!-- Botones de Edición Rápida y Borrado -->
+                            <!-- Botones de Edición Rápida, Borrado y Lectura de Audio -->
                             <div class="flex items-center gap-1 shrink-0">
+                                <button @click.stop="$dispatch('play-tts', { scope: 'scene', sceneId: '{{ $scene->id }}' })"
+                                        type="button"
+                                        title="Escuchar locución completa de la Escena {{ $scene->scene_order }}"
+                                        class="p-1 rounded text-slate-400 hover:text-indigo-600 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 transition cursor-pointer shrink-0">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M18.364 5.636a9 9 0 010 12.728M11 5L6 9H2v6h4l5 4V5z" />
+                                    </svg>
+                                </button>
+
                                 <button wire:click="openEditSceneModal('{{ $scene->id }}')"
                                         type="button"
                                         title="Editar nombre y datos de la Escena {{ $scene->scene_order }}"
@@ -641,6 +659,12 @@
                                                         🔒
                                                     </span>
                                                 @endif
+                                                <button @click.stop="$dispatch('play-tts', { scope: 'block', blockId: '{{ $block->id }}' })"
+                                                        type="button"
+                                                        title="Escuchar locución de este bloque (TTS)"
+                                                        class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition shadow-2xs cursor-pointer">
+                                                    <span>🔊</span>
+                                                </button>
                                                 <button wire:click.stop="openBlockDetails('{{ $block->id }}')"
                                                         type="button"
                                                         title="Abrir detalles y etapas en panel lateral"
@@ -959,6 +983,13 @@
                         </div>
 
                         <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                            <button @click="$dispatch('play-tts', { scope: 'block', blockId: '{{ $detailBlock->id }}' })"
+                                    type="button"
+                                    title="Escuchar locución de este bloque"
+                                    class="px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-800 transition flex items-center gap-1 cursor-pointer">
+                                <span>🔊</span>
+                                <span class="hidden sm:inline">Escuchar</span>
+                            </button>
                             <button wire:click="openDeleteBlockModal('{{ $detailBlock->id }}')"
                                     type="button"
                                     title="Eliminar este bloque permanentemente..."
@@ -2663,20 +2694,280 @@
             </div>
         </div>
     @endif
+
+    <!-- ================= REPRODUCTOR FLOTANTE DE LOCUCIÓN TTS (SPEACHES-AI) ================= -->
+    <div x-data="ttsPlayer({ projectId: '{{ $project->id }}' })"
+         x-on:play-tts.window="startPlayback($event.detail)"
+         x-on:stop-tts.window="stopPlayback()"
+         x-show="isPlaying || isLoading"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 translate-y-4"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100 translate-y-0"
+         x-transition:leave-end="opacity-0 translate-y-4"
+         class="fixed bottom-4 left-1/2 -translate-x-1/2 z-[9999] w-[94vw] max-w-2xl bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md border border-amber-500/40 rounded-2xl shadow-2xl p-3 sm:p-4 text-white font-mono"
+         style="display: none;">
+
+        <div class="flex items-center justify-between gap-3">
+            <!-- Info del segmento actual -->
+            <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                <div class="w-8 h-8 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+                    <template x-if="isLoading">
+                        <span class="animate-spin text-sm">⏳</span>
+                    </template>
+                    <template x-if="!isLoading && !isPaused">
+                        <span class="animate-pulse text-sm">🔊</span>
+                    </template>
+                    <template x-if="!isLoading && isPaused">
+                        <span class="text-sm">⏸️</span>
+                    </template>
+                </div>
+
+                <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider"
+                              :class="currentSpeaker === 'NARRADOR' ? 'bg-slate-800 text-slate-300 border border-slate-700' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'"
+                              x-text="currentSpeaker">
+                        </span>
+                        <span class="text-[11px] text-slate-400 font-sans" x-text="progressText"></span>
+                    </div>
+                    <p class="text-xs text-slate-200 truncate mt-0.5 font-sans italic" x-text="currentText || 'Cargando locución...'"></p>
+                </div>
+            </div>
+
+            <!-- Controles de Reproducción -->
+            <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                <!-- Anterior -->
+                <button @click="prevSegment()"
+                        :disabled="currentIndex <= 0 || isLoading"
+                        type="button"
+                        class="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition cursor-pointer"
+                        title="Segmento anterior">
+                    ⏮️
+                </button>
+
+                <!-- Play / Pausa -->
+                <button @click="togglePlayPause()"
+                        :disabled="isLoading"
+                        type="button"
+                        class="px-2.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition cursor-pointer flex items-center gap-1 shadow-md">
+                    <template x-if="isPaused">
+                        <span>▶️ Reanudar</span>
+                    </template>
+                    <template x-if="!isPaused">
+                        <span>⏸️ Pausa</span>
+                    </template>
+                </button>
+
+                <!-- Siguiente -->
+                <button @click="nextSegment()"
+                        :disabled="currentIndex >= manifest.length - 1 || isLoading"
+                        type="button"
+                        class="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition cursor-pointer"
+                        title="Siguiente segmento">
+                    ⏭️
+                </button>
+
+                <!-- Selector de Velocidad -->
+                <button @click="cycleSpeed()"
+                        type="button"
+                        class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 text-[11px] font-bold border border-slate-700 transition cursor-pointer"
+                        title="Cambiar velocidad de reproducción">
+                    <span x-text="speed + 'x'"></span>
+                </button>
+
+                <!-- Detener / Cerrar -->
+                <button @click="stopPlayback()"
+                        type="button"
+                        class="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition cursor-pointer ml-1"
+                        title="Cerrar y detener reproducción">
+                    ✕
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function ttsPlayer({ projectId }) {
+            return {
+                projectId: projectId,
+                isPlaying: false,
+                isPaused: false,
+                isLoading: false,
+                manifest: [],
+                currentIndex: 0,
+                currentSpeaker: '',
+                currentText: '',
+                currentBlockId: null,
+                speed: 1.0,
+                audio: null,
+
+                get progressText() {
+                    if (!this.manifest.length) return '';
+                    return `(${this.currentIndex + 1} de ${this.manifest.length})`;
+                },
+
+                async startPlayback(detail) {
+                    const scope = detail.scope || 'project';
+                    const sceneId = detail.sceneId || '';
+                    const blockId = detail.blockId || '';
+
+                    this.stopPlayback();
+                    this.isLoading = true;
+                    this.isPlaying = true;
+                    this.isPaused = false;
+                    this.manifest = [];
+                    this.currentIndex = 0;
+
+                    try {
+                        const url = new URL(`/projects/${this.projectId}/tts/manifest`, window.location.origin);
+                        if (sceneId) url.searchParams.set('scene_id', sceneId);
+                        if (blockId) url.searchParams.set('block_id', blockId);
+
+                        const res = await fetch(url.toString(), {
+                            headers: { 'Accept': 'application/json' }
+                        });
+
+                        if (!res.ok) {
+                            throw new Error('Error al generar manifiesto de lectura: ' + res.status);
+                        }
+
+                        const data = await res.json();
+                        if (!data.manifest || data.manifest.length === 0) {
+                            alert('No hay texto disponible para locutar en este elemento.');
+                            this.stopPlayback();
+                            return;
+                        }
+
+                        this.manifest = data.manifest;
+                        this.playSegment(0);
+                    } catch (e) {
+                        console.error('TTS playback error:', e);
+                        alert('No se pudo iniciar la locución: ' + e.message);
+                        this.stopPlayback();
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+
+                playSegment(index) {
+                    if (index < 0 || index >= this.manifest.length) {
+                        this.stopPlayback();
+                        return;
+                    }
+
+                    this.currentIndex = index;
+                    const seg = this.manifest[index];
+                    this.currentSpeaker = seg.speaker || 'NARRADOR';
+                    this.currentText = seg.text || '';
+                    this.currentBlockId = seg.block_id || null;
+
+                    // Resaltar el bloque actual en pantalla y hacer scroll hacia él
+                    this.highlightBlock(this.currentBlockId);
+
+                    if (this.audio) {
+                        this.audio.pause();
+                        this.audio = null;
+                    }
+
+                    const streamUrl = new URL(seg.stream_url, window.location.origin);
+                    streamUrl.searchParams.set('speed', this.speed);
+
+                    this.audio = new Audio(streamUrl.toString());
+                    this.audio.playbackRate = this.speed;
+
+                    this.audio.onended = () => {
+                        this.playSegment(this.currentIndex + 1);
+                    };
+
+                    this.audio.onerror = (e) => {
+                        console.error('Audio stream error:', e);
+                        this.playSegment(this.currentIndex + 1);
+                    };
+
+                    this.audio.play().catch(err => {
+                        console.warn('Autoplay prevented or interrupted:', err);
+                    });
+                    this.isPaused = false;
+                },
+
+                togglePlayPause() {
+                    if (!this.audio) return;
+                    if (this.audio.paused) {
+                        this.audio.play();
+                        this.isPaused = false;
+                    } else {
+                        this.audio.pause();
+                        this.isPaused = true;
+                    }
+                },
+
+                nextSegment() {
+                    if (this.currentIndex < this.manifest.length - 1) {
+                        this.playSegment(this.currentIndex + 1);
+                    }
+                },
+
+                prevSegment() {
+                    if (this.currentIndex > 0) {
+                        this.playSegment(this.currentIndex - 1);
+                    }
+                },
+
+                cycleSpeed() {
+                    const speeds = [1.0, 1.25, 1.5];
+                    const nextIdx = (speeds.indexOf(this.speed) + 1) % speeds.length;
+                    this.speed = speeds[nextIdx];
+                    if (this.audio) {
+                        this.audio.playbackRate = this.speed;
+                    }
+                },
+
+                stopPlayback() {
+                    if (this.audio) {
+                        this.audio.pause();
+                        this.audio = null;
+                    }
+                    this.isPlaying = false;
+                    this.isPaused = false;
+                    this.isLoading = false;
+                    this.manifest = [];
+                    this.currentIndex = 0;
+                    this.clearHighlight();
+                },
+
+                highlightBlock(blockId) {
+                    this.clearHighlight();
+                    if (!blockId) return;
+
+                    const el = document.getElementById('block-' + blockId);
+                    if (el) {
+                        el.classList.add('tts-active-block', 'ring-2', 'ring-indigo-500', 'bg-indigo-500/10', 'dark:bg-indigo-950/40');
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                },
+
+                clearHighlight() {
+                    document.querySelectorAll('.tts-active-block').forEach(el => {
+                        el.classList.remove('tts-active-block', 'ring-2', 'ring-indigo-500', 'bg-indigo-500/10', 'dark:bg-indigo-950/40');
+                    });
+                }
+            };
+        }
+
+        document.addEventListener('livewire:initialized', () => {
+            Livewire.on('scroll-to-selected-block', ({ blockId }) => {
+                if (!blockId) return;
+                setTimeout(() => {
+                    const el = document.getElementById('block-' + blockId);
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                }, 60);
+            });
+        });
+    </script>
 </div>
 
-@push('scripts')
-<script>
-    document.addEventListener('livewire:initialized', () => {
-        Livewire.on('scroll-to-selected-block', ({ blockId }) => {
-            if (!blockId) return;
-            setTimeout(() => {
-                const el = document.getElementById('block-' + blockId);
-                if (el) {
-                    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                }
-            }, 60);
-        });
-    });
-</script>
-@endpush
+

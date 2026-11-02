@@ -61,4 +61,11 @@ return [
         'mock_ffmpeg' => (bool) env('MOCK_FFMPEG', false),
     ],
 
+    'speaches' => [
+        'url' => env('SPEACHES_URL', 'http://speaches:8000'),
+        'model' => env('SPEACHES_MODEL', 'speaches-ai/piper-es_ES-sharvard-medium'),
+        'default_voice' => env('SPEACHES_DEFAULT_VOICE', 'sharvard#M'),
+        'timeout' => (int) env('SPEACHES_TIMEOUT', 30),
+    ],
+
 ];

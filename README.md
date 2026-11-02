@@ -8,9 +8,16 @@ Forma parte del ecosistema multi-servicio `javiergalvez-ia`, comunicándose de m
 
 ---
 
-## Características Implementadas (Fases 1 a 17)
+## Características Implementadas (Fases 1 a 18)
 
-### 1. Ingesta, Importación y Renderizado en Lote (Fase 17)
+### 1. Lectura Dramática Automatizada con Síntesis de Voz (TTS) Multivoz vía Speaches-AI (Fase 18)
+- **Motor Local Speaches-AI (Piper TTS):** Integración nativa con el servicio de voz neural en producción (`http://speaches:8000/v1/audio/speech`) sin coste de API comercial.
+- **Catálogo de Voces en Castellano:** Voces nativas de España (`sharvard#M`, `sharvard#F`, `davefx`, `carlfm`, `mls_9972`, `mls_10246`).
+- **Asignación en Biblia y Parseo Dramático:** Configuración de voz por personaje con fallback heurístico por género y nombre. Separación inteligente en guiones literarios de acotaciones (Narrador) y diálogos (voces de los personajes).
+- **Tres Modos de Escucha:** Locución por bloque individual, por escena completa y lectura de guión de la obra completa.
+- **Reproductor Flotante en Vivo:** Barra de controles fijada en tiempo real con Play/Pausa, anterior, siguiente, velocidad (1.0x-1.5x), caché determinista SHA256 y resaltado visual con autoscroll hacia el bloque locutado.
+
+### 2. Ingesta, Importación y Renderizado en Lote (Fase 17)
 - **Importación Inteligente de Guiones (PDF y TXT):** Ingesta automática mediante `ScriptImportService` con parseo heurístico de sluglines (`INT./EXT.`), tiempos de día, personajes en mayúsculas, acotaciones y bloques de diálogo o acción.
 - **Ventana de Confirmación Destructiva:** Modal de previsualización que resume escenas, personajes y localizaciones detectadas, con requerimiento de confirmación explícita antes de sobreescribir la obra actual o crear un proyecto nuevo.
 - **Edición Ágil de la Obra:** Modificación inmediata del título del proyecto desde el propio editor continuo del estudio o desde la vista de proyectos.

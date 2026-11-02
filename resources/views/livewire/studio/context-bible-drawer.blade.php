@@ -105,6 +105,15 @@
                                            placeholder="Vestuario característico (ej: Gabardina gris)..."
                                            class="w-full px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white">
                                 </div>
+                                <div>
+                                    <label class="block text-[10px] text-slate-500 dark:text-slate-400 mb-0.5">Voz para lectura dramática (TTS):</label>
+                                    <select wire:model="newCharVoiceId"
+                                            class="w-full px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white">
+                                        @foreach($availableVoices as $v)
+                                            <option value="{{ $v['id'] }}">{{ $v['name'] }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
                                 <div class="flex justify-end gap-2 pt-1">
                                     <button wire:click="$set('showNewCharacterForm', false)" type="button" class="px-2.5 py-1 rounded text-xs text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white">Cancelar</button>
                                     <button wire:click="createCharacter" type="button" class="px-3 py-1 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs">Guardar</button>
@@ -114,13 +123,24 @@
 
                         <!-- Lista de Personajes -->
                         @forelse($characters as $character)
+                            @php
+                                $customAttrs = is_array($character->custom_attributes) ? $character->custom_attributes : [];
+                                $charVoice = $customAttrs['voice_id'] ?? null;
+                            @endphp
                             <div wire:key="character-item-{{ $character->id }}"
                                  class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 space-y-2">
                                 <div class="flex items-center justify-between">
-                                    <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                                        <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-                                        {{ $character->name }}
-                                    </h3>
+                                    <div class="flex items-center gap-2">
+                                        <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                            <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                                            {{ $character->name }}
+                                        </h3>
+                                        @if($charVoice)
+                                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 flex items-center gap-1 font-medium">
+                                                <span>🎙️</span> <span>{{ $charVoice }}</span>
+                                            </span>
+                                        @endif
+                                    </div>
                                     @if($editingCharacterId !== $character->id)
                                         <div class="flex items-center gap-2">
                                             <button wire:click="startEditCharacter('{{ $character->id }}')"
@@ -154,6 +174,15 @@
                                         <div>
                                             <label class="block text-[10px] text-slate-500 dark:text-slate-400 mb-0.5">Notas de Vestuario:</label>
                                             <input type="text" wire:model="editingCharCostume" class="w-full px-2.5 py-1 text-xs rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white">
+                                        </div>
+                                        <div>
+                                            <label class="block text-[10px] text-slate-500 dark:text-slate-400 mb-0.5">Voz para lectura dramática (TTS):</label>
+                                            <select wire:model="editingCharVoiceId"
+                                                    class="w-full px-2.5 py-1 text-xs rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white">
+                                                @foreach($availableVoices as $v)
+                                                    <option value="{{ $v['id'] }}">{{ $v['name'] }}</option>
+                                                @endforeach
+                                            </select>
                                         </div>
                                         <div class="flex justify-end gap-2 pt-1">
                                             <button wire:click="$set('editingCharacterId', null)" class="px-2 py-0.5 text-xs text-slate-500 dark:text-slate-400">Cancelar</button>

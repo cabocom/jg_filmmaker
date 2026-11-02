@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AudioStreamController;
 use App\Http\Controllers\MediaStreamController;
 use App\Http\Controllers\ScriptExportController;
 use App\Http\Middleware\EnsureUserIsAdmin;
@@ -40,6 +41,14 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/projects/{project}/export-pdf', [ScriptExportController::class, 'exportPdf'])
         ->middleware('can:view,project')
         ->name('projects.export-pdf');
+
+    // Síntesis de voz (TTS) y streaming de audio para lectura dramática
+    Route::get('/projects/{project}/tts/manifest', [AudioStreamController::class, 'manifest'])
+        ->middleware('can:view,project')
+        ->name('projects.tts.manifest');
+    Route::get('/projects/{project}/tts/stream', [AudioStreamController::class, 'streamAudio'])
+        ->middleware('can:view,project')
+        ->name('projects.tts.stream');
 
     // Streaming seguro de medios audiovisuales privados (ISSUE-006)
     Route::get('/media/takes/{take}', [MediaStreamController::class, 'streamTake'])->name('media.take');

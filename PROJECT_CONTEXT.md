@@ -1,10 +1,17 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.20.0  
-**Fecha de consolidación:** 1 de noviembre de 2026  
+**Versión del documento:** 3.21.0  
+**Fecha de consolidación:** 2 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
-**Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), PHPUnit 12, Laravel Pint  
-**Estado:** ¡AUDITORÍA DE SEGURIDAD Y PARCHEO COMPLETADOS! Runtime validado sobre PHP 8.4.27 (inmune a CVE-2026-109618 / CVE-2026-109619). Dependencia `livewire/livewire` actualizada a `v4.4.8` resolviendo la vulnerabilidad de autorización `PKSA-xhv3-nr94-h8db`. Suite completa con 206 tests automatizados pasando al 100% y Pint superado. Sprint 0 a Fase 17 consolidados.
+**Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Speaches-AI (Piper TTS), PHPUnit 12, Laravel Pint  
+**Estado:** ¡SÍNTESIS DE VOZ Y LECTURA DRAMÁTICA AUTOMATIZADA INTEGRADA! Inferencia local de TTS mediante `speaches-ai` (Piper TTS multivoz en castellano) sin coste de API. 213 tests automatizados pasando al 100% y Pint superado.
+- **ISSUE-047 (GitLab #1): Lectura Dramática Automatizada con Síntesis de Voz (TTS) Multivoz vía Speaches-AI (`TextToSpeechService`, `AudioStreamController` & `ScriptEditor`):**
+  - Integración nativa con el motor local `speaches-ai` (puerto interno 8000 en la red Docker `jg_network`, API compatible OpenAI `/v1/audio/speech`).
+  - Catálogo de voces en castellano de España (`es_ES`): `sharvard#M` (masculino), `sharvard#F` (femenino), `davefx`, `carlfm`, `mls_9972` y `mls_10246`.
+  - Asignación configurable de voz por personaje en la Biblia del proyecto (`ContextBibleDrawer` y `Character.custom_attributes['voice_id']`) con inferencia heurística automática por género y nombre.
+  - Parser dramático de guiones literarios (`TextToSpeechService::parseBlockToSegments`): bifurcación inteligente de acotaciones/sluglines hacia la voz del Narrador y parlamentos hacia la voz del personaje emisor (omitiendo acotaciones de interpretación en la locución del diálogo).
+  - Reproductor flotante integrado en Alpine.js con controles de reproducción (Play/Pausa, anterior, siguiente, selector de velocidad 1.0x-1.5x), manifiesto de streaming O(1) con caché determinista SHA256 en disco privado (`storage/app/private/tts_cache`), y resaltado visual en vivo con autoscroll hacia el bloque actualmente locutado.
+  - Tres ámbitos de reproducción interactiva: por bloque individual, por escena completa y lectura continua de la obra completa.
 - **Importación Inteligente de Guiones PDF y TXT (`ScriptImportService`):** Ingesta y parseo automático de guiones literarios en formato PDF (vía `smalot/pdfparser` nativo y fallback a `pdftotext`) y TXT UTF-8. Motor heurístico de análisis dramático que detecta sluglines canónicos (`INT./EXT.`), tiempos de día, numeración, personajes en mayúsculas, acotaciones y bloques de acción/diálogo. Ventana interactiva de previsualización con resumen métrico y confirmación obligatoria con aviso de destrucción irreversible de datos antes de sobreescribir un proyecto o crear uno nuevo desde el catálogo.
 - **Edición Ágil del Nombre y Metadatos de la Obra:** Capacidad de modificar el título y sinopsis del proyecto tanto desde el listado general (`ProjectList`) como directamente en tiempo real desde el encabezado del estudio de rodaje (`ScriptEditor`).
 - **Renderizado y Procesamiento en Lote Multietapa (Batch Processing):** Nuevo servicio `ScriptPipelineService::batch*` y modal interactivo en el estudio para procesar en lote a nivel de Escena Activa o Proyecto Completo: Brutos ➔ Tratamientos, Tratamientos ➔ Guiones, Guiones ➔ Planos Técnicos o Pipeline Completo en cadena. Protección absoluta de candados de usuario (`user_locks['locked_fields']`) para no sobreescribir bloques protegidos por el cineasta.
@@ -17,7 +24,7 @@
   - Corrección del error `SQLSTATE[0A000]: Feature not supported: 7 ERROR: FOR UPDATE is not allowed with aggregate functions` producido al crear escenas, bloques, planos o tomas en PostgreSQL.
   - La concurrencia pesimista en creación de entidades jerárquicas bloquea ahora la entidad padre con `lockForUpdate()->first()` (`Project`, `Scene` o `Shot`), calculando el orden correlativo `max(...)` escalarmente sin añadir `FOR UPDATE` a la consulta de agregación.
   - Inicialización reactiva de `expandedSceneIds` y `scenePipelineStages` al crear nuevas escenas para garantizar su despliegue y visibilidad inmediata en el estudio.
-- Suite ampliada a **206 tests automatizados pasando al 100%** con Pint superado.
+- Suite ampliada a **213 tests automatizados pasando al 100%** con Pint superado.
 
 - ISSUE-001: saneamiento de subida de tomas contra RCE (derivación estricta de extensiones desde MIME type verificado por el servidor, lista blanca `ALLOWED_EXTENSIONS` en `Take`, bloqueo de ejecución PHP en `/storage/` en Nginx).
 - ISSUE-002: mitigación de fuga de OTP y toma de cuentas (bloqueo con `#[Locked]` de `$step` y `$devOtpCode`, eliminación de `$isLocalEnv`, comprobación estricta de `APP_ENV=local && APP_DEBUG=true` en servidor, erradicación de retención en sesión).

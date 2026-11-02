@@ -5,6 +5,7 @@ namespace App\Livewire\Studio;
 use App\Models\Character;
 use App\Models\Location;
 use App\Models\Project;
+use App\Services\TextToSpeechService;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Locked;
@@ -31,6 +32,8 @@ class ContextBibleDrawer extends Component
 
     public string $newCharCostume = '';
 
+    public string $newCharVoiceId = 'sharvard#M';
+
     // Formulario para nueva localización
     public bool $showNewLocationForm = false;
 
@@ -50,6 +53,10 @@ class ContextBibleDrawer extends Component
     public string $editingCharCostume = '';
 
     public string $editingCharBio = '';
+
+    public string $editingCharVoiceId = 'sharvard#M';
+
+    public array $availableVoices = [];
 
     public ?string $editingLocationId = null;
 
@@ -77,6 +84,7 @@ class ContextBibleDrawer extends Component
         Gate::authorize('view', $project);
 
         $this->project = $project;
+        $this->availableVoices = app(TextToSpeechService::class)->getAvailableVoices();
     }
 
     #[On('toggle-bible-drawer')]
@@ -110,6 +118,8 @@ class ContextBibleDrawer extends Component
         $this->editingCharacterId = $char->id;
         $this->editingCharCostume = $char->costume_notes ?? '';
         $this->editingCharBio = $char->bio ?? '';
+        $custom = is_array($char->custom_attributes) ? $char->custom_attributes : [];
+        $this->editingCharVoiceId = $custom['voice_id'] ?? 'sharvard#M';
     }
 
     public function saveCharacter(): void
@@ -119,9 +129,13 @@ class ContextBibleDrawer extends Component
         }
 
         $char = $this->project->characters()->findOrFail($this->editingCharacterId);
+        $custom = is_array($char->custom_attributes) ? $char->custom_attributes : [];
+        $custom['voice_id'] = $this->editingCharVoiceId;
+
         $char->update([
             'costume_notes' => $this->editingCharCostume,
             'bio' => $this->editingCharBio,
+            'custom_attributes' => $custom,
         ]);
 
         $this->editingCharacterId = null;
@@ -140,19 +154,26 @@ class ContextBibleDrawer extends Component
             'newCharBio' => 'nullable|string|max:5000',
             'newCharPsychology' => 'nullable|string|max:5000',
             'newCharCostume' => 'nullable|string|max:5000',
+            'newCharVoiceId' => 'nullable|string|max:50',
         ], [
             'newCharName.required' => 'Debes indicar el nombre del personaje.',
             'newCharName.unique' => 'Ya existe un personaje registrado con este nombre en la Biblia del proyecto.',
         ]);
+
+        $custom = [];
+        if ($this->newCharVoiceId) {
+            $custom['voice_id'] = $this->newCharVoiceId;
+        }
 
         $this->project->characters()->create([
             'name' => trim($this->newCharName),
             'bio' => $this->newCharBio ?: null,
             'psychology' => $this->newCharPsychology ?: null,
             'costume_notes' => $this->newCharCostume ?: null,
+            'custom_attributes' => $custom,
         ]);
 
-        $this->reset(['newCharName', 'newCharBio', 'newCharPsychology', 'newCharCostume', 'showNewCharacterForm']);
+        $this->reset(['newCharName', 'newCharBio', 'newCharPsychology', 'newCharCostume', 'newCharVoiceId', 'showNewCharacterForm']);
         session()->flash('bible_success', 'Nuevo personaje incorporado a la Biblia del proyecto.');
     }
 
