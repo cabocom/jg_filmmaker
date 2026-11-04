@@ -5,6 +5,8 @@
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Speaches-AI (Piper TTS), PHPUnit 12, Laravel Pint  
 **Estado:** ¡SÍNTESIS DE VOZ Y LECTURA DRAMÁTICA AUTOMATIZADA INTEGRADA! Inferencia local de TTS mediante `speaches-ai` (Piper TTS multivoz en castellano) sin coste de API. 213 tests automatizados pasando al 100% y Pint superado.
+- **Prevención Universal de Doble Clic en Formularios y Botones de Acción:**
+  - Deshabilitación automática de botones tras el primer clic en la plantilla base (`layouts/app.blade.php`), en el formulario de acceso OTP (`login.blade.php`) y en la creación/listado de proyectos (`project-list.blade.php`), evitando inserciones o peticiones concurrentes accidentales.
 - **ISSUE-047 (GitLab #1): Lectura Dramática Automatizada con Síntesis de Voz (TTS) Multivoz vía Speaches-AI (`TextToSpeechService`, `AudioStreamController` & `ScriptEditor`):**
   - Integración nativa con el motor local `speaches-ai` (puerto interno 8000 en la red Docker `jg_network`, API compatible OpenAI `/v1/audio/speech`).
   - Diagrama de arquitectura formalizado en ASCII Art tanto en la documentación viva (`analysis.md`) como en el issue de GitLab.com (`#1`) evitando fallos de compatibilidad con parsers Mermaid.

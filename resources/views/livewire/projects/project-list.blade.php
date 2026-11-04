@@ -187,7 +187,8 @@
                             Cancelar
                         </button>
                         <button type="submit"
-                                class="px-4 py-2 rounded-xl text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-lg shadow-amber-500/30 transition cursor-pointer">
+                                wire:loading.attr="disabled"
+                                class="px-4 py-2 rounded-xl text-xs font-semibold bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-bold shadow-lg shadow-amber-500/30 transition cursor-pointer">
                             Crear e Iniciar Estudio
                         </button>
                     </div>
@@ -245,7 +246,8 @@
                             Cancelar
                         </button>
                         <button type="submit"
-                                class="px-4 py-2 rounded-xl text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-lg shadow-amber-500/30 transition cursor-pointer">
+                                wire:loading.attr="disabled"
+                                class="px-4 py-2 rounded-xl text-xs font-semibold bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-bold shadow-lg shadow-amber-500/30 transition cursor-pointer">
                             Guardar Cambios
                         </button>
                     </div>
@@ -396,7 +398,8 @@
                             </button>
                             <button type="button"
                                     wire:click="confirmAndCreateProjectFromImport"
-                                    class="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-600/30 transition cursor-pointer">
+                                    wire:loading.attr="disabled"
+                                    class="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold shadow-lg shadow-emerald-600/30 transition cursor-pointer">
                                 Confirmar e Importar Proyecto
                             </button>
                         </div>

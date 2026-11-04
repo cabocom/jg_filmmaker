@@ -68,8 +68,9 @@
                                     {{ $devOtpCode }}
                                 </span>
                                 <button wire:click="fillDevCode"
+                                        wire:loading.attr="disabled"
                                         type="button"
-                                        class="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[11px] font-mono transition cursor-pointer">
+                                        class="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-bold text-[11px] font-mono transition cursor-pointer">
                                     Autocompletar Código
                                 </button>
                             </div>
@@ -83,8 +84,9 @@
                             <span class="font-semibold text-slate-800 dark:text-slate-200 truncate">{{ $email }}</span>
                         </div>
                         <button wire:click="changeEmail"
+                                wire:loading.attr="disabled"
                                 type="button"
-                                class="text-amber-600 dark:text-amber-400 hover:underline font-mono text-[11px] shrink-0 cursor-pointer">
+                                class="text-amber-600 dark:text-amber-400 hover:underline disabled:opacity-50 font-mono text-[11px] shrink-0 cursor-pointer">
                             Cambiar
                         </button>
                     </div>
@@ -129,8 +131,9 @@
                     <!-- Reenviar Código -->
                     <div class="text-center pt-2">
                         <button wire:click="requestOtp"
+                                wire:loading.attr="disabled"
                                 type="button"
-                                class="text-xs text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 transition font-mono cursor-pointer">
+                                class="text-xs text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 disabled:opacity-50 transition font-mono cursor-pointer">
                             ¿No has recibido el correo? Reenviar código
                         </button>
                     </div>
