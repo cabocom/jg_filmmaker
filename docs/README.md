@@ -1,27 +1,37 @@
-# Documentación Técnica de jg_filmmaker
+# Documentación Técnica — `jg_filmmaker`
 
-[← Volver al README Principal](../README.md)
-
-Este directorio contiene la documentación técnica y arquitectónica canónica de la plataforma web **jg_filmmaker**, estructurada por conceptos de dominio e ingeniería.
+Plataforma Web de Creación Cinematográfica Asistida por IA del ecosistema `javiergalvez-ia`.
 
 ---
 
-## Índice de Documentos Arquitectónicos
+## 🌐 Estructura Multilingüe
 
-| Documento | Título | Descripción |
-|---|---|---|
-| **[01_architecture.md](01_architecture.md)** | Arquitectura General del Sistema | Visión C4, stack tecnológico (Laravel 12, Livewire 3/4, Tailwind v4), multitenancy con UUIDv4 y modelo de seguridad anti-IDOR. |
-| **[02_pipeline_stages.md](02_pipeline_stages.md)** | Pipeline Cinematográfico en 6 Etapas | Flujo continuo desde el texto bruto hasta el montaje: Bruto, Tratamiento, Guión Literario, Planos Técnicos, Rodaje y Montaje NLE. |
-| **[03_user_locks_governance.md](03_user_locks_governance.md)** | Gobernanza de Candados (`user_locks`) | Retención no destructiva de modificaciones manuales del autor, estructura JSONB, términos fijados (`pinned_terms`) y `UserLockResolver`. |
-| **[04_context_bible.md](04_context_bible.md)** | Biblia Contextual de Proyecto | Drawer lateral interactivo (`Cmd+B` / `Ctrl+B`), gestión en caliente de Personajes y Localizaciones e inyección semántica. |
-| **[05_hmac_agent_integration.md](05_hmac_agent_integration.md)** | Integración Inter-Servicio HMAC-SHA256 | Protocolo criptográfico con `jg_agente`, cabeceras canónicas (`X-Signature`), consumo de `jg_plugin_filmmaker` y fallback determinista. |
-| **[06_media_takes_ffmpeg.md](06_media_takes_ffmpeg.md)** | Gestión de Medios y Ensamble FFmpeg | Almacenamiento particionado por UUID, catalogación de tomas válidas (`is_good_take`), metadatos técnicos en JSONB y motor de concatenación continua. |
-| **[07_testing_quality_cicd.md](07_testing_quality_cicd.md)** | Estrategia de Testing y CI/CD | Suite de 48 tests PHPUnit, Laravel Pint, orquestación en `scripts/check.sh` y deudas técnicas conocidas. |
-| **[08_auth_admin_telemetry.md](08_auth_admin_telemetry.md)** | Autenticación Passwordless, Admin y Telemetría | Flujo OTP en email y localhost, detección de replay attacks, panel `/admin`, migración de proyectos y costes USD. |
+La documentación técnica de `jg_filmmaker` está organizada por directorios de idioma (ISO 639-1):
+
+- 🇪🇸 **[Español (Fuente Canónica / SSOT)](es/)**:
+  - [01. Arquitectura General del Sistema](es/01_architecture.md)
+  - [02. Pipeline Cinematográfico en 6 Etapas](es/02_pipeline_stages.md)
+  - [03. Gobernanza de Candados (`user_locks`)](es/03_user_locks_governance.md)
+  - [04. Biblia Contextual de Proyecto](es/04_context_bible.md)
+  - [05. Integración Inter-Servicio HMAC-SHA256](es/05_hmac_agent_integration.md)
+  - [06. Gestión de Medios y Ensamble FFmpeg](es/06_media_takes_ffmpeg.md)
+  - [07. Estrategia de Testing y CI/CD](es/07_testing_quality_cicd.md)
+  - [08. Autenticación Passwordless, Panel de Administración y Telemetría](es/08_auth_admin_telemetry.md)
+  - [Historia y Evolución del Proyecto](es/TODO_HISTORIA_EVOLUCION.md)
+  - [Walkthrough Inicial](es/walkthrough-initial.md)
 
 ---
 
-## Directorios Complementarios
+## Compilación Unificada
 
-- **`develop/`:** Traza histórica de evoluciones y fases de desarrollo con registros de análisis (`analysis.md`) y walkthroughs (`walkthrough.md`).
-- **`specs/`:** Especificaciones funcionales de partida del proyecto.
+Para compilar la documentación consolidada de `jg_filmmaker` para IAs externas y desarrolladores:
+```bash
+# Compilar versión canónica (español)
+./workspace.sh docs jg_filmmaker --locale=es
+
+# Compilar versión en inglés (con fallback automático)
+./workspace.sh docs jg_filmmaker --locale=en
+
+# Compilar todos los idiomas
+./workspace.sh docs jg_filmmaker --locale=all
+```

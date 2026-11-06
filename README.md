@@ -97,12 +97,12 @@ docker compose logs -f jg_filmmaker
 
 Para consultar las especificaciones completas de modelos, flujos, seguridad HMAC y deudas técnicas:
 - **[PROJECT_CONTEXT.md](PROJECT_CONTEXT.md)** — Contexto vivo del proyecto, decisiones arquitectónicas y deudas técnicas.
-- **[docs/README.md](docs/README.md)** — Índice general de la documentación técnica.
-  - [01. Arquitectura General del Sistema](docs/01_architecture.md)
-  - [02. Pipeline Cinematográfico en 6 Etapas](docs/02_pipeline_stages.md)
-  - [03. Gobernanza de Candados (`user_locks`)](docs/03_user_locks_governance.md)
-  - [04. Biblia Contextual de Proyecto](docs/04_context_bible.md)
-  - [05. Integración Inter-Servicio HMAC-SHA256](docs/05_hmac_agent_integration.md)
-  - [06. Gestión de Medios y Ensamble FFmpeg](docs/06_media_takes_ffmpeg.md)
-  - [07. Estrategia de Testing y CI/CD](docs/07_testing_quality_cicd.md)
-  - [08. Autenticación Passwordless, Panel de Administración y Telemetría](docs/08_auth_admin_telemetry.md)
+- **[docs/README.md](docs/README.md)** — Índice general de la documentación técnica multilingüe.
+  - [01. Arquitectura General del Sistema](docs/es/01_architecture.md)
+  - [02. Pipeline Cinematográfico en 6 Etapas](docs/es/02_pipeline_stages.md)
+  - [03. Gobernanza de Candados (`user_locks`)](docs/es/03_user_locks_governance.md)
+  - [04. Biblia Contextual de Proyecto](docs/es/04_context_bible.md)
+  - [05. Integración Inter-Servicio HMAC-SHA256](docs/es/05_hmac_agent_integration.md)
+  - [06. Gestión de Medios y Ensamble FFmpeg](docs/es/06_media_takes_ffmpeg.md)
+  - [07. Estrategia de Testing y CI/CD](docs/es/07_testing_quality_cicd.md)
+  - [08. Autenticación Passwordless, Panel de Administración y Telemetría](docs/es/08_auth_admin_telemetry.md)
