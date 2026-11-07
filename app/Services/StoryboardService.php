@@ -156,10 +156,22 @@ class StoryboardService
             }
 
             $base64 = $response->json('predictions.0.bytesBase64Encoded');
+            $mimeType = 'image/jpeg';
+
             if (empty($base64)) {
-                // Alternativa de formato Gemini / Imagen 3
-                $base64 = $response->json('candidates.0.content.parts.0.inlineData.data')
-                    ?? $response->json('candidates.0.content.parts.0.inline_data.data');
+                $parts = (array) ($response->json('candidates.0.content.parts') ?? []);
+                foreach ($parts as $part) {
+                    if (! empty($part['inlineData']['data'])) {
+                        $base64 = $part['inlineData']['data'];
+                        $mimeType = $part['inlineData']['mimeType'] ?? 'image/png';
+                        break;
+                    }
+                    if (! empty($part['inline_data']['data'])) {
+                        $base64 = $part['inline_data']['data'];
+                        $mimeType = $part['inline_data']['mime_type'] ?? 'image/png';
+                        break;
+                    }
+                }
             }
 
             if (empty($base64)) {
@@ -181,8 +193,9 @@ class StoryboardService
             Storage::disk('public')->delete($shot->storyboard_image_path);
         }
 
-        // Guardar nuevo artefacto
-        $filename = "projects/{$projectId}/storyboards/shot_{$shot->id}_".time().'.jpg';
+        // Guardar nuevo artefacto con su extensión correspondiente
+        $ext = str_contains($mimeType, 'png') ? 'png' : 'jpg';
+        $filename = "projects/{$projectId}/storyboards/shot_{$shot->id}_".time().".{$ext}";
         Storage::disk('public')->put($filename, $imageBytes);
 
         // Actualizar registro en base de datos
