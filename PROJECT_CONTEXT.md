@@ -1,10 +1,13 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.21.0  
-**Fecha de consolidación:** 2 de noviembre de 2026  
+**Versión del documento:** 3.22.0  
+**Fecha de consolidación:** 7 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Speaches-AI (Piper TTS), PHPUnit 12, Laravel Pint  
-**Estado:** ¡SÍNTESIS DE VOZ Y LECTURA DRAMÁTICA AUTOMATIZADA INTEGRADA! Inferencia local de TTS mediante `speaches-ai` (Piper TTS multivoz en castellano) sin coste de API. 213 tests automatizados pasando al 100% y Pint superado.
+**Estado:** Blindaje UX contra cierres accidentales en edición de bloques. 213 tests automatizados pasando al 100% y Pint superado.
+- **Blindaje UX contra Cierres Accidentales en Edición de Bloques (`ScriptEditor`):**
+  - Desactivación de eventos `@keydown.escape.window` tanto en el panel lateral de edición de bloques (`detailBlock`) como en el modal de creación de bloques (`showNewBlockModal`), impidiendo pérdidas accidentales de texto al pulsar la tecla Escape.
+  - Eliminación del cierre por clic en el backdrop exterior (`wire:click="closeBlockDetails"`), garantizando que el modal únicamente se cierre mediante acción deliberada del usuario pulsando el botón explícito de cierre (`✕`) ubicado en la esquina superior derecha.
 - **Prevención Universal de Doble Clic en Formularios y Botones de Acción:**
   - Deshabilitación automática de botones tras el primer clic en la plantilla base (`layouts/app.blade.php`), en el formulario de acceso OTP (`login.blade.php`) y en la creación/listado de proyectos (`project-list.blade.php`), evitando inserciones o peticiones concurrentes accidentales.
 - **ISSUE-047 (GitLab #1): Lectura Dramática Automatizada con Síntesis de Voz (TTS) Multivoz vía Speaches-AI (`TextToSpeechService`, `AudioStreamController` & `ScriptEditor`):**

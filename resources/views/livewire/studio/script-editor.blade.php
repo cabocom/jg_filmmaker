@@ -955,12 +955,10 @@
         @if($detailBlock)
             <!-- Contenedor general del Drawer -->
             <div class="fixed inset-0 z-50 overflow-hidden"
-                 x-data
-                 @keydown.escape.window="$wire.closeBlockDetails()">
+                 x-data>
 
-                <!-- Backdrop suave exterior: NO muy oscurecido -->
-                <div class="fixed inset-0 bg-slate-950/25 backdrop-blur-[2px] transition-opacity cursor-pointer"
-                     wire:click="closeBlockDetails"></div>
+                <!-- Backdrop suave exterior: NO muy oscurecido (sin cierre accidental al hacer clic fuera) -->
+                <div class="fixed inset-0 bg-slate-950/25 backdrop-blur-[2px] transition-opacity"></div>
 
                 <!-- Panel lateral deslizante alineado a la derecha (adaptativo 100% en móvil, 60% en escritorio) -->
                 <div class="fixed inset-y-0 right-0 z-50 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col h-full w-full sm:w-[540px] md:w-[620px] lg:w-[60vw] max-w-full">
@@ -999,7 +997,7 @@
                             </button>
                             <button wire:click="closeBlockDetails"
                                     type="button"
-                                    title="Cerrar panel lateral (Esc)"
+                                    title="Cerrar panel lateral"
                                     class="px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 transition flex items-center gap-1 cursor-pointer">
                                 <span>✕</span>
                                 <span class="hidden sm:inline">Cerrar</span>
@@ -1454,10 +1452,7 @@
 
     <!-- ================= MODAL DE CREAR NUEVO BLOQUE (ESTILO GUTENBERG, SOLO TEXTO BRUTO) ================= -->
     @if($showNewBlockModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/50 backdrop-blur-xs transition"
-             x-data
-             @keydown.escape.window="$wire.closeNewBlockModal()"
-             wire:click.self="closeNewBlockModal">
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/50 backdrop-blur-xs transition">
             <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-4 sm:p-6 w-full max-w-lg max-h-[92vh] flex flex-col overflow-y-auto space-y-4 transition">
                 <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                     <div>
