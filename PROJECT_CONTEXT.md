@@ -1,10 +1,18 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.23.0  
+**Versión del documento:** 3.24.0  
 **Fecha de consolidación:** 7 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
-**Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Speaches-AI (Piper TTS), PHPUnit 12, Laravel Pint  
-**Estado:** Precarga inteligente en segundo plano (look-ahead prefetch) integrada en reproductor TTS. 213 tests automatizados pasando al 100% y Pint superado.
+**Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Speaches-AI (Piper TTS), Google AI Studio (Imagen 3 / Gemini), PHPUnit 12, Laravel Pint  
+**Estado:** ISSUE-048 formalizado en GitLab.com (#2) y docs/develop/ para Generación de Storyboard con Google AI Studio, consistencia de personaje y 3 estilos visuales. 213 tests automatizados pasando al 100% y Pint superado.
+- **ISSUE-048 (GitLab #2): Generación de Storyboard por Plano con Google AI Studio, Consistencia de Personaje y Selector de Estilos (`StoryboardService` & `ScriptEditor`):**
+  - Integración planificada con Google AI Studio (Imagen 3 / Gemini API) para generar las viñetas del Storyboard a nivel de cada plano técnico (`Shot`).
+  - Condicionamiento visual de identidad (*Character Conditioning / Turnaround*): inyección de la imagen de referencia del personaje subida en la Biblia de Producción (`Character.reference_image_path`) para mantener fisonomía, vestimenta y rasgos faciales a lo largo de toda la película.
+  - Selector de 3 estilos visuales de Storyboard:
+    - `grayscale_sketch`: Boceto cinemático en blanco y negro (carboncillo y grafito).
+    - `kids_2d_animation`: Animación 2D tradicional infantil con colores vivos y líneas limpias.
+    - `enki_bilal`: Novela gráfica de autor europea distópica/noir (texturas densas al pastel/óleo, tonos desaturados, melancolía retrofuturista).
+  - Enlace natural hacia Image-to-Video (I2V / Flow): la viñeta del Storyboard actúa como "Frame 0" para generar tomas de vídeo coherentes sin deriva de rostros.
 - **Precarga y Buffering Anticipado en Segundo Plano para Lectura TTS Continua (`ttsPlayer` en `ScriptEditor`):**
   - Implementación de un motor de prefetch secuencial anticipado (*look-ahead buffer*) de 2 segmentos en Alpine.js.
   - Mientras el segmento en curso se reproduce en el navegador, el reproductor descarga y pre-sintetiza en segundo plano los siguientes segmentos en blobs binarios en memoria (`URL.createObjectURL`).
