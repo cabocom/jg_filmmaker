@@ -1,18 +1,23 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.24.0  
+**Versión del documento:** 3.25.0  
 **Fecha de consolidación:** 7 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Speaches-AI (Piper TTS), Google AI Studio (Imagen 3 / Gemini), PHPUnit 12, Laravel Pint  
-**Estado:** ISSUE-048 formalizado en GitLab.com (#2) y docs/develop/ para Generación de Storyboard con Google AI Studio, consistencia de personaje y 3 estilos visuales. 213 tests automatizados pasando al 100% y Pint superado.
+**Estado:** ISSUE-048 implementado y completado (GitLab #2) para Generación de Storyboard con Google AI Studio (Imagen 3), condicionamiento de turn-around de personajes y 3 estilos visuales seleccionables. 219 tests automatizados pasando al 100% y Pint superado.
 - **ISSUE-048 (GitLab #2): Generación de Storyboard por Plano con Google AI Studio, Consistencia de Personaje y Selector de Estilos (`StoryboardService` & `ScriptEditor`):**
-  - Integración planificada con Google AI Studio (Imagen 3 / Gemini API) para generar las viñetas del Storyboard a nivel de cada plano técnico (`Shot`).
-  - Condicionamiento visual de identidad (*Character Conditioning / Turnaround*): inyección de la imagen de referencia del personaje subida en la Biblia de Producción (`Character.reference_image_path`) para mantener fisonomía, vestimenta y rasgos faciales a lo largo de toda la película.
-  - Selector de 3 estilos visuales de Storyboard:
-    - `grayscale_sketch`: Boceto cinemático en blanco y negro (carboncillo y grafito).
-    - `kids_2d_animation`: Animación 2D tradicional infantil con colores vivos y líneas limpias.
+  - Implementación del servicio `StoryboardService` para renderizado de viñetas gráficas 16:9 conectando con Google AI Studio (Imagen 3 / Gemini API: `POST /v1beta/models/imagen-3.0-generate-002:predict`).
+  - Condicionamiento visual de identidad (*Character Conditioning / Turn-around*): integración de la imagen de referencia subida en la Biblia de Producción (`Character.reference_image_path`) para inyectar fisonomía, vestuario y rasgos faciales en el prompt, asegurando coherencia visual entre planos.
+  - Catálogo de 3 estilos visuales canónicos de Storyboard:
+    - `grayscale_sketch`: Boceto cinemático en blanco y negro (carboncillo y grafito, contrastes noir).
+    - `kids_2d_animation`: Animación 2D tradicional infantil con colores vivos, cel-shading y líneas limpias.
     - `enki_bilal`: Novela gráfica de autor europea distópica/noir (texturas densas al pastel/óleo, tonos desaturados, melancolía retrofuturista).
-  - Enlace natural hacia Image-to-Video (I2V / Flow): la viñeta del Storyboard actúa como "Frame 0" para generar tomas de vídeo coherentes sin deriva de rostros.
+  - Interfaz interactiva en `ScriptEditor` (etapa 4. Planos):
+    - Selector persistente de estilo de Storyboard en cabecera del cajón de planos.
+    - Tarjeta de plano enriquecida con miniatura de viñeta 16:9, distintivo de estilo, botón de generación/regeneración con estado de carga y visor modal lightbox a pantalla completa.
+    - Previsualización compacta de viñeta integrada en la lectura continua de escenas.
+  - Subida y administración de imágenes de referencia en la Biblia de Producción (`ContextBibleDrawer`) con soporte en `config/livewire.php` para extensiones gráficas (`png,jpg,jpeg,webp`).
+  - Suite de 6 pruebas de integración (`tests/Feature/StoryboardGenerationTest.php`) con cobertura de catálogos, ensamblaje de prompts con condicionamiento de personaje, mocks de API Google AI con `Http::fake()`, cambio de estilos en Livewire y ciclo de vida de imágenes en la biblia. Total suite: **219 tests pasando al 100%**.
 - **Precarga y Buffering Anticipado en Segundo Plano para Lectura TTS Continua (`ttsPlayer` en `ScriptEditor`):**
   - Implementación de un motor de prefetch secuencial anticipado (*look-ahead buffer*) de 2 segmentos en Alpine.js.
   - Mientras el segmento en curso se reproduce en el navegador, el reproductor descarga y pre-sintetiza en segundo plano los siguientes segmentos en blobs binarios en memoria (`URL.createObjectURL`).

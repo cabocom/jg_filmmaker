@@ -7,13 +7,17 @@ use App\Models\Location;
 use App\Models\Project;
 use App\Services\TextToSpeechService;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class ContextBibleDrawer extends Component
 {
+    use WithFileUploads;
+
     #[Locked]
     public Project $project;
 
@@ -33,6 +37,8 @@ class ContextBibleDrawer extends Component
     public string $newCharCostume = '';
 
     public string $newCharVoiceId = 'sharvard#M';
+
+    public $newCharReferenceImage = null;
 
     // Formulario para nueva localización
     public bool $showNewLocationForm = false;
@@ -55,6 +61,8 @@ class ContextBibleDrawer extends Component
     public string $editingCharBio = '';
 
     public string $editingCharVoiceId = 'sharvard#M';
+
+    public $editingCharReferenceImage = null;
 
     public array $availableVoices = [];
 
@@ -109,7 +117,7 @@ class ContextBibleDrawer extends Component
     {
         $this->isOpen = false;
         $this->showDeleteModal = false;
-        $this->reset(['editingCharacterId', 'editingLocationId', 'showNewCharacterForm', 'showNewLocationForm', 'deletingType', 'deletingId', 'deletingName', 'deletingUsages']);
+        $this->reset(['editingCharacterId', 'editingLocationId', 'showNewCharacterForm', 'showNewLocationForm', 'deletingType', 'deletingId', 'deletingName', 'deletingUsages', 'newCharReferenceImage', 'editingCharReferenceImage']);
     }
 
     public function startEditCharacter(string $characterId): void
@@ -118,6 +126,7 @@ class ContextBibleDrawer extends Component
         $this->editingCharacterId = $char->id;
         $this->editingCharCostume = $char->costume_notes ?? '';
         $this->editingCharBio = $char->bio ?? '';
+        $this->editingCharReferenceImage = null;
         $custom = is_array($char->custom_attributes) ? $char->custom_attributes : [];
         $this->editingCharVoiceId = $custom['voice_id'] ?? 'sharvard#M';
     }
@@ -128,18 +137,42 @@ class ContextBibleDrawer extends Component
             return;
         }
 
+        $this->validate([
+            'editingCharReferenceImage' => 'nullable|image|max:10240',
+        ]);
+
         $char = $this->project->characters()->findOrFail($this->editingCharacterId);
         $custom = is_array($char->custom_attributes) ? $char->custom_attributes : [];
         $custom['voice_id'] = $this->editingCharVoiceId;
 
-        $char->update([
+        $updateData = [
             'costume_notes' => $this->editingCharCostume,
             'bio' => $this->editingCharBio,
             'custom_attributes' => $custom,
-        ]);
+        ];
+
+        if ($this->editingCharReferenceImage) {
+            if ($char->reference_image_path && Storage::disk('public')->exists($char->reference_image_path)) {
+                Storage::disk('public')->delete($char->reference_image_path);
+            }
+            $updateData['reference_image_path'] = $this->editingCharReferenceImage->store("projects/{$this->project->id}/characters", 'public');
+        }
+
+        $char->update($updateData);
 
         $this->editingCharacterId = null;
+        $this->editingCharReferenceImage = null;
         session()->flash('bible_success', "Personaje \"{$char->name}\" actualizado.");
+    }
+
+    public function deleteCharacterReferenceImage(string $characterId): void
+    {
+        $char = $this->project->characters()->findOrFail($characterId);
+        if ($char->reference_image_path && Storage::disk('public')->exists($char->reference_image_path)) {
+            Storage::disk('public')->delete($char->reference_image_path);
+        }
+        $char->update(['reference_image_path' => null]);
+        session()->flash('bible_success', "Imagen de referencia de \"{$char->name}\" eliminada.");
     }
 
     public function createCharacter(): void
@@ -155,6 +188,7 @@ class ContextBibleDrawer extends Component
             'newCharPsychology' => 'nullable|string|max:5000',
             'newCharCostume' => 'nullable|string|max:5000',
             'newCharVoiceId' => 'nullable|string|max:50',
+            'newCharReferenceImage' => 'nullable|image|max:10240',
         ], [
             'newCharName.required' => 'Debes indicar el nombre del personaje.',
             'newCharName.unique' => 'Ya existe un personaje registrado con este nombre en la Biblia del proyecto.',
@@ -165,7 +199,7 @@ class ContextBibleDrawer extends Component
             $custom['voice_id'] = $this->newCharVoiceId;
         }
 
-        $this->project->characters()->create([
+        $character = $this->project->characters()->create([
             'name' => trim($this->newCharName),
             'bio' => $this->newCharBio ?: null,
             'psychology' => $this->newCharPsychology ?: null,
@@ -173,7 +207,12 @@ class ContextBibleDrawer extends Component
             'custom_attributes' => $custom,
         ]);
 
-        $this->reset(['newCharName', 'newCharBio', 'newCharPsychology', 'newCharCostume', 'newCharVoiceId', 'showNewCharacterForm']);
+        if ($this->newCharReferenceImage) {
+            $path = $this->newCharReferenceImage->store("projects/{$this->project->id}/characters", 'public');
+            $character->update(['reference_image_path' => $path]);
+        }
+
+        $this->reset(['newCharName', 'newCharBio', 'newCharPsychology', 'newCharCostume', 'newCharVoiceId', 'newCharReferenceImage', 'showNewCharacterForm']);
         session()->flash('bible_success', 'Nuevo personaje incorporado a la Biblia del proyecto.');
     }
 

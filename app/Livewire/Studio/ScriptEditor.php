@@ -17,8 +17,10 @@ use App\Services\JgAgente\AgentClientService;
 use App\Services\ScriptExportService;
 use App\Services\ScriptImportService;
 use App\Services\ScriptPipelineService;
+use App\Services\StoryboardService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -80,6 +82,14 @@ class ScriptEditor extends Component
     public array $aiTraceData = [];
 
     public string $aiTraceActiveTab = 'steps'; // 'steps', 'prompt', 'output', 'json'
+
+    // Estilo activo para generación de Storyboard
+    public string $storyboardStyle = 'grayscale_sketch';
+
+    // Modal para previsualización a gran tamaño de viñeta de Storyboard
+    public ?string $previewStoryboardUrl = null;
+
+    public ?string $previewStoryboardTitle = null;
 
     // Subida de archivo de vídeo para toma
     public $videoUpload = null;
@@ -242,6 +252,7 @@ class ScriptEditor extends Component
         Gate::authorize('view', $project);
 
         $this->project = $project;
+        $this->storyboardStyle = $this->project->storyboard_style ?: 'grayscale_sketch';
 
         // Cargar primera escena disponible o dejar en null (sin auto-seleccionar bloque)
         $firstScene = $this->project->scenes()->first();
@@ -1304,6 +1315,44 @@ class ScriptEditor extends Component
         }
 
         session()->flash('success', "Bloque {$block->block_order} desglosado: {$createdShots->count()} planos sincronizados.");
+    }
+
+    public function setStoryboardStyle(string $style): void
+    {
+        if (! array_key_exists($style, StoryboardService::STYLES)) {
+            return;
+        }
+
+        $this->storyboardStyle = $style;
+        $this->project->update(['storyboard_style' => $style]);
+        $styleName = StoryboardService::STYLES[$style]['name'];
+        session()->flash('success', "Estilo de Storyboard actualizado a: {$styleName}.");
+    }
+
+    public function generateShotStoryboard(string $shotId, StoryboardService $storyboardService): void
+    {
+        $shot = $this->projectShot($shotId);
+
+        try {
+            $storyboardService->generateStoryboard($shot, $this->storyboardStyle);
+            session()->flash('success', "Viñeta de storyboard para el Shot #{$shot->shot_number} generada correctamente.");
+        } catch (\Throwable $e) {
+            Log::error("Error al generar storyboard para el shot {$shotId}: ".$e->getMessage());
+            session()->flash('error', 'No se pudo generar el storyboard: '.$e->getMessage());
+        }
+    }
+
+    public function openStoryboardPreview(string $shotId): void
+    {
+        $shot = $this->projectShot($shotId);
+        $this->previewStoryboardUrl = $shot->storyboard_url;
+        $this->previewStoryboardTitle = "Shot #{$shot->shot_number} ({$shot->shot_type})";
+    }
+
+    public function closeStoryboardPreview(): void
+    {
+        $this->previewStoryboardUrl = null;
+        $this->previewStoryboardTitle = null;
     }
 
     public function setBlockTab(string $blockId, string $tab): void

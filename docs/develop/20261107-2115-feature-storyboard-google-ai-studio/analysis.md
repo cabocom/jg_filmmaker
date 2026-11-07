@@ -112,3 +112,4 @@ El objetivo de esta funcionalidad es permitir la generación automática de la v
   - Pruebas de persistencia y autorización (mitigación IDOR: solo el propietario del proyecto puede generar y consultar imágenes).
 - Validación de linters con `./vendor/bin/pint --test` y ejecución de la suite completa con `php artisan test`.
 - Actualización de `PROJECT_CONTEXT.md` y publicación del issue en GitLab.com.
+

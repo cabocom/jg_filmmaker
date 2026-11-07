@@ -114,6 +114,20 @@
                                         @endforeach
                                     </select>
                                 </div>
+                                <div>
+                                    <label class="block text-[10px] text-slate-500 dark:text-slate-400 mb-0.5 font-medium">Imagen de Referencia / Turn-Around (Storyboard):</label>
+                                    <input type="file"
+                                           wire:model="newCharReferenceImage"
+                                           accept="image/*"
+                                           class="w-full text-xs text-slate-500 dark:text-slate-400 file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-amber-500/20 file:text-amber-700 dark:file:text-amber-300 hover:file:bg-amber-500/30 cursor-pointer">
+                                    <div wire:loading wire:target="newCharReferenceImage" class="text-[10px] text-amber-500 mt-1">Cargando imagen...</div>
+                                    @error('newCharReferenceImage') <span class="text-rose-500 text-[10px]">{{ $message }}</span> @enderror
+                                    @if ($newCharReferenceImage)
+                                        <div class="mt-2">
+                                            <img src="{{ $newCharReferenceImage->temporaryUrl() }}" class="h-20 w-auto rounded border border-amber-400/60 shadow-xs object-contain bg-slate-900">
+                                        </div>
+                                    @endif
+                                </div>
                                 <div class="flex justify-end gap-2 pt-1">
                                     <button wire:click="$set('showNewCharacterForm', false)" type="button" class="px-2.5 py-1 rounded text-xs text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white">Cancelar</button>
                                     <button wire:click="createCharacter" type="button" class="px-3 py-1 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs">Guardar</button>
@@ -184,6 +198,30 @@
                                                 @endforeach
                                             </select>
                                         </div>
+                                        <div>
+                                            <label class="block text-[10px] text-slate-500 dark:text-slate-400 mb-0.5 font-medium">Imagen de Referencia / Turn-Around:</label>
+                                            @if ($character->hasReferenceImage() && ! $editingCharReferenceImage)
+                                                <div class="flex items-center gap-3 mb-2 p-1.5 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                                                    <img src="{{ $character->reference_image_url }}" class="h-12 w-auto rounded object-contain bg-slate-950">
+                                                    <button type="button"
+                                                            wire:click="deleteCharacterReferenceImage('{{ $character->id }}')"
+                                                            class="text-[10px] text-rose-500 hover:text-rose-400 font-semibold flex items-center gap-1 cursor-pointer">
+                                                        <span>🗑️ Eliminar imagen actual</span>
+                                                    </button>
+                                                </div>
+                                            @endif
+                                            <input type="file"
+                                                   wire:model="editingCharReferenceImage"
+                                                   accept="image/*"
+                                                   class="w-full text-xs text-slate-500 dark:text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[11px] file:font-medium file:bg-amber-500/20 file:text-amber-700 dark:file:text-amber-300 hover:file:bg-amber-500/30 cursor-pointer">
+                                            <div wire:loading wire:target="editingCharReferenceImage" class="text-[10px] text-amber-500 mt-1">Cargando imagen...</div>
+                                            @error('editingCharReferenceImage') <span class="text-rose-500 text-[10px]">{{ $message }}</span> @enderror
+                                            @if ($editingCharReferenceImage)
+                                                <div class="mt-2">
+                                                    <img src="{{ $editingCharReferenceImage->temporaryUrl() }}" class="h-20 w-auto rounded border border-amber-400/60 shadow-xs object-contain bg-slate-900">
+                                                </div>
+                                            @endif
+                                        </div>
                                         <div class="flex justify-end gap-2 pt-1">
                                             <button wire:click="$set('editingCharacterId', null)" class="px-2 py-0.5 text-xs text-slate-500 dark:text-slate-400">Cancelar</button>
                                             <button wire:click="saveCharacter" class="px-2.5 py-0.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded">Guardar Cambios</button>
@@ -191,6 +229,21 @@
                                     </div>
                                 @else
                                     <!-- Modo Lectura -->
+                                    @if($character->hasReferenceImage())
+                                        <div class="mt-2 flex items-center gap-3 p-2 bg-slate-100/90 dark:bg-slate-900/90 rounded-lg border border-slate-200 dark:border-slate-800">
+                                            <a href="{{ $character->reference_image_url }}" target="_blank" title="Ver hoja de referencia completa" class="shrink-0 group relative block">
+                                                <img src="{{ $character->reference_image_url }}" alt="{{ $character->name }}" class="h-14 w-auto max-w-[120px] rounded object-cover border border-slate-300 dark:border-slate-700 group-hover:opacity-90">
+                                                <span class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/40 rounded text-white text-[10px] font-bold">🔍</span>
+                                            </a>
+                                            <div class="text-[11px] text-slate-600 dark:text-slate-400 space-y-0.5">
+                                                <span class="font-medium text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                                                    <span>🎨</span> Hoja de Diseño / Turn-Around
+                                                </span>
+                                                <p class="text-[10px] text-slate-500 dark:text-slate-400">Condicionará la apariencia física del personaje en la generación de storyboards.</p>
+                                            </div>
+                                        </div>
+                                    @endif
+
                                     @if($character->bio)
                                         <p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                                             {{ $character->bio }}

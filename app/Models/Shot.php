@@ -25,7 +25,30 @@ class Shot extends Model
         'shot_number',
         'shot_type',
         'description',
+        'storyboard_image_path',
+        'storyboard_style',
+        'storyboard_prompt',
     ];
+
+    /**
+     * Comprueba si el plano ya tiene viñeta de storyboard generada.
+     */
+    public function hasStoryboard(): bool
+    {
+        return ! empty($this->storyboard_image_path);
+    }
+
+    /**
+     * Retorna la URL pública o relativa para renderizar la viñeta de storyboard.
+     */
+    public function getStoryboardUrlAttribute(): ?string
+    {
+        if (! $this->storyboard_image_path) {
+            return null;
+        }
+
+        return asset('storage/'.ltrim($this->storyboard_image_path, '/'));
+    }
 
     /**
      * Get the attributes that should be cast.

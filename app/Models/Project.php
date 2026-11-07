@@ -26,6 +26,7 @@ class Project extends Model
         'title',
         'synopsis',
         'status',
+        'storyboard_style',
     ];
 
     /**

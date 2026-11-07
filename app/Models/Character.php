@@ -24,6 +24,7 @@ class Character extends Model
         'bio',
         'psychology',
         'costume_notes',
+        'reference_image_path',
         'custom_attributes',
     ];
 
@@ -37,6 +38,26 @@ class Character extends Model
         return [
             'custom_attributes' => 'array',
         ];
+    }
+
+    /**
+     * Comprueba si el personaje tiene imagen de referencia / turn-around.
+     */
+    public function hasReferenceImage(): bool
+    {
+        return ! empty($this->reference_image_path);
+    }
+
+    /**
+     * Retorna la URL pública accesible para renderizar la imagen de referencia.
+     */
+    public function getReferenceImageUrlAttribute(): ?string
+    {
+        if (! $this->reference_image_path) {
+            return null;
+        }
+
+        return asset('storage/'.ltrim($this->reference_image_path, '/'));
     }
 
     /**

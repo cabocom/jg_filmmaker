@@ -596,6 +596,12 @@
                                                             @foreach($block->shots as $shot)
                                                                 <div class="p-2 rounded-lg bg-slate-50/80 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
                                                                     <div class="flex items-center gap-2">
+                                                                        @if($shot->hasStoryboard())
+                                                                            <img src="{{ $shot->storyboard_url }}"
+                                                                                 alt="Shot {{ $shot->shot_number }}"
+                                                                                 class="h-8 w-14 rounded object-cover border border-slate-300 dark:border-slate-700 cursor-pointer shrink-0"
+                                                                                 wire:click.stop="openStoryboardPreview('{{ $shot->id }}')">
+                                                                        @endif
                                                                         <span class="font-mono font-bold text-cyan-700 bg-cyan-50 dark:text-cyan-300 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-800/50 px-1.5 py-0.5 rounded text-[11px]">
                                                                             --- shot {{ $shot->shot_number }} ({{ $shot->shot_type }}) ---
                                                                         </span>
@@ -1411,15 +1417,96 @@
                                     </div>
                                 @elseif($detailActiveTab === 'shots')
                                     <div class="space-y-4">
-                                        <span class="text-xs font-mono font-bold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">4. Desglose Técnico de Planos y Tomas:</span>
+                                        <!-- Barra de Estilo de Storyboard & Condicionamiento -->
+                                        <div class="p-3 rounded-xl bg-slate-100/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 space-y-2">
+                                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="text-xs font-mono font-bold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
+                                                        🎨 Estilo Visual Storyboard (Google AI):
+                                                    </span>
+                                                    @php
+                                                        $refCharCount = $project->characters->filter(fn($c) => $c->hasReferenceImage())->count();
+                                                    @endphp
+                                                    @if($refCharCount > 0)
+                                                        <span class="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20" title="La IA condicionará la imagen según la ficha de modelo de personajes">
+                                                            <span>👤</span> {{ $refCharCount }} modelo{{ $refCharCount > 1 ? 's' : '' }} turn-around
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                                <!-- Selector de Estilos -->
+                                                <div class="flex items-center gap-1 bg-white dark:bg-slate-950 p-1 rounded-lg border border-slate-200 dark:border-slate-800 text-[11px] font-medium">
+                                                    @foreach(\App\Services\StoryboardService::STYLES as $sKey => $sVal)
+                                                        <button wire:click="setStoryboardStyle('{{ $sKey }}')"
+                                                                type="button"
+                                                                class="px-2.5 py-1 rounded transition cursor-pointer {{ $storyboardStyle === $sKey ? 'bg-amber-500 text-slate-950 font-bold shadow-2xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white' }}">
+                                                            {{ $sVal['name'] }}
+                                                        </button>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                            <p class="text-[11px] text-slate-500 dark:text-slate-400 italic">
+                                                {{ \App\Services\StoryboardService::STYLES[$storyboardStyle]['description'] ?? '' }}
+                                            </p>
+                                        </div>
+
+                                        <span class="text-xs font-mono font-bold uppercase tracking-wider text-cyan-600 dark:text-cyan-400 block pt-1">
+                                            4. Desglose Técnico de Planos y Viñetas:
+                                        </span>
                                         @forelse($detailBlock->shots as $shot)
-                                            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2.5">
+                                            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3">
                                                 <div class="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
                                                     <span class="font-mono font-bold text-cyan-700 bg-cyan-50 dark:text-cyan-300 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-800/50 px-2 py-0.5 rounded text-xs">
                                                         --- shot {{ $shot->shot_number }} ({{ $shot->shot_type }}) ---
                                                     </span>
                                                     <span class="text-xs text-slate-500 font-mono">{{ $shot->takes->count() }} tomas</span>
                                                 </div>
+
+                                                <!-- Viñeta de Storyboard -->
+                                                @if($shot->hasStoryboard())
+                                                    <div class="relative group rounded-xl overflow-hidden border border-slate-300 dark:border-slate-700 bg-slate-950 aspect-video shadow-md">
+                                                        <img src="{{ $shot->storyboard_url }}"
+                                                             alt="Storyboard shot {{ $shot->shot_number }}"
+                                                             class="w-full h-full object-cover transition duration-300 group-hover:scale-102">
+                                                        <div class="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-transparent to-transparent flex items-end justify-between p-3 opacity-90 group-hover:opacity-100 transition">
+                                                            <div class="flex items-center gap-1.5">
+                                                                <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-black/70 text-amber-300 border border-amber-500/30 backdrop-blur-xs font-semibold">
+                                                                    🎨 {{ \App\Services\StoryboardService::STYLES[$shot->storyboard_style]['name'] ?? 'Storyboard' }}
+                                                                </span>
+                                                            </div>
+                                                            <div class="flex items-center gap-2">
+                                                                <button wire:click="openStoryboardPreview('{{ $shot->id }}')"
+                                                                        type="button"
+                                                                        title="Ampliar viñeta"
+                                                                        class="px-2.5 py-1 rounded-lg bg-black/70 hover:bg-black/90 text-white text-xs border border-white/20 backdrop-blur-xs cursor-pointer flex items-center gap-1">
+                                                                    <span>🔍</span> <span>Ampliar</span>
+                                                                </button>
+                                                                <button wire:click="generateShotStoryboard('{{ $shot->id }}')"
+                                                                        wire:loading.attr="disabled"
+                                                                        type="button"
+                                                                        title="Regenerar con IA"
+                                                                        class="px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold flex items-center gap-1 cursor-pointer shadow-xs transition">
+                                                                    <span wire:loading.remove wire:target="generateShotStoryboard('{{ $shot->id }}')">🔄 Regenerar</span>
+                                                                    <span wire:loading wire:target="generateShotStoryboard('{{ $shot->id }}')">⏳ Generando...</span>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                @else
+                                                    <div class="flex items-center justify-between p-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-800 bg-slate-100/60 dark:bg-slate-900/60">
+                                                         <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                                                             <span>🎨</span>
+                                                             <span>Sin viñeta de storyboard generada</span>
+                                                         </div>
+                                                         <button wire:click="generateShotStoryboard('{{ $shot->id }}')"
+                                                                 wire:loading.attr="disabled"
+                                                                 type="button"
+                                                                 class="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition">
+                                                             <span wire:loading.remove wire:target="generateShotStoryboard('{{ $shot->id }}')">✨ Generar Storyboard (IA)</span>
+                                                             <span wire:loading wire:target="generateShotStoryboard('{{ $shot->id }}')">⏳ Generando viñeta con Google AI...</span>
+                                                         </button>
+                                                    </div>
+                                                @endif
+
                                                 <p class="text-xs text-slate-700 dark:text-slate-300">{{ $shot->description }}</p>
 
                                                 @if($shot->takes->isNotEmpty())
@@ -2783,6 +2870,30 @@
         </div>
     </div>
 
+    <!-- ================= MODAL LIGHTBOX DE STORYBOARD ================= -->
+    @if($previewStoryboardUrl)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm transition"
+             wire:click.self="closeStoryboardPreview">
+            <div class="relative max-w-4xl w-full bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl">
+                <div class="flex items-center justify-between px-4 py-3 bg-slate-950/90 border-b border-slate-800">
+                    <span class="text-xs font-mono font-bold text-slate-200">
+                        🎨 {{ $previewStoryboardTitle ?? 'Storyboard' }}
+                    </span>
+                    <button wire:click="closeStoryboardPreview"
+                            type="button"
+                            class="text-slate-400 hover:text-white text-sm font-bold p-1 cursor-pointer">
+                        ✕
+                    </button>
+                </div>
+                <div class="p-2 flex items-center justify-center bg-black aspect-video max-h-[80vh]">
+                    <img src="{{ $previewStoryboardUrl }}"
+                         alt="Previsualización de Storyboard"
+                         class="w-full h-full object-contain">
+                </div>
+            </div>
+        </div>
+    @endif
+
     <script>
         function ttsPlayer({ projectId }) {
             return {
@@ -3068,9 +3179,6 @@
                         el.classList.remove('tts-active-block', 'ring-2', 'ring-indigo-500', 'bg-indigo-500/10', 'dark:bg-indigo-950/40');
                     });
                 }
-            };
-        }
-    </script>
             };
         }
 
