@@ -12,4 +12,5 @@ services:
       - ./config:/var/www/html/config
       - ./resources:/var/www/html/resources
       - ./routes:/var/www/html/routes
+      - ./database/migrations:/var/www/html/database/migrations
       - ./.env:/var/www/html/.env:ro
