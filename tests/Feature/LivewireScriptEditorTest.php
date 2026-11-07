@@ -1393,7 +1393,7 @@ class LivewireScriptEditorTest extends TestCase
             'screenplay_content' => "INT. SALON - DIA\n\nJuan entra lentamente.\n\nSe sienta en el sofá mirando la carta.",
         ]);
 
-        Livewire::actingAs($user)
+        $test = Livewire::actingAs($user)
             ->test(ScriptEditor::class, ['project' => $project])
             ->call('openBlockDetails', $block->id, 'shots')
             ->call('startEditingInDrawer')
@@ -1410,6 +1410,14 @@ class LivewireScriptEditorTest extends TestCase
         $this->assertEquals(2, $shots[1]->shot_number);
         $this->assertEquals('PP', $shots[1]->shot_type);
         $this->assertEquals('Se sienta en el sofá mirando la carta.', $shots[1]->description);
+
+        // Al volver a abrir la edición de planos, el texto no debe contener números en los delimitadores
+        $test->call('startEditingInDrawer');
+        $content = $test->get('editScreenplayContent');
+        $this->assertStringContainsString('--- shot (PG) ---', $content);
+        $this->assertStringContainsString('--- shot (PP) ---', $content);
+        $this->assertStringNotContainsString('--- shot 1 (', $content);
+        $this->assertStringNotContainsString('--- shot 2 (', $content);
     }
 
     public function test_can_edit_and_delete_individual_shot_with_reindexing(): void

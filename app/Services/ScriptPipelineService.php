@@ -291,19 +291,28 @@ class ScriptPipelineService
         $shotsList = $breakdownResult['shots'];
 
         $createdShots = new Collection;
+        $usedShotIds = [];
 
         foreach ($shotsList as $shotData) {
             $shotNumber = (int) ($shotData['shot_number'] ?? 1);
             $shotType = (string) ($shotData['shot_type'] ?? 'PM');
             $description = (string) ($shotData['description'] ?? '');
 
-            // Si el plano ya existe y tiene tomas asociadas, preservar el plano existente sin sobreescribir destructivamente
+            // Si el plano ya existe y tiene tomas grabadas reales (vídeo, buena toma o notas de rodaje), preservarlo
             $existingShot = Shot::where('scene_id', $block->scene_id)
                 ->where('script_block_id', $block->id)
                 ->where('shot_number', $shotNumber)
                 ->first();
 
-            if ($existingShot && $existingShot->takes()->count() > 0) {
+            $hasRecordedTakes = $existingShot && $existingShot->takes()
+                ->where(function ($q) {
+                    $q->whereNotNull('file_path')
+                        ->orWhere('is_good_take', true)
+                        ->orWhere('editorial_notes', '!=', 'Toma inicial generada por pipeline de desglose.');
+                })
+                ->exists();
+
+            if ($hasRecordedTakes) {
                 $shot = $existingShot;
             } else {
                 $shot = Shot::updateOrCreate(
@@ -329,8 +338,25 @@ class ScriptPipelineService
                 ]);
             }
 
+            $usedShotIds[] = $shot->id;
             $createdShots->push($shot);
         }
+
+        // Eliminar planos antiguos de este bloque que ya no forman parte del desglose y no tienen tomas reales
+        $block->shots()->whereNotIn('id', $usedShotIds)->each(function (Shot $obsoleteShot) {
+            $hasRecorded = $obsoleteShot->takes()
+                ->where(function ($q) {
+                    $q->whereNotNull('file_path')
+                        ->orWhere('is_good_take', true)
+                        ->orWhere('editorial_notes', '!=', 'Toma inicial generada por pipeline de desglose.');
+                })
+                ->exists();
+
+            if (! $hasRecorded) {
+                $obsoleteShot->takes()->delete();
+                $obsoleteShot->delete();
+            }
+        });
 
         $telemetry = $this->agentClient->getLastTelemetry();
 

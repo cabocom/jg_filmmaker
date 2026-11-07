@@ -1174,7 +1174,7 @@
                                             </div>
                                         </div>
                                         <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-2">
-                                            💡 Sitúa el cursor en el texto donde desees cambiar de plano y pulsa un botón (+PG, +PM, +PP...). Al guardar, se sincronizarán todos los planos técnicos automáticamente.
+                                            💡 Sitúa el cursor en el texto donde desees cambiar de plano y pulsa un botón (+PG, +PM, +PP...). No incluyas números en las etiquetas: la numeración correlativa (1, 2, 3...) se calcula automáticamente al guardar.
                                         </p>
                                         <textarea x-ref="shotsArea" wire:model="editScreenplayContent" rows="14" class="w-full px-4 py-3 text-sm rounded-xl bg-white dark:bg-slate-950 border border-cyan-300 dark:border-cyan-700 text-slate-900 dark:text-cyan-100 font-mono leading-relaxed focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition shadow-inner"></textarea>
                                     </div>

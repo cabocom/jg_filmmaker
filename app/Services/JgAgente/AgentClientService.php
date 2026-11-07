@@ -364,26 +364,25 @@ class AgentClientService
      */
     public function parseShotsFromText(string $text): array
     {
-        $pattern = '/---\s*shot\s*(\d*)\s*(?:\(([^)]+)\))?\s*---\s*\n*(.*?)(?=(?:---\s*shot)|$)/is';
+        $pattern = '/---\s*shot(?:\s+\d+)?\s*(?:\(([^)]+)\))?\s*---\s*\n*(.*?)(?=(?:---\s*shot)|$)/is';
         preg_match_all($pattern, $text, $matches, PREG_SET_ORDER);
 
         $shots = [];
         $autoNum = 1;
         foreach ($matches as $match) {
-            $num = ! empty($match[1]) ? (int) $match[1] : $autoNum;
-            $type = ! empty($match[2]) ? strtoupper(trim($match[2])) : 'PM';
-            $desc = trim($match[3] ?? '');
+            $type = ! empty($match[1]) ? strtoupper(trim($match[1])) : 'PM';
+            $desc = trim($match[2] ?? '');
 
-            if ($desc === '') {
+            if ($desc === '' || preg_match('/^(INT|EXT|INT\/EXT|EST)[\.\s]/i', $desc)) {
                 continue;
             }
 
             $shots[] = [
-                'shot_number' => $num,
+                'shot_number' => $autoNum,
                 'shot_type' => $type,
                 'description' => $desc,
             ];
-            $autoNum = max($autoNum + 1, $num + 1);
+            $autoNum++;
         }
 
         return $shots;
@@ -864,7 +863,7 @@ class AgentClientService
                     $type = 'PM';
                 }
 
-                $annotated[] = "--- shot {$shotNum} ({$type}) ---\n{$unit}";
+                $annotated[] = "--- shot ({$type}) ---\n{$unit}";
                 $shots[] = [
                     'shot_number' => $shotNum,
                     'shot_type' => $type,
@@ -1534,8 +1533,9 @@ class AgentClientService
                 ."REGLAS FUNDAMENTALES:\n"
                 ."1. PROHIBIDO GENERAR PLANOS PARA ENCABEZADOS DE ESCENA: Líneas como 'INT. ...' o 'EXT. ...' son sluglines de localización, NUNCA planos de cámara. NO les asignes un delimitador de plano.\n"
                 ."2. COBERTURA CINEMATOGRÁFICA COHERENTE: No crees un plano por cada frase. Agrupa acciones continuas en un solo plano. Para diálogos o acciones focales, alterna planos medios (PM) y primeros planos (PP) de forma equilibrada.\n"
-                ."3. DELIMITADOR OBLIGATORIO: Utiliza estrictamente la sintaxis canónica:\n"
-                ."--- shot N (tipo) ---\n"
+                ."3. DELIMITADOR OBLIGATORIO: Utiliza estrictamente la sintaxis canónica sin numerar:\n"
+                ."--- shot (tipo) ---\n"
+                ."(NUNCA incluyas números en el delimitador; la numeración 1, 2, 3... es automática).\n"
                 ."Tipos admitidos: PG (Plano General), PM (Plano Medio), PP (Primer Plano), PD (Plano Detalle), PA (Plano Americano).\n"
                 .'Intercala los delimitadores antes de cada unidad dramática de plano.';
         }

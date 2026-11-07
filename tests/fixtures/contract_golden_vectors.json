@@ -69,9 +69,10 @@
       "screenplay_text": "EXT. MUELLE PESQUERO - NOCHE 1\n\nJavier Gálvez camina lentamente bajo la lluvia.\n\nDetalle de sus botas pisando los charcos helados.\n\nElena se gira bruscamente con un revolver en la mano."
     },
     "expected_substrings": [
-      "--- shot 1 (",
-      "--- shot 2 (",
-      "--- shot 3 ("
+      "--- shot (",
+      "Javier Gálvez camina lentamente",
+      "Detalle de sus botas",
+      "Elena se gira bruscamente"
     ]
   },
   "plot_hole_detector": {

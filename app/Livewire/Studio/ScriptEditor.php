@@ -422,17 +422,22 @@ class ScriptEditor extends Component
         $this->editScreenplayContent = (string) ($block->screenplay_content ?? '');
         $this->editStage = (string) ($block->stage ?? 'raw');
 
-        // Si estamos editando en la pestaña de Planos, cargar el guión con delimitadores explícitos de planos
+        // Si estamos editando en la pestaña de Planos, cargar el guión con delimitadores explícitos de planos (sin numerar)
         if ($this->detailActiveTab === 'shots') {
-            $existingShots = $block->shots()->orderBy('shot_number')->get();
+            $existingShots = $block->shots()
+                ->orderBy('shot_number')
+                ->get()
+                ->reject(fn ($s) => preg_match('/^(INT|EXT|INT\/EXT|EST)[\.\s]/i', trim((string) $s->description)));
+
             if ($existingShots->isNotEmpty()) {
                 $annotated = [];
                 foreach ($existingShots as $shot) {
-                    $annotated[] = "--- shot {$shot->shot_number} ({$shot->shot_type}) ---\n{$shot->description}";
+                    $annotated[] = "--- shot ({$shot->shot_type}) ---\n{$shot->description}";
                 }
                 $this->editScreenplayContent = implode("\n\n", $annotated);
             } else {
-                $this->editScreenplayContent = (string) ($block->screenplay_content ?: $block->raw_text);
+                $breakdown = app(AgentClientService::class)->breakdownShots((string) ($block->screenplay_content ?: $block->raw_text));
+                $this->editScreenplayContent = $breakdown['annotated_text'] ?: (string) ($block->screenplay_content ?: $block->raw_text);
             }
         }
 
@@ -534,7 +539,10 @@ class ScriptEditor extends Component
                     }
 
                     // Eliminar planos excedentes eliminados en el texto
-                    $savedBlock->shots()->whereNotIn('id', $usedShotIds)->delete();
+                    $savedBlock->shots()->whereNotIn('id', $usedShotIds)->each(function (Shot $s) {
+                        $s->takes()->delete();
+                        $s->delete();
+                    });
                 });
 
                 $savedBlock->mutateUserLocks(function (array $userLocks) {
