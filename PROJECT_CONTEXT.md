@@ -1,10 +1,14 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.26.1  
-**Fecha de consolidación:** 7 de noviembre de 2026  
+**Versión del documento:** 3.27.0  
+**Fecha de consolidación:** 8 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
-**Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Speaches-AI (Piper TTS), Google AI Studio (Imagen 3 / Gemini), PHPUnit 12, Laravel Pint  
-**Estado:** Delimitación de planos técnicos 100% sin numerar en texto (`--- shot (TIPO) ---`), numeración correlativa automática en base de datos y actualización no destructiva de planos en `ScriptPipelineService`. Exclusión total de sluglines/encabezados y purga de planos obsoletos en base de datos. 221 tests automatizados pasando al 100% y Pint superado.
+**Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Speaches-AI (Piper TTS), Google AI Studio (`gemini-2.5-flash-image` / Imagen 3), PHPUnit 12, Laravel Pint  
+**Estado:** Generación de Storyboards con Google AI Studio verificada al 100% (HTTP 200). Incorporación de Condicionamiento Escenográfico de Localización (`resolveLocationConditioning` en `StoryboardService`): inyección automática en el prompt de la imagen de notas de Dirección de Arte (`art_department_notes`), ambientación e Iluminación (`lighting_notes`) desde la Biblia de Producción. 222 tests automatizados pasando al 100% y Pint superado.
+- **Condicionamiento Escenográfico de Localización en Storyboard (`StoryboardService`):**
+  - Resolución inteligente de la localización vinculada a la escena o mediante coincidencia heurística con el *slugline*.
+  - Enriquecimiento del prompt visual con las notas de dirección de arte (materiales, texturas, escenografía, paleta) y notas de iluminación (fuentes de luz, ambiente diurno/nocturno, neones, atmósfera) definidas en la Biblia de Producción (`Location.art_department_notes` y `Location.lighting_notes`).
+  - Coexistencia sinérgica con el condicionamiento de personajes (*character turn-around*), garantizando coherencia visual tanto de sujetos como de entornos entre viñetas.
 - **Perfeccionamiento del Desglose Técnico de Planos y Erradicación de Tomas/Descartes en Storyboard (`ScriptEditor` & `AgentClientService`):**
   - **Delimitadores de Planos sin Numeración Manual:** El editor de texto del cajón de detalles y los prompts de IA adoptan estrictamente la sintaxis limpia sin números: `--- shot (TIPO) ---` (ej. `--- shot (PG) ---`, `--- shot (PP) ---`). El cineasta no tiene que mantener ni calcular números al añadir, cortar o reordenar planos; la numeración secuencial (`1, 2, 3...`) se calcula y asigna de manera totalmente automática en la base de datos al guardar o regenerar.
   - **Regeneración Limpia en `ScriptPipelineService`:** Corrección de la lógica de actualización en `generateShotsBreakdown`. Se distingue entre tomas con material real de rodaje (vídeo subido, buena toma o notas manuales) y tomas dummy iniciales del pipeline; los planos sin material grabado se actualizan con la nueva cobertura y se eliminan los planos obsoletos o sluglines preexistentes en la base de datos.

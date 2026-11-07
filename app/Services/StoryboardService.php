@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Character;
+use App\Models\Location;
 use App\Models\Shot;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Http;
@@ -54,7 +55,7 @@ class StoryboardService
      */
     public function buildPrompt(Shot $shot, ?string $style = null): string
     {
-        $shot->loadMissing(['scene.project.characters', 'scriptBlock']);
+        $shot->loadMissing(['scene.project.characters', 'scene.project.locations', 'scene.location', 'scriptBlock']);
 
         $styleKey = $style ?? $shot->scene?->project?->storyboard_style ?? 'grayscale_sketch';
         $styleData = self::STYLES[$styleKey] ?? self::STYLES['grayscale_sketch'];
@@ -63,6 +64,9 @@ class StoryboardService
         $sceneHeader = $shot->scene ? "ESCENA {$shot->scene->scene_order}: {$shot->scene->slugline}" : 'SCENE';
         $description = trim((string) $shot->description) ?: 'Cinematic composition depicting the scene action.';
 
+        // Comprobar si hay una localización asociada a la escena o en la Biblia
+        $locationDirective = $this->resolveLocationConditioning($shot);
+
         // Comprobar si hay un personaje asociado al bloque de guion o mencionado en el plano
         $characterDirective = $this->resolveCharacterConditioning($shot);
 
@@ -70,8 +74,13 @@ class StoryboardService
             'Cinematic film storyboard panel, aspect ratio 16:9.',
             "Camera Framing: {$framing}.",
             "Scene Setting: {$sceneHeader}.",
-            "Action & Composition: {$description}.",
         ];
+
+        if ($locationDirective) {
+            $promptParts[] = "Location & Scenography: {$locationDirective}";
+        }
+
+        $promptParts[] = "Action & Composition: {$description}.";
 
         if ($characterDirective) {
             $promptParts[] = "Character Consistency: {$characterDirective}";
@@ -251,6 +260,49 @@ class StoryboardService
         }
 
         return implode(', ', $directives).'.';
+    }
+
+    /**
+     * Resuelve si la escena tiene una localización asociada o descrita en la Biblia de producción.
+     */
+    protected function resolveLocationConditioning(Shot $shot): ?string
+    {
+        $scene = $shot->scene;
+        if (! $scene) {
+            return null;
+        }
+
+        $location = $scene->location;
+        if (! $location && $scene->project) {
+            // Heurística: buscar localización en la biblia por coincidencia de nombre en el slugline
+            /** @var Collection<int, Location> $locations */
+            $locations = $scene->project->locations;
+            $location = $locations->first(function (Location $loc) use ($scene) {
+                return stripos((string) $scene->slugline, (string) $loc->name) !== false;
+            });
+        }
+
+        if (! $location) {
+            return null;
+        }
+
+        $details = [];
+        $locName = trim((string) $location->name);
+        $locType = trim((string) ($location->type ?? ''));
+        if ($locName !== '') {
+            $details[] = "Environment: {$locName}".($locType !== '' ? " ({$locType})" : '');
+        }
+        if ($location->art_department_notes) {
+            $details[] = "Set design & architectural dressing: {$location->art_department_notes}";
+        }
+        if ($location->lighting_notes) {
+            $details[] = "Lighting setup & mood: {$location->lighting_notes}";
+        }
+        if ($location->address_reference) {
+            $details[] = "Atmosphere reference: {$location->address_reference}";
+        }
+
+        return ! empty($details) ? implode('. ', $details).'.' : null;
     }
 
     /**

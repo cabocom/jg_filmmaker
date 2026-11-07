@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Livewire\Studio\ContextBibleDrawer;
 use App\Livewire\Studio\ScriptEditor;
 use App\Models\Character;
+use App\Models\Location;
 use App\Models\Project;
 use App\Models\Scene;
 use App\Models\ScriptBlock;
@@ -126,6 +127,27 @@ class StoryboardGenerationTest extends TestCase
         $this->assertStringContainsString("Depict character 'Marcus'", $prompt);
         $this->assertStringContainsString('Gabardina negra de cuero sintético', $prompt);
         $this->assertStringContainsString('strictly respecting the character turn-around model sheet reference', $prompt);
+    }
+
+    public function test_storyboard_service_conditions_prompt_when_scene_has_location_details(): void
+    {
+        $location = Location::factory()->create([
+            'project_id' => $this->project->id,
+            'name' => 'CALLE ALMERÍA',
+            'type' => 'EXT',
+            'art_department_notes' => 'Asfalto mojado con reflejos de neones azules y cables colgantes entre edificios antiguos.',
+            'lighting_notes' => 'Luz nocturna difusa por la lluvia y destellos parpadeantes de escaparates.',
+        ]);
+
+        $this->scene->update(['location_id' => $location->id]);
+
+        $service = app(StoryboardService::class);
+        $prompt = $service->buildPrompt($this->shot, 'enki_bilal');
+
+        $this->assertStringContainsString('Location & Scenography:', $prompt);
+        $this->assertStringContainsString('CALLE ALMERÍA (EXT)', $prompt);
+        $this->assertStringContainsString('Asfalto mojado con reflejos de neones azules', $prompt);
+        $this->assertStringContainsString('Luz nocturna difusa por la lluvia', $prompt);
     }
 
     public function test_storyboard_service_generates_image_from_google_ai_studio_api(): void
