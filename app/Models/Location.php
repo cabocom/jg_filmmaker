@@ -26,7 +26,28 @@ class Location extends Model
         'art_department_notes',
         'lighting_notes',
         'address_reference',
+        'reference_image_path',
     ];
+
+    /**
+     * Comprueba si la localización tiene imagen de referencia escenográfica.
+     */
+    public function hasReferenceImage(): bool
+    {
+        return ! empty($this->reference_image_path);
+    }
+
+    /**
+     * Retorna la URL pública accesible para renderizar la imagen de referencia.
+     */
+    public function getReferenceImageUrlAttribute(): ?string
+    {
+        if (! $this->reference_image_path) {
+            return null;
+        }
+
+        return asset('storage/'.ltrim($this->reference_image_path, '/'));
+    }
 
     /**
      * Project to which this location belongs.

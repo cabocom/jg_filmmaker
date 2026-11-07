@@ -309,6 +309,15 @@
                                            placeholder="Notas de Iluminación (ej: Luz cenital fría)..."
                                            class="w-full px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white">
                                 </div>
+                                <div>
+                                    <label class="block text-[10px] text-slate-500 dark:text-slate-400 mb-0.5 font-medium">Imagen de Referencia de Localización / Set:</label>
+                                    <input type="file"
+                                           wire:model="newLocReferenceImage"
+                                           accept="image/*"
+                                           class="w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[11px] file:font-semibold file:bg-amber-500/10 file:text-amber-700 dark:file:bg-amber-500/20 dark:file:text-amber-300 hover:file:bg-amber-500/20">
+                                    <div wire:loading wire:target="newLocReferenceImage" class="text-[10px] text-amber-500 mt-1">Cargando imagen...</div>
+                                    @error('newLocReferenceImage') <span class="text-rose-500 text-[10px]">{{ $message }}</span> @enderror
+                                </div>
                                 <div class="flex justify-end gap-2 pt-1">
                                     <button wire:click="$set('showNewLocationForm', false)" type="button" class="px-2.5 py-1 rounded text-xs text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white">Cancelar</button>
                                     <button wire:click="createLocation" type="button" class="px-3 py-1 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs">Guardar</button>
@@ -357,6 +366,25 @@
                                             <label class="block text-[10px] text-slate-500 dark:text-slate-400 mb-0.5">Notas de Iluminación:</label>
                                             <input type="text" wire:model="editingLocLightingNotes" class="w-full px-2.5 py-1 text-xs rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white">
                                         </div>
+                                        <div>
+                                            <label class="block text-[10px] text-slate-500 dark:text-slate-400 mb-0.5 font-medium">Imagen de Referencia de Localización / Set:</label>
+                                            @if ($location->hasReferenceImage() && ! $editingLocReferenceImage)
+                                                <div class="flex items-center gap-3 mb-2 p-1.5 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                                                    <img src="{{ $location->reference_image_url }}" class="h-12 w-auto rounded object-contain bg-slate-950">
+                                                    <button type="button"
+                                                            wire:click="deleteLocationReferenceImage('{{ $location->id }}')"
+                                                            class="text-[10px] text-rose-500 hover:text-rose-400 font-semibold flex items-center gap-1 cursor-pointer">
+                                                        <span>🗑️ Eliminar imagen actual</span>
+                                                    </button>
+                                                </div>
+                                            @endif
+                                            <input type="file"
+                                                   wire:model="editingLocReferenceImage"
+                                                   accept="image/*"
+                                                   class="w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[11px] file:font-semibold file:bg-amber-500/10 file:text-amber-700 dark:file:bg-amber-500/20 dark:file:text-amber-300 hover:file:bg-amber-500/20">
+                                            <div wire:loading wire:target="editingLocReferenceImage" class="text-[10px] text-amber-500 mt-1">Cargando imagen...</div>
+                                            @error('editingLocReferenceImage') <span class="text-rose-500 text-[10px]">{{ $message }}</span> @enderror
+                                        </div>
                                         <div class="flex justify-end gap-2 pt-1">
                                             <button wire:click="$set('editingLocationId', null)" class="px-2 py-0.5 text-xs text-slate-500 dark:text-slate-400">Cancelar</button>
                                             <button wire:click="saveLocation" class="px-2.5 py-0.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded">Guardar</button>
@@ -364,6 +392,12 @@
                                     </div>
                                 @else
                                     <!-- Modo Lectura -->
+                                    @if($location->hasReferenceImage())
+                                        <div class="my-2 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-950 aspect-video max-h-36">
+                                            <img src="{{ $location->reference_image_url }}" alt="{{ $location->name }}" class="w-full h-full object-cover">
+                                        </div>
+                                    @endif
+
                                     @if($location->art_department_notes)
                                         <div class="text-xs text-slate-600 dark:text-slate-400">
                                             <span class="text-slate-500 font-semibold">Arte:</span> {{ $location->art_department_notes }}

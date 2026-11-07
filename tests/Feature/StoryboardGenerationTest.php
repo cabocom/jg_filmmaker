@@ -249,4 +249,207 @@ class StoryboardGenerationTest extends TestCase
         $this->assertFalse($character->hasReferenceImage());
         $this->assertNull($character->reference_image_path);
     }
+
+    public function test_context_bible_drawer_supports_location_reference_image_upload_and_delete(): void
+    {
+        $fakeUpload = UploadedFile::fake()->image('pasillo_entrada.jpg', 1280, 720);
+
+        Livewire::actingAs($this->user)
+            ->test(ContextBibleDrawer::class, ['project' => $this->project])
+            ->set('newLocName', 'CASA ENTRADA/PASILLO')
+            ->set('newLocType', 'INT')
+            ->set('newLocArtNotes', 'Paredes con gotelé desgastado.')
+            ->set('newLocLightingNotes', 'Luz fluorescente parpadeante.')
+            ->set('newLocReferenceImage', $fakeUpload)
+            ->call('createLocation')
+            ->assertHasNoErrors();
+
+        $location = Location::where('project_id', $this->project->id)->where('name', 'CASA ENTRADA/PASILLO')->firstOrFail();
+        $this->assertTrue($location->hasReferenceImage());
+        $this->assertNotNull($location->reference_image_path);
+        Storage::disk('public')->assertExists($location->reference_image_path);
+        $this->assertStringContainsString(asset('storage/'.$location->reference_image_path), $location->reference_image_url);
+
+        // Probar eliminación de la imagen de referencia de localización
+        Livewire::actingAs($this->user)
+            ->test(ContextBibleDrawer::class, ['project' => $this->project])
+            ->call('deleteLocationReferenceImage', $location->id)
+            ->assertHasNoErrors();
+
+        $location->refresh();
+        $this->assertFalse($location->hasReferenceImage());
+        $this->assertNull($location->reference_image_path);
+    }
+
+    public function test_script_editor_storyboard_modal_opens_with_prefilled_prompt_and_allows_customization(): void
+    {
+        Config::set('services.google_ai.api_key', 'test-fake-key-google-ai');
+
+        $fakeBase64Image = base64_encode('test_custom_prompt_rendered_image');
+
+        Http::fake([
+            'https://generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [
+                    [
+                        'content' => [
+                            'parts' => [
+                                ['text' => 'Storyboard generated successfully.'],
+                                [
+                                    'inlineData' => [
+                                        'mimeType' => 'image/png',
+                                        'data' => $fakeBase64Image,
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $customPrompt = 'Primer plano dramático de Marcus sosteniendo un amuleto alienígena con luz cian.';
+
+        $lw = Livewire::actingAs($this->user)
+            ->test(ScriptEditor::class, ['project' => $this->project])
+            ->assertSet('showStoryboardModal', false)
+            ->call('openStoryboardModal', $this->shot->id)
+            ->assertSet('showStoryboardModal', true)
+            ->assertSet('storyboardShotId', $this->shot->id);
+
+        $this->assertNotEmpty($lw->get('storyboardModalPrompt'));
+
+        $lw->set('storyboardModalPrompt', $customPrompt)
+            ->call('confirmGenerateStoryboard')
+            ->assertHasNoErrors()
+            ->assertSet('showStoryboardModal', false);
+
+        $this->shot->refresh();
+        $this->assertTrue($this->shot->hasStoryboard());
+        $this->assertSame($customPrompt, $this->shot->storyboard_prompt);
+    }
+
+    public function test_script_editor_storyboard_modal_manages_props_and_limits_to_three(): void
+    {
+        Config::set('services.google_ai.api_key', 'test-fake-key-google-ai');
+
+        Http::fake([
+            'https://generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [
+                    [
+                        'content' => [
+                            'parts' => [
+                                [
+                                    'inlineData' => [
+                                        'mimeType' => 'image/png',
+                                        'data' => base64_encode('fake_img'),
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $prop1 = UploadedFile::fake()->image('ambientador.jpg', 400, 400);
+        $prop2 = UploadedFile::fake()->image('movil.jpg', 400, 400);
+        $prop3 = UploadedFile::fake()->image('llaves.jpg', 400, 400);
+        $prop4 = UploadedFile::fake()->image('reloj.jpg', 400, 400);
+
+        Livewire::actingAs($this->user)
+            ->test(ScriptEditor::class, ['project' => $this->project])
+            ->call('openStoryboardModal', $this->shot->id)
+            ->set('storyboardPropUploads', [$prop1, $prop2, $prop3, $prop4])
+            // Debe recortar a 3 automáticamente
+            ->assertCount('storyboardPropUploads', 3)
+            // Eliminar el segundo prop
+            ->call('removeStoryboardProp', 1)
+            ->assertCount('storyboardPropUploads', 2)
+            ->call('confirmGenerateStoryboard')
+            ->assertHasNoErrors();
+    }
+
+    public function test_storyboard_service_multimodal_sends_character_location_and_props_to_gemini(): void
+    {
+        Config::set('services.google_ai.api_key', 'test-fake-key-google-ai');
+        Config::set('services.google_ai.model', 'gemini-2.5-flash-image');
+
+        // Crear personaje con imagen
+        $charImgPath = 'projects/'.$this->project->id.'/characters/char.png';
+        Storage::disk('public')->put($charImgPath, 'character_dummy_png_bytes');
+        $character = Character::factory()->create([
+            'project_id' => $this->project->id,
+            'name' => 'EDURNE',
+            'reference_image_path' => $charImgPath,
+        ]);
+
+        // Crear localización con imagen
+        $locImgPath = 'projects/'.$this->project->id.'/locations/loc.jpg';
+        Storage::disk('public')->put($locImgPath, 'location_dummy_jpg_bytes');
+        $location = Location::factory()->create([
+            'project_id' => $this->project->id,
+            'name' => 'BAÑO',
+            'reference_image_path' => $locImgPath,
+        ]);
+
+        $this->scene->update(['location_id' => $location->id]);
+
+        $prop1 = UploadedFile::fake()->image('prop_ambientador.png', 200, 200);
+
+        $capturedPayload = null;
+        Http::fake([
+            'https://generativelanguage.googleapis.com/*' => function ($request) use (&$capturedPayload) {
+                $capturedPayload = $request->data();
+
+                return Http::response([
+                    'candidates' => [
+                        [
+                            'content' => [
+                                'parts' => [
+                                    [
+                                        'inlineData' => [
+                                            'mimeType' => 'image/png',
+                                            'data' => base64_encode('rendered_gemini_image'),
+                                        ],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ], 200);
+            },
+        ]);
+
+        $service = app(StoryboardService::class);
+        $savedPath = $service->generateStoryboard(
+            shot: $this->shot,
+            style: 'grayscale_sketch',
+            customPrompt: 'Edurne en el baño sosteniendo el ambientador.',
+            characterId: $character->id,
+            locationId: $location->id,
+            propImages: [$prop1]
+        );
+
+        $this->assertNotNull($savedPath);
+        $this->assertNotNull($capturedPayload);
+
+        // Validar que se enviaron los parts multimodales a Google AI Studio
+        $parts = $capturedPayload['contents'][0]['parts'] ?? [];
+        $this->assertCount(4, $parts); // 1 char image + 1 loc image + 1 prop image + 1 text prompt
+
+        // Verificar que hay 3 inline_data y 1 text
+        $inlineDataCount = 0;
+        $textContent = null;
+        foreach ($parts as $part) {
+            if (isset($part['inline_data'])) {
+                $inlineDataCount++;
+            }
+            if (isset($part['text'])) {
+                $textContent = $part['text'];
+            }
+        }
+
+        $this->assertSame(3, $inlineDataCount);
+        $this->assertSame('Edurne en el baño sosteniendo el ambientador.', $textContent);
+    }
 }

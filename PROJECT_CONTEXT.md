@@ -1,10 +1,25 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.27.0  
+**Versión del documento:** 3.28.0  
 **Fecha de consolidación:** 8 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Speaches-AI (Piper TTS), Google AI Studio (`gemini-2.5-flash-image` / Imagen 3), PHPUnit 12, Laravel Pint  
-**Estado:** Generación de Storyboards con Google AI Studio verificada al 100% (HTTP 200). Incorporación de Condicionamiento Escenográfico de Localización (`resolveLocationConditioning` en `StoryboardService`): inyección automática en el prompt de la imagen de notas de Dirección de Arte (`art_department_notes`), ambientación e Iluminación (`lighting_notes`) desde la Biblia de Producción. 222 tests automatizados pasando al 100% y Pint superado.
+**Estado:** Modal de Composición Visual y Generación de Storyboard con IA operativo: edición libre de prompts previa al envío a Google AI Studio, condicionamiento multimodal con imagen de personaje (*turn-around*), foto de localización de la Biblia y hasta 3 imágenes de atrezzo/objetos para máxima fidelidad compositiva. 226 tests automatizados pasando al 100% y Pint superado.
+
+## Resumen Ejecutivo de Capacidades Recientes
+
+- **Modal de Composición Visual y Generación de Storyboard con IA (`ScriptEditor` & `StoryboardService`):**
+  - **Prompt Editable Previo a la Generación:** El cineasta puede inspeccionar, reescribir y refinar libremente el prompt descriptivo generado automáticamente antes de remitirlo a la API de Google AI Studio, con un botón reactivo de *Restablecer prompt automático* para sincronizarlo al vuelo con las referencias seleccionadas.
+  - **Acondicionamiento Multimodal Integral de la Escena:**
+    - **Personaje:** Selección o detección automática del personaje en escena; inyección obligatoria de su imagen de modelo (*turn-around*) almacenada en la Biblia (`Character.reference_image_path`) como `inline_data` multimodal.
+    - **Localización / Escenografía:** Selección o detección automática de la localización de la escena; incorporación de su fotografía de referencia (`Location.reference_image_path`) junto con las notas de dirección de arte e iluminación como `inline_data` multimodal.
+    - **Atrezzo y Objetos Específicos del Plano:** Soporte para adjuntar hasta 3 imágenes de referencia de objetos, accesorios o elementos clave (ej. ambientador, teléfono móvil, cartas, atrezzo dramático), enviadas como partes visuales directas a `gemini-2.5-flash-image` para garantizar que la IA dibuje exactamente los elementos deseados con coherencia formal.
+  - **Selector de Estilos Gráficos:** Píldoras de selección inmediata entre *Escala de Grises (Sketch B&W)*, *Animación 2D Infantil* y *Enki Bilal*, con retroalimentación visual instantánea.
+  - **Gestión Visual de Localizaciones en la Biblia de Producción (`ContextBibleDrawer`):**
+    - Nueva columna `reference_image_path` en la tabla `locations`.
+    - Formulario reactivo en el cajón de la Biblia para subir, previsualizar y suprimir la fotografía o referencia visual de cada localización (interior/exterior).
+  - **Suite de Pruebas Ampliada a 226 Tests al 100%:** Nuevas pruebas de integración en `StoryboardGenerationTest` cubriendo el ciclo de vida de imágenes de localización, apertura del modal de composición, edición de prompts, límite estricto de 3 objetos de atrezzo y carga multimodal a los endpoints de Google AI.
+
 - **Condicionamiento Escenográfico de Localización en Storyboard (`StoryboardService`):**
   - Resolución inteligente de la localización vinculada a la escena o mediante coincidencia heurística con el *slugline*.
   - Enriquecimiento del prompt visual con las notas de dirección de arte (materiales, texturas, escenografía, paleta) y notas de iluminación (fuentes de luz, ambiente diurno/nocturno, neones, atmósfera) definidas en la Biblia de Producción (`Location.art_department_notes` y `Location.lighting_notes`).

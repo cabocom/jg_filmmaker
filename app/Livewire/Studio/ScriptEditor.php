@@ -91,6 +91,24 @@ class ScriptEditor extends Component
 
     public ?string $previewStoryboardTitle = null;
 
+    // Modal de composición avanzada y generación de Storyboard con IA
+    public bool $showStoryboardModal = false;
+
+    public ?string $storyboardShotId = null;
+
+    public string $storyboardModalStyle = 'grayscale_sketch';
+
+    public string $storyboardModalPrompt = '';
+
+    public ?string $storyboardCharacterId = null;
+
+    public ?string $storyboardLocationId = null;
+
+    /** @var array<int, mixed> */
+    public array $storyboardPropUploads = [];
+
+    public bool $storyboardPromptCustomized = false;
+
     // Edición individual de un plano técnico
     public ?string $editingShotId = null;
 
@@ -1420,6 +1438,145 @@ class ScriptEditor extends Component
             session()->flash('success', "Viñeta de storyboard para el Shot #{$shot->shot_number} generada correctamente.");
         } catch (\Throwable $e) {
             Log::error("Error al generar storyboard para el shot {$shotId}: ".$e->getMessage());
+            session()->flash('error', 'No se pudo generar el storyboard: '.$e->getMessage());
+        }
+    }
+
+    public function openStoryboardModal(string $shotId, StoryboardService $storyboardService): void
+    {
+        $shot = $this->projectShot($shotId);
+        $this->storyboardShotId = $shotId;
+        $this->storyboardModalStyle = $shot->storyboard_style ?: $this->storyboardStyle;
+
+        $detectedChar = $storyboardService->resolveCharacterModel($shot);
+        $this->storyboardCharacterId = $detectedChar?->id;
+
+        $detectedLoc = $storyboardService->resolveLocationModel($shot);
+        $this->storyboardLocationId = $detectedLoc?->id;
+
+        $this->storyboardPropUploads = [];
+        $this->storyboardPromptCustomized = false;
+
+        $this->storyboardModalPrompt = $shot->storyboard_prompt
+            ?: $storyboardService->buildPrompt(
+                shot: $shot,
+                style: $this->storyboardModalStyle,
+                characterId: $this->storyboardCharacterId,
+                locationId: $this->storyboardLocationId,
+                propCount: 0
+            );
+
+        $this->showStoryboardModal = true;
+    }
+
+    public function closeStoryboardModal(): void
+    {
+        $this->showStoryboardModal = false;
+        $this->storyboardShotId = null;
+        $this->storyboardPropUploads = [];
+        $this->storyboardPromptCustomized = false;
+        $this->storyboardModalPrompt = '';
+    }
+
+    public function resetStoryboardModalPrompt(StoryboardService $storyboardService): void
+    {
+        if (! $this->storyboardShotId) {
+            return;
+        }
+
+        $shot = $this->projectShot($this->storyboardShotId);
+        $this->storyboardModalPrompt = $storyboardService->buildPrompt(
+            shot: $shot,
+            style: $this->storyboardModalStyle,
+            characterId: $this->storyboardCharacterId,
+            locationId: $this->storyboardLocationId,
+            propCount: count($this->storyboardPropUploads)
+        );
+        $this->storyboardPromptCustomized = false;
+    }
+
+    public function updatedStoryboardModalPrompt(): void
+    {
+        $this->storyboardPromptCustomized = true;
+    }
+
+    public function updatedStoryboardModalStyle(StoryboardService $storyboardService): void
+    {
+        if (! $this->storyboardPromptCustomized && $this->storyboardShotId) {
+            $this->resetStoryboardModalPrompt($storyboardService);
+        }
+    }
+
+    public function updatedStoryboardCharacterId(StoryboardService $storyboardService): void
+    {
+        if (! $this->storyboardPromptCustomized && $this->storyboardShotId) {
+            $this->resetStoryboardModalPrompt($storyboardService);
+        }
+    }
+
+    public function updatedStoryboardLocationId(StoryboardService $storyboardService): void
+    {
+        if (! $this->storyboardPromptCustomized && $this->storyboardShotId) {
+            $this->resetStoryboardModalPrompt($storyboardService);
+        }
+    }
+
+    public function updatedStoryboardPropUploads(StoryboardService $storyboardService): void
+    {
+        $this->validate([
+            'storyboardPropUploads.*' => 'image|max:8192',
+        ]);
+
+        if (count($this->storyboardPropUploads) > 3) {
+            $this->storyboardPropUploads = array_slice($this->storyboardPropUploads, 0, 3);
+            session()->flash('warning', 'Se ha limitado el atrezzo a un máximo de 3 imágenes.');
+        }
+
+        if (! $this->storyboardPromptCustomized && $this->storyboardShotId) {
+            $this->resetStoryboardModalPrompt($storyboardService);
+        }
+    }
+
+    public function removeStoryboardProp(int $index, StoryboardService $storyboardService): void
+    {
+        if (isset($this->storyboardPropUploads[$index])) {
+            unset($this->storyboardPropUploads[$index]);
+            $this->storyboardPropUploads = array_values($this->storyboardPropUploads);
+        }
+
+        if (! $this->storyboardPromptCustomized && $this->storyboardShotId) {
+            $this->resetStoryboardModalPrompt($storyboardService);
+        }
+    }
+
+    public function confirmGenerateStoryboard(StoryboardService $storyboardService): void
+    {
+        $this->validate([
+            'storyboardModalPrompt' => 'required|string|min:5',
+        ]);
+
+        if (! $this->storyboardShotId) {
+            return;
+        }
+
+        $shot = $this->projectShot($this->storyboardShotId);
+
+        try {
+            $storyboardService->generateStoryboard(
+                shot: $shot,
+                style: $this->storyboardModalStyle,
+                customPrompt: $this->storyboardModalPrompt,
+                characterId: $this->storyboardCharacterId,
+                locationId: $this->storyboardLocationId,
+                propImages: $this->storyboardPropUploads
+            );
+
+            $this->project->update(['storyboard_style' => $this->storyboardModalStyle]);
+            $this->closeStoryboardModal();
+
+            session()->flash('success', "Viñeta de storyboard para el Shot #{$shot->shot_number} generada correctamente con Google AI Studio.");
+        } catch (\Throwable $e) {
+            Log::error("Error al generar storyboard para el shot {$shot->id}: ".$e->getMessage());
             session()->flash('error', 'No se pudo generar el storyboard: '.$e->getMessage());
         }
     }

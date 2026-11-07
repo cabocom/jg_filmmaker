@@ -53,6 +53,8 @@ class ContextBibleDrawer extends Component
 
     public string $newLocAddress = '';
 
+    public $newLocReferenceImage = null;
+
     // Edición inline de personajes y localizaciones
     public ?string $editingCharacterId = null;
 
@@ -71,6 +73,8 @@ class ContextBibleDrawer extends Component
     public string $editingLocArtNotes = '';
 
     public string $editingLocLightingNotes = '';
+
+    public $editingLocReferenceImage = null;
 
     // Modal de advertencia y confirmación de borrado
     #[Locked]
@@ -117,7 +121,7 @@ class ContextBibleDrawer extends Component
     {
         $this->isOpen = false;
         $this->showDeleteModal = false;
-        $this->reset(['editingCharacterId', 'editingLocationId', 'showNewCharacterForm', 'showNewLocationForm', 'deletingType', 'deletingId', 'deletingName', 'deletingUsages', 'newCharReferenceImage', 'editingCharReferenceImage']);
+        $this->reset(['editingCharacterId', 'editingLocationId', 'showNewCharacterForm', 'showNewLocationForm', 'deletingType', 'deletingId', 'deletingName', 'deletingUsages', 'newCharReferenceImage', 'editingCharReferenceImage', 'newLocReferenceImage', 'editingLocReferenceImage']);
     }
 
     public function startEditCharacter(string $characterId): void
@@ -222,6 +226,7 @@ class ContextBibleDrawer extends Component
         $this->editingLocationId = $loc->id;
         $this->editingLocArtNotes = $loc->art_department_notes ?? '';
         $this->editingLocLightingNotes = $loc->lighting_notes ?? '';
+        $this->editingLocReferenceImage = null;
     }
 
     public function saveLocation(): void
@@ -233,16 +238,38 @@ class ContextBibleDrawer extends Component
         $this->validate([
             'editingLocArtNotes' => 'nullable|string|max:5000',
             'editingLocLightingNotes' => 'nullable|string|max:5000',
+            'editingLocReferenceImage' => 'nullable|image|max:10240',
         ]);
 
         $loc = $this->project->locations()->findOrFail($this->editingLocationId);
-        $loc->update([
+        $updateData = [
             'art_department_notes' => $this->editingLocArtNotes,
             'lighting_notes' => $this->editingLocLightingNotes,
-        ]);
+        ];
+
+        if ($this->editingLocReferenceImage) {
+            if ($loc->reference_image_path && Storage::disk('public')->exists($loc->reference_image_path)) {
+                Storage::disk('public')->delete($loc->reference_image_path);
+            }
+            $updateData['reference_image_path'] = $this->editingLocReferenceImage->store("projects/{$this->project->id}/locations", 'public');
+        }
+
+        $loc->update($updateData);
 
         $this->editingLocationId = null;
+        $this->editingLocReferenceImage = null;
         session()->flash('bible_success', "Localización \"{$loc->name}\" actualizada.");
+    }
+
+    public function deleteLocationReferenceImage(string $locationId): void
+    {
+        $loc = $this->project->locations()->findOrFail($locationId);
+        if ($loc->reference_image_path && Storage::disk('public')->exists($loc->reference_image_path)) {
+            Storage::disk('public')->delete($loc->reference_image_path);
+        }
+        $loc->update(['reference_image_path' => null]);
+        $this->editingLocReferenceImage = null;
+        session()->flash('bible_success', "Imagen de referencia de \"{$loc->name}\" eliminada.");
     }
 
     public function createLocation(): void
@@ -258,13 +285,14 @@ class ContextBibleDrawer extends Component
             'newLocArtNotes' => 'nullable|string|max:5000',
             'newLocLightingNotes' => 'nullable|string|max:5000',
             'newLocAddress' => 'nullable|string|max:255',
+            'newLocReferenceImage' => 'nullable|image|max:10240',
         ], [
             'newLocName.required' => 'Debes indicar el nombre de la localización.',
             'newLocName.unique' => 'Ya existe una localización registrada con este nombre en la Biblia del proyecto.',
             'newLocType.in' => 'El tipo de localización debe ser INT, EXT o INT/EXT.',
         ]);
 
-        $this->project->locations()->create([
+        $loc = $this->project->locations()->create([
             'name' => strtoupper(trim($this->newLocName)),
             'type' => $this->newLocType,
             'art_department_notes' => $this->newLocArtNotes ?: null,
@@ -272,7 +300,12 @@ class ContextBibleDrawer extends Component
             'address_reference' => $this->newLocAddress ?: null,
         ]);
 
-        $this->reset(['newLocName', 'newLocType', 'newLocArtNotes', 'newLocLightingNotes', 'newLocAddress', 'showNewLocationForm']);
+        if ($this->newLocReferenceImage) {
+            $path = $this->newLocReferenceImage->store("projects/{$this->project->id}/locations", 'public');
+            $loc->update(['reference_image_path' => $path]);
+        }
+
+        $this->reset(['newLocName', 'newLocType', 'newLocArtNotes', 'newLocLightingNotes', 'newLocAddress', 'newLocReferenceImage', 'showNewLocationForm']);
         session()->flash('bible_success', 'Nueva localización incorporada a la Biblia del proyecto.');
     }
 
