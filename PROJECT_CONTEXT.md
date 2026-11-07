@@ -1,10 +1,15 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.22.0  
+**Versión del documento:** 3.23.0  
 **Fecha de consolidación:** 7 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Speaches-AI (Piper TTS), PHPUnit 12, Laravel Pint  
-**Estado:** Blindaje UX contra cierres accidentales en edición de bloques. 213 tests automatizados pasando al 100% y Pint superado.
+**Estado:** Precarga inteligente en segundo plano (look-ahead prefetch) integrada en reproductor TTS. 213 tests automatizados pasando al 100% y Pint superado.
+- **Precarga y Buffering Anticipado en Segundo Plano para Lectura TTS Continua (`ttsPlayer` en `ScriptEditor`):**
+  - Implementación de un motor de prefetch secuencial anticipado (*look-ahead buffer*) de 2 segmentos en Alpine.js.
+  - Mientras el segmento en curso se reproduce en el navegador, el reproductor descarga y pre-sintetiza en segundo plano los siguientes segmentos en blobs binarios en memoria (`URL.createObjectURL`).
+  - Al terminar cada segmento, la transición al siguiente es instantánea (cero latencia y cero interrupciones de carga), garantizando una experiencia de audiolibro/lectura dramática fluida e ininterrumpida.
+  - Gestión optimizada del ciclo de vida con `AbortController` ante detenciones, invalidación reactiva de caché al alterar la velocidad (1.0x-1.5x) y recolección de memoria mediante revocación de URLs de objeto (`URL.revokeObjectURL`) para segmentos antiguos.
 - **Blindaje UX contra Cierres Accidentales en Edición de Bloques (`ScriptEditor`):**
   - Desactivación de eventos `@keydown.escape.window` tanto en el panel lateral de edición de bloques (`detailBlock`) como en el modal de creación de bloques (`showNewBlockModal`), impidiendo pérdidas accidentales de texto al pulsar la tecla Escape.
   - Eliminación del cierre por clic en el backdrop exterior (`wire:click="closeBlockDetails"`), garantizando que el modal únicamente se cierre mediante acción deliberada del usuario pulsando el botón explícito de cierre (`✕`) ubicado en la esquina superior derecha.
