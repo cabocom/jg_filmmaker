@@ -115,31 +115,51 @@ class StoryboardService
                 throw new RuntimeException('No se ha configurado la variable GOOGLE_AI_API_KEY para generar viñetas de storyboard.');
             }
         } else {
-            $endpoint = "{$baseUrl}/models/{$model}:predict?key={$apiKey}";
+            $isGenerateContent = str_starts_with($model, 'gemini') || str_contains($model, 'banana');
 
-            $response = Http::timeout($timeout)->post($endpoint, [
-                'instances' => [
-                    ['prompt' => $prompt],
-                ],
-                'parameters' => [
-                    'sampleCount' => 1,
-                    'aspectRatio' => '16:9',
-                    'outputOptions' => [
-                        'mimeType' => 'image/jpeg',
+            if ($isGenerateContent) {
+                $endpoint = "{$baseUrl}/models/{$model}:generateContent?key={$apiKey}";
+                $response = Http::timeout($timeout)->post($endpoint, [
+                    'contents' => [
+                        [
+                            'parts' => [
+                                ['text' => $prompt],
+                            ],
+                        ],
                     ],
-                ],
-            ]);
+                ]);
+            } else {
+                $endpoint = "{$baseUrl}/models/{$model}:predict?key={$apiKey}";
+                $response = Http::timeout($timeout)->post($endpoint, [
+                    'instances' => [
+                        ['prompt' => $prompt],
+                    ],
+                    'parameters' => [
+                        'sampleCount' => 1,
+                        'aspectRatio' => '16:9',
+                        'outputOptions' => [
+                            'mimeType' => 'image/jpeg',
+                        ],
+                    ],
+                ]);
+            }
 
             if ($response->failed()) {
                 $errorMsg = $response->json('error.message') ?? $response->body();
                 Log::error("StoryboardService: Error de Google AI Studio ({$response->status()}): {$errorMsg}");
+
+                if ($response->status() === 402) {
+                    throw new RuntimeException('Google AI Studio requiere créditos prepago o facturación activa en tu proyecto de Google Cloud (Error 402: Prepayment credits depleted). Revisa https://ai.studio/projects o la facturación de Google Cloud.');
+                }
+
                 throw new RuntimeException("Error en Google AI Studio ({$response->status()}): {$errorMsg}");
             }
 
             $base64 = $response->json('predictions.0.bytesBase64Encoded');
             if (empty($base64)) {
                 // Alternativa de formato Gemini / Imagen 3
-                $base64 = $response->json('candidates.0.content.parts.0.inlineData.data');
+                $base64 = $response->json('candidates.0.content.parts.0.inlineData.data')
+                    ?? $response->json('candidates.0.content.parts.0.inline_data.data');
             }
 
             if (empty($base64)) {
