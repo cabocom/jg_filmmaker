@@ -2608,6 +2608,8 @@ class ScriptEditor extends Component
             'activeScene' => $activeScene,
             'locations' => $this->project->locations()->get(),
             'activityLogs' => $activityLogs,
+            'storyboardStyle' => $this->storyboardStyle,
+            'previewStoryboardUrl' => $this->previewStoryboardUrl,
         ])->layoutData([
             'title' => $this->project->title.' — Estudio',
             'currentProject' => $this->project,

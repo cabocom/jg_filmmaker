@@ -117,3 +117,4 @@ Se ha implementado con éxito la funcionalidad completa de generación de viñet
 4. Seleccionar uno de los 3 estilos (`Escala de Grises`, `Animación 2D Infantil` o `Enki Bilal`).
 5. Pulsar en **Generar Storyboard (IA)** sobre cualquier plano técnico.
 6. Comprobar la aparición de la viñeta 16:9, la etiqueta de estilo y pulsar el icono de zoom para ver el modal lightbox.
+

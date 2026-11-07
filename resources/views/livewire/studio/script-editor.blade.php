@@ -2871,7 +2871,7 @@
     </div>
 
     <!-- ================= MODAL LIGHTBOX DE STORYBOARD ================= -->
-    @if($previewStoryboardUrl)
+    @if(!empty($previewStoryboardUrl))
         <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm transition"
              wire:click.self="closeStoryboardPreview">
             <div class="relative max-w-4xl w-full bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl">
