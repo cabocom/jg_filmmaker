@@ -364,16 +364,26 @@ class AgentClientService
      */
     public function parseShotsFromText(string $text): array
     {
-        $pattern = '/---\s*shot\s+(\d+)\s*\(([^)]+)\)\s*---\s*\n*(.*?)(?=(?:---\s*shot\s+\d+)|$)/is';
+        $pattern = '/---\s*shot\s*(\d*)\s*(?:\(([^)]+)\))?\s*---\s*\n*(.*?)(?=(?:---\s*shot)|$)/is';
         preg_match_all($pattern, $text, $matches, PREG_SET_ORDER);
 
         $shots = [];
+        $autoNum = 1;
         foreach ($matches as $match) {
+            $num = ! empty($match[1]) ? (int) $match[1] : $autoNum;
+            $type = ! empty($match[2]) ? strtoupper(trim($match[2])) : 'PM';
+            $desc = trim($match[3] ?? '');
+
+            if ($desc === '') {
+                continue;
+            }
+
             $shots[] = [
-                'shot_number' => (int) $match[1],
-                'shot_type' => strtoupper(trim($match[2])),
-                'description' => trim($match[3]),
+                'shot_number' => $num,
+                'shot_type' => $type,
+                'description' => $desc,
             ];
+            $autoNum = max($autoNum + 1, $num + 1);
         }
 
         return $shots;
@@ -770,31 +780,97 @@ class AgentClientService
                 return ['success' => true, 'output' => '', 'metadata' => ['stage' => 'shots', 'shots' => []]];
             }
 
-            $blocks = array_values(array_filter(array_map('trim', explode("\n\n", $screenplayText))));
+            // Si el texto ya tiene delimitadores explícitos '--- shot ... ---', parsearlos directamente
+            if (preg_match('/---\s*shot/i', $screenplayText)) {
+                $shots = $this->parseShotsFromText($screenplayText);
+
+                return [
+                    'success' => true,
+                    'output' => $screenplayText,
+                    'metadata' => [
+                        'stage' => 'shots',
+                        'shots' => $shots,
+                    ],
+                ];
+            }
+
+            $rawBlocks = array_values(array_filter(array_map('trim', explode("\n\n", $screenplayText))));
+            $paragraphs = [];
+            foreach ($rawBlocks as $b) {
+                // Omitir sluglines de escena (INT./EXT.) para no convertirlos en planos de cámara
+                if (preg_match('/^(INT|EXT|INT\/EXT|EST)[\.\s]/i', $b)) {
+                    continue;
+                }
+                $paragraphs[] = $b;
+            }
+
+            // Si solo había slugline, devolver vacío
+            if (empty($paragraphs)) {
+                return ['success' => true, 'output' => '', 'metadata' => ['stage' => 'shots', 'shots' => []]];
+            }
+
+            // Agrupar párrafos en unidades dramáticas coherentes (evitar 1 plano por línea)
+            $shotUnits = [];
+            $currentUnit = [];
+
+            foreach ($paragraphs as $p) {
+                $isCharacter = preg_match('/^[A-ZÁÉÍÓÚÑ0-9\s\(\)\.-]{2,30}$/', $p) && ! preg_match('/[a-z]/', $p);
+                $isCameraCue = preg_match('/^(detalle|primer plano|plano general|inserto|plano medio|corte a|insert)\b/i', $p);
+
+                if ($isCharacter || $isCameraCue) {
+                    if (! empty($currentUnit)) {
+                        $shotUnits[] = implode("\n", $currentUnit);
+                        $currentUnit = [];
+                    }
+                    $currentUnit[] = $p;
+                    if ($isCameraCue) {
+                        $shotUnits[] = implode("\n", $currentUnit);
+                        $currentUnit = [];
+                    }
+                } else {
+                    $currentUnit[] = $p;
+                    // Agrupar hasta 2 párrafos de acción continua o diálogo
+                    if (count($currentUnit) >= 2) {
+                        $shotUnits[] = implode("\n", $currentUnit);
+                        $currentUnit = [];
+                    }
+                }
+            }
+            if (! empty($currentUnit)) {
+                $shotUnits[] = implode("\n", $currentUnit);
+            }
+
+            if (empty($shotUnits)) {
+                $shotUnits = $paragraphs;
+            }
+
             $annotated = [];
             $shots = [];
-            $types = ['PG', 'PM', 'PP', 'PD'];
-
             $shotNum = 1;
-            foreach ($blocks as $block) {
-                if (preg_match('/^(INT|EXT)\./i', $block)) {
-                    $annotated[] = "--- shot {$shotNum} (PG) ---\n{$block}";
-                    $shots[] = [
-                        'shot_number' => $shotNum,
-                        'shot_type' => 'PG',
-                        'description' => $block,
-                    ];
-                    $shotNum++;
+
+            foreach ($shotUnits as $unit) {
+                $firstLine = strtok($unit, "\n");
+                $isDialogue = preg_match('/^[A-ZÁÉÍÓÚÑ0-9\s\(\)\.-]{2,30}$/', (string) $firstLine) && ! preg_match('/[a-z]/', (string) $firstLine);
+
+                if ($isDialogue) {
+                    $type = ($shotNum % 2 === 0) ? 'PP' : 'PM';
+                } elseif (preg_match('/(detalle|inserto|botas|reloj|llaves|objeto)/i', $unit)) {
+                    $type = 'PD';
+                } elseif (preg_match('/(mira|ojos|sonríe|llora|respira|toma|coge|sostiene|muestra|mano|rostro|ambientador)/i', $unit)) {
+                    $type = 'PP';
+                } elseif (preg_match('/(entra|sale|camina|llega|cruza|corre|paisaje|calle|habitación|salón|ciudad)/i', $unit)) {
+                    $type = ($shotNum === 1) ? 'PG' : 'PM';
                 } else {
-                    $type = $types[($shotNum - 1) % count($types)];
-                    $annotated[] = "--- shot {$shotNum} ({$type}) ---\n{$block}";
-                    $shots[] = [
-                        'shot_number' => $shotNum,
-                        'shot_type' => $type,
-                        'description' => $block,
-                    ];
-                    $shotNum++;
+                    $type = 'PM';
                 }
+
+                $annotated[] = "--- shot {$shotNum} ({$type}) ---\n{$unit}";
+                $shots[] = [
+                    'shot_number' => $shotNum,
+                    'shot_type' => $type,
+                    'description' => $unit,
+                ];
+                $shotNum++;
             }
 
             $annotatedText = implode("\n\n", $annotated);
@@ -1453,12 +1529,15 @@ class AgentClientService
         }
 
         if ($toolName === 'shot_breakdown_detector') {
-            return "Eres un director de fotografía cinematográfico.\n"
-                ."Analiza el guion literario y propón una cobertura técnica de planos de cámara para rodaje evaluando la tensión dramática.\n\n"
-                ."DELIMITADOR OBLIGATORIO: Utiliza estrictamente la sintaxis canónica:\n"
+            return "Eres un director de fotografía y realizador cinematográfico.\n"
+                ."Analiza el guion literario y propón una cobertura técnica realista de planos de cámara para rodaje evaluando la tensión dramática y el ritmo de la escena.\n\n"
+                ."REGLAS FUNDAMENTALES:\n"
+                ."1. PROHIBIDO GENERAR PLANOS PARA ENCABEZADOS DE ESCENA: Líneas como 'INT. ...' o 'EXT. ...' son sluglines de localización, NUNCA planos de cámara. NO les asignes un delimitador de plano.\n"
+                ."2. COBERTURA CINEMATOGRÁFICA COHERENTE: No crees un plano por cada frase. Agrupa acciones continuas en un solo plano. Para diálogos o acciones focales, alterna planos medios (PM) y primeros planos (PP) de forma equilibrada.\n"
+                ."3. DELIMITADOR OBLIGATORIO: Utiliza estrictamente la sintaxis canónica:\n"
                 ."--- shot N (tipo) ---\n"
                 ."Tipos admitidos: PG (Plano General), PM (Plano Medio), PP (Primer Plano), PD (Plano Detalle), PA (Plano Americano).\n"
-                .'Intercala los delimitadores antes de cada bloque de acción o diálogo del guion.';
+                .'Intercala los delimitadores antes de cada unidad dramática de plano.';
         }
 
         if ($toolName === 'plot_hole_detector') {

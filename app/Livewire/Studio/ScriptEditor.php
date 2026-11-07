@@ -91,6 +91,13 @@ class ScriptEditor extends Component
 
     public ?string $previewStoryboardTitle = null;
 
+    // Edición individual de un plano técnico
+    public ?string $editingShotId = null;
+
+    public string $editingShotType = 'PM';
+
+    public string $editingShotDescription = '';
+
     // Subida de archivo de vídeo para toma
     public $videoUpload = null;
 
@@ -414,6 +421,21 @@ class ScriptEditor extends Component
         $this->editStructuredText = (string) ($block->structured_text ?? '');
         $this->editScreenplayContent = (string) ($block->screenplay_content ?? '');
         $this->editStage = (string) ($block->stage ?? 'raw');
+
+        // Si estamos editando en la pestaña de Planos, cargar el guión con delimitadores explícitos de planos
+        if ($this->detailActiveTab === 'shots') {
+            $existingShots = $block->shots()->orderBy('shot_number')->get();
+            if ($existingShots->isNotEmpty()) {
+                $annotated = [];
+                foreach ($existingShots as $shot) {
+                    $annotated[] = "--- shot {$shot->shot_number} ({$shot->shot_type}) ---\n{$shot->description}";
+                }
+                $this->editScreenplayContent = implode("\n\n", $annotated);
+            } else {
+                $this->editScreenplayContent = (string) ($block->screenplay_content ?: $block->raw_text);
+            }
+        }
+
         $this->isEditingInDrawer = true;
     }
 
@@ -480,9 +502,61 @@ class ScriptEditor extends Component
             return;
         }
 
+        // Si se guardó desde la pestaña de Planos, sincronizar los delimitadores '--- shot N (TIPO) ---' en modelos Shot
+        if ($this->detailActiveTab === 'shots') {
+            $parsedShots = app(AgentClientService::class)->parseShotsFromText($this->editScreenplayContent);
+
+            if (! empty($parsedShots)) {
+                DB::transaction(function () use ($savedBlock, $parsedShots) {
+                    $existingShots = $savedBlock->shots()->orderBy('shot_number')->get()->keyBy('shot_number');
+                    $usedShotIds = [];
+                    $num = 1;
+
+                    foreach ($parsedShots as $pShot) {
+                        $existing = $existingShots->get($num);
+                        if ($existing) {
+                            $existing->update([
+                                'shot_number' => $num,
+                                'shot_type' => $pShot['shot_type'],
+                                'description' => $pShot['description'],
+                            ]);
+                            $usedShotIds[] = $existing->id;
+                        } else {
+                            $new = $savedBlock->shots()->create([
+                                'scene_id' => $savedBlock->scene_id,
+                                'shot_number' => $num,
+                                'shot_type' => $pShot['shot_type'],
+                                'description' => $pShot['description'],
+                            ]);
+                            $usedShotIds[] = $new->id;
+                        }
+                        $num++;
+                    }
+
+                    // Eliminar planos excedentes eliminados en el texto
+                    $savedBlock->shots()->whereNotIn('id', $usedShotIds)->delete();
+                });
+
+                $savedBlock->mutateUserLocks(function (array $userLocks) {
+                    $lockedFields = $userLocks['locked_fields'] ?? [];
+                    if (! in_array('shots', $lockedFields, true)) {
+                        $lockedFields[] = 'shots';
+                    }
+                    $userLocks['locked_fields'] = array_values(array_unique($lockedFields));
+
+                    return $userLocks;
+                });
+
+                $count = count($parsedShots);
+                session()->flash('success', "Planos técnicos actualizados y sincronizados ({$count} planos).");
+            }
+        }
+
         $this->isEditingInDrawer = false;
         $this->editLockVersion = $savedBlock->lock_version;
-        session()->flash('success', "Bloque #{$savedBlock->block_order} guardado correctamente.");
+        if ($this->detailActiveTab !== 'shots') {
+            session()->flash('success', "Bloque #{$savedBlock->block_order} guardado correctamente.");
+        }
     }
 
     public function openNewBlockModal(?int $afterOrder = null, ?string $sceneId = null): void
@@ -1353,6 +1427,69 @@ class ScriptEditor extends Component
     {
         $this->previewStoryboardUrl = null;
         $this->previewStoryboardTitle = null;
+    }
+
+    public function deleteShot(string $shotId): void
+    {
+        $shot = $this->projectShot($shotId);
+        $block = $shot->scriptBlock;
+        $shotNumber = $shot->shot_number;
+
+        DB::transaction(function () use ($shot, $block) {
+            $shot->takes()->delete();
+            $shot->delete();
+
+            if ($block) {
+                // Reindexar planos correlativamente dentro del bloque
+                $remaining = $block->shots()->orderBy('shot_number')->get();
+                $idx = 1;
+                foreach ($remaining as $s) {
+                    if ($s->shot_number !== $idx) {
+                        $s->update(['shot_number' => $idx]);
+                    }
+                    $idx++;
+                }
+            }
+        });
+
+        session()->flash('success', "Plano #{$shotNumber} eliminado correctamente.");
+    }
+
+    public function startEditShot(string $shotId): void
+    {
+        $shot = $this->projectShot($shotId);
+        $this->editingShotId = $shot->id;
+        $this->editingShotType = $shot->shot_type;
+        $this->editingShotDescription = (string) $shot->description;
+    }
+
+    public function cancelEditShot(): void
+    {
+        $this->editingShotId = null;
+        $this->editingShotType = 'PM';
+        $this->editingShotDescription = '';
+    }
+
+    public function saveEditShot(): void
+    {
+        if (! $this->editingShotId) {
+            return;
+        }
+
+        $this->validate([
+            'editingShotType' => 'required',
+            'editingShotDescription' => 'required|min:3',
+        ]);
+
+        $shot = $this->projectShot($this->editingShotId);
+        $shot->update([
+            'shot_type' => strtoupper(trim($this->editingShotType)),
+            'description' => trim($this->editingShotDescription),
+        ]);
+
+        $num = $shot->shot_number;
+        $this->cancelEditShot();
+        session()->flash('success', "Plano #{$num} actualizado correctamente.");
     }
 
     public function setBlockTab(string $blockId, string $tab): void

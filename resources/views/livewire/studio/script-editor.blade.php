@@ -470,7 +470,7 @@
                                 <!-- 4. Planos / Tomas -->
                                 <button wire:click="setScenePipelineStage('{{ $scene->id }}', 'shots')"
                                         type="button"
-                                        title="Desglose técnico de planos de cámara y tomas para esta escena"
+                                        title="Desglose técnico de planos de cámara y storyboards para esta escena"
                                         class="px-2 py-0.5 rounded transition font-mono cursor-pointer whitespace-nowrap {{ $sceneStage === 'shots' ? 'bg-amber-500 text-slate-950 font-bold shadow-2xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white' }}">
                                     Planos / Tomas
                                 </button>
@@ -607,7 +607,6 @@
                                                                         </span>
                                                                         <span class="text-slate-700 dark:text-slate-300">{{ $shot->description }}</span>
                                                                     </div>
-                                                                    <span class="text-[11px] text-slate-500 font-mono">{{ $shot->takes->count() }} tomas</span>
                                                                 </div>
                                                             @endforeach
                                                         </div>
@@ -884,18 +883,8 @@
                                                                 <span class="font-bold text-cyan-700 dark:text-cyan-400 uppercase tracking-wide">
                                                                     PLANO {{ $shot->shot_number }} · {{ $shot->shot_type }}
                                                                 </span>
-                                                                <span class="text-slate-500 font-mono text-[11px]">{{ $shot->takes->count() }} tomas</span>
                                                             </div>
                                                             <p class="text-slate-700 dark:text-slate-300 leading-relaxed font-sans">{{ $shot->description }}</p>
-                                                            @if($shot->takes->isNotEmpty())
-                                                                <div class="flex flex-wrap gap-1.5 pt-1.5">
-                                                                    @foreach($shot->takes as $take)
-                                                                        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold border {{ $take->is_good_take ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-300 dark:border-slate-700' }}">
-                                                                            Toma {{ $take->take_number }} {{ $take->is_good_take ? '✓ Buena' : '' }}
-                                                                        </span>
-                                                                    @endforeach
-                                                                </div>
-                                                            @endif
                                                         </div>
                                                     @endforeach
                                                 </div>
@@ -1158,11 +1147,36 @@
                                         <textarea wire:model="editScreenplayContent" rows="14" class="w-full px-4 py-3 text-sm rounded-xl bg-white dark:bg-slate-950 border border-amber-300 dark:border-amber-500/50 text-slate-900 dark:text-amber-100 font-mono leading-relaxed focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition shadow-inner"></textarea>
                                     </div>
                                 @elseif($detailActiveTab === 'shots')
-                                    <div>
-                                        <label class="block text-xs font-bold text-cyan-700 dark:text-cyan-400 uppercase tracking-wider font-mono mb-1.5">
-                                            Edición: Delimitadores de Planos Técnicos
-                                        </label>
-                                        <textarea wire:model="editScreenplayContent" rows="14" class="w-full px-4 py-3 text-sm rounded-xl bg-white dark:bg-slate-950 border border-cyan-300 dark:border-cyan-700 text-slate-900 dark:text-cyan-100 font-mono leading-relaxed focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition shadow-inner"></textarea>
+                                    <div x-data="{
+                                        insertCut(type) {
+                                            const el = this.$refs.shotsArea;
+                                            const start = el.selectionStart;
+                                            const end = el.selectionEnd;
+                                            const text = el.value;
+                                            const tag = '\n\n--- shot (' + type + ') ---\n';
+                                            el.value = text.substring(0, start) + tag + text.substring(end);
+                                            el.selectionStart = el.selectionEnd = start + tag.length;
+                                            el.dispatchEvent(new Event('input'));
+                                            el.focus();
+                                        }
+                                    }">
+                                        <div class="flex flex-wrap items-center justify-between gap-1.5 mb-1.5">
+                                            <label class="block text-xs font-bold text-cyan-700 dark:text-cyan-400 uppercase tracking-wider font-mono">
+                                                Edición: Delimitadores de Planos Técnicos
+                                            </label>
+                                            <div class="flex items-center gap-1">
+                                                <span class="text-[10px] text-slate-400 font-mono hidden sm:inline">Insertar plano:</span>
+                                                <button type="button" @click="insertCut('PG')" class="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-cyan-100 hover:bg-cyan-200 text-cyan-800 dark:bg-cyan-950 dark:hover:bg-cyan-900 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-800 cursor-pointer">+ PG</button>
+                                                <button type="button" @click="insertCut('PM')" class="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-cyan-100 hover:bg-cyan-200 text-cyan-800 dark:bg-cyan-950 dark:hover:bg-cyan-900 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-800 cursor-pointer">+ PM</button>
+                                                <button type="button" @click="insertCut('PP')" class="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-cyan-100 hover:bg-cyan-200 text-cyan-800 dark:bg-cyan-950 dark:hover:bg-cyan-900 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-800 cursor-pointer">+ PP</button>
+                                                <button type="button" @click="insertCut('PD')" class="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-cyan-100 hover:bg-cyan-200 text-cyan-800 dark:bg-cyan-950 dark:hover:bg-cyan-900 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-800 cursor-pointer">+ PD</button>
+                                                <button type="button" @click="insertCut('PA')" class="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-cyan-100 hover:bg-cyan-200 text-cyan-800 dark:bg-cyan-950 dark:hover:bg-cyan-900 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-800 cursor-pointer">+ PA</button>
+                                            </div>
+                                        </div>
+                                        <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-2">
+                                            💡 Sitúa el cursor en el texto donde desees cambiar de plano y pulsa un botón (+PG, +PM, +PP...). Al guardar, se sincronizarán todos los planos técnicos automáticamente.
+                                        </p>
+                                        <textarea x-ref="shotsArea" wire:model="editScreenplayContent" rows="14" class="w-full px-4 py-3 text-sm rounded-xl bg-white dark:bg-slate-950 border border-cyan-300 dark:border-cyan-700 text-slate-900 dark:text-cyan-100 font-mono leading-relaxed focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 transition shadow-inner"></textarea>
                                     </div>
                                 @endif
 
@@ -1184,7 +1198,11 @@
                                         <button wire:click="startEditingInDrawer"
                                                 type="button"
                                                 class="px-3 py-1.5 rounded-lg text-xs font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 hover:border-amber-400 transition shadow-2xs cursor-pointer">
-                                            ✏️ Editar Texto
+                                            @if($detailActiveTab === 'shots')
+                                                ✏️ Editar Planos
+                                            @else
+                                                ✏️ Editar Texto
+                                            @endif
                                         </button>
                                         @if($detailActiveTab !== 'raw')
                                             <button wire:click="openAiTrace('{{ $detailBlock->id }}', '{{ $detailActiveTab }}')"
@@ -1458,8 +1476,54 @@
                                                     <span class="font-mono font-bold text-cyan-700 bg-cyan-50 dark:text-cyan-300 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-800/50 px-2 py-0.5 rounded text-xs">
                                                         --- shot {{ $shot->shot_number }} ({{ $shot->shot_type }}) ---
                                                     </span>
-                                                    <span class="text-xs text-slate-500 font-mono">{{ $shot->takes->count() }} tomas</span>
+                                                    <div class="flex items-center gap-1.5">
+                                                        <button wire:click="startEditShot('{{ $shot->id }}')"
+                                                                type="button"
+                                                                class="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 transition cursor-pointer"
+                                                                title="Editar este plano individualmente">
+                                                            ✏️ Editar
+                                                        </button>
+                                                        <button wire:click="deleteShot('{{ $shot->id }}')"
+                                                                wire:confirm="¿Seguro que deseas eliminar el Plano #{{ $shot->shot_number }}?"
+                                                                type="button"
+                                                                class="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50 transition cursor-pointer"
+                                                                title="Eliminar este plano">
+                                                            🗑️
+                                                        </button>
+                                                    </div>
                                                 </div>
+
+                                                @if($editingShotId === $shot->id)
+                                                    <!-- Formulario de edición rápida del plano individual -->
+                                                    <div class="p-3.5 rounded-xl bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/30 space-y-3">
+                                                        <div class="flex items-center gap-2">
+                                                            <label class="text-[11px] font-bold font-mono text-slate-700 dark:text-slate-300 shrink-0">Escala de plano:</label>
+                                                            <select wire:model="editingShotType" class="px-2.5 py-1 text-xs font-mono font-bold rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:ring-1 focus:ring-amber-500">
+                                                                <option value="PG">PG (Plano General)</option>
+                                                                <option value="PE">PE (Plano Entero)</option>
+                                                                <option value="PA">PA (Plano Americano)</option>
+                                                                <option value="PM">PM (Plano Medio)</option>
+                                                                <option value="PMC">PMC (Plano Medio Corto)</option>
+                                                                <option value="PP">PP (Primer Plano)</option>
+                                                                <option value="PPP">PPP (Primerísimo Primer Plano)</option>
+                                                                <option value="PD">PD (Plano Detalle)</option>
+                                                                <option value="ZEN">ZEN (Cenital)</option>
+                                                                <option value="PIC">PIC (Picado)</option>
+                                                                <option value="CTRP">CTRP (Contrapicado)</option>
+                                                                <option value="NAD">NAD (Nadir)</option>
+                                                            </select>
+                                                        </div>
+                                                        <div>
+                                                            <label class="block text-[11px] font-bold font-mono text-slate-700 dark:text-slate-300 mb-1">Descripción y encuadre:</label>
+                                                            <textarea wire:model="editingShotDescription" rows="3" class="w-full px-3 py-2 text-xs rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:ring-1 focus:ring-amber-500 font-sans"></textarea>
+                                                            @error('editingShotDescription') <span class="text-rose-500 text-[10px]">{{ $message }}</span> @enderror
+                                                        </div>
+                                                        <div class="flex items-center justify-end gap-2 pt-1">
+                                                            <button wire:click="cancelEditShot" type="button" class="px-2.5 py-1 rounded text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 cursor-pointer">Cancelar</button>
+                                                            <button wire:click="saveEditShot" type="button" class="px-3 py-1 rounded text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition cursor-pointer">✓ Guardar Plano</button>
+                                                        </div>
+                                                    </div>
+                                                @else
 
                                                 <!-- Viñeta de Storyboard -->
                                                 @if($shot->hasStoryboard())
@@ -1507,26 +1571,21 @@
                                                     </div>
                                                 @endif
 
-                                                <p class="text-xs text-slate-700 dark:text-slate-300">{{ $shot->description }}</p>
-
-                                                @if($shot->takes->isNotEmpty())
-                                                    <div class="space-y-1.5 pt-2 border-t border-slate-100 dark:border-slate-800/60">
-                                                        @foreach($shot->takes as $take)
-                                                            <div class="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs">
-                                                                <span class="font-mono font-bold text-slate-800 dark:text-slate-200">TOMA {{ $take->take_number }}</span>
-                                                                <button wire:click="toggleGoodTake('{{ $take->id }}')"
-                                                                        type="button"
-                                                                        class="px-2 py-0.5 rounded text-[11px] font-mono font-bold border transition cursor-pointer {{ $take->is_good_take ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-300 dark:border-slate-700' }}">
-                                                                    {{ $take->is_good_take ? '✓ TOMA BUENA' : '○ Descarte' }}
-                                                                </button>
-                                                            </div>
-                                                        @endforeach
-                                                    </div>
+                                                <p class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">{{ $shot->description }}</p>
                                                 @endif
                                             </div>
                                         @empty
                                             <div class="text-center py-6 text-xs text-slate-500">No hay planos desglosados en este bloque.</div>
                                         @endforelse
+
+                                        <div class="pt-2">
+                                            <button wire:click="startNewShotForBlock('{{ $detailBlock->id }}')"
+                                                    type="button"
+                                                    class="w-full py-2.5 px-3 rounded-xl border border-dashed border-cyan-400 dark:border-cyan-700 bg-cyan-50/50 hover:bg-cyan-50 dark:bg-cyan-950/20 dark:hover:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300 font-mono text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer">
+                                                <span>+</span>
+                                                <span>Añadir Plano Manual</span>
+                                            </button>
+                                        </div>
                                     </div>
                                 @endif
                             </div>

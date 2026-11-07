@@ -83,8 +83,8 @@ class LivewireScriptEditorTest extends TestCase
             ->assertSee('Javi ➜ Javier')
             ->call('setBlockTab', $block->id, 'shots')
             ->assertSee('--- shot 1 (PM) ---')
-            ->assertSee('TOMA 1')
-            ->assertSee('TOMA BUENA');
+            ->assertDontSee('TOMA 1')
+            ->assertDontSee('TOMA BUENA');
     }
 
     public function test_can_remove_pinned_term_from_block(): void
@@ -1381,5 +1381,79 @@ class LivewireScriptEditorTest extends TestCase
         $logs = $project->activityLogs()->latest()->get();
         $this->assertGreaterThanOrEqual(2, $logs->count());
         $this->assertEquals('create_block', $logs->first()->action);
+    }
+
+    public function test_can_edit_and_sync_shots_from_shots_tab_in_drawer(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create(['project_id' => $project->id]);
+        $block = ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'screenplay_content' => "INT. SALON - DIA\n\nJuan entra lentamente.\n\nSe sienta en el sofá mirando la carta.",
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->call('openBlockDetails', $block->id, 'shots')
+            ->call('startEditingInDrawer')
+            ->set('editScreenplayContent', "--- shot (PG) ---\nJuan entra lentamente.\n\n--- shot (PP) ---\nSe sienta en el sofá mirando la carta.")
+            ->call('saveBlockFromDrawer')
+            ->assertSet('isEditingInDrawer', false);
+
+        $shots = $block->fresh()->shots()->orderBy('shot_number')->get();
+        $this->assertCount(2, $shots);
+        $this->assertEquals(1, $shots[0]->shot_number);
+        $this->assertEquals('PG', $shots[0]->shot_type);
+        $this->assertEquals('Juan entra lentamente.', $shots[0]->description);
+
+        $this->assertEquals(2, $shots[1]->shot_number);
+        $this->assertEquals('PP', $shots[1]->shot_type);
+        $this->assertEquals('Se sienta en el sofá mirando la carta.', $shots[1]->description);
+    }
+
+    public function test_can_edit_and_delete_individual_shot_with_reindexing(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create(['project_id' => $project->id]);
+        $block = ScriptBlock::factory()->create(['scene_id' => $scene->id]);
+
+        $shot1 = Shot::factory()->create([
+            'scene_id' => $scene->id,
+            'script_block_id' => $block->id,
+            'shot_number' => 1,
+            'shot_type' => 'PM',
+            'description' => 'Plano original 1',
+        ]);
+        $shot2 = Shot::factory()->create([
+            'scene_id' => $scene->id,
+            'script_block_id' => $block->id,
+            'shot_number' => 2,
+            'shot_type' => 'PP',
+            'description' => 'Plano original 2',
+        ]);
+
+        $test = Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->call('openBlockDetails', $block->id, 'shots');
+
+        // 1. Iniciar edición del plano 1
+        $test->call('startEditShot', $shot1->id)
+            ->assertSet('editingShotId', $shot1->id)
+            ->assertSet('editingShotType', 'PM')
+            ->set('editingShotType', 'PA')
+            ->set('editingShotDescription', 'Plano americano modificado')
+            ->call('saveEditShot')
+            ->assertSet('editingShotId', null);
+
+        $this->assertEquals('PA', $shot1->fresh()->shot_type);
+        $this->assertEquals('Plano americano modificado', $shot1->fresh()->description);
+
+        // 2. Eliminar plano 1 y verificar reindexación del plano 2
+        $test->call('deleteShot', $shot1->id);
+
+        $this->assertDatabaseMissing('shots', ['id' => $shot1->id]);
+        $this->assertEquals(1, $shot2->fresh()->shot_number);
     }
 }
