@@ -5,6 +5,7 @@ namespace App\Livewire\Studio;
 use App\Models\Character;
 use App\Models\Location;
 use App\Models\Project;
+use App\Models\ScriptBlock;
 use App\Services\JgAgente\AgentClientService;
 use App\Services\TextToSpeechService;
 use Illuminate\Support\Facades\Gate;
@@ -39,6 +40,8 @@ class ContextBibleDrawer extends Component
 
     public string $newCharVoiceId = 'Puck';
 
+    public string $newCharImportance = '';
+
     public $newCharReferenceImage = null;
 
     // Formulario para nueva localización
@@ -64,6 +67,8 @@ class ContextBibleDrawer extends Component
     public string $editingCharBio = '';
 
     public string $editingCharVoiceId = 'Puck';
+
+    public string $editingCharImportance = '';
 
     public $editingCharReferenceImage = null;
 
@@ -138,6 +143,7 @@ class ContextBibleDrawer extends Component
         $custom = is_array($char->custom_attributes) ? $char->custom_attributes : [];
         $tts = app(TextToSpeechService::class);
         $this->editingCharVoiceId = $tts->resolveVoice($custom['voice_id'] ?? null);
+        $this->editingCharImportance = (string) ($custom['importance'] ?? '');
     }
 
     public function saveCharacter(): void
@@ -153,6 +159,11 @@ class ContextBibleDrawer extends Component
         $char = $this->project->characters()->findOrFail($this->editingCharacterId);
         $custom = is_array($char->custom_attributes) ? $char->custom_attributes : [];
         $custom['voice_id'] = $this->editingCharVoiceId;
+        if (! empty($this->editingCharImportance)) {
+            $custom['importance'] = $this->editingCharImportance;
+        } else {
+            unset($custom['importance']);
+        }
 
         $updateData = [
             'costume_notes' => $this->editingCharCostume,
@@ -171,6 +182,7 @@ class ContextBibleDrawer extends Component
 
         $this->editingCharacterId = null;
         $this->editingCharReferenceImage = null;
+        $this->editingCharImportance = '';
         session()->flash('bible_success', "Personaje \"{$char->name}\" actualizado.");
     }
 
@@ -207,6 +219,9 @@ class ContextBibleDrawer extends Component
         if ($this->newCharVoiceId) {
             $custom['voice_id'] = $this->newCharVoiceId;
         }
+        if (! empty($this->newCharImportance)) {
+            $custom['importance'] = $this->newCharImportance;
+        }
 
         $character = $this->project->characters()->create([
             'name' => trim($this->newCharName),
@@ -221,7 +236,7 @@ class ContextBibleDrawer extends Component
             $character->update(['reference_image_path' => $path]);
         }
 
-        $this->reset(['newCharName', 'newCharBio', 'newCharPsychology', 'newCharCostume', 'newCharVoiceId', 'newCharReferenceImage', 'showNewCharacterForm']);
+        $this->reset(['newCharName', 'newCharBio', 'newCharPsychology', 'newCharCostume', 'newCharVoiceId', 'newCharImportance', 'newCharReferenceImage', 'showNewCharacterForm']);
         session()->flash('bible_success', 'Nuevo personaje incorporado a la Biblia del proyecto.');
     }
 
@@ -522,6 +537,72 @@ class ContextBibleDrawer extends Component
         }
     }
 
+    /**
+     * Calcula las intervenciones de diálogo por personaje en todo el proyecto.
+     *
+     * @return array<string, int>
+     */
+    public function computeCharacterInterventions(): array
+    {
+        $blocks = ScriptBlock::whereHas('scene', fn ($q) => $q->where('project_id', $this->project->id))
+            ->get(['screenplay_content', 'structured_text', 'raw_text']);
+
+        $counts = [];
+        foreach ($blocks as $block) {
+            $text = $block->screenplay_content ?: ($block->structured_text ?: $block->raw_text);
+            if (! $text) {
+                continue;
+            }
+
+            if (preg_match_all('/^[A-ZÁÉÍÓÚÑ0-9\s\.\-\(\)]+$/m', $text, $matches)) {
+                foreach ($matches[0] as $match) {
+                    $cleaned = trim(preg_replace('/\s*\(.*?\)\s*/', '', $match));
+                    $upper = mb_strtoupper($cleaned);
+                    if ($upper !== '' && ! in_array($upper, ['INT', 'EXT', 'INT.', 'EXT.', 'INT/EXT', 'CORTE A', 'DISUELVE A', 'FADE IN', 'FADE OUT'])) {
+                        $counts[$upper] = ($counts[$upper] ?? 0) + 1;
+                    }
+                }
+            }
+        }
+
+        return $counts;
+    }
+
+    /**
+     * Resuelve el nivel de importancia del personaje (manual o automático según intervenciones).
+     *
+     * @param  array<string, int>  $counts
+     * @return array{level: string, count: int, is_auto: bool}
+     */
+    public function resolveCharacterImportance(Character $character, array $counts): array
+    {
+        $custom = is_array($character->custom_attributes) ? $character->custom_attributes : [];
+        $explicit = $custom['importance'] ?? null;
+        $count = $counts[mb_strtoupper(trim($character->name))] ?? 0;
+
+        if ($explicit) {
+            return [
+                'level' => $explicit,
+                'count' => $count,
+                'is_auto' => false,
+            ];
+        }
+
+        if ($count >= 10) {
+            $level = 'protagonista';
+        } elseif ($count >= 3) {
+            $level = 'secundario';
+        } else {
+            $level = 'reparto';
+        }
+
+        return [
+            'level' => $level,
+            'count' => $count,
+            'is_auto' => true,
+        ];
+    }
+
     public function render()
     {
         $characters = $this->project->characters()->latest()->get();
@@ -530,6 +611,7 @@ class ContextBibleDrawer extends Component
         return view('livewire.studio.context-bible-drawer', [
             'characters' => $characters,
             'locations' => $locations,
+            'characterInterventions' => $this->computeCharacterInterventions(),
         ]);
     }
 }

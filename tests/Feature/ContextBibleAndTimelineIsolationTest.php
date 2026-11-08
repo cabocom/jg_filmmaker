@@ -139,4 +139,31 @@ class ContextBibleAndTimelineIsolationTest extends TestCase
         $this->assertNotNull($character->reference_image_path);
         Storage::disk('public')->assertExists($character->reference_image_path);
     }
+
+    public function test_character_importance_and_costume_notes_save_and_display_correctly(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $character = Character::factory()->create([
+            'project_id' => $project->id,
+            'name' => 'Sara Connor',
+            'costume_notes' => 'Chaqueta de cuero militar negra.',
+            'psychology' => 'Interviene activamente en el desarrollo de la escena.',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(ContextBibleDrawer::class, ['project' => $project])
+            ->set('isOpen', true)
+            ->assertDontSee('Interviene activamente en el desarrollo de la escena.')
+            ->assertSee('Sara Connor')
+            ->call('startEditCharacter', $character->id)
+            ->set('editingCharImportance', 'protagonista')
+            ->set('editingCharCostume', "Gabardina desgastada\nBotas de combate tácticas")
+            ->call('saveCharacter')
+            ->assertHasNoErrors();
+
+        $character->refresh();
+        $this->assertSame('protagonista', $character->custom_attributes['importance'] ?? null);
+        $this->assertSame("Gabardina desgastada\nBotas de combate tácticas", $character->costume_notes);
+    }
 }

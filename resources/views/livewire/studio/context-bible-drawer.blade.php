@@ -100,10 +100,21 @@
                                            class="w-full px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white">
                                 </div>
                                 <div>
-                                    <input type="text"
-                                           wire:model="newCharCostume"
-                                           placeholder="Vestuario característico (ej: Gabardina gris)..."
-                                           class="w-full px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white">
+                                    <label class="block text-[10px] text-slate-500 dark:text-slate-400 mb-0.5">Notas de Vestuario:</label>
+                                    <textarea wire:model="newCharCostume"
+                                              rows="2"
+                                              placeholder="Vestuario característico (ej: Gabardina gris desgastada, botas de cuero)..."
+                                              class="w-full px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] text-slate-500 dark:text-slate-400 mb-0.5 font-medium">Importancia en la historia:</label>
+                                    <select wire:model="newCharImportance"
+                                            class="w-full px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white">
+                                        <option value="">Automática (calculada según apariciones)</option>
+                                        <option value="protagonista">Protagonista</option>
+                                        <option value="secundario">Secundario</option>
+                                        <option value="reparto">Reparto / Menor</option>
+                                    </select>
                                 </div>
                                 <div x-data="{
                                     isPlaying: false,
@@ -216,7 +227,16 @@
                                 </div>
                                 <div class="flex justify-end gap-2 pt-1">
                                     <button wire:click="$set('showNewCharacterForm', false)" type="button" class="px-2.5 py-1 rounded text-xs text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white">Cancelar</button>
-                                    <button wire:click="createCharacter" type="button" class="px-3 py-1 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs">Guardar</button>
+                                    <button wire:click="createCharacter"
+                                            wire:loading.attr="disabled"
+                                            wire:target="createCharacter, newCharReferenceImage"
+                                            type="button"
+                                            class="px-3 py-1 rounded bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-bold text-xs inline-flex items-center gap-1.5 shadow-xs cursor-pointer">
+                                        <span wire:loading.remove wire:target="createCharacter">Guardar</span>
+                                        <span wire:loading wire:target="createCharacter" class="inline-flex items-center gap-1">
+                                            <span class="animate-spin text-xs">⏳</span> Guardando...
+                                        </span>
+                                    </button>
                                 </div>
                             </div>
                         @endif
@@ -226,13 +246,31 @@
                             @php
                                 $customAttrs = is_array($character->custom_attributes) ? $character->custom_attributes : [];
                                 $charVoice = $customAttrs['voice_id'] ?? null;
+                                $importanceInfo = $this->resolveCharacterImportance($character, $characterInterventions ?? []);
+                                $importanceLevel = $importanceInfo['level'];
+                                $interventionsCount = $importanceInfo['count'];
                             @endphp
                             <div wire:key="character-item-{{ $character->id }}"
                                  class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 space-y-2">
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center gap-2">
-                                        <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                                            <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                                <div class="flex items-center justify-between gap-2">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        @if($importanceLevel === 'protagonista')
+                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-500 text-slate-950 shadow-2xs"
+                                                  title="{{ $interventionsCount }} intervenciones detectadas en el guión">
+                                                Protagonista
+                                            </span>
+                                        @elseif($importanceLevel === 'secundario')
+                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40"
+                                                  title="{{ $interventionsCount }} intervenciones detectadas en el guión">
+                                                Secundario
+                                            </span>
+                                        @else
+                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-700"
+                                                  title="{{ $interventionsCount }} intervenciones detectadas en el guión">
+                                                Reparto
+                                            </span>
+                                        @endif
+                                        <h3 class="text-sm font-bold text-slate-900 dark:text-white">
                                             {{ $character->name }}
                                         </h3>
                                         @if($charVoice)
@@ -258,7 +296,7 @@
                                     @endif
                                 </div>
 
-                                @if($character->psychology)
+                                @if($character->psychology && $character->psychology !== 'Interviene activamente en el desarrollo de la escena.')
                                     <p class="text-xs text-amber-800 dark:text-amber-300/80 italic">
                                         {{ $character->psychology }}
                                     </p>
@@ -272,8 +310,18 @@
                                             <textarea wire:model="editingCharBio" rows="2" class="w-full px-2.5 py-1.5 text-xs rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"></textarea>
                                         </div>
                                         <div>
-                                            <label class="block text-[10px] text-slate-500 dark:text-slate-400 mb-0.5">Notas de Vestuario:</label>
-                                            <input type="text" wire:model="editingCharCostume" class="w-full px-2.5 py-1 text-xs rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white">
+                                            <label class="block text-[10px] text-slate-500 dark:text-slate-400 mb-0.5 font-medium">Notas de Vestuario:</label>
+                                            <textarea wire:model="editingCharCostume" rows="2" placeholder="Vestuario característico (ej: Gabardina gris desgastada, botas de cuero)..." class="w-full px-2.5 py-1.5 text-xs rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"></textarea>
+                                        </div>
+                                        <div>
+                                            <label class="block text-[10px] text-slate-500 dark:text-slate-400 mb-0.5 font-medium">Importancia en la historia:</label>
+                                            <select wire:model="editingCharImportance"
+                                                    class="w-full px-2.5 py-1 text-xs rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white">
+                                                <option value="">Automática (según intervenciones: {{ $interventionsCount }} diálogos)</option>
+                                                <option value="protagonista">Protagonista</option>
+                                                <option value="secundario">Secundario</option>
+                                                <option value="reparto">Reparto / Menor</option>
+                                            </select>
                                         </div>
                                         <div x-data="{
                                             isPlaying: false,
@@ -397,7 +445,15 @@
                                         </div>
                                         <div class="flex justify-end gap-2 pt-1">
                                             <button wire:click="$set('editingCharacterId', null)" class="px-2 py-0.5 text-xs text-slate-500 dark:text-slate-400">Cancelar</button>
-                                            <button wire:click="saveCharacter" class="px-2.5 py-0.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded">Guardar Cambios</button>
+                                            <button wire:click="saveCharacter"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="saveCharacter, editingCharReferenceImage"
+                                                    class="px-3 py-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-bold text-xs rounded transition inline-flex items-center gap-1.5 cursor-pointer shadow-xs">
+                                                <span wire:loading.remove wire:target="saveCharacter">Guardar Cambios</span>
+                                                <span wire:loading wire:target="saveCharacter" class="inline-flex items-center gap-1">
+                                                    <span class="animate-spin text-xs">⏳</span> Guardando...
+                                                </span>
+                                            </button>
                                         </div>
                                     </div>
                                 @else
@@ -424,9 +480,11 @@
                                     @endif
 
                                     @if($character->costume_notes)
-                                        <div class="text-[11px] bg-slate-100 dark:bg-slate-900/80 px-2.5 py-1 rounded border border-slate-200 dark:border-slate-800/80 text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                                            <span>👔</span>
-                                            <span>{{ $character->costume_notes }}</span>
+                                        <div class="text-[11px] bg-slate-100 dark:bg-slate-900/80 px-2.5 py-1.5 rounded border border-slate-200 dark:border-slate-800/80 text-slate-700 dark:text-slate-300">
+                                            <span class="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1 mb-0.5">
+                                                <span>👔</span> Vestuario:
+                                            </span>
+                                            <p class="whitespace-pre-line leading-relaxed">{{ $character->costume_notes }}</p>
                                         </div>
                                     @endif
                                 @endif
@@ -547,7 +605,16 @@
                                 </div>
                                 <div class="flex justify-end gap-2 pt-1">
                                     <button wire:click="$set('showNewLocationForm', false)" type="button" class="px-2.5 py-1 rounded text-xs text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white">Cancelar</button>
-                                    <button wire:click="createLocation" type="button" class="px-3 py-1 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs">Guardar</button>
+                                    <button wire:click="createLocation"
+                                            wire:loading.attr="disabled"
+                                            wire:target="createLocation, newLocReferenceImage"
+                                            type="button"
+                                            class="px-3 py-1 rounded bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-bold text-xs inline-flex items-center gap-1.5 shadow-xs cursor-pointer">
+                                        <span wire:loading.remove wire:target="createLocation">Guardar</span>
+                                        <span wire:loading wire:target="createLocation" class="inline-flex items-center gap-1">
+                                            <span class="animate-spin text-xs">⏳</span> Guardando...
+                                        </span>
+                                    </button>
                                 </div>
                             </div>
                         @endif
@@ -669,7 +736,15 @@
                                         </div>
                                         <div class="flex justify-end gap-2 pt-1">
                                             <button wire:click="$set('editingLocationId', null)" class="px-2 py-0.5 text-xs text-slate-500 dark:text-slate-400">Cancelar</button>
-                                            <button wire:click="saveLocation" class="px-2.5 py-0.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded">Guardar</button>
+                                            <button wire:click="saveLocation"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="saveLocation, editingLocReferenceImage"
+                                                    class="px-3 py-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-bold text-xs rounded transition inline-flex items-center gap-1.5 cursor-pointer shadow-xs">
+                                                <span wire:loading.remove wire:target="saveLocation">Guardar</span>
+                                                <span wire:loading wire:target="saveLocation" class="inline-flex items-center gap-1">
+                                                    <span class="animate-spin text-xs">⏳</span> Guardando...
+                                                </span>
+                                            </button>
                                         </div>
                                     </div>
                                 @else

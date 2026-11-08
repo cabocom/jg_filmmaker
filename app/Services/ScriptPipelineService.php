@@ -524,7 +524,7 @@ class ScriptPipelineService
                     $project->characters()->create([
                         'name' => $clean,
                         'bio' => $bio,
-                        'psychology' => 'Interviene activamente en el desarrollo de la escena.',
+                        'psychology' => null,
                     ]);
                 }
             }

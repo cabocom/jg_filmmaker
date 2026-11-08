@@ -1,12 +1,22 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.45.0  
+**Versión del documento:** 3.46.0  
 **Fecha de consolidación:** 8 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** ISSUE-063 completado: Pre-warming en background de locución de guiones (PrewarmScopeTtsJob, tts:prewarm), reproductor web con búfer continuo y purga programada de audios huérfanos (tts:prune-orphans). 237 tests automatizados pasando al 100% y Pint superado.
+**Estado:** ISSUE-064 completado: Ergononomía de la ficha del personaje en la Biblia (eliminación de textos psicológicos residuales, badges e importancia narrativa cuantitativa, notas de vestuario en textarea y protección reactiva de doble clic en botones de guardado). 238 tests automatizados pasando al 100% y Pint superado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **ISSUE-064: Ergonomía de Ficha de Personaje en la Biblia (Importancia Narrativa, Vestuario Textarea y Bloqueo Reactivo):**
+  - **Supresión de Frase Genérica Residual:** Eliminada de `ScriptPipelineService` y de la vista Blade la frase fija de relleno *"Interviene activamente en el desarrollo de la escena."* que aparecía de forma inmutable debajo del nombre del personaje.
+  - **Indicador Dinámico de Importancia en la Historia:** Reemplazado el punto naranja estático previo al nombre por un badge temático de rol e importancia:
+    - `PROTAGONISTA` (Badge naranja destacado).
+    - `SECUNDARIO` (Badge ámbar suave con borde).
+    - `REPARTO` (Badge slate sutil).
+    - El nivel se calcula automáticamente a partir del cómputo de intervenciones/diálogos en las escenas del guion, pudiendo anularse o fijarse manualmente desde el formulario de edición de la ficha.
+  - **Notas de Vestuario en Textarea Multilínea:** Convertido el antiguo campo de texto de una sola línea a un `textarea` de 2 filas (idéntico a Biografía) en el formulario de creación y en la edición inline, permitiendo describir estilos, atuendos y atrezzo con saltos de línea legibles.
+  - **Protección Antidoble Clic y Feedback Visual:** Incorporado `wire:loading.attr="disabled"` y visualización de spinner reactivo (`⏳ Guardando...`) en los botones de guardar de personajes y localizaciones, previniendo duplicidades e incertidumbre del usuario durante operaciones de guardado y carga de imágenes.
 
 - **ISSUE-063 (GitLab #5): Pre-warming en Background, Búfer Continuo de Audio y Purga de Audios Huérfanos:**
   - **Pre-warming en Background Inmediato (`PrewarmScopeTtsJob` & `tts:prewarm`):** Al solicitar la lectura del guion o de una escena, el reproductor inicia inmediatamente el segmento 0 mientras el servidor dispara un proceso asíncrono en segundo plano (`PrewarmScopeTtsJob`) protegido por lock distribuido. Este job sintetiza ordenadamente los segmentos pendientes respetando intervalos de cortesía (150 ms) para proteger la ventana de RPM de Google AI Studio y conmutando automáticamente ante cuotas diarias.
