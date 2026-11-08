@@ -1559,8 +1559,14 @@ class LivewireScriptEditorTest extends TestCase
 
         $test = Livewire::actingAs($user)
             ->test(ScriptEditor::class, ['project' => $project])
-            ->assertSeeHtml('runScenePipeline(\''.$scene->id.'\')')
-            ->call('runScenePipeline', $scene->id, app(ScriptPipelineService::class))
+            ->assertSeeHtml('promptRunScenePipeline(\''.$scene->id.'\')')
+            ->call('promptRunScenePipeline', $scene->id)
+            ->assertSet('showScenePipelineConfirmModal', true)
+            ->assertSee('Pipeline IA Completo de Escena')
+            ->assertSee('Coste estimado en tokens:')
+            ->assertSee('Saldo tras ejecución:')
+            ->call('confirmRunScenePipeline', app(ScriptPipelineService::class))
+            ->assertSet('showScenePipelineConfirmModal', false)
             ->assertHasNoErrors()
             ->assertSee('desglosados en planos con IA');
 
@@ -1576,5 +1582,50 @@ class LivewireScriptEditorTest extends TestCase
         $this->assertGreaterThan(0, $b2Fresh->shots()->count());
 
         $this->assertSame('shots', $test->get('scenePipelineStages')[$scene->id]);
+    }
+
+    public function test_token_confirmation_modals_for_batch_and_individual_block_actions(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+
+        $scene = Scene::factory()->create([
+            'project_id' => $project->id,
+            'scene_order' => 1,
+            'slugline' => 'INT. SALON - DIA',
+        ]);
+
+        $block = ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'block_order' => 1,
+            'raw_text' => 'El detective enciende una cerilla en la penumbra.',
+            'structured_text' => null,
+            'screenplay_content' => null,
+            'stage' => 'raw',
+            'user_locks' => ['locked_fields' => []],
+        ]);
+
+        $test = Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            // 1. Modal previo en acción de bloque individual (Estructurar tratamiento)
+            ->call('promptBlockAction', $block->id, 'structure')
+            ->assertSet('showBlockActionConfirmModal', true)
+            ->assertSee('Confirmar Acción de IA en Bloque')
+            ->assertSee('Estructurar a Tratamiento')
+            ->assertSee('Coste estimado en tokens:')
+            ->call('confirmBlockAction', app(ScriptPipelineService::class))
+            ->assertSet('showBlockActionConfirmModal', false);
+
+        $this->assertNotEmpty($block->fresh()->structured_text);
+
+        // 2. Modal de procesamiento en lote con estimación reactiva de tokens
+        $test->call('openBatchModal')
+            ->assertSet('showBatchModal', true)
+            ->assertSee('Bloques en ámbito:')
+            ->assertSee('Coste estimado en tokens:')
+            ->assertSee('Saldo tras ejecución:')
+            ->set('batchStage', 'screenplay');
+
+        $this->assertGreaterThan(0, $test->get('estimatedBatchTokens'));
     }
 }

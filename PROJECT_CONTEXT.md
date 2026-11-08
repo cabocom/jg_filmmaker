@@ -1,12 +1,23 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.31.0  
+**Versión del documento:** 3.32.0  
 **Fecha de consolidación:** 8 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Speaches-AI (Piper TTS), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), PHPUnit 12, Laravel Pint  
-**Estado:** Automatización del Pipeline Cinematográfico por Escena incorporada (`runScenePipeline` con icono de rayo ⚡ en cabecera de escena: Bruto ➔ Tratamiento ➔ Guión ➔ Planos para todos los bloques de la sección). 229 tests automatizados pasando al 100% y Pint superado.
+**Estado:** ISSUE-050 (GitLab #4) completado: Transparencia y gobernanza de tokens mediante avisos y modales previos de confirmación de coste en todas las acciones de IA del sistema. 230 tests automatizados pasando al 100% y Pint superado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **ISSUE-050 (GitLab #4): Modales y Avisos Previos de Consumo de Tokens en Todas las Acciones de IA:**
+  - **Pipeline Completo de Escena (`promptRunScenePipeline` / `showScenePipelineConfirmModal`):**
+    - El icono `⚡` de escena ahora abre un modal previo de advertencia con el desglose exacto de bloques a procesar, coste estimado en tokens, saldo diario disponible y saldo resultante proyectado tras la ejecución.
+  - **Procesamiento por Lote (`openBatchModal` / `recalculateBatchTokenEstimation`):**
+    - Se integra en `showBatchModal` una tarjeta de cómputo reactiva que recalcula dinámicamente el coste según el ámbito (`scene` / `project`) y la etapa elegida (`all`, `structured`, `screenplay`, `shots`), previniendo la ejecución si el saldo es insuficiente.
+  - **Acciones Individuales de Bloque en el Drawer (`promptBlockAction` / `showBlockActionConfirmModal`):**
+    - Las acciones de estructurar tratamiento, convertir a guion y desglosar planos técnicos solicitan confirmación previa con el coste estimado del bloque antes de enviar la petición a la IA.
+  - **Composición Visual de Storyboard (`showStoryboardModal`):**
+    - Incorporación de la tarjeta de coste de viñeta (~350 tokens) antes de pulsar "Generar Viñeta con IA", bloqueando la acción si no hay cupo suficiente.
+  - **Suite de Pruebas Ampliada a 230 Tests al 100%:** Nuevas pruebas en `LivewireScriptEditorTest` validando los flujos de confirmación de tokens, estimaciones dinámicas y bloqueos fail-safe.
 
 - **Pipeline IA Automático por Escena (Bruto ➔ Tratamiento ➔ Guión ➔ Descomposición en Planos):**
   - **Acción Rápida en Cabecera de Escena (`runScenePipeline`):** Incorporado nuevo botón interactivo con icono de rayo (`⚡`) en la barra de acciones de cada escena (tanto en vista Pipeline de estudio como en vista Story Architect).

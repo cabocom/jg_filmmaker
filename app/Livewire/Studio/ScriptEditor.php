@@ -212,6 +212,35 @@ class ScriptEditor extends Component
 
     public int $estimatedBlocksToAudit = 0;
 
+    // Modal de estimación previa y confirmación de coste en tokens para pipeline completo de escena
+    public bool $showScenePipelineConfirmModal = false;
+
+    public ?string $scenePipelineSceneId = null;
+
+    public int $estimatedSceneTokens = 0;
+
+    public int $estimatedSceneBlocks = 0;
+
+    public ?string $scenePipelineSceneSlugline = null;
+
+    public ?int $scenePipelineSceneOrder = null;
+
+    // Estimación reactiva de tokens para procesamiento por lote
+    public int $estimatedBatchTokens = 0;
+
+    public int $estimatedBatchBlocks = 0;
+
+    // Modal de confirmación previa de tokens para acciones de bloque individual en Drawer
+    public bool $showBlockActionConfirmModal = false;
+
+    public ?string $confirmingBlockId = null;
+
+    public ?string $confirmingBlockAction = null;
+
+    public int $estimatedBlockActionTokens = 0;
+
+    public ?int $confirmingBlockOrder = null;
+
     /**
      * IDs de escenas expandidas en el acordeón vertical (Modo StoryArchitect).
      *
@@ -1418,6 +1447,154 @@ class ScriptEditor extends Component
     }
 
     /**
+     * Calcula la estimación de tokens para el pipeline de la escena y abre el modal de confirmación previa.
+     */
+    public function promptRunScenePipeline(string $sceneId): void
+    {
+        $scene = $this->projectScene($sceneId);
+        $blocks = $scene->scriptBlocks()->orderBy('block_order')->get();
+
+        if ($blocks->isEmpty()) {
+            session()->flash('info', "La Escena {$scene->scene_order} no contiene bloques para estructurar.");
+
+            return;
+        }
+
+        $totalEst = 0;
+        foreach ($blocks as $block) {
+            $sourceText = trim(($block->raw_text ?? '').' '.($block->structured_text ?? '').' '.($block->screenplay_content ?? ''));
+            $len = max(50, mb_strlen($sourceText));
+            $baseCost = (int) ceil($len / 4) + 150;
+
+            $multiplier = 0;
+            if (! $block->isStageLocked('structured') && ! empty(trim((string) $block->raw_text))) {
+                $multiplier++;
+            }
+            if (! $block->isStageLocked('screenplay')) {
+                $multiplier++;
+            }
+            if (! $block->isStageLocked('shots')) {
+                $multiplier++;
+            }
+            $totalEst += max(1, $multiplier) * $baseCost;
+        }
+
+        $totalEst += 150; // Contexto biblia / overhead
+
+        $this->scenePipelineSceneId = $scene->id;
+        $this->scenePipelineSceneOrder = $scene->scene_order;
+        $this->scenePipelineSceneSlugline = $scene->slugline;
+        $this->estimatedSceneBlocks = $blocks->count();
+        $this->estimatedSceneTokens = $totalEst;
+
+        $user = auth()->user() ?? $this->project->user;
+        if ($user && ! $user->hasDailyTokensAvailable($this->estimatedSceneTokens)) {
+            $available = $user->getTokensAvailableToday();
+            $limit = $user->getDailyTokenLimit();
+            session()->flash('error', "Saldo insuficiente de tokens para procesar la escena ({$available} disponibles, ~{$this->estimatedSceneTokens} requeridos de tu cupo de ".number_format($limit, 0, ',', '.').' tokens). El cupo se renovará automáticamente a las 00:00.');
+
+            return;
+        }
+
+        $this->showScenePipelineConfirmModal = true;
+    }
+
+    public function cancelRunScenePipeline(): void
+    {
+        $this->showScenePipelineConfirmModal = false;
+        $this->scenePipelineSceneId = null;
+    }
+
+    public function confirmRunScenePipeline(ScriptPipelineService $pipelineService): void
+    {
+        $sceneId = $this->scenePipelineSceneId;
+        $this->showScenePipelineConfirmModal = false;
+
+        if ($sceneId) {
+            $this->runScenePipeline($sceneId, $pipelineService);
+        }
+    }
+
+    /**
+     * Solicita confirmación de consumo de tokens para una acción de IA sobre un bloque individual.
+     */
+    public function promptBlockAction(string $blockId, string $action): void
+    {
+        if (! in_array($action, ['structure', 'screenplay', 'shots'], true)) {
+            return;
+        }
+
+        $block = $this->projectBlock($blockId);
+
+        $lockKey = match ($action) {
+            'structure' => 'structured',
+            'screenplay' => 'screenplay',
+            'shots' => 'shots',
+        };
+
+        if ($block->isStageLocked($lockKey)) {
+            $stageName = match ($action) {
+                'structure' => 'tratamiento',
+                'screenplay' => 'guión',
+                'shots' => 'planos',
+            };
+            session()->flash('error', "El {$stageName} del Bloque {$block->block_order} está protegido (🔒) por modificaciones manuales. Desbloquéalo primero para regenerar con IA.");
+
+            return;
+        }
+
+        $sourceText = match ($action) {
+            'structure' => (string) $block->raw_text,
+            'screenplay' => ! empty($block->structured_text) ? $block->structured_text : (string) $block->raw_text,
+            'shots' => ! empty($block->screenplay_content) ? $block->screenplay_content : (! empty($block->structured_text) ? $block->structured_text : (string) $block->raw_text),
+        };
+
+        $estimatedTokens = max(50, (int) ceil(mb_strlen(trim($sourceText)) / 4) + 150);
+
+        $user = auth()->user() ?? $this->project->user;
+        if ($user && ! $user->hasDailyTokensAvailable($estimatedTokens)) {
+            $available = $user->getTokensAvailableToday();
+            $limit = $user->getDailyTokenLimit();
+            session()->flash('error', "Saldo insuficiente de tokens para procesar el bloque ({$available} disponibles, ~{$estimatedTokens} requeridos de tu cupo de ".number_format($limit, 0, ',', '.').' tokens). El cupo se renovará automáticamente a las 00:00.');
+
+            return;
+        }
+
+        $this->confirmingBlockId = $block->id;
+        $this->confirmingBlockAction = $action;
+        $this->confirmingBlockOrder = $block->block_order;
+        $this->estimatedBlockActionTokens = $estimatedTokens;
+        $this->showBlockActionConfirmModal = true;
+    }
+
+    public function cancelBlockAction(): void
+    {
+        $this->showBlockActionConfirmModal = false;
+        $this->confirmingBlockId = null;
+        $this->confirmingBlockAction = null;
+        $this->confirmingBlockOrder = null;
+        $this->estimatedBlockActionTokens = 0;
+    }
+
+    public function confirmBlockAction(ScriptPipelineService $pipelineService): void
+    {
+        $blockId = $this->confirmingBlockId;
+        $action = $this->confirmingBlockAction;
+
+        $this->cancelBlockAction();
+
+        if (! $blockId || ! $action) {
+            return;
+        }
+
+        match ($action) {
+            'structure' => $this->structureBlock($blockId, $pipelineService),
+            'screenplay' => $this->formatBlockToScreenplay($blockId, $pipelineService),
+            'shots' => $this->breakdownBlockShots($blockId, $pipelineService),
+        };
+    }
+
+    /**
      * Ejecuta el pipeline completo de IA para todos los bloques de la escena especificada
      * (Bruto ➔ Tratamiento ➔ Guión literario ➔ Desglose de planos).
      */
@@ -1622,6 +1799,15 @@ class ScriptEditor extends Component
         ]);
 
         if (! $this->storyboardShotId) {
+            return;
+        }
+
+        $user = auth()->user() ?? $this->project->user;
+        if ($user && ! $user->hasDailyTokensAvailable(350)) {
+            $available = $user->getTokensAvailableToday();
+            $limit = $user->getDailyTokenLimit();
+            session()->flash('error', "Saldo insuficiente de tokens para generar la viñeta ({$available} disponibles, ~350 requeridos de tu cupo de ".number_format($limit, 0, ',', '.').' tokens). El cupo se renovará automáticamente a las 00:00.');
+
             return;
         }
 
@@ -2801,12 +2987,93 @@ class ScriptEditor extends Component
 
     public function openBatchModal(): void
     {
+        $this->recalculateBatchTokenEstimation();
         $this->showBatchModal = true;
+    }
+
+    public function updatedBatchScope(): void
+    {
+        $this->recalculateBatchTokenEstimation();
+    }
+
+    public function updatedBatchStage(): void
+    {
+        $this->recalculateBatchTokenEstimation();
+    }
+
+    public function recalculateBatchTokenEstimation(): void
+    {
+        if ($this->batchScope === 'scene') {
+            $scene = $this->activeSceneId
+                ? $this->projectScene($this->activeSceneId)
+                : $this->project->scenes()->first();
+
+            $blocks = $scene ? $scene->scriptBlocks()->orderBy('block_order')->get() : collect();
+        } else {
+            $blocks = ScriptBlock::whereIn('scene_id', $this->project->scenes()->pluck('id'))
+                ->orderBy('scene_id')
+                ->orderBy('block_order')
+                ->get();
+        }
+
+        $this->estimatedBatchBlocks = $blocks->count();
+        $totalEst = 0;
+
+        foreach ($blocks as $block) {
+            $sourceText = trim(($block->raw_text ?? '').' '.($block->structured_text ?? '').' '.($block->screenplay_content ?? ''));
+            $len = max(50, mb_strlen($sourceText));
+            $baseCost = (int) ceil($len / 4) + 150;
+
+            switch ($this->batchStage) {
+                case 'structured':
+                    if (! $block->isStageLocked('structured') && ! empty(trim((string) $block->raw_text))) {
+                        $totalEst += $baseCost;
+                    }
+                    break;
+                case 'screenplay':
+                    if (! $block->isStageLocked('screenplay')) {
+                        $totalEst += $baseCost;
+                    }
+                    break;
+                case 'shots':
+                    if (! $block->isStageLocked('shots')) {
+                        $totalEst += $baseCost;
+                    }
+                    break;
+                case 'all':
+                default:
+                    $stageMultiplier = 0;
+                    if (! $block->isStageLocked('structured') && ! empty(trim((string) $block->raw_text))) {
+                        $stageMultiplier++;
+                    }
+                    if (! $block->isStageLocked('screenplay')) {
+                        $stageMultiplier++;
+                    }
+                    if (! $block->isStageLocked('shots')) {
+                        $stageMultiplier++;
+                    }
+                    $totalEst += max(1, $stageMultiplier) * $baseCost;
+                    break;
+            }
+        }
+
+        $this->estimatedBatchTokens = max(50, $totalEst);
     }
 
     public function executeBatchProcessing(ScriptPipelineService $pipelineService): void
     {
         $this->isBatchProcessing = true;
+        $this->recalculateBatchTokenEstimation();
+
+        $user = auth()->user() ?? $this->project->user;
+        if ($user && ! $user->hasDailyTokensAvailable($this->estimatedBatchTokens)) {
+            $available = $user->getTokensAvailableToday();
+            $limit = $user->getDailyTokenLimit();
+            session()->flash('error', "Saldo insuficiente de tokens para procesar en lote ({$available} disponibles, ~{$this->estimatedBatchTokens} requeridos de tu cupo de ".number_format($limit, 0, ',', '.').' tokens). El cupo se renovará a las 00:00.');
+            $this->isBatchProcessing = false;
+
+            return;
+        }
 
         if ($this->batchScope === 'scene') {
             $scene = $this->activeSceneId

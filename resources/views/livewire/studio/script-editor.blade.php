@@ -417,18 +417,18 @@
                                 </button>
 
                                 <!-- Botón Ejecutar Pipeline IA Completo para la Escena (Bruto ➔ Tratamiento ➔ Guión ➔ Planos) -->
-                                <button wire:click="runScenePipeline('{{ $scene->id }}')"
+                                <button wire:click="promptRunScenePipeline('{{ $scene->id }}')"
                                         wire:loading.attr="disabled"
-                                        wire:target="runScenePipeline('{{ $scene->id }}')"
+                                        wire:target="promptRunScenePipeline('{{ $scene->id }}'), runScenePipeline('{{ $scene->id }}')"
                                         type="button"
                                         title="Estructurar con IA todos los bloques de la Escena {{ $scene->scene_order }} (Bruto ➔ Tratamiento ➔ Guión ➔ Descomposición en Planos)"
                                         class="p-1 rounded text-slate-400 hover:text-amber-500 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 transition cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
-                                    <span wire:loading.remove wire:target="runScenePipeline('{{ $scene->id }}')">
+                                    <span wire:loading.remove wire:target="promptRunScenePipeline('{{ $scene->id }}'), runScenePipeline('{{ $scene->id }}')">
                                         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                                         </svg>
                                     </span>
-                                    <span wire:loading wire:target="runScenePipeline('{{ $scene->id }}')">
+                                    <span wire:loading wire:target="promptRunScenePipeline('{{ $scene->id }}'), runScenePipeline('{{ $scene->id }}')">
                                         <svg class="animate-spin w-3.5 h-3.5 text-amber-500" fill="none" viewBox="0 0 24 24">
                                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
@@ -807,18 +807,18 @@
                                     <span class="font-mono font-black text-sm uppercase tracking-wide text-slate-950 dark:text-amber-400">
                                         {{ $scene->scene_order }}. {{ $scene->slugline }}
                                     </span>
-                                    <button wire:click="runScenePipeline('{{ $scene->id }}')"
+                                    <button wire:click="promptRunScenePipeline('{{ $scene->id }}')"
                                             wire:loading.attr="disabled"
-                                            wire:target="runScenePipeline('{{ $scene->id }}')"
+                                            wire:target="promptRunScenePipeline('{{ $scene->id }}'), runScenePipeline('{{ $scene->id }}')"
                                             type="button"
                                             title="Estructurar con IA todos los bloques de la Escena {{ $scene->scene_order }} (Bruto ➔ Tratamiento ➔ Guión ➔ Planos)"
                                             class="p-1 rounded text-slate-400 hover:text-amber-500 hover:bg-slate-200 dark:hover:bg-slate-800 transition cursor-pointer disabled:opacity-50">
-                                        <span wire:loading.remove wire:target="runScenePipeline('{{ $scene->id }}')">
+                                        <span wire:loading.remove wire:target="promptRunScenePipeline('{{ $scene->id }}'), runScenePipeline('{{ $scene->id }}')">
                                             <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                                             </svg>
                                         </span>
-                                        <span wire:loading wire:target="runScenePipeline('{{ $scene->id }}')">
+                                        <span wire:loading wire:target="promptRunScenePipeline('{{ $scene->id }}'), runScenePipeline('{{ $scene->id }}')">
                                             <svg class="animate-spin w-3.5 h-3.5 text-amber-500" fill="none" viewBox="0 0 24 24">
                                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
@@ -1268,20 +1268,15 @@
                                                 </button>
                                             @else
                                                 <button wire:key="btn-action-structure-{{ $detailBlock->id }}"
-                                                        wire:click="structureBlock('{{ $detailBlock->id }}')"
-                                                        x-data="{ isProcessing: false }"
-                                                        x-init="$watch('$wire.detailActiveTab', () => isProcessing = false)"
-                                                        @click="isProcessing = true; $wire.structureBlock('{{ $detailBlock->id }}').then(() => { isProcessing = false; })"
-                                                        :disabled="isProcessing"
-                                                        :class="{ 'opacity-50 cursor-not-allowed pointer-events-none': isProcessing }"
-                                                        wire:loading.delay.0ms.attr="disabled"
-                                                        wire:loading.class="opacity-50 cursor-not-allowed pointer-events-none"
+                                                        wire:click="promptBlockAction('{{ $detailBlock->id }}', 'structure')"
+                                                        wire:loading.attr="disabled"
+                                                        wire:target="promptBlockAction('{{ $detailBlock->id }}', 'structure')"
                                                         type="button"
-                                                        class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer">
-                                                    <span wire:loading.remove wire:target="structureBlock">⚡ Estructurar Tratamiento</span>
-                                                    <span wire:loading wire:target="structureBlock" class="flex items-center gap-1.5">
+                                                        class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                                                    <span wire:loading.remove wire:target="promptBlockAction('{{ $detailBlock->id }}', 'structure')">⚡ Estructurar Tratamiento</span>
+                                                    <span wire:loading wire:target="promptBlockAction('{{ $detailBlock->id }}', 'structure')" class="flex items-center gap-1.5">
                                                         <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
-                                                        <span>Estructurando...</span>
+                                                        <span>Calculando tokens...</span>
                                                     </span>
                                                 </button>
                                             @endif
@@ -1299,56 +1294,42 @@
                                                 </button>
                                             @else
                                                 <button wire:key="btn-action-screenplay-{{ $detailBlock->id }}"
-                                                        wire:click="formatBlockToScreenplay('{{ $detailBlock->id }}')"
-                                                        x-data="{ isProcessing: false }"
-                                                        x-init="$watch('$wire.detailActiveTab', () => isProcessing = false)"
-                                                        @click="isProcessing = true; $wire.formatBlockToScreenplay('{{ $detailBlock->id }}').then(() => { isProcessing = false; })"
-                                                        :disabled="isProcessing"
-                                                        :class="{ 'opacity-50 cursor-not-allowed pointer-events-none': isProcessing }"
-                                                        wire:loading.delay.0ms.attr="disabled"
-                                                        wire:loading.class="opacity-50 cursor-not-allowed pointer-events-none"
+                                                        wire:click="promptBlockAction('{{ $detailBlock->id }}', 'screenplay')"
+                                                        wire:loading.attr="disabled"
+                                                        wire:target="promptBlockAction('{{ $detailBlock->id }}', 'screenplay')"
                                                         type="button"
-                                                        class="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none text-slate-950 shadow-sm transition flex items-center gap-1.5 font-mono cursor-pointer">
-                                                    <span wire:loading.remove wire:target="formatBlockToScreenplay">🎬 Convertir a Guión</span>
-                                                    <span wire:loading wire:target="formatBlockToScreenplay" class="flex items-center gap-1.5">
+                                                        class="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 shadow-sm transition flex items-center gap-1.5 font-mono cursor-pointer">
+                                                    <span wire:loading.remove wire:target="promptBlockAction('{{ $detailBlock->id }}', 'screenplay')">🎬 Convertir a Guión</span>
+                                                    <span wire:loading wire:target="promptBlockAction('{{ $detailBlock->id }}', 'screenplay')" class="flex items-center gap-1.5">
                                                         <svg class="animate-spin h-3.5 w-3.5 text-slate-950" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
-                                                        <span>Formateando...</span>
+                                                        <span>Calculando tokens...</span>
                                                     </span>
                                                 </button>
                                             @endif
                                         @elseif($detailActiveTab === 'screenplay')
                                             <button wire:key="btn-action-shots-{{ $detailBlock->id }}"
-                                                    wire:click="breakdownBlockShots('{{ $detailBlock->id }}')"
-                                                    x-data="{ isProcessing: false }"
-                                                    x-init="$watch('$wire.detailActiveTab', () => isProcessing = false)"
-                                                    @click="isProcessing = true; $wire.breakdownBlockShots('{{ $detailBlock->id }}').then(() => { isProcessing = false; })"
-                                                    :disabled="isProcessing"
-                                                    :class="{ 'opacity-50 cursor-not-allowed pointer-events-none': isProcessing }"
-                                                    wire:loading.delay.0ms.attr="disabled"
-                                                    wire:loading.class="opacity-50 cursor-not-allowed pointer-events-none"
+                                                    wire:click="promptBlockAction('{{ $detailBlock->id }}', 'shots')"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="promptBlockAction('{{ $detailBlock->id }}', 'shots')"
                                                     type="button"
-                                                    class="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer">
-                                                <span wire:loading.remove wire:target="breakdownBlockShots">📹 Desglosar Planos</span>
-                                                <span wire:loading wire:target="breakdownBlockShots" class="flex items-center gap-1.5">
+                                                    class="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                                                <span wire:loading.remove wire:target="promptBlockAction('{{ $detailBlock->id }}', 'shots')">📹 Desglosar Planos</span>
+                                                <span wire:loading wire:target="promptBlockAction('{{ $detailBlock->id }}', 'shots')" class="flex items-center gap-1.5">
                                                     <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
-                                                    <span>Desglosando...</span>
+                                                    <span>Calculando tokens...</span>
                                                 </span>
                                             </button>
                                         @elseif($detailActiveTab === 'shots')
                                             <div class="flex items-center gap-2">
-                                                <button wire:click="breakdownBlockShots('{{ $detailBlock->id }}')"
-                                                        x-data="{ isProcessing: false }"
-                                                        @click="isProcessing = true; $el.disabled = true; $el.classList.add('opacity-50', 'pointer-events-none');"
-                                                        :disabled="isProcessing"
-                                                        :class="{ 'opacity-50 cursor-not-allowed pointer-events-none': isProcessing }"
-                                                        wire:loading.delay.0ms.attr="disabled"
-                                                        wire:loading.class="opacity-50 cursor-not-allowed pointer-events-none"
+                                                <button wire:click="promptBlockAction('{{ $detailBlock->id }}', 'shots')"
+                                                        wire:loading.attr="disabled"
+                                                        wire:target="promptBlockAction('{{ $detailBlock->id }}', 'shots')"
                                                         type="button"
-                                                        class="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer">
-                                                    <span wire:loading.remove wire:target="breakdownBlockShots">⚡ Regenerar Planos</span>
-                                                    <span wire:loading wire:target="breakdownBlockShots" class="flex items-center gap-1.5">
+                                                        class="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                                                    <span wire:loading.remove wire:target="promptBlockAction('{{ $detailBlock->id }}', 'shots')">⚡ Regenerar Planos</span>
+                                                    <span wire:loading wire:target="promptBlockAction('{{ $detailBlock->id }}', 'shots')" class="flex items-center gap-1.5">
                                                         <svg class="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
-                                                        <span>Regenerando...</span>
+                                                        <span>Calculando tokens...</span>
                                                     </span>
                                                 </button>
                                                 <button wire:click="startNewShotForBlock('{{ $detailBlock->id }}')"
@@ -2255,7 +2236,203 @@
         </div>
     @endif
 
-    <!-- ================= MODAL HISTORIAL DE ACTIVIDAD Y TRAZABILIDAD COMPLETA ================= -->
+    <!-- ================= MODAL CONFIRMAR COSTE EN TOKENS ANTES DE EJECUTAR PIPELINE COMPLETO DE ESCENA ================= -->
+    @if($showScenePipelineConfirmModal)
+        <div class="fixed inset-0 z-50 overflow-y-auto"
+             x-data
+             @keydown.escape.window="$wire.cancelRunScenePipeline()">
+            <!-- Backdrop -->
+            <div class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm transition-opacity cursor-pointer"
+                 wire:click="cancelRunScenePipeline"></div>
+
+            <!-- Modal Dialog -->
+            <div class="flex min-h-full items-center justify-center p-3 sm:p-4">
+                <div class="relative w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-4 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto"
+                     @click.stop>
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+                        <div class="flex items-center gap-2.5">
+                            <span class="text-xl">⚡</span>
+                            <div>
+                                <h3 class="text-sm font-bold text-slate-900 dark:text-white">
+                                    Pipeline IA Completo de Escena
+                                </h3>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">
+                                    Confirmación previa de coste en tokens de IA
+                                </p>
+                            </div>
+                        </div>
+                        <button wire:click="cancelRunScenePipeline" type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg cursor-pointer">
+                            ✕
+                        </button>
+                    </div>
+
+                    <!-- Mensaje explicativo -->
+                    <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                        Se procesarán los <strong class="font-bold text-slate-900 dark:text-white">{{ $estimatedSceneBlocks }} bloque(s)</strong> de la <strong class="text-amber-600 dark:text-amber-400 font-mono">Escena #{{ $scenePipelineSceneOrder }} ({{ $scenePipelineSceneSlugline }})</strong> a través de todo el flujo cinematográfico con IA: <span class="font-bold">Bruto ➔ Tratamiento ➔ Guión Literario ➔ Desglose de Planos Técnicos</span>.
+                    </p>
+
+                    <!-- Tarjeta de Desglose de Tokens -->
+                    @php
+                        $currentUser = auth()->user() ?? $project->user;
+                        $userTokensAvail = $currentUser ? $currentUser->getTokensAvailableToday() : 0;
+                        $hasEnoughScene = $userTokensAvail >= $estimatedSceneTokens;
+                        $remainingAfterScene = max(0, $userTokensAvail - $estimatedSceneTokens);
+                    @endphp
+                    <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-3 font-mono text-xs">
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-500 dark:text-slate-400">Bloques de la escena:</span>
+                            <span class="font-bold text-slate-900 dark:text-white">{{ $estimatedSceneBlocks }} bloques</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-500 dark:text-slate-400">Coste estimado en tokens:</span>
+                            <span class="font-bold text-amber-600 dark:text-amber-400">~{{ number_format($estimatedSceneTokens, 0, ',', '.') }} tokens</span>
+                        </div>
+                        <div class="border-t border-slate-200 dark:border-slate-800/80 pt-2 flex items-center justify-between">
+                            <span class="text-slate-500 dark:text-slate-400">Saldo disponible hoy:</span>
+                            <span class="font-bold text-slate-900 dark:text-white">{{ number_format($userTokensAvail, 0, ',', '.') }} tokens</span>
+                        </div>
+                        <div class="flex items-center justify-between {{ $hasEnoughScene ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">
+                            <span class="font-medium">Saldo tras ejecución:</span>
+                            <span class="font-bold">~{{ number_format($remainingAfterScene, 0, ',', '.') }} tokens</span>
+                        </div>
+                    </div>
+
+                    @if(! $hasEnoughScene)
+                        <div class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/80 text-xs text-rose-700 dark:text-rose-300 flex items-start gap-2">
+                            <span>⚠️</span>
+                            <span>No dispones de suficientes tokens diarios para procesar esta escena. Tu saldo se renovará automáticamente a las 00:00.</span>
+                        </div>
+                    @endif
+
+                    <!-- Botones de Acción -->
+                    <div class="flex items-center justify-end gap-2.5 pt-2">
+                        <button wire:click="cancelRunScenePipeline"
+                                type="button"
+                                class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 transition cursor-pointer">
+                            Cancelar
+                        </button>
+                        <button wire:click="confirmRunScenePipeline"
+                                wire:loading.attr="disabled"
+                                @if(! $hasEnoughScene) disabled @endif
+                                type="button"
+                                class="px-4 py-2 rounded-xl text-xs font-bold {{ $hasEnoughScene ? 'bg-amber-500 hover:bg-amber-400 text-slate-950' : 'bg-slate-300 text-slate-500 cursor-not-allowed' }} shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                            <span wire:loading.remove wire:target="confirmRunScenePipeline">⚡ Confirmar y Ejecutar Pipeline</span>
+                            <span wire:loading wire:target="confirmRunScenePipeline" class="flex items-center gap-1.5">
+                                <span class="animate-spin text-xs">⏳</span>
+                                <span>Procesando escena con IA...</span>
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- ================= MODAL CONFIRMAR COSTE EN TOKENS PARA ACCIÓN DE BLOQUE INDIVIDUAL ================= -->
+    @if($showBlockActionConfirmModal)
+        <div class="fixed inset-0 z-50 overflow-y-auto"
+             x-data
+             @keydown.escape.window="$wire.cancelBlockAction()">
+            <!-- Backdrop -->
+            <div class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm transition-opacity cursor-pointer"
+                 wire:click="cancelBlockAction"></div>
+
+            <!-- Modal Dialog -->
+            <div class="flex min-h-full items-center justify-center p-3 sm:p-4">
+                <div class="relative w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-4 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto"
+                     @click.stop>
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+                        <div class="flex items-center gap-2.5">
+                            @if($confirmingBlockAction === 'structure')
+                                <span class="text-xl">⚡</span>
+                            @elseif($confirmingBlockAction === 'screenplay')
+                                <span class="text-xl">🎬</span>
+                            @else
+                                <span class="text-xl">📹</span>
+                            @endif
+                            <div>
+                                <h3 class="text-sm font-bold text-slate-900 dark:text-white">
+                                    Confirmar Acción de IA en Bloque
+                                </h3>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">
+                                    Confirmación previa de coste en tokens de IA
+                                </p>
+                            </div>
+                        </div>
+                        <button wire:click="cancelBlockAction" type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg cursor-pointer">
+                            ✕
+                        </button>
+                    </div>
+
+                    <!-- Mensaje explicativo -->
+                    @php
+                        $actionLabel = match($confirmingBlockAction) {
+                            'structure' => 'Estructurar a Tratamiento',
+                            'screenplay' => 'Convertir a Guión Literario',
+                            'shots' => 'Desglosar en Planos Técnicos',
+                            default => 'Procesar con IA',
+                        };
+                    @endphp
+                    <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                        Se ejecutará la operación <strong class="font-bold text-slate-900 dark:text-white">"{{ $actionLabel }}"</strong> sobre el <strong class="text-amber-600 dark:text-amber-400 font-mono">Bloque #{{ $confirmingBlockOrder }}</strong> mediante los servicios de IA de la plataforma.
+                    </p>
+
+                    <!-- Tarjeta de Desglose de Tokens -->
+                    @php
+                        $currentUser = auth()->user() ?? $project->user;
+                        $userTokensAvail = $currentUser ? $currentUser->getTokensAvailableToday() : 0;
+                        $hasEnoughBlock = $userTokensAvail >= $estimatedBlockActionTokens;
+                        $remainingAfterBlock = max(0, $userTokensAvail - $estimatedBlockActionTokens);
+                    @endphp
+                    <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-3 font-mono text-xs">
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-500 dark:text-slate-400">Operación:</span>
+                            <span class="font-bold text-slate-900 dark:text-white">{{ $actionLabel }}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-500 dark:text-slate-400">Coste estimado en tokens:</span>
+                            <span class="font-bold text-amber-600 dark:text-amber-400">~{{ number_format($estimatedBlockActionTokens, 0, ',', '.') }} tokens</span>
+                        </div>
+                        <div class="border-t border-slate-200 dark:border-slate-800/80 pt-2 flex items-center justify-between">
+                            <span class="text-slate-500 dark:text-slate-400">Saldo disponible hoy:</span>
+                            <span class="font-bold text-slate-900 dark:text-white">{{ number_format($userTokensAvail, 0, ',', '.') }} tokens</span>
+                        </div>
+                        <div class="flex items-center justify-between {{ $hasEnoughBlock ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">
+                            <span class="font-medium">Saldo tras ejecución:</span>
+                            <span class="font-bold">~{{ number_format($remainingAfterBlock, 0, ',', '.') }} tokens</span>
+                        </div>
+                    </div>
+
+                    @if(! $hasEnoughBlock)
+                        <div class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/80 text-xs text-rose-700 dark:text-rose-300 flex items-start gap-2">
+                            <span>⚠️</span>
+                            <span>No dispones de suficientes tokens diarios para ejecutar esta acción. Tu saldo se renovará automáticamente a las 00:00.</span>
+                        </div>
+                    @endif
+
+                    <!-- Botones de Acción -->
+                    <div class="flex items-center justify-end gap-2.5 pt-2">
+                        <button wire:click="cancelBlockAction"
+                                type="button"
+                                class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 transition cursor-pointer">
+                            Cancelar
+                        </button>
+                        <button wire:click="confirmBlockAction"
+                                wire:loading.attr="disabled"
+                                @if(! $hasEnoughBlock) disabled @endif
+                                type="button"
+                                class="px-4 py-2 rounded-xl text-xs font-bold {{ $hasEnoughBlock ? 'bg-amber-500 hover:bg-amber-400 text-slate-950' : 'bg-slate-300 text-slate-500 cursor-not-allowed' }} shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                            <span wire:loading.remove wire:target="confirmBlockAction">Confirmar y Ejecutar</span>
+                            <span wire:loading wire:target="confirmBlockAction" class="flex items-center gap-1.5">
+                                <span class="animate-spin text-xs">⏳</span>
+                                <span>Ejecutando con IA...</span>
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
     @if($showActivityHistoryModal)
         <div class="fixed inset-0 z-50 overflow-y-auto"
              x-data
@@ -2687,6 +2864,39 @@
                         </div>
                     </div>
 
+                    <!-- Tarjeta de Desglose de Tokens de Procesamiento en Lote -->
+                    @php
+                        $currentUser = auth()->user() ?? $project->user;
+                        $userTokensAvail = $currentUser ? $currentUser->getTokensAvailableToday() : 0;
+                        $hasEnoughBatch = $userTokensAvail >= $estimatedBatchTokens;
+                        $remainingAfterBatch = max(0, $userTokensAvail - $estimatedBatchTokens);
+                    @endphp
+                    <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-2.5 font-mono text-xs">
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-500 dark:text-slate-400">Bloques en ámbito:</span>
+                            <span class="font-bold text-slate-900 dark:text-white">{{ $estimatedBatchBlocks }} bloques</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-500 dark:text-slate-400">Coste estimado en tokens:</span>
+                            <span class="font-bold text-amber-600 dark:text-amber-400">~{{ number_format($estimatedBatchTokens, 0, ',', '.') }} tokens</span>
+                        </div>
+                        <div class="border-t border-slate-200 dark:border-slate-800/80 pt-2 flex items-center justify-between">
+                            <span class="text-slate-500 dark:text-slate-400">Saldo disponible hoy:</span>
+                            <span class="font-bold text-slate-900 dark:text-white">{{ number_format($userTokensAvail, 0, ',', '.') }} tokens</span>
+                        </div>
+                        <div class="flex items-center justify-between {{ $hasEnoughBatch ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">
+                            <span class="font-medium">Saldo tras ejecución:</span>
+                            <span class="font-bold">~{{ number_format($remainingAfterBatch, 0, ',', '.') }} tokens</span>
+                        </div>
+                    </div>
+
+                    @if(! $hasEnoughBatch)
+                        <div class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/80 text-xs text-rose-700 dark:text-rose-300 flex items-start gap-2">
+                            <span>⚠️</span>
+                            <span>No dispones de suficientes tokens diarios para ejecutar este renderizado en lote. Tu cupo se renovará a las 00:00.</span>
+                        </div>
+                    @endif
+
                     <div class="pt-4 flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-800">
                         <button type="button"
                                 wire:click="$set('showBatchModal', false)"
@@ -2696,7 +2906,8 @@
                         <button type="button"
                                 wire:click="executeBatchProcessing"
                                 wire:loading.attr="disabled"
-                                class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-lg shadow-amber-500/30 transition cursor-pointer">
+                                @if(! $hasEnoughBatch) disabled @endif
+                                class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold {{ $hasEnoughBatch ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/30' : 'bg-slate-300 dark:bg-slate-800 text-slate-500 cursor-not-allowed' }} font-bold shadow-lg transition cursor-pointer">
                             <span wire:loading.remove wire:target="executeBatchProcessing">⚡ Iniciar Renderizado en Lote</span>
                             <span wire:loading wire:target="executeBatchProcessing" class="flex items-center gap-1.5">
                                 <span class="animate-spin text-sm">⏳</span>
@@ -3197,6 +3408,35 @@
                             <p class="text-rose-400 text-[10px]">{{ $message }}</p>
                         @enderror
                     </div>
+                    <!-- Desglose de Tokens de Storyboard -->
+                    @php
+                        $currentUser = auth()->user() ?? $project->user;
+                        $userTokensAvail = $currentUser ? $currentUser->getTokensAvailableToday() : 0;
+                        $storyboardCost = 350;
+                        $hasEnoughStoryboard = $userTokensAvail >= $storyboardCost;
+                        $remainingAfterStoryboard = max(0, $userTokensAvail - $storyboardCost);
+                    @endphp
+                    <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2 font-mono text-xs">
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-400">Generación de viñeta visual:</span>
+                            <span class="font-bold text-amber-400">~{{ $storyboardCost }} tokens</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-400">Saldo disponible hoy:</span>
+                            <span class="font-bold text-slate-200">{{ number_format($userTokensAvail, 0, ',', '.') }} tokens</span>
+                        </div>
+                        <div class="border-t border-slate-800 pt-1.5 flex items-center justify-between {{ $hasEnoughStoryboard ? 'text-emerald-400' : 'text-rose-400' }}">
+                            <span>Saldo tras generación:</span>
+                            <span class="font-bold">~{{ number_format($remainingAfterStoryboard, 0, ',', '.') }} tokens</span>
+                        </div>
+                    </div>
+
+                    @if(! $hasEnoughStoryboard)
+                        <div class="p-2.5 rounded-xl bg-rose-950/40 border border-rose-800/80 text-xs text-rose-300 flex items-start gap-2">
+                            <span>⚠️</span>
+                            <span>Saldo insuficiente para generar la viñeta con IA. Se renovará a las 00:00.</span>
+                        </div>
+                    @endif
                 </div>
 
                 <!-- Footer -->
@@ -3209,7 +3449,8 @@
                     <button type="button"
                             wire:click="confirmGenerateStoryboard"
                             wire:loading.attr="disabled"
-                            class="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold flex items-center gap-2 cursor-pointer shadow-md transition disabled:opacity-50">
+                            @if(! $hasEnoughStoryboard) disabled @endif
+                            class="px-5 py-2 rounded-xl {{ $hasEnoughStoryboard ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md' : 'bg-slate-800 text-slate-500 cursor-not-allowed' }} text-xs font-bold flex items-center gap-2 cursor-pointer transition disabled:opacity-50">
                         <span wire:loading.remove wire:target="confirmGenerateStoryboard">✨ Generar Viñeta con IA</span>
                         <span wire:loading wire:target="confirmGenerateStoryboard" class="flex items-center gap-1.5">
                             ⏳ Enviando a Google AI Studio...
