@@ -334,7 +334,7 @@ class TextToSpeechService
             return $this->parseScreenplayText($block->screenplay_content, $characterVoiceMap);
         }
 
-        // Si está en 'structured' o 'raw', se locuta el texto en prosa con la voz del Narrador
+        // Si está en 'structured' o 'raw', comprobamos si contiene formato dramático con personajes
         $prose = ($block->stage === 'raw')
             ? ($block->raw_text ?: $block->structured_text)
             : ($block->structured_text ?: $block->raw_text);
@@ -342,6 +342,13 @@ class TextToSpeechService
 
         if ($cleanProse === '') {
             return [];
+        }
+
+        $candidateSegments = $this->parseScreenplayText($cleanProse, $characterVoiceMap);
+        $hasDialogue = collect($candidateSegments)->contains('type', 'dialogue');
+
+        if ($hasDialogue) {
+            return $candidateSegments;
         }
 
         return [
