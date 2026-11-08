@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\PrewarmScopeTtsJob;
 use App\Models\Project;
 use App\Models\ScriptBlock;
 use App\Services\TextToSpeechService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Process;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class AudioStreamController extends Controller
@@ -24,12 +27,44 @@ class AudioStreamController extends Controller
 
         $manifest = $tts->buildManifestForScope($project, $sceneId, $blockId);
 
+        // Disparar pre-warming en segundo plano si hay segmentos
+        if (! empty($manifest) && ! app()->environment('testing')) {
+            $this->dispatchPrewarm($project, $sceneId, $blockId);
+        }
+
         return response()->json([
             'status' => 'ok',
             'project_id' => $project->id,
             'count' => count($manifest),
             'manifest' => $manifest,
         ]);
+    }
+
+    /**
+     * Inicia la síntesis anticipada en background sin bloquear la respuesta HTTP.
+     */
+    protected function dispatchPrewarm(Project $project, ?string $sceneId, ?string $blockId): void
+    {
+        try {
+            PrewarmScopeTtsJob::dispatch($project, $sceneId, $blockId);
+
+            $cmd = [
+                PHP_BINARY,
+                base_path('artisan'),
+                'tts:prewarm',
+                (string) $project->id,
+            ];
+            if ($sceneId) {
+                $cmd[] = '--scene_id='.$sceneId;
+            }
+            if ($blockId) {
+                $cmd[] = '--block_id='.$blockId;
+            }
+
+            Process::path(base_path())->start($cmd);
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo disparar pre-warming en background para TTS: '.$e->getMessage());
+        }
     }
 
     /**

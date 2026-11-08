@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\PrewarmScopeTtsJob;
 use App\Models\Character;
 use App\Models\Project;
 use App\Models\Scene;
@@ -24,6 +25,26 @@ class TextToSpeechServiceTest extends TestCase
         parent::setUp();
         config(['services.google_ai.api_key' => 'testing_google_ai_key']);
         $this->service = new TextToSpeechService;
+
+        $fakeBase64 = base64_encode('RIFF_FAKE_AUDIO_DATA');
+        Http::fake([
+            'https://generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [
+                    [
+                        'content' => [
+                            'parts' => [
+                                [
+                                    'inlineData' => [
+                                        'mimeType' => 'audio/wav',
+                                        'data' => $fakeBase64,
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ], 200),
+        ]);
     }
 
     public function test_get_available_voices_returns_valid_voices(): void
@@ -183,5 +204,68 @@ class TextToSpeechServiceTest extends TestCase
         $this->assertStringContainsString('Interior, HABITACIÓN - DÍA', $expanded);
         $this->assertStringContainsString('Exterior, CALLE - NOCHE', $expanded);
         $this->assertStringContainsString('Interior y exterior, COCHE - TARDE', $expanded);
+    }
+
+    public function test_prewarm_manifest_synthesizes_and_caches_segments(): void
+    {
+        $id = uniqid();
+        $manifest = [
+            [
+                'block_id' => 'b1',
+                'scene_id' => 's1',
+                'type' => 'narrator',
+                'speaker' => 'NARRADOR',
+                'voice' => 'Puck',
+                'text' => "El sol se oculta en el horizonte lejano {$id}.",
+                'stream_url' => '/test/1',
+            ],
+            [
+                'block_id' => 'b2',
+                'scene_id' => 's1',
+                'type' => 'dialogue',
+                'speaker' => 'EDURNE',
+                'voice' => 'Aoede',
+                'text' => "Ya no queda tiempo para volver {$id}.",
+                'stream_url' => '/test/2',
+            ],
+        ];
+
+        $stats = $this->service->prewarmManifest($manifest);
+
+        $this->assertEquals(2, $stats['total']);
+        $this->assertEquals(2, $stats['synthesized']);
+        $this->assertEquals(0, $stats['cached']);
+        $this->assertEquals(0, $stats['failed']);
+
+        // Segunda ejecución sobre el mismo manifiesto: todos deben venir de caché
+        $statsSecond = $this->service->prewarmManifest($manifest);
+        $this->assertEquals(2, $statsSecond['cached']);
+        $this->assertEquals(0, $statsSecond['synthesized']);
+    }
+
+    public function test_prewarm_scope_tts_job_and_commands(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create(['project_id' => $project->id, 'scene_order' => 1]);
+        ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'stage' => 'screenplay',
+            'screenplay_content' => "INT. SALA - DÍA\n\nJUAN\nLlegamos a tiempo.",
+        ]);
+
+        // Job
+        PrewarmScopeTtsJob::dispatchSync($project, $scene->id);
+
+        // Command tts:prewarm
+        $this->artisan('tts:prewarm', [
+            'project' => $project->id,
+            '--sync' => true,
+        ])->assertExitCode(0);
+
+        // Command tts:prune-orphans
+        $this->artisan('tts:prune-orphans', [
+            '--dry-run' => true,
+        ])->assertExitCode(0);
     }
 }

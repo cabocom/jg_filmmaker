@@ -1,12 +1,18 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.44.0  
+**Versión del documento:** 3.45.0  
 **Fecha de consolidación:** 8 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** ISSUE-062 completado: Expansión fonética de abreviaturas de guion (INT. -> Interior, EXT. -> Exterior) en la síntesis neural de audio y restauración del reproductor secuencial estable en el editor. 235 tests automatizados pasando al 100% y Pint superado.
+**Estado:** ISSUE-063 completado: Pre-warming en background de locución de guiones (PrewarmScopeTtsJob, tts:prewarm), reproductor web con búfer continuo y purga programada de audios huérfanos (tts:prune-orphans). 237 tests automatizados pasando al 100% y Pint superado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **ISSUE-063 (GitLab #5): Pre-warming en Background, Búfer Continuo de Audio y Purga de Audios Huérfanos:**
+  - **Pre-warming en Background Inmediato (`PrewarmScopeTtsJob` & `tts:prewarm`):** Al solicitar la lectura del guion o de una escena, el reproductor inicia inmediatamente el segmento 0 mientras el servidor dispara un proceso asíncrono en segundo plano (`PrewarmScopeTtsJob`) protegido por lock distribuido. Este job sintetiza ordenadamente los segmentos pendientes respetando intervalos de cortesía (150 ms) para proteger la ventana de RPM de Google AI Studio y conmutando automáticamente ante cuotas diarias.
+  - **Reproductor Web con Búfer Continuo (Arquitectura tipo YouTube):** `script-editor.blade.php` descarga en segundo plano los siguientes 2-3 segmentos en memoria RAM (`Blob`) a medida que el pre-warming los deja listos en disco (`tts_cache`). Al finalizar un parlamento, el siguiente comienza a sonar en 0 ms sin renegociar conexiones de red ni sufrir pausas perceptibles.
+  - **Purga Automatizada y Manual de Audios Huérfanos (`tts:prune-orphans`):** Implementado el comando Artisan `php artisan tts:prune-orphans` con opciones `--days=7`, `--dry-run` y `--force`. Analiza todos los `ScriptBlock` de los proyectos en la base de datos, coteja los hashes activos contra el directorio `tts_cache` y elimina ficheros `.wav` huérfanos derivados de textos modificados o eliminados. Programado semanalmente en `routes/console.php`.
+  - **Documentación Técnica Integral:** Especificación viva creada en `docs/develop/20261108-1915-feature-tts-prewarming-orphan-pruning/analysis.md`.
 
 - **ISSUE-062: Expansión Fonética de Abreviaturas de Guion (INT./EXT.) y Estabilización Secuencial del Reproductor:**
   - **Expansión Fonética en Locución (`expandScreenplayAbbreviations`):** `TextToSpeechService` ahora expande automáticamente las abreviaturas técnicas de las cabeceras de escena cinematográficas (`INT.` -> `Interior, `, `EXT.` -> `Exterior, `, `INT./EXT.` / `I/E.` -> `Interior y exterior, `, `EST.` -> `Estudio, `) antes de enviar el texto al motor neural de Google AI. Esto garantiza una dicción orgánica y cinematográfica en español evitando deletreos o cortes antinaturales.

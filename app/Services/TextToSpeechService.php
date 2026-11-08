@@ -477,6 +477,85 @@ class TextToSpeechService
     }
 
     /**
+     * Calcula la ruta del archivo de caché para un texto, voz y velocidad específicos.
+     */
+    public function getCachedAudioPath(string $text, ?string $voice = null, float $speed = 1.0): string
+    {
+        $cleanText = $this->expandScreenplayAbbreviations(trim($text));
+        $activeVoice = $this->resolveVoice($voice);
+        $providerKey = $this->googleApiKey ? 'google_ai_'.$this->googleAiTtsModel : $this->model;
+        $hash = hash('sha256', $providerKey.'|'.$activeVoice.'|'.number_format($speed, 2, '.', '').'|'.$cleanText);
+
+        return $this->cacheDir.'/'.$hash.'.wav';
+    }
+
+    /**
+     * Determina si el audio para un texto dado ya se encuentra generado en disco.
+     */
+    public function isAudioCached(string $text, ?string $voice = null, float $speed = 1.0): bool
+    {
+        $path = $this->getCachedAudioPath($text, $voice, $speed);
+
+        return File::exists($path) && File::size($path) > 0;
+    }
+
+    /**
+     * Pre-calienta en segundo plano todos los segmentos de un manifiesto,
+     * sintetizando aquellos que aún no existan en caché con pausas de cortesía
+     * para no saturar las tasas de peticiones por minuto (RPM) de la API.
+     *
+     * @param  array<int, array{block_id: string, scene_id: string, type: string, speaker: string, voice: string, text: string, stream_url: string}>  $manifest
+     * @return array{total: int, cached: int, synthesized: int, failed: int}
+     */
+    public function prewarmManifest(array $manifest, float $speed = 1.0, ?callable $onProgress = null): array
+    {
+        $stats = [
+            'total' => count($manifest),
+            'cached' => 0,
+            'synthesized' => 0,
+            'failed' => 0,
+        ];
+
+        foreach ($manifest as $index => $item) {
+            $text = trim($item['text'] ?? '');
+            if ($text === '') {
+                continue;
+            }
+
+            $voice = $item['voice'] ?? null;
+            if ($this->isAudioCached($text, $voice, $speed)) {
+                $stats['cached']++;
+                if ($onProgress) {
+                    $onProgress($index, $item, 'cached');
+                }
+
+                continue;
+            }
+
+            try {
+                $this->synthesize($text, $voice, $speed);
+                $stats['synthesized']++;
+                if ($onProgress) {
+                    $onProgress($index, $item, 'synthesized');
+                }
+                // Pausa de cortesía para respetar la ventana de rate limits por minuto (RPM)
+                usleep(150000); // 150ms
+            } catch (\Throwable $e) {
+                $stats['failed']++;
+                Log::warning("Fallo al pre-calentar segmento TTS #{$index}: ".$e->getMessage(), [
+                    'speaker' => $item['speaker'] ?? null,
+                    'text' => mb_substr($text, 0, 50),
+                ]);
+                if ($onProgress) {
+                    $onProgress($index, $item, 'failed');
+                }
+            }
+        }
+
+        return $stats;
+    }
+
+    /**
      * Parsea texto en formato de guión literario (Fountain/Canónico) aislando
      * acotaciones, sluglines y diálogos directos por personaje.
      *

@@ -3,6 +3,7 @@
 use App\Models\Take;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\Storage;
 
 Artisan::command('inspire', function () {
@@ -40,3 +41,7 @@ Artisan::command('media:prune-orphans', function () {
 
     $this->info("Purga completada exitosamente. {$totalPruned} archivos huérfanos eliminados.");
 })->purpose('Reconcilia y elimina archivos de vídeo huérfanos que no pertenecen a ninguna toma activa');
+
+Schedule::command('tts:prune-orphans --days=7 --force')->weeklyOn(0, '03:00');
+
+Schedule::command('tts:prune-orphans --days=7 --force')->weeklyOn(0, '03:00');
