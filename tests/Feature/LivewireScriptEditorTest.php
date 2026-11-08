@@ -203,6 +203,64 @@ class LivewireScriptEditorTest extends TestCase
         $this->assertDatabaseMissing('characters', ['id' => $character->id]);
     }
 
+    public function test_context_bible_drawer_permits_deletion_of_action_phrases_falsely_named_as_characters(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create(['project_id' => $project->id, 'scene_order' => 4]);
+        ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'block_order' => 1,
+            'raw_text' => 'Edurne, asustada, mira a su alrededor y no se ve ninguna zona iluminada.',
+        ]);
+
+        $charMira = Character::factory()->create([
+            'project_id' => $project->id,
+            'name' => 'Mira A Su Alrededor',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(ContextBibleDrawer::class, ['project' => $project])
+            ->call('open')
+            ->call('requestDeleteCharacter', $charMira->id)
+            ->assertSet('showDeleteModal', true)
+            ->assertSet('deletingUsages', [])
+            ->assertSee('no está siendo utilizado')
+            ->call('confirmDelete')
+            ->assertSet('showDeleteModal', false);
+
+        $this->assertDatabaseMissing('characters', ['id' => $charMira->id]);
+    }
+
+    public function test_context_bible_drawer_force_delete_removes_character_even_if_active_usages_exist(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create(['project_id' => $project->id, 'scene_order' => 1]);
+        ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'block_order' => 1,
+            'raw_text' => "Marcos:\nHola a todos.",
+        ]);
+
+        $character = Character::factory()->create([
+            'project_id' => $project->id,
+            'name' => 'Marcos',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(ContextBibleDrawer::class, ['project' => $project])
+            ->call('open')
+            ->call('requestDeleteCharacter', $character->id)
+            ->assertSet('showDeleteModal', true)
+            ->assertCount('deletingUsages', 1)
+            ->assertSee('Eliminar de todos modos')
+            ->call('forceDelete')
+            ->assertSet('showDeleteModal', false);
+
+        $this->assertDatabaseMissing('characters', ['id' => $character->id]);
+    }
+
     public function test_context_bible_drawer_blocks_location_deletion_when_assigned_or_mentioned(): void
     {
         $user = User::factory()->create();

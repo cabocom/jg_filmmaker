@@ -486,11 +486,18 @@
                         </p>
                     </div>
 
-                    <div class="pt-2 flex justify-end">
+                    <div class="pt-2 flex items-center justify-between gap-2.5">
                         <button wire:click="cancelDelete"
                                 type="button"
-                                class="w-full py-2.5 px-4 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:hover:bg-slate-200 dark:text-slate-900 transition shadow-sm cursor-pointer">
-                            Entendido / Cerrar
+                                class="py-2.5 px-4 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 transition cursor-pointer">
+                            Cancelar / Revisar
+                        </button>
+                        <button wire:click="forceDelete"
+                                type="button"
+                                title="Eliminar este elemento de la Biblia de todos modos ignorando las menciones en texto"
+                                class="py-2.5 px-4 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white transition shadow-sm cursor-pointer flex items-center gap-1.5">
+                            <span>🗑️</span>
+                            <span>Eliminar de todos modos</span>
                         </button>
                     </div>
                 @else

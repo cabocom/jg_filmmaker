@@ -1,12 +1,18 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.29.0  
+**Versión del documento:** 3.30.0  
 **Fecha de consolidación:** 8 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
-**Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Speaches-AI (Piper TTS), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard` en `gemini-2.5-flash-image`), PHPUnit 12, Laravel Pint  
-**Estado:** Generación de Storyboards 100% desacoplada en `jg_plugin_filmmaker` (`generate_storyboard`). Soporte para etiquetado visual con arroba (`@personaje`, `@localizacion`, `@Atrezzo1..3`) en prompts de viñeta estilo Flow/Midjourney con botonera interactiva de inserción en cursor. Almacenamiento organizado por carpetas de escena (`projects/{id}/storyboards/scene_{id}/shot_{id}_{time}.ext`). 226 tests automatizados pasando al 100% y Pint superado.
+**Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Speaches-AI (Piper TTS), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), PHPUnit 12, Laravel Pint  
+**Estado:** ISSUE-049 (GitLab #3) completado: Sistema Híbrido de Inteligencia de Personajes (Detección Semántica con IA + Grounding Determinista anti-alucinaciones y Auditoría de Uso con Forzado HITL "Eliminar de todos modos"). 228 tests automatizados pasando al 100% y Pint superado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **ISSUE-049 (GitLab #3): Sistema Híbrido de Inteligencia de Personajes (IA Semántica + Grounding Determinista + Forzado HITL):**
+  - **Inferencia Híbrida en `ScriptPipelineService`:** Integración con la tool canónica `extract_characters` de `jg_plugin_filmmaker`. Capacidad para reconocer personajes dramáticos reales (tanto personajes con diálogo como personajes mudos/silentes que intervienen en la acción física), complementada con grounding textual estricto en el texto original y catálogo de stopwords técnicas de cine (`INT`, `EXT`, `CORTE`, `SONIDO EN OFF`, `MIRA A SU ALREDEDOR`).
+  - **Auditoría Semántica de Eliminación en `ContextBibleDrawer`:** Conexión con `audit_character_usage` para discernir si la aparición de un nombre corresponde a un personaje dramático real en uso o a una coincidencia casual en una acotación en prosa. Elimina falsos positivos que bloqueaban el borrado de entidades como *"Mira A Su Alrededor"* o *"Sonido En Off"*.
+  - **Soberanía y Forzado del Director (HITL):** En el modal de advertencia por uso en el guion se incorpora el botón **"Eliminar de todos modos"** (`forceDelete`), permitiendo al usuario purgar cualquier elemento de la Biblia de forma inmediata y definitiva si así lo decide, sin callejones sin salida.
+  - **Suite de Pruebas Ampliada a 228 Tests al 100%:** Nuevas pruebas en `LivewireScriptEditorTest` validando el descarte automático de falsos positivos en la auditoría y la funcionalidad de borrado forzado soberano.
 
 - **Desacoplamiento Total de Generación de Storyboards hacia `jg_plugin_filmmaker`:**
   - `StoryboardService` en Laravel cesa cualquier conexión HTTP directa o acoplamiento con endpoints de proveedores de IA; delega íntegramente en `AgentClientService::callTool('generate_storyboard', $payload)`.

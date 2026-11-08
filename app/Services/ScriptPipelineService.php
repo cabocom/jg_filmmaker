@@ -489,48 +489,33 @@ class ScriptPipelineService
         }
         $result = $existingCharacters;
 
-        $candidates = [];
-
-        // 1. Roles dramáticos y oficios con artículo (ej: "el camarero", "la camarera", "el policía", "el médico", "el guardia")
-        $rolesRegex = '/\b(?:el|la|un|una)\s+(camarero|camarera|barman|polic[ií]a|agente|detective|inspector|m[eé]dico|doctor|doctora|enfermero|enfermera|cirujano|cirujana|guardia|vigilante|seguridad|portero|conserje|conductor|taxista|ch[oó]fer|cliente|cajero|cajera|dependiente|dependienta|juez|fiscal|abogado|abogada|sacerdote|cura|monja|mendigo|sicario|asesino|ladr[oó]n)\b/iu';
-        if (preg_match_all($rolesRegex, $text, $mRoles)) {
-            $candidates = array_merge($candidates, $mRoles[1]);
+        // Inferencia cognitiva híbrida conectando con la tool canónica extract_characters en jg_plugin_filmmaker
+        $extracted = [];
+        try {
+            $extracted = $this->agentClient->extractCharacters($text, $existingCharacters);
+        } catch (\Throwable) {
+            $extracted = [];
         }
 
-        // Roles aislados que ejecutan acciones explícitas (ej: "camarero le increpa", "camarero intenta salir")
-        $standaloneRolesRegex = '/\b(camarero|camarera|barman|polic[ií]a|detective|m[eé]dico|doctor|doctora|enfermero|enfermera|guardia|portero|taxista|ch[oó]fer)\b/iu';
-        if (preg_match_all($standaloneRolesRegex, $text, $mStandalone)) {
-            $candidates = array_merge($candidates, $mStandalone[1]);
+        // Si la llamada al agente no devolvió candidatos o falló, recurrir al motor determinista de respaldo
+        if (empty($extracted)) {
+            $extracted = $this->extractDeterministicCandidates($text, $existingCharacters);
         }
 
-        // 2. Nombres entre comillas con inicial mayúscula (ej: "Estrella Casilda")
-        if (preg_match_all('/["«]([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)*)["»]/u', $text, $mQuoted)) {
-            $candidates = array_merge($candidates, $mQuoted[1]);
-        }
-
-        // 3. Encabezados de diálogo estilo Fountain (ej: CAMARERO, ESTRELLA CASILDA)
-        if (preg_match_all('/^[ \t]*([A-ZÁÉÍÓÚÑ\s]{2,25})(?:\s*\([^)]*\))?[ \t]*$/m', $text, $mFountain)) {
-            $candidates = array_merge($candidates, $mFountain[1]);
-        }
-
-        $reserved = [
-            'INT', 'EXT', 'INT/EXT', 'CORTE', 'FADE', 'ESCENA', 'PLANO', 'DÍA', 'DIA', 'NOCHE', 'TARDE', 'MAÑANA',
-            'CONTINUA', 'CONTINUO', 'TRANSICIÓN', 'TRANSICION', 'VOZ', 'OFF', 'FLASHBACK', 'FONDO', 'PRIMER',
-            'EL', 'LA', 'LOS', 'LAS', 'UN', 'UNA', 'UNOS', 'UNAS', 'DE', 'DEL', 'AL', 'EN', 'POR', 'PARA',
-            'CON', 'SIN', 'SOBRE', 'TRAS', 'DURANTE', 'MIENTRAS', 'CUANDO', 'DONDE', 'COMO', 'PERO', 'AUNQUE',
-            'LUEGO', 'DESPUES', 'DESPUÉS', 'ENTONCES', 'FINAL', 'INICIO', 'TODO', 'TODOS', 'NADA', 'NADIE',
-        ];
-
-        foreach ($candidates as $name) {
-            $clean = mb_convert_case(trim($name), MB_CASE_TITLE, 'UTF-8');
-            $upper = mb_strtoupper($clean, 'UTF-8');
+        foreach ($extracted as $char) {
+            $name = trim((string) ($char['name'] ?? ''));
+            $clean = mb_convert_case($name, MB_CASE_TITLE, 'UTF-8');
             $lower = mb_strtolower($clean, 'UTF-8');
 
-            if (mb_strlen($clean) >= 3 && ! in_array($upper, $reserved, true) && ! in_array($lower, $existingLower, true)) {
+            if (mb_strlen($clean) >= 3 && ! in_array($lower, $existingLower, true)) {
+                $bio = (string) ($char['bio'] ?? 'Personaje dramático detectado automáticamente en la acción narrativa.');
+                $role = (string) ($char['role'] ?? 'Personaje dramático detectado');
+
                 $result[] = [
                     'name' => $clean,
-                    'role' => 'Personaje dramático detectado',
-                    'personality_notes' => 'Detectado automáticamente en la acción narrativa por la IA.',
+                    'role' => $role,
+                    'personality_notes' => $bio,
+                    'is_speaking' => $char['is_speaking'] ?? true,
                 ];
                 $existingLower[] = $lower;
 
@@ -538,7 +523,7 @@ class ScriptPipelineService
                 if ($project && $project->exists) {
                     $project->characters()->create([
                         'name' => $clean,
-                        'bio' => 'Personaje dramático detectado automáticamente en la acción narrativa.',
+                        'bio' => $bio,
                         'psychology' => 'Interviene activamente en el desarrollo de la escena.',
                     ]);
                 }
@@ -550,6 +535,58 @@ class ScriptPipelineService
         }
 
         return $result;
+    }
+
+    /**
+     * Motor determinista de respaldo para extracción de personajes cuando el agente no está disponible.
+     *
+     * @param  array<int, array<string, mixed>>  $existingCharacters
+     * @return array<int, array<string, mixed>>
+     */
+    public function extractDeterministicCandidates(string $text, array $existingCharacters = []): array
+    {
+        $existingLower = array_map(fn ($c) => mb_strtolower((string) ($c['name'] ?? ''), 'UTF-8'), $existingCharacters);
+        $candidates = [];
+
+        // 1. Roles con artículo
+        $rolesRegex = '/\b(?:el|la|un|una)\s+(camarero|camarera|barman|polic[ií]a|agente|detective|inspector|m[eé]dico|doctor|doctora|enfermero|enfermera|cirujano|cirujana|guardia|vigilante|seguridad|portero|conserje|conductor|taxista|ch[oó]fer|cliente|cajero|cajera|dependiente|dependienta|juez|fiscal|abogado|abogada|sacerdote|cura|monja|transe[uú]nte|viandante|chaval)\b/iu';
+        if (preg_match_all($rolesRegex, $text, $mRoles)) {
+            $candidates = array_merge($candidates, $mRoles[1]);
+        }
+
+        // 2. Encabezados de diálogo estilo Fountain
+        if (preg_match_all('/^[ \t]*([A-ZÁÉÍÓÚÑ\s]{2,25})(?:\s*\([^)]*\))?[ \t]*$/m', $text, $mFountain)) {
+            $candidates = array_merge($candidates, $mFountain[1]);
+        }
+
+        $reserved = [
+            'INT', 'EXT', 'INT/EXT', 'CORTE', 'FADE', 'ESCENA', 'PLANO', 'DÍA', 'DIA', 'NOCHE', 'TARDE', 'MAÑANA',
+            'CONTINUA', 'CONTINUO', 'TRANSICIÓN', 'TRANSICION', 'VOZ', 'OFF', 'FLASHBACK', 'FONDO', 'PRIMER',
+            'EL', 'LA', 'LOS', 'LAS', 'UN', 'UNA', 'UNOS', 'UNAS', 'DE', 'DEL', 'AL', 'EN', 'POR', 'PARA',
+            'CON', 'SIN', 'SOBRE', 'TRAS', 'DURANTE', 'MIENTRAS', 'CUANDO', 'DONDE', 'COMO', 'PERO', 'AUNQUE',
+            'LUEGO', 'DESPUES', 'DESPUÉS', 'ENTONCES', 'FINAL', 'INICIO', 'TODO', 'TODOS', 'NADA', 'NADIE',
+            'MIRA A SU ALREDEDOR', 'SONIDO EN OFF',
+        ];
+
+        $results = [];
+        $seen = [];
+        foreach ($candidates as $name) {
+            $clean = mb_convert_case(trim($name), MB_CASE_TITLE, 'UTF-8');
+            $upper = mb_strtoupper($clean, 'UTF-8');
+            $lower = mb_strtolower($clean, 'UTF-8');
+
+            if (mb_strlen($clean) >= 3 && ! in_array($upper, $reserved, true) && ! in_array($lower, $seen, true) && ! in_array($lower, $existingLower, true)) {
+                $seen[] = $lower;
+                $results[] = [
+                    'name' => $clean,
+                    'role' => 'Personaje dramático detectado',
+                    'bio' => 'Interviene en la escena.',
+                    'is_speaking' => true,
+                ];
+            }
+        }
+
+        return $results;
     }
 
     /**

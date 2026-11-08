@@ -5,6 +5,7 @@ namespace App\Livewire\Studio;
 use App\Models\Character;
 use App\Models\Location;
 use App\Models\Project;
+use App\Services\JgAgente\AgentClientService;
 use App\Services\TextToSpeechService;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
@@ -337,7 +338,11 @@ class ContextBibleDrawer extends Component
                 }
 
                 if ($found) {
-                    $usages[] = "ESC. {$scene->scene_order} · BLOQUE {$block->block_order}";
+                    $agentClient = app(AgentClientService::class);
+                    $audit = $agentClient->auditCharacterUsage($charName, $texts);
+                    if ($audit['in_use']) {
+                        $usages[] = "ESC. {$scene->scene_order} · BLOQUE {$block->block_order}";
+                    }
                 }
             }
         }
@@ -459,6 +464,27 @@ class ContextBibleDrawer extends Component
             $name = $loc->name;
             $loc->delete();
             session()->flash('bible_success', "Localización \"{$name}\" eliminada correctamente de la Biblia.");
+        }
+
+        $this->cancelDelete();
+        $this->dispatch('bible-updated');
+    }
+
+    /**
+     * Forzado soberano del director (HITL): elimina el elemento de la Biblia de todos modos.
+     */
+    public function forceDelete(): void
+    {
+        if ($this->deletingType === 'character' && $this->deletingId) {
+            $char = $this->project->characters()->findOrFail($this->deletingId);
+            $name = $char->name;
+            $char->delete();
+            session()->flash('bible_success', "Personaje \"{$name}\" eliminado de la Biblia.");
+        } elseif ($this->deletingType === 'location' && $this->deletingId) {
+            $loc = $this->project->locations()->findOrFail($this->deletingId);
+            $name = $loc->name;
+            $loc->delete();
+            session()->flash('bible_success', "Localización \"{$name}\" eliminada de la Biblia.");
         }
 
         $this->cancelDelete();
