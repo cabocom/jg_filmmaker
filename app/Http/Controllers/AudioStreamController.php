@@ -71,14 +71,10 @@ class AudioStreamController extends Controller
     {
         Gate::authorize('view', $project);
 
-        $voice = (string) $request->query('voice', 'sharvard#M');
+        $defaultVoice = $tts->getDefaultVoice();
+        $voice = (string) $request->query('voice', $defaultVoice);
         $voiceInfo = collect($tts->getAvailableVoices())->firstWhere('id', $voice);
-        $voiceName = $voiceInfo['name'] ?? $voice;
-
-        $shortName = $voiceName;
-        if (preg_match('/\(([^)]+)\)/', $voiceName, $matches)) {
-            $shortName = $matches[1];
-        }
+        $shortName = $voiceInfo['id'] ?? $voice;
 
         $text = (string) $request->query('text', "Hola, soy la voz {$shortName}.");
 

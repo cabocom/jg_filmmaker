@@ -1,12 +1,25 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.34.0  
+**Versión del documento:** 3.35.0  
 **Fecha de consolidación:** 8 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
-**Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Speaches-AI (Piper TTS), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC/HEIF a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** ISSUE-052 completado: Conversión automática y transparente en navegador de imágenes Apple HEIC/HEIF a JPEG para compatibilidad universal con Chrome, PDF y modelos multimodales Gemini. 233 tests automatizados pasando al 100% y Pint superado.
+**Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
+**Estado:** ISSUE-053 completado: Transición del motor de lectura dramática TTS a las voces neurales de estudio de Google AI (`gemini-3.8-flash-tts`), proporcionando 7 timbres vocales realistas, diferenciados y cinematográficos en castellano. 233 tests automatizados pasando al 100% y Pint superado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **ISSUE-053: Voces Neurales Cinematográficas con Google AI Studio (`gemini-3.8-flash-tts`):**
+  - **Reemplazo del Motor TTS:** Se sustituye la síntesis robótica local de Piper por el modelo oficial de síntesis de voz neural de Google AI Studio (`gemini-3.8-flash-tts`) aprovechando la API key existente en el entorno.
+  - **Catálogo de 7 Voces de Estudio Diferenciadas:** Cada personaje dispone de un registro vocal auténtico con entonación, género y matiz dramático real:
+    - *Puck:* Masculino cálido, narrativo y cinematográfico (voz por defecto del sistema).
+    - *Charon:* Masculino profundo, sobrio y maduro (antagonistas, mentores).
+    - *Fenrir:* Masculino enérgico, potente e intenso.
+    - *Zephyr:* Masculino joven, dinámico y contemporáneo.
+    - *Aoede:* Femenino expresivo, dramático y teatral.
+    - *Kore:* Femenino sereno, claro y empático.
+    - *Leda:* Femenino sofisticado, pausado y elegante.
+  - **Mapeo Retrocompatible y Asignación Inteligente:** Se mapean automáticamente las asignaciones previas de Speaches a las nuevas voces de Google AI y se balancean los diálogos de personajes no asignados según su género.
+  - **Suite de Pruebas Verificada:** Pruebas adaptadas en `TextToSpeechServiceTest` garantizando la cobertura de endpoints y caché de archivos WAV de Google AI.
 
 - **ISSUE-052: Conversión Automática en Navegador de Imágenes HEIC (Apple) a JPEG:**
   - **Soporte de Formatos Apple (`.heic`, `.heif`):** Integración en el layout global [`layouts.app`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_filmmaker/resources/views/layouts/app.blade.php) del conversor transparente `heic2any` con fallback automático a CDN.

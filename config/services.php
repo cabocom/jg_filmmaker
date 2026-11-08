@@ -71,6 +71,7 @@ return [
     'google_ai' => [
         'api_key' => env('GOOGLE_AI_API_KEY', env('GEMINI_API_KEY', env('GLOBAL_GOOGLE_API_KEY'))),
         'model' => env('GOOGLE_AI_IMAGEN_MODEL', 'gemini-2.5-flash-image'),
+        'tts_model' => env('GOOGLE_AI_TTS_MODEL', 'gemini-3.8-flash-tts'),
         'base_url' => env('GOOGLE_AI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta'),
         'timeout' => (int) env('GOOGLE_AI_TIMEOUT', 60),
     ],

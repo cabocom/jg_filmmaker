@@ -37,7 +37,7 @@ class ContextBibleDrawer extends Component
 
     public string $newCharCostume = '';
 
-    public string $newCharVoiceId = 'sharvard#M';
+    public string $newCharVoiceId = 'Puck';
 
     public $newCharReferenceImage = null;
 
@@ -63,7 +63,7 @@ class ContextBibleDrawer extends Component
 
     public string $editingCharBio = '';
 
-    public string $editingCharVoiceId = 'sharvard#M';
+    public string $editingCharVoiceId = 'Puck';
 
     public $editingCharReferenceImage = null;
 
@@ -97,7 +97,10 @@ class ContextBibleDrawer extends Component
         Gate::authorize('view', $project);
 
         $this->project = $project;
-        $this->availableVoices = app(TextToSpeechService::class)->getAvailableVoices();
+        $tts = app(TextToSpeechService::class);
+        $this->availableVoices = $tts->getAvailableVoices();
+        $this->newCharVoiceId = $tts->getDefaultVoice();
+        $this->editingCharVoiceId = $tts->getDefaultVoice();
     }
 
     #[On('toggle-bible-drawer')]
@@ -133,7 +136,8 @@ class ContextBibleDrawer extends Component
         $this->editingCharBio = $char->bio ?? '';
         $this->editingCharReferenceImage = null;
         $custom = is_array($char->custom_attributes) ? $char->custom_attributes : [];
-        $this->editingCharVoiceId = $custom['voice_id'] ?? 'sharvard#M';
+        $tts = app(TextToSpeechService::class);
+        $this->editingCharVoiceId = $tts->resolveVoice($custom['voice_id'] ?? null);
     }
 
     public function saveCharacter(): void

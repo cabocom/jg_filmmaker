@@ -33,31 +33,49 @@ class TextToSpeechServiceTest extends TestCase
         $this->assertNotEmpty($voices);
 
         $voiceIds = array_column($voices, 'id');
-        $this->assertContains('sharvard#M', $voiceIds);
-        $this->assertContains('sharvard#F', $voiceIds);
+        $this->assertTrue(in_array('Puck', $voiceIds, true) || in_array('sharvard#M', $voiceIds, true));
+        $this->assertTrue(in_array('Aoede', $voiceIds, true) || in_array('sharvard#F', $voiceIds, true));
     }
 
     public function test_synthesize_creates_and_caches_audio_file(): void
     {
         Http::macro('tts_testing_real', fn () => true);
 
+        $fakeBase64 = base64_encode('RIFF_FAKE_AUDIO_DATA');
         Http::fake([
+            'https://generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [
+                    [
+                        'content' => [
+                            'parts' => [
+                                [
+                                    'inlineData' => [
+                                        'mimeType' => 'audio/wav',
+                                        'data' => $fakeBase64,
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ], 200),
             'http://speaches:8000/v1/audio/speech*' => Http::response('RIFF_FAKE_AUDIO_DATA', 200, [
                 'Content-Type' => 'audio/wav',
             ]),
         ]);
 
-        $audioPath = $this->service->synthesize('Hola mundo desde test', 'sharvard#M', 1.0);
+        $audioPath = $this->service->synthesize('Hola mundo desde test', 'Puck', 1.0);
 
         $this->assertFileExists($audioPath);
         $this->assertEquals('RIFF_FAKE_AUDIO_DATA', File::get($audioPath));
 
         // Segunda llamada debe dar HIT de caché sin llamar de nuevo a HTTP
         Http::fake([
+            'https://generativelanguage.googleapis.com/*' => Http::response('SHOULD_NOT_BE_CALLED', 500),
             'http://speaches:8000/v1/audio/speech*' => Http::response('SHOULD_NOT_BE_CALLED', 500),
         ]);
 
-        $cachedPath = $this->service->synthesize('Hola mundo desde test', 'sharvard#M', 1.0);
+        $cachedPath = $this->service->synthesize('Hola mundo desde test', 'Puck', 1.0);
         $this->assertEquals($audioPath, $cachedPath);
         $this->assertEquals('RIFF_FAKE_AUDIO_DATA', File::get($cachedPath));
     }
@@ -71,7 +89,7 @@ class TextToSpeechServiceTest extends TestCase
         $character = Character::factory()->create([
             'project_id' => $project->id,
             'name' => 'CAMARERO',
-            'custom_attributes' => ['voice_id' => 'sharvard#F'],
+            'custom_attributes' => ['voice_id' => 'Aoede'],
         ]);
 
         $screenplayContent = "INT. BAR CENTRAL - NOCHE 1\n\nEl local está casi vacío bajo luces tenues.\n\nCAMARERO\n(con tono cansado)\n¿Qué va a ser, amigo?\n\nLUCÍA\nUn café solo, por favor.";
@@ -91,16 +109,16 @@ class TextToSpeechServiceTest extends TestCase
         $this->assertEquals('NARRADOR', $segments[0]['speaker']);
         $this->assertStringContainsString('INT. BAR CENTRAL - NOCHE 1', $segments[0]['text']);
 
-        // Segmento 2: Diálogo de CAMARERO (con su voz asignada sharvard#F y sin la acotación entre paréntesis)
+        // Segmento 2: Diálogo de CAMARERO (con su voz asignada Aoede y sin la acotación entre paréntesis)
         $this->assertEquals('dialogue', $segments[1]['type']);
         $this->assertEquals('CAMARERO', $segments[1]['speaker']);
-        $this->assertEquals('sharvard#F', $segments[1]['voice']);
+        $this->assertEquals('Aoede', $segments[1]['voice']);
         $this->assertEquals('¿Qué va a ser, amigo?', $segments[1]['text']);
 
         // Segmento 3: Diálogo de LUCÍA (voz femenina deducida por nombre)
         $this->assertEquals('dialogue', $segments[2]['type']);
         $this->assertEquals('LUCÍA', $segments[2]['speaker']);
-        $this->assertEquals('sharvard#F', $segments[2]['voice']);
+        $this->assertEquals('Aoede', $segments[2]['voice']);
         $this->assertEquals('Un café solo, por favor.', $segments[2]['text']);
     }
 

@@ -24,11 +24,20 @@ class TextToSpeechService
 
     protected string $cacheDir;
 
+    protected ?string $googleApiKey;
+
+    protected string $googleAiBaseUrl;
+
+    protected string $googleAiTtsModel;
+
     public function __construct()
     {
         $this->speachesUrl = rtrim((string) config('services.speaches.url', 'http://speaches:8000'), '/');
         $this->model = (string) config('services.speaches.model', 'speaches-ai/piper-es_ES-sharvard-medium');
-        $this->defaultVoice = (string) config('services.speaches.default_voice', 'sharvard#M');
+        $this->googleApiKey = config('services.google_ai.api_key') ?: null;
+        $this->googleAiBaseUrl = rtrim((string) config('services.google_ai.base_url', 'https://generativelanguage.googleapis.com/v1beta'), '/');
+        $this->googleAiTtsModel = (string) config('services.google_ai.tts_model', 'gemini-3.8-flash-tts');
+        $this->defaultVoice = $this->googleApiKey ? 'Puck' : (string) config('services.speaches.default_voice', 'sharvard#M');
         $this->timeout = (int) config('services.speaches.timeout', 30);
         $this->cacheDir = storage_path('app/private/tts_cache');
 
@@ -37,13 +46,66 @@ class TextToSpeechService
         }
     }
 
+    public function getDefaultVoice(): string
+    {
+        return $this->defaultVoice;
+    }
+
     /**
-     * Voces canónicas disponibles en castellano con el motor Speaches-AI (Piper TTS).
+     * Voces canónicas disponibles para la lectura dramática.
+     * Si está configurado Google AI, se proporcionan las voces neurales de estudio de Gemini.
      *
      * @return array<int, array{id: string, name: string, gender: string, lang: string}>
      */
     public function getAvailableVoices(): array
     {
+        if ($this->googleApiKey) {
+            return [
+                [
+                    'id' => 'Puck',
+                    'name' => 'Puck (Masculino - Cálido y Narrativo)',
+                    'gender' => 'male',
+                    'lang' => 'es_ES',
+                ],
+                [
+                    'id' => 'Charon',
+                    'name' => 'Charon (Masculino - Profundo y Maduro)',
+                    'gender' => 'male',
+                    'lang' => 'es_ES',
+                ],
+                [
+                    'id' => 'Fenrir',
+                    'name' => 'Fenrir (Masculino - Enérgico e Intenso)',
+                    'gender' => 'male',
+                    'lang' => 'es_ES',
+                ],
+                [
+                    'id' => 'Zephyr',
+                    'name' => 'Zephyr (Masculino - Joven y Dinámico)',
+                    'gender' => 'male',
+                    'lang' => 'es_ES',
+                ],
+                [
+                    'id' => 'Aoede',
+                    'name' => 'Aoede (Femenino - Expresivo y Teatral)',
+                    'gender' => 'female',
+                    'lang' => 'es_ES',
+                ],
+                [
+                    'id' => 'Kore',
+                    'name' => 'Kore (Femenino - Sereno y Claro)',
+                    'gender' => 'female',
+                    'lang' => 'es_ES',
+                ],
+                [
+                    'id' => 'Leda',
+                    'name' => 'Leda (Femenino - Elegante y Cálido)',
+                    'gender' => 'female',
+                    'lang' => 'es_ES',
+                ],
+            ];
+        }
+
         return [
             [
                 'id' => 'sharvard#M',
@@ -85,6 +147,31 @@ class TextToSpeechService
     }
 
     /**
+     * Resuelve y normaliza el identificador de voz, mapeando automáticamente
+     * voces legadas de Speaches a las voces de estudio de Google AI si procede.
+     */
+    public function resolveVoice(?string $voice = null): string
+    {
+        $v = $voice ?: $this->defaultVoice;
+
+        if ($this->googleApiKey) {
+            $legacyMap = [
+                'sharvard#M' => 'Puck',
+                'sharvard#F' => 'Aoede',
+                'davefx' => 'Charon',
+                'carlfm' => 'Zephyr',
+                'mls_9972' => 'Kore',
+                'mls_10246' => 'Fenrir',
+            ];
+            $valid = ['Puck', 'Charon', 'Fenrir', 'Zephyr', 'Aoede', 'Kore', 'Leda'];
+
+            return $legacyMap[$v] ?? (in_array($v, $valid, true) ? $v : 'Puck');
+        }
+
+        return $v;
+    }
+
+    /**
      * Resuelve la ruta del archivo de audio sintetizado. Si ya existe en caché,
      * se devuelve de inmediato sin realizar peticiones de red.
      */
@@ -95,8 +182,9 @@ class TextToSpeechService
             throw new RuntimeException('El texto a sintetizar no puede estar vacío.');
         }
 
-        $activeVoice = $voice ?: $this->defaultVoice;
-        $hash = hash('sha256', $this->model.'|'.$activeVoice.'|'.number_format($speed, 2, '.', '').'|'.$cleanText);
+        $activeVoice = $this->resolveVoice($voice);
+        $providerKey = $this->googleApiKey ? 'google_ai_'.$this->googleAiTtsModel : $this->model;
+        $hash = hash('sha256', $providerKey.'|'.$activeVoice.'|'.number_format($speed, 2, '.', '').'|'.$cleanText);
         $cachedFilePath = $this->cacheDir.'/'.$hash.'.wav';
 
         // Caché hit
@@ -112,6 +200,85 @@ class TextToSpeechService
             return $cachedFilePath;
         }
 
+        if ($this->googleApiKey) {
+            return $this->synthesizeWithGoogleAi($cleanText, $activeVoice, $cachedFilePath);
+        }
+
+        return $this->synthesizeWithSpeaches($cleanText, $activeVoice, $speed, $cachedFilePath);
+    }
+
+    /**
+     * Síntesis de voz neural con Google AI Studio (Gemini TTS).
+     */
+    protected function synthesizeWithGoogleAi(string $cleanText, string $voice, string $cachedFilePath): string
+    {
+        try {
+            $url = "{$this->googleAiBaseUrl}/models/{$this->googleAiTtsModel}:generateContent?key={$this->googleApiKey}";
+
+            $response = Http::timeout($this->timeout)
+                ->withHeaders(['Content-Type' => 'application/json'])
+                ->post($url, [
+                    'contents' => [
+                        [
+                            'parts' => [
+                                ['text' => $cleanText],
+                            ],
+                        ],
+                    ],
+                    'generationConfig' => [
+                        'responseModalities' => ['AUDIO'],
+                        'speechConfig' => [
+                            'voiceConfig' => [
+                                'prebuiltVoiceConfig' => [
+                                    'voiceName' => $voice,
+                                ],
+                            ],
+                        ],
+                    ],
+                ]);
+
+            if (! $response->successful()) {
+                Log::error('Fallo en síntesis TTS con Google AI', [
+                    'status' => $response->status(),
+                    'error' => $response->body(),
+                    'voice' => $voice,
+                ]);
+
+                throw new RuntimeException('Error al contactar con Google AI TTS: '.$response->status());
+            }
+
+            $parts = $response->json('candidates.0.content.parts') ?? [];
+            $base64Data = null;
+            foreach ($parts as $part) {
+                if (! empty($part['inlineData']['data'])) {
+                    $base64Data = $part['inlineData']['data'];
+                    break;
+                }
+            }
+
+            if (! $base64Data) {
+                throw new RuntimeException('Google AI TTS no devolvió datos de audio válidos.');
+            }
+
+            $wavBytes = base64_decode($base64Data);
+            File::put($cachedFilePath, $wavBytes);
+
+            return $cachedFilePath;
+        } catch (\Throwable $e) {
+            Log::error('Excepción al sintetizar voz vía Google AI', [
+                'message' => $e->getMessage(),
+                'voice' => $voice,
+            ]);
+
+            throw new RuntimeException('No se pudo generar la locución con Google AI: '.$e->getMessage(), 0, $e);
+        }
+    }
+
+    /**
+     * Síntesis de voz con Speaches-AI (Piper local).
+     */
+    protected function synthesizeWithSpeaches(string $cleanText, string $activeVoice, float $speed, string $cachedFilePath): string
+    {
         try {
             $response = Http::timeout($this->timeout)
                 ->withHeaders([
@@ -390,8 +557,8 @@ class TextToSpeechService
     protected function buildCharacterVoiceMap(Collection|array $characters): array
     {
         $map = [];
-        $femaleList = ['sharvard#F', 'mls_9972'];
-        $maleList = ['sharvard#M', 'davefx', 'carlfm', 'mls_10246'];
+        $femaleList = $this->googleApiKey ? ['Aoede', 'Kore', 'Leda'] : ['sharvard#F', 'mls_9972'];
+        $maleList = $this->googleApiKey ? ['Puck', 'Charon', 'Fenrir', 'Zephyr'] : ['sharvard#M', 'davefx', 'carlfm', 'mls_10246'];
         $femaleIdx = 0;
         $maleIdx = 0;
 
@@ -401,7 +568,7 @@ class TextToSpeechService
             $assignedVoice = $customAttrs['voice_id'] ?? null;
 
             if ($assignedVoice) {
-                $map[$nameKey] = (string) $assignedVoice;
+                $map[$nameKey] = $this->resolveVoice((string) $assignedVoice);
 
                 continue;
             }
@@ -426,11 +593,13 @@ class TextToSpeechService
     protected function resolveFallbackVoice(string $speaker): string
     {
         $clean = strtoupper(trim($speaker));
-        if (str_contains($clean, 'MUJER') || str_contains($clean, 'CHICA') || str_contains($clean, 'MADRE') || str_contains($clean, 'LUCÍA') || str_contains($clean, 'ANA')) {
-            return 'sharvard#F';
+        $isFemale = str_contains($clean, 'MUJER') || str_contains($clean, 'CHICA') || str_contains($clean, 'MADRE') || str_contains($clean, 'LUCÍA') || str_contains($clean, 'ANA');
+
+        if ($this->googleApiKey) {
+            return $isFemale ? 'Aoede' : 'Puck';
         }
 
-        return 'sharvard#M';
+        return $isFemale ? 'sharvard#F' : 'sharvard#M';
     }
 
     /**
