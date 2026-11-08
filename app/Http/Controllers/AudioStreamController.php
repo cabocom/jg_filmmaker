@@ -104,6 +104,10 @@ class AudioStreamController extends Controller
             'bytes' => file_exists($audioPath) ? filesize($audioPath) : 0,
         ]);
 
+        if ($request->hasSession()) {
+            $request->session()->save();
+        }
+
         return response()->file($audioPath, [
             'Content-Type' => 'audio/wav',
             'Accept-Ranges' => 'bytes',
