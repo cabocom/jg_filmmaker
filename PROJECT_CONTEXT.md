@@ -1,12 +1,18 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.33.0  
+**Versión del documento:** 3.34.0  
 **Fecha de consolidación:** 8 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
-**Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Speaches-AI (Piper TTS), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), PHPUnit 12, Laravel Pint  
-**Estado:** ISSUE-051 completado: Demostración auditiva de voz (TTS) interactiva y carga de imágenes de referencia mediante Drag & Drop en la Biblia Contextual. 233 tests automatizados pasando al 100% y Pint superado.
+**Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Speaches-AI (Piper TTS), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC/HEIF a JPEG en cliente), PHPUnit 12, Laravel Pint  
+**Estado:** ISSUE-052 completado: Conversión automática y transparente en navegador de imágenes Apple HEIC/HEIF a JPEG para compatibilidad universal con Chrome, PDF y modelos multimodales Gemini. 233 tests automatizados pasando al 100% y Pint superado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **ISSUE-052: Conversión Automática en Navegador de Imágenes HEIC (Apple) a JPEG:**
+  - **Soporte de Formatos Apple (`.heic`, `.heif`):** Integración en el layout global [`layouts.app`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_filmmaker/resources/views/layouts/app.blade.php) del conversor transparente `heic2any` con fallback automático a CDN.
+  - **Detección y Conversión al Vuelo:** Al arrastrar o seleccionar imágenes en formato HEIC en cualquiera de los formularios de la Biblia (alta y edición de personajes, alta y edición de localizaciones), el cliente detecta el formato, muestra el indicador visual *"Convirtiendo formato HEIC (Apple) a JPG..."* y transforma el archivo en milisegundos a un estándar `image/jpeg` de alta calidad antes de remitirlo a Livewire.
+  - **Compatibilidad Garantizada:** Garantiza la renderización visual en navegadores no-Safari (Chrome, Firefox, Brave), la generación impecable de dossiers PDF y la asimilación correcta sin fallos de decodificación por parte de los modelos multimodales de Google AI Studio (Gemini).
+  - **Blindaje en Backend:** Las reglas de validación en [`ContextBibleDrawer`](file:///Users/javiergalvez/Documents/Code/javiergalvez-ia/jg_filmmaker/app/Livewire/Studio/ContextBibleDrawer.php) admiten explícitamente `mimes:jpeg,jpg,png,webp,heic,heif`.
 
 - **ISSUE-051: Demo de Voz Interactiva y Subida Drag & Drop en Biblia Contextual:**
   - **Demostración Auditiva de Voz TTS (`projects.tts.demo-voice`):**

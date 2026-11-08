@@ -152,30 +152,53 @@
                                 </div>
                                 <div>
                                     <label class="block text-[10px] text-slate-500 dark:text-slate-400 mb-1 font-medium">Imagen de Referencia / Turn-Around (Storyboard):</label>
-                                    <div x-data="{ isDragging: false }"
+                                    <div x-data="{
+                                             isDragging: false,
+                                             isConverting: false,
+                                             async processFile(file) {
+                                                 if (!file) return;
+                                                 await window.handleHeicAndUpload(file, (val) => { this.isConverting = val; }, (readyFile) => {
+                                                     const dt = new DataTransfer();
+                                                     dt.items.add(readyFile);
+                                                     $refs.newCharFileInput.files = dt.files;
+                                                     $refs.newCharFileInput.dispatchEvent(new Event('change', { bubbles: true }));
+                                                 });
+                                             }
+                                         }"
                                          @dragover.prevent="isDragging = true"
                                          @dragleave.prevent="isDragging = false"
                                          @drop.prevent="
                                             isDragging = false;
                                             if ($event.dataTransfer && $event.dataTransfer.files.length > 0) {
-                                                $refs.newCharFileInput.files = $event.dataTransfer.files;
-                                                $refs.newCharFileInput.dispatchEvent(new Event('change', { bubbles: true }));
+                                                processFile($event.dataTransfer.files[0]);
                                             }
                                          "
-                                         @click="$refs.newCharFileInput.click()"
+                                         @click="$refs.newCharPickerInput.click()"
                                          :class="isDragging ? 'border-amber-500 bg-amber-500/10' : 'border-slate-300 dark:border-slate-700 bg-white/40 dark:bg-slate-900/40 hover:bg-slate-100/60 dark:hover:bg-slate-800/60'"
                                          class="relative border-2 border-dashed rounded-lg p-3 text-center cursor-pointer transition flex flex-col items-center justify-center gap-1">
+                                        <input x-ref="newCharPickerInput"
+                                               type="file"
+                                               @click.stop
+                                               @change="if ($event.target.files.length > 0) { processFile($event.target.files[0]); $event.target.value = ''; }"
+                                               accept="image/*,.heic,.heif"
+                                               class="hidden">
                                         <input x-ref="newCharFileInput"
                                                type="file"
                                                @click.stop
                                                wire:model="newCharReferenceImage"
                                                accept="image/*"
                                                class="hidden">
-                                        <span class="text-base">🖼️</span>
-                                        <div class="text-[11px] text-slate-600 dark:text-slate-300">
-                                            <span class="text-amber-600 dark:text-amber-400 font-semibold">Arrastra y suelta</span> aquí o <span class="underline">haz clic para seleccionar</span>
+                                        <div x-show="!isConverting" class="flex flex-col items-center gap-1">
+                                            <span class="text-base">🖼️</span>
+                                            <div class="text-[11px] text-slate-600 dark:text-slate-300">
+                                                <span class="text-amber-600 dark:text-amber-400 font-semibold">Arrastra y suelta</span> aquí o <span class="underline">haz clic para seleccionar</span>
+                                            </div>
+                                            <span class="text-[10px] text-slate-400 dark:text-slate-500">PNG, JPG, WEBP o HEIC de Mac (máx. 10MB)</span>
                                         </div>
-                                        <span class="text-[10px] text-slate-400 dark:text-slate-500">PNG, JPG o WEBP (máx. 10MB)</span>
+                                        <div x-show="isConverting" class="flex items-center gap-2 text-amber-600 dark:text-amber-400 text-xs py-1" style="display: none;">
+                                            <span class="animate-spin text-sm">🔄</span>
+                                            <span class="font-medium">Convirtiendo formato HEIC (Apple) a JPG...</span>
+                                        </div>
                                     </div>
                                     <div wire:loading wire:target="newCharReferenceImage" class="text-[10px] text-amber-500 mt-1 flex items-center gap-1">
                                         <span class="animate-spin">⏳</span> Cargando imagen...
@@ -308,30 +331,53 @@
                                                     </button>
                                                 </div>
                                             @endif
-                                            <div x-data="{ isDragging: false }"
+                                            <div x-data="{
+                                                     isDragging: false,
+                                                     isConverting: false,
+                                                     async processFile(file) {
+                                                         if (!file) return;
+                                                         await window.handleHeicAndUpload(file, (val) => { this.isConverting = val; }, (readyFile) => {
+                                                             const dt = new DataTransfer();
+                                                             dt.items.add(readyFile);
+                                                             $refs.editCharFileInput.files = dt.files;
+                                                             $refs.editCharFileInput.dispatchEvent(new Event('change', { bubbles: true }));
+                                                         });
+                                                     }
+                                                 }"
                                                  @dragover.prevent="isDragging = true"
                                                  @dragleave.prevent="isDragging = false"
                                                  @drop.prevent="
                                                     isDragging = false;
                                                     if ($event.dataTransfer && $event.dataTransfer.files.length > 0) {
-                                                        $refs.editCharFileInput.files = $event.dataTransfer.files;
-                                                        $refs.editCharFileInput.dispatchEvent(new Event('change', { bubbles: true }));
+                                                        processFile($event.dataTransfer.files[0]);
                                                     }
                                                  "
-                                                 @click="$refs.editCharFileInput.click()"
+                                                 @click="$refs.editCharPickerInput.click()"
                                                  :class="isDragging ? 'border-amber-500 bg-amber-500/10' : 'border-slate-300 dark:border-slate-700 bg-white/40 dark:bg-slate-900/40 hover:bg-slate-100/60 dark:hover:bg-slate-800/60'"
                                                  class="relative border-2 border-dashed rounded-lg p-3 text-center cursor-pointer transition flex flex-col items-center justify-center gap-1">
+                                                <input x-ref="editCharPickerInput"
+                                                       type="file"
+                                                       @click.stop
+                                                       @change="if ($event.target.files.length > 0) { processFile($event.target.files[0]); $event.target.value = ''; }"
+                                                       accept="image/*,.heic,.heif"
+                                                       class="hidden">
                                                 <input x-ref="editCharFileInput"
                                                        type="file"
                                                        @click.stop
                                                        wire:model="editingCharReferenceImage"
                                                        accept="image/*"
                                                        class="hidden">
-                                                <span class="text-base">🖼️</span>
-                                                <div class="text-[11px] text-slate-600 dark:text-slate-300">
-                                                    <span class="text-amber-600 dark:text-amber-400 font-semibold">Arrastra y suelta</span> aquí o <span class="underline">haz clic para seleccionar</span>
+                                                <div x-show="!isConverting" class="flex flex-col items-center gap-1">
+                                                    <span class="text-base">🖼️</span>
+                                                    <div class="text-[11px] text-slate-600 dark:text-slate-300">
+                                                        <span class="text-amber-600 dark:text-amber-400 font-semibold">Arrastra y suelta</span> aquí o <span class="underline">haz clic para seleccionar</span>
+                                                    </div>
+                                                    <span class="text-[10px] text-slate-400 dark:text-slate-500">PNG, JPG, WEBP o HEIC de Mac (máx. 10MB)</span>
                                                 </div>
-                                                <span class="text-[10px] text-slate-400 dark:text-slate-500">PNG, JPG o WEBP (máx. 10MB)</span>
+                                                <div x-show="isConverting" class="flex items-center gap-2 text-amber-600 dark:text-amber-400 text-xs py-1" style="display: none;">
+                                                    <span class="animate-spin text-sm">🔄</span>
+                                                    <span class="font-medium">Convirtiendo formato HEIC (Apple) a JPG...</span>
+                                                </div>
                                             </div>
                                             <div wire:loading wire:target="editingCharReferenceImage" class="text-[10px] text-amber-500 mt-1 flex items-center gap-1">
                                                 <span class="animate-spin">⏳</span> Subiendo imagen...
@@ -436,30 +482,53 @@
                                 </div>
                                 <div>
                                     <label class="block text-[10px] text-slate-500 dark:text-slate-400 mb-1 font-medium">Imagen de Referencia de Localización / Set:</label>
-                                    <div x-data="{ isDragging: false }"
+                                    <div x-data="{
+                                             isDragging: false,
+                                             isConverting: false,
+                                             async processFile(file) {
+                                                 if (!file) return;
+                                                 await window.handleHeicAndUpload(file, (val) => { this.isConverting = val; }, (readyFile) => {
+                                                     const dt = new DataTransfer();
+                                                     dt.items.add(readyFile);
+                                                     $refs.newLocFileInput.files = dt.files;
+                                                     $refs.newLocFileInput.dispatchEvent(new Event('change', { bubbles: true }));
+                                                 });
+                                             }
+                                         }"
                                          @dragover.prevent="isDragging = true"
                                          @dragleave.prevent="isDragging = false"
                                          @drop.prevent="
                                             isDragging = false;
                                             if ($event.dataTransfer && $event.dataTransfer.files.length > 0) {
-                                                $refs.newLocFileInput.files = $event.dataTransfer.files;
-                                                $refs.newLocFileInput.dispatchEvent(new Event('change', { bubbles: true }));
+                                                processFile($event.dataTransfer.files[0]);
                                             }
                                          "
-                                         @click="$refs.newLocFileInput.click()"
+                                         @click="$refs.newLocPickerInput.click()"
                                          :class="isDragging ? 'border-amber-500 bg-amber-500/10' : 'border-slate-300 dark:border-slate-700 bg-white/40 dark:bg-slate-900/40 hover:bg-slate-100/60 dark:hover:bg-slate-800/60'"
                                          class="relative border-2 border-dashed rounded-lg p-3 text-center cursor-pointer transition flex flex-col items-center justify-center gap-1">
+                                        <input x-ref="newLocPickerInput"
+                                               type="file"
+                                               @click.stop
+                                               @change="if ($event.target.files.length > 0) { processFile($event.target.files[0]); $event.target.value = ''; }"
+                                               accept="image/*,.heic,.heif"
+                                               class="hidden">
                                         <input x-ref="newLocFileInput"
                                                type="file"
                                                @click.stop
                                                wire:model="newLocReferenceImage"
                                                accept="image/*"
                                                class="hidden">
-                                        <span class="text-base">📍</span>
-                                        <div class="text-[11px] text-slate-600 dark:text-slate-300">
-                                            <span class="text-amber-600 dark:text-amber-400 font-semibold">Arrastra y suelta</span> aquí o <span class="underline">haz clic para seleccionar</span>
+                                        <div x-show="!isConverting" class="flex flex-col items-center gap-1">
+                                            <span class="text-base">📍</span>
+                                            <div class="text-[11px] text-slate-600 dark:text-slate-300">
+                                                <span class="text-amber-600 dark:text-amber-400 font-semibold">Arrastra y suelta</span> aquí o <span class="underline">haz clic para seleccionar</span>
+                                            </div>
+                                            <span class="text-[10px] text-slate-400 dark:text-slate-500">PNG, JPG, WEBP o HEIC de Mac (máx. 10MB)</span>
                                         </div>
-                                        <span class="text-[10px] text-slate-400 dark:text-slate-500">PNG, JPG o WEBP (máx. 10MB)</span>
+                                        <div x-show="isConverting" class="flex items-center gap-2 text-amber-600 dark:text-amber-400 text-xs py-1" style="display: none;">
+                                            <span class="animate-spin text-sm">🔄</span>
+                                            <span class="font-medium">Convirtiendo formato HEIC (Apple) a JPG...</span>
+                                        </div>
                                     </div>
                                     <div wire:loading wire:target="newLocReferenceImage" class="text-[10px] text-amber-500 mt-1 flex items-center gap-1">
                                         <span class="animate-spin">⏳</span> Cargando imagen...
@@ -534,30 +603,53 @@
                                                     </button>
                                                 </div>
                                             @endif
-                                            <div x-data="{ isDragging: false }"
+                                            <div x-data="{
+                                                     isDragging: false,
+                                                     isConverting: false,
+                                                     async processFile(file) {
+                                                         if (!file) return;
+                                                         await window.handleHeicAndUpload(file, (val) => { this.isConverting = val; }, (readyFile) => {
+                                                             const dt = new DataTransfer();
+                                                             dt.items.add(readyFile);
+                                                             $refs.editLocFileInput.files = dt.files;
+                                                             $refs.editLocFileInput.dispatchEvent(new Event('change', { bubbles: true }));
+                                                         });
+                                                     }
+                                                 }"
                                                  @dragover.prevent="isDragging = true"
                                                  @dragleave.prevent="isDragging = false"
                                                  @drop.prevent="
                                                     isDragging = false;
                                                     if ($event.dataTransfer && $event.dataTransfer.files.length > 0) {
-                                                        $refs.editLocFileInput.files = $event.dataTransfer.files;
-                                                        $refs.editLocFileInput.dispatchEvent(new Event('change', { bubbles: true }));
+                                                        processFile($event.dataTransfer.files[0]);
                                                     }
                                                  "
-                                                 @click="$refs.editLocFileInput.click()"
+                                                 @click="$refs.editLocPickerInput.click()"
                                                  :class="isDragging ? 'border-amber-500 bg-amber-500/10' : 'border-slate-300 dark:border-slate-700 bg-white/40 dark:bg-slate-900/40 hover:bg-slate-100/60 dark:hover:bg-slate-800/60'"
                                                  class="relative border-2 border-dashed rounded-lg p-3 text-center cursor-pointer transition flex flex-col items-center justify-center gap-1">
+                                                <input x-ref="editLocPickerInput"
+                                                       type="file"
+                                                       @click.stop
+                                                       @change="if ($event.target.files.length > 0) { processFile($event.target.files[0]); $event.target.value = ''; }"
+                                                       accept="image/*,.heic,.heif"
+                                                       class="hidden">
                                                 <input x-ref="editLocFileInput"
                                                        type="file"
                                                        @click.stop
                                                        wire:model="editingLocReferenceImage"
                                                        accept="image/*"
                                                        class="hidden">
-                                                <span class="text-base">📍</span>
-                                                <div class="text-[11px] text-slate-600 dark:text-slate-300">
-                                                    <span class="text-amber-600 dark:text-amber-400 font-semibold">Arrastra y suelta</span> aquí o <span class="underline">haz clic para seleccionar</span>
+                                                <div x-show="!isConverting" class="flex flex-col items-center gap-1">
+                                                    <span class="text-base">📍</span>
+                                                    <div class="text-[11px] text-slate-600 dark:text-slate-300">
+                                                        <span class="text-amber-600 dark:text-amber-400 font-semibold">Arrastra y suelta</span> aquí o <span class="underline">haz clic para seleccionar</span>
+                                                    </div>
+                                                    <span class="text-[10px] text-slate-400 dark:text-slate-500">PNG, JPG, WEBP o HEIC de Mac (máx. 10MB)</span>
                                                 </div>
-                                                <span class="text-[10px] text-slate-400 dark:text-slate-500">PNG, JPG o WEBP (máx. 10MB)</span>
+                                                <div x-show="isConverting" class="flex items-center gap-2 text-amber-600 dark:text-amber-400 text-xs py-1" style="display: none;">
+                                                    <span class="animate-spin text-sm">🔄</span>
+                                                    <span class="font-medium">Convirtiendo formato HEIC (Apple) a JPG...</span>
+                                                </div>
                                             </div>
                                             <div wire:loading wire:target="editingLocReferenceImage" class="text-[10px] text-amber-500 mt-1 flex items-center gap-1">
                                                 <span class="animate-spin">⏳</span> Subiendo imagen...

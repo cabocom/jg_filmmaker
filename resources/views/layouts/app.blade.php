@@ -20,6 +20,44 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js"></script>
 
+    <!-- Conversor automático de imágenes Apple HEIC/HEIF a JPEG -->
+    <script src="{{ asset('vendor/heic2any/heic2any.min.js') }}" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/heic2any/0.0.4/heic2any.min.js';"></script>
+    <script>
+        window.handleHeicAndUpload = async function(file, onConvertingChange, onReady) {
+            if (!file) return;
+
+            const isHeic = file.name.toLowerCase().endsWith('.heic') ||
+                           file.name.toLowerCase().endsWith('.heif') ||
+                           file.type === 'image/heic' ||
+                           file.type === 'image/heif';
+
+            if (isHeic && typeof heic2any === 'function') {
+                if (onConvertingChange) onConvertingChange(true);
+                try {
+                    const conversionResult = await heic2any({
+                        blob: file,
+                        toType: 'image/jpeg',
+                        quality: 0.92,
+                    });
+                    const blob = Array.isArray(conversionResult) ? conversionResult[0] : conversionResult;
+                    const newName = file.name.replace(/\.(heic|heif)$/i, '.jpg');
+                    file = new File([blob], newName, { type: 'image/jpeg' });
+                } catch (error) {
+                    console.error('Error al convertir HEIC a JPG:', error);
+                    alert('No se pudo convertir la imagen HEIC automáticamente. Por favor súbela en formato JPG o PNG.');
+                    if (onConvertingChange) onConvertingChange(false);
+                    return;
+                } finally {
+                    if (onConvertingChange) onConvertingChange(false);
+                }
+            }
+
+            if (onReady) {
+                onReady(file);
+            }
+        };
+    </script>
+
     <script>
         (function() {
             const saved = localStorage.getItem('jg_theme') || localStorage.getItem('console_theme') || 'light';
