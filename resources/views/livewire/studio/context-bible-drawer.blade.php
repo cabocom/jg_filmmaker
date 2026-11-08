@@ -105,9 +105,45 @@
                                            placeholder="Vestuario característico (ej: Gabardina gris)..."
                                            class="w-full px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white">
                                 </div>
-                                <div>
-                                    <label class="block text-[10px] text-slate-500 dark:text-slate-400 mb-0.5">Voz para lectura dramática (TTS):</label>
-                                    <select wire:model="newCharVoiceId"
+                                <div x-data="{
+                                    isPlaying: false,
+                                    audio: null,
+                                    error: false,
+                                    playDemo() {
+                                        if (this.isPlaying && this.audio) {
+                                            this.audio.pause();
+                                            this.audio = null;
+                                            this.isPlaying = false;
+                                            return;
+                                        }
+                                        this.error = false;
+                                        const voice = this.$refs.newVoiceSelect ? this.$refs.newVoiceSelect.value : $wire.newCharVoiceId;
+                                        const url = '{{ route('projects.tts.demo-voice', $project) }}?voice=' + encodeURIComponent(voice);
+                                        this.audio = new Audio(url);
+                                        this.isPlaying = true;
+                                        this.audio.onended = () => { this.isPlaying = false; this.audio = null; };
+                                        this.audio.onerror = () => { this.isPlaying = false; this.audio = null; this.error = true; };
+                                        this.audio.play().catch(() => { this.isPlaying = false; this.audio = null; this.error = true; });
+                                    }
+                                }" class="space-y-1">
+                                    <div class="flex items-center justify-between">
+                                        <label class="block text-[10px] text-slate-500 dark:text-slate-400 font-medium">Voz para lectura dramática (TTS):</label>
+                                        <button type="button"
+                                                @click="playDemo()"
+                                                class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold transition cursor-pointer shadow-2xs"
+                                                :class="isPlaying ? 'bg-amber-500 text-slate-950 hover:bg-amber-400 ring-2 ring-amber-400 animate-pulse' : 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/80 hover:bg-indigo-100 dark:hover:bg-indigo-900/60'"
+                                                title="Escuchar demo de esta voz">
+                                            <span x-show="!isPlaying" class="flex items-center gap-1">
+                                                <span>🔊</span> <span>Probar voz</span>
+                                            </span>
+                                            <span x-show="isPlaying" class="flex items-center gap-1 text-slate-950">
+                                                <span>⏹️</span> <span>Detener</span>
+                                            </span>
+                                            <span x-show="error" class="text-rose-500 text-[10px] font-normal" style="display: none;">⚠️ Error</span>
+                                        </button>
+                                    </div>
+                                    <select x-ref="newVoiceSelect"
+                                            wire:model.live="newCharVoiceId"
                                             class="w-full px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white">
                                         @foreach($availableVoices as $v)
                                             <option value="{{ $v['id'] }}">{{ $v['name'] }}</option>
@@ -115,16 +151,42 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-[10px] text-slate-500 dark:text-slate-400 mb-0.5 font-medium">Imagen de Referencia / Turn-Around (Storyboard):</label>
-                                    <input type="file"
-                                           wire:model="newCharReferenceImage"
-                                           accept="image/*"
-                                           class="w-full text-xs text-slate-500 dark:text-slate-400 file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-amber-500/20 file:text-amber-700 dark:file:text-amber-300 hover:file:bg-amber-500/30 cursor-pointer">
-                                    <div wire:loading wire:target="newCharReferenceImage" class="text-[10px] text-amber-500 mt-1">Cargando imagen...</div>
-                                    @error('newCharReferenceImage') <span class="text-rose-500 text-[10px]">{{ $message }}</span> @enderror
+                                    <label class="block text-[10px] text-slate-500 dark:text-slate-400 mb-1 font-medium">Imagen de Referencia / Turn-Around (Storyboard):</label>
+                                    <div x-data="{ isDragging: false }"
+                                         @dragover.prevent="isDragging = true"
+                                         @dragleave.prevent="isDragging = false"
+                                         @drop.prevent="
+                                            isDragging = false;
+                                            if ($event.dataTransfer && $event.dataTransfer.files.length > 0) {
+                                                $refs.newCharFileInput.files = $event.dataTransfer.files;
+                                                $refs.newCharFileInput.dispatchEvent(new Event('change', { bubbles: true }));
+                                            }
+                                         "
+                                         @click="$refs.newCharFileInput.click()"
+                                         :class="isDragging ? 'border-amber-500 bg-amber-500/10' : 'border-slate-300 dark:border-slate-700 bg-white/40 dark:bg-slate-900/40 hover:bg-slate-100/60 dark:hover:bg-slate-800/60'"
+                                         class="relative border-2 border-dashed rounded-lg p-3 text-center cursor-pointer transition flex flex-col items-center justify-center gap-1">
+                                        <input x-ref="newCharFileInput"
+                                               type="file"
+                                               @click.stop
+                                               wire:model="newCharReferenceImage"
+                                               accept="image/*"
+                                               class="hidden">
+                                        <span class="text-base">🖼️</span>
+                                        <div class="text-[11px] text-slate-600 dark:text-slate-300">
+                                            <span class="text-amber-600 dark:text-amber-400 font-semibold">Arrastra y suelta</span> aquí o <span class="underline">haz clic para seleccionar</span>
+                                        </div>
+                                        <span class="text-[10px] text-slate-400 dark:text-slate-500">PNG, JPG o WEBP (máx. 10MB)</span>
+                                    </div>
+                                    <div wire:loading wire:target="newCharReferenceImage" class="text-[10px] text-amber-500 mt-1 flex items-center gap-1">
+                                        <span class="animate-spin">⏳</span> Cargando imagen...
+                                    </div>
+                                    @error('newCharReferenceImage') <span class="text-rose-500 text-[10px] block mt-1">{{ $message }}</span> @enderror
                                     @if ($newCharReferenceImage)
-                                        <div class="mt-2">
-                                            <img src="{{ $newCharReferenceImage->temporaryUrl() }}" class="h-20 w-auto rounded border border-amber-400/60 shadow-xs object-contain bg-slate-900">
+                                        <div class="mt-2 flex items-center gap-2 p-1.5 rounded bg-amber-500/10 border border-amber-500/30">
+                                            <img src="{{ $newCharReferenceImage->temporaryUrl() }}" class="h-16 w-auto rounded border border-amber-400/60 shadow-xs object-contain bg-slate-900">
+                                            <div class="text-[11px] text-amber-800 dark:text-amber-300">
+                                                <span class="font-bold">Imagen seleccionada</span>
+                                            </div>
                                         </div>
                                     @endif
                                 </div>
@@ -189,9 +251,45 @@
                                             <label class="block text-[10px] text-slate-500 dark:text-slate-400 mb-0.5">Notas de Vestuario:</label>
                                             <input type="text" wire:model="editingCharCostume" class="w-full px-2.5 py-1 text-xs rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white">
                                         </div>
-                                        <div>
-                                            <label class="block text-[10px] text-slate-500 dark:text-slate-400 mb-0.5">Voz para lectura dramática (TTS):</label>
-                                            <select wire:model="editingCharVoiceId"
+                                        <div x-data="{
+                                            isPlaying: false,
+                                            audio: null,
+                                            error: false,
+                                            playDemo() {
+                                                if (this.isPlaying && this.audio) {
+                                                    this.audio.pause();
+                                                    this.audio = null;
+                                                    this.isPlaying = false;
+                                                    return;
+                                                }
+                                                this.error = false;
+                                                const voice = this.$refs.voiceSelect ? this.$refs.voiceSelect.value : $wire.editingCharVoiceId;
+                                                const url = '{{ route('projects.tts.demo-voice', $project) }}?voice=' + encodeURIComponent(voice);
+                                                this.audio = new Audio(url);
+                                                this.isPlaying = true;
+                                                this.audio.onended = () => { this.isPlaying = false; this.audio = null; };
+                                                this.audio.onerror = () => { this.isPlaying = false; this.audio = null; this.error = true; };
+                                                this.audio.play().catch(() => { this.isPlaying = false; this.audio = null; this.error = true; });
+                                            }
+                                        }" class="space-y-1">
+                                            <div class="flex items-center justify-between">
+                                                <label class="block text-[10px] text-slate-500 dark:text-slate-400 font-medium">Voz para lectura dramática (TTS):</label>
+                                                <button type="button"
+                                                        @click="playDemo()"
+                                                        class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold transition cursor-pointer shadow-2xs"
+                                                        :class="isPlaying ? 'bg-amber-500 text-slate-950 hover:bg-amber-400 ring-2 ring-amber-400 animate-pulse' : 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/80 hover:bg-indigo-100 dark:hover:bg-indigo-900/60'"
+                                                        title="Escuchar demo de esta voz">
+                                                    <span x-show="!isPlaying" class="flex items-center gap-1">
+                                                        <span>🔊</span> <span>Probar voz</span>
+                                                    </span>
+                                                    <span x-show="isPlaying" class="flex items-center gap-1 text-slate-950">
+                                                        <span>⏹️</span> <span>Detener</span>
+                                                    </span>
+                                                    <span x-show="error" class="text-rose-500 text-[10px] font-normal" style="display: none;">⚠️ Error</span>
+                                                </button>
+                                            </div>
+                                            <select x-ref="voiceSelect"
+                                                    wire:model.live="editingCharVoiceId"
                                                     class="w-full px-2.5 py-1 text-xs rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white">
                                                 @foreach($availableVoices as $v)
                                                     <option value="{{ $v['id'] }}">{{ $v['name'] }}</option>
@@ -199,7 +297,7 @@
                                             </select>
                                         </div>
                                         <div>
-                                            <label class="block text-[10px] text-slate-500 dark:text-slate-400 mb-0.5 font-medium">Imagen de Referencia / Turn-Around:</label>
+                                            <label class="block text-[10px] text-slate-500 dark:text-slate-400 mb-1 font-medium">Imagen de Referencia / Turn-Around:</label>
                                             @if ($character->hasReferenceImage() && ! $editingCharReferenceImage)
                                                 <div class="flex items-center gap-3 mb-2 p-1.5 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
                                                     <img src="{{ $character->reference_image_url }}" class="h-12 w-auto rounded object-contain bg-slate-950">
@@ -210,15 +308,42 @@
                                                     </button>
                                                 </div>
                                             @endif
-                                            <input type="file"
-                                                   wire:model="editingCharReferenceImage"
-                                                   accept="image/*"
-                                                   class="w-full text-xs text-slate-500 dark:text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[11px] file:font-medium file:bg-amber-500/20 file:text-amber-700 dark:file:text-amber-300 hover:file:bg-amber-500/30 cursor-pointer">
-                                            <div wire:loading wire:target="editingCharReferenceImage" class="text-[10px] text-amber-500 mt-1">Cargando imagen...</div>
-                                            @error('editingCharReferenceImage') <span class="text-rose-500 text-[10px]">{{ $message }}</span> @enderror
+                                            <div x-data="{ isDragging: false }"
+                                                 @dragover.prevent="isDragging = true"
+                                                 @dragleave.prevent="isDragging = false"
+                                                 @drop.prevent="
+                                                    isDragging = false;
+                                                    if ($event.dataTransfer && $event.dataTransfer.files.length > 0) {
+                                                        $refs.editCharFileInput.files = $event.dataTransfer.files;
+                                                        $refs.editCharFileInput.dispatchEvent(new Event('change', { bubbles: true }));
+                                                    }
+                                                 "
+                                                 @click="$refs.editCharFileInput.click()"
+                                                 :class="isDragging ? 'border-amber-500 bg-amber-500/10' : 'border-slate-300 dark:border-slate-700 bg-white/40 dark:bg-slate-900/40 hover:bg-slate-100/60 dark:hover:bg-slate-800/60'"
+                                                 class="relative border-2 border-dashed rounded-lg p-3 text-center cursor-pointer transition flex flex-col items-center justify-center gap-1">
+                                                <input x-ref="editCharFileInput"
+                                                       type="file"
+                                                       @click.stop
+                                                       wire:model="editingCharReferenceImage"
+                                                       accept="image/*"
+                                                       class="hidden">
+                                                <span class="text-base">🖼️</span>
+                                                <div class="text-[11px] text-slate-600 dark:text-slate-300">
+                                                    <span class="text-amber-600 dark:text-amber-400 font-semibold">Arrastra y suelta</span> aquí o <span class="underline">haz clic para seleccionar</span>
+                                                </div>
+                                                <span class="text-[10px] text-slate-400 dark:text-slate-500">PNG, JPG o WEBP (máx. 10MB)</span>
+                                            </div>
+                                            <div wire:loading wire:target="editingCharReferenceImage" class="text-[10px] text-amber-500 mt-1 flex items-center gap-1">
+                                                <span class="animate-spin">⏳</span> Subiendo imagen...
+                                            </div>
+                                            @error('editingCharReferenceImage') <span class="text-rose-500 text-[10px] block mt-1">{{ $message }}</span> @enderror
                                             @if ($editingCharReferenceImage)
-                                                <div class="mt-2">
-                                                    <img src="{{ $editingCharReferenceImage->temporaryUrl() }}" class="h-20 w-auto rounded border border-amber-400/60 shadow-xs object-contain bg-slate-900">
+                                                <div class="mt-2 flex items-center gap-2 p-1.5 rounded bg-amber-500/10 border border-amber-500/30">
+                                                    <img src="{{ $editingCharReferenceImage->temporaryUrl() }}" class="h-16 w-auto rounded border border-amber-400/60 shadow-xs object-contain bg-slate-900">
+                                                    <div class="text-[11px] text-amber-800 dark:text-amber-300">
+                                                        <span class="font-bold">Nueva imagen lista</span>
+                                                        <p class="text-[10px] text-slate-500 dark:text-slate-400">Pulsa "Guardar Cambios" para confirmar.</p>
+                                                    </div>
                                                 </div>
                                             @endif
                                         </div>
@@ -310,13 +435,44 @@
                                            class="w-full px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-white">
                                 </div>
                                 <div>
-                                    <label class="block text-[10px] text-slate-500 dark:text-slate-400 mb-0.5 font-medium">Imagen de Referencia de Localización / Set:</label>
-                                    <input type="file"
-                                           wire:model="newLocReferenceImage"
-                                           accept="image/*"
-                                           class="w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[11px] file:font-semibold file:bg-amber-500/10 file:text-amber-700 dark:file:bg-amber-500/20 dark:file:text-amber-300 hover:file:bg-amber-500/20">
-                                    <div wire:loading wire:target="newLocReferenceImage" class="text-[10px] text-amber-500 mt-1">Cargando imagen...</div>
-                                    @error('newLocReferenceImage') <span class="text-rose-500 text-[10px]">{{ $message }}</span> @enderror
+                                    <label class="block text-[10px] text-slate-500 dark:text-slate-400 mb-1 font-medium">Imagen de Referencia de Localización / Set:</label>
+                                    <div x-data="{ isDragging: false }"
+                                         @dragover.prevent="isDragging = true"
+                                         @dragleave.prevent="isDragging = false"
+                                         @drop.prevent="
+                                            isDragging = false;
+                                            if ($event.dataTransfer && $event.dataTransfer.files.length > 0) {
+                                                $refs.newLocFileInput.files = $event.dataTransfer.files;
+                                                $refs.newLocFileInput.dispatchEvent(new Event('change', { bubbles: true }));
+                                            }
+                                         "
+                                         @click="$refs.newLocFileInput.click()"
+                                         :class="isDragging ? 'border-amber-500 bg-amber-500/10' : 'border-slate-300 dark:border-slate-700 bg-white/40 dark:bg-slate-900/40 hover:bg-slate-100/60 dark:hover:bg-slate-800/60'"
+                                         class="relative border-2 border-dashed rounded-lg p-3 text-center cursor-pointer transition flex flex-col items-center justify-center gap-1">
+                                        <input x-ref="newLocFileInput"
+                                               type="file"
+                                               @click.stop
+                                               wire:model="newLocReferenceImage"
+                                               accept="image/*"
+                                               class="hidden">
+                                        <span class="text-base">📍</span>
+                                        <div class="text-[11px] text-slate-600 dark:text-slate-300">
+                                            <span class="text-amber-600 dark:text-amber-400 font-semibold">Arrastra y suelta</span> aquí o <span class="underline">haz clic para seleccionar</span>
+                                        </div>
+                                        <span class="text-[10px] text-slate-400 dark:text-slate-500">PNG, JPG o WEBP (máx. 10MB)</span>
+                                    </div>
+                                    <div wire:loading wire:target="newLocReferenceImage" class="text-[10px] text-amber-500 mt-1 flex items-center gap-1">
+                                        <span class="animate-spin">⏳</span> Cargando imagen...
+                                    </div>
+                                    @error('newLocReferenceImage') <span class="text-rose-500 text-[10px] block mt-1">{{ $message }}</span> @enderror
+                                    @if ($newLocReferenceImage)
+                                        <div class="mt-2 flex items-center gap-2 p-1.5 rounded bg-amber-500/10 border border-amber-500/30">
+                                            <img src="{{ $newLocReferenceImage->temporaryUrl() }}" class="h-16 w-auto rounded border border-amber-400/60 shadow-xs object-contain bg-slate-900">
+                                            <div class="text-[11px] text-amber-800 dark:text-amber-300">
+                                                <span class="font-bold">Imagen seleccionada</span>
+                                            </div>
+                                        </div>
+                                    @endif
                                 </div>
                                 <div class="flex justify-end gap-2 pt-1">
                                     <button wire:click="$set('showNewLocationForm', false)" type="button" class="px-2.5 py-1 rounded text-xs text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white">Cancelar</button>
@@ -367,7 +523,7 @@
                                             <input type="text" wire:model="editingLocLightingNotes" class="w-full px-2.5 py-1 text-xs rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white">
                                         </div>
                                         <div>
-                                            <label class="block text-[10px] text-slate-500 dark:text-slate-400 mb-0.5 font-medium">Imagen de Referencia de Localización / Set:</label>
+                                            <label class="block text-[10px] text-slate-500 dark:text-slate-400 mb-1 font-medium">Imagen de Referencia de Localización / Set:</label>
                                             @if ($location->hasReferenceImage() && ! $editingLocReferenceImage)
                                                 <div class="flex items-center gap-3 mb-2 p-1.5 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
                                                     <img src="{{ $location->reference_image_url }}" class="h-12 w-auto rounded object-contain bg-slate-950">
@@ -378,12 +534,44 @@
                                                     </button>
                                                 </div>
                                             @endif
-                                            <input type="file"
-                                                   wire:model="editingLocReferenceImage"
-                                                   accept="image/*"
-                                                   class="w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-[11px] file:font-semibold file:bg-amber-500/10 file:text-amber-700 dark:file:bg-amber-500/20 dark:file:text-amber-300 hover:file:bg-amber-500/20">
-                                            <div wire:loading wire:target="editingLocReferenceImage" class="text-[10px] text-amber-500 mt-1">Cargando imagen...</div>
-                                            @error('editingLocReferenceImage') <span class="text-rose-500 text-[10px]">{{ $message }}</span> @enderror
+                                            <div x-data="{ isDragging: false }"
+                                                 @dragover.prevent="isDragging = true"
+                                                 @dragleave.prevent="isDragging = false"
+                                                 @drop.prevent="
+                                                    isDragging = false;
+                                                    if ($event.dataTransfer && $event.dataTransfer.files.length > 0) {
+                                                        $refs.editLocFileInput.files = $event.dataTransfer.files;
+                                                        $refs.editLocFileInput.dispatchEvent(new Event('change', { bubbles: true }));
+                                                    }
+                                                 "
+                                                 @click="$refs.editLocFileInput.click()"
+                                                 :class="isDragging ? 'border-amber-500 bg-amber-500/10' : 'border-slate-300 dark:border-slate-700 bg-white/40 dark:bg-slate-900/40 hover:bg-slate-100/60 dark:hover:bg-slate-800/60'"
+                                                 class="relative border-2 border-dashed rounded-lg p-3 text-center cursor-pointer transition flex flex-col items-center justify-center gap-1">
+                                                <input x-ref="editLocFileInput"
+                                                       type="file"
+                                                       @click.stop
+                                                       wire:model="editingLocReferenceImage"
+                                                       accept="image/*"
+                                                       class="hidden">
+                                                <span class="text-base">📍</span>
+                                                <div class="text-[11px] text-slate-600 dark:text-slate-300">
+                                                    <span class="text-amber-600 dark:text-amber-400 font-semibold">Arrastra y suelta</span> aquí o <span class="underline">haz clic para seleccionar</span>
+                                                </div>
+                                                <span class="text-[10px] text-slate-400 dark:text-slate-500">PNG, JPG o WEBP (máx. 10MB)</span>
+                                            </div>
+                                            <div wire:loading wire:target="editingLocReferenceImage" class="text-[10px] text-amber-500 mt-1 flex items-center gap-1">
+                                                <span class="animate-spin">⏳</span> Subiendo imagen...
+                                            </div>
+                                            @error('editingLocReferenceImage') <span class="text-rose-500 text-[10px] block mt-1">{{ $message }}</span> @enderror
+                                            @if ($editingLocReferenceImage)
+                                                <div class="mt-2 flex items-center gap-2 p-1.5 rounded bg-amber-500/10 border border-amber-500/30">
+                                                    <img src="{{ $editingLocReferenceImage->temporaryUrl() }}" class="h-16 w-auto rounded border border-amber-400/60 shadow-xs object-contain bg-slate-900">
+                                                    <div class="text-[11px] text-amber-800 dark:text-amber-300">
+                                                        <span class="font-bold">Nueva imagen lista</span>
+                                                        <p class="text-[10px] text-slate-500 dark:text-slate-400">Pulsa "Guardar" para confirmar.</p>
+                                                    </div>
+                                                </div>
+                                            @endif
                                         </div>
                                         <div class="flex justify-end gap-2 pt-1">
                                             <button wire:click="$set('editingLocationId', null)" class="px-2 py-0.5 text-xs text-slate-500 dark:text-slate-400">Cancelar</button>

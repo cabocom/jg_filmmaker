@@ -49,6 +49,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/projects/{project}/tts/stream', [AudioStreamController::class, 'streamAudio'])
         ->middleware('can:view,project')
         ->name('projects.tts.stream');
+    Route::get('/projects/{project}/tts/demo-voice', [AudioStreamController::class, 'demoVoice'])
+        ->middleware('can:view,project')
+        ->name('projects.tts.demo-voice');
 
     // Streaming seguro de medios audiovisuales privados (ISSUE-006)
     Route::get('/media/takes/{take}', [MediaStreamController::class, 'streamTake'])->name('media.take');

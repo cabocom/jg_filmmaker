@@ -12,6 +12,8 @@ use App\Models\Shot;
 use App\Models\Take;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -102,5 +104,38 @@ class ContextBibleAndTimelineIsolationTest extends TestCase
         // La vista no debe renderizar las notas editoriales ni los datos de la toma ajena
         $component->assertDontSee('Notas privadas B');
         $this->assertNull($component->viewData('currentTake'));
+    }
+
+    public function test_owner_can_edit_character_with_voice_and_reference_image(): void
+    {
+        Storage::fake('public');
+
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $character = Character::factory()->create([
+            'project_id' => $project->id,
+            'name' => 'John Connor',
+            'bio' => 'Líder de la resistencia humana.',
+        ]);
+
+        $fakeImage = UploadedFile::fake()->image('connor.jpg', 400, 400);
+
+        Livewire::actingAs($user)
+            ->test(ContextBibleDrawer::class, ['project' => $project])
+            ->set('isOpen', true)
+            ->call('startEditCharacter', $character->id)
+            ->assertSee('Probar voz')
+            ->assertSee('Arrastra y suelta')
+            ->set('editingCharVoiceId', 'carlfm')
+            ->set('editingCharBio', 'Líder legendario de la resistencia humana.')
+            ->set('editingCharReferenceImage', $fakeImage)
+            ->call('saveCharacter')
+            ->assertHasNoErrors();
+
+        $character->refresh();
+        $this->assertSame('carlfm', $character->custom_attributes['voice_id'] ?? null);
+        $this->assertSame('Líder legendario de la resistencia humana.', $character->bio);
+        $this->assertNotNull($character->reference_image_path);
+        Storage::disk('public')->assertExists($character->reference_image_path);
     }
 }

@@ -1,12 +1,21 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.32.0  
+**Versión del documento:** 3.33.0  
 **Fecha de consolidación:** 8 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Speaches-AI (Piper TTS), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), PHPUnit 12, Laravel Pint  
-**Estado:** ISSUE-050 (GitLab #4) completado: Transparencia y gobernanza de tokens mediante avisos y modales previos de confirmación de coste en todas las acciones de IA del sistema. 230 tests automatizados pasando al 100% y Pint superado.
+**Estado:** ISSUE-051 completado: Demostración auditiva de voz (TTS) interactiva y carga de imágenes de referencia mediante Drag & Drop en la Biblia Contextual. 233 tests automatizados pasando al 100% y Pint superado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **ISSUE-051: Demo de Voz Interactiva y Subida Drag & Drop en Biblia Contextual:**
+  - **Demostración Auditiva de Voz TTS (`projects.tts.demo-voice`):**
+    - Nuevo endpoint seguro `AudioStreamController::demoVoice` que sintetiza bajo demanda una muestra de voz personalizada con la frase `"Hola, soy la voz {Nombre}"` o texto parametrizado.
+    - Se integra en `ContextBibleDrawer` un botón interactivo reactivo en Alpine.js con estados visuales claros (reproduciendo, detenido, error) tanto en la edición de personajes existentes como en el alta de nuevos personajes, permitiendo previsualizar al instante el timbre dramático antes de asignarlo.
+  - **Carga de Imágenes de Referencia con Arrastrar y Soltar (Drag & Drop):**
+    - Las áreas de carga de imagen para personajes y localizaciones incorporan soporte nativo de drag & drop con feedback visual inmediato (resaltado ámbar, estados de carga y previsualización de imagen temporal).
+    - Permite tanto soltar archivos directamente desde el explorador como abrir el selector de archivos tradicional con un clic.
+  - **Suite de Pruebas Ampliada a 233 Tests al 100%:** Nuevas pruebas en `AudioStreamControllerTest` y `ContextBibleAndTimelineIsolationTest` verificando el streaming de la demo de voz y la edición de personajes con carga de imagen.
 
 - **ISSUE-050 (GitLab #4): Modales y Avisos Previos de Consumo de Tokens en Todas las Acciones de IA:**
   - **Pipeline Completo de Escena (`promptRunScenePipeline` / `showScenePipelineConfirmModal`):**

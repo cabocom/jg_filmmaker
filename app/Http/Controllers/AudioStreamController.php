@@ -63,4 +63,30 @@ class AudioStreamController extends Controller
             'Cache-Control' => 'private, max-age=86400',
         ]);
     }
+
+    /**
+     * Devuelve el flujo de audio WAV correspondiente a una muestra o demo de voz para la biblia.
+     */
+    public function demoVoice(Request $request, Project $project, TextToSpeechService $tts): BinaryFileResponse
+    {
+        Gate::authorize('view', $project);
+
+        $voice = (string) $request->query('voice', 'sharvard#M');
+        $voiceInfo = collect($tts->getAvailableVoices())->firstWhere('id', $voice);
+        $voiceName = $voiceInfo['name'] ?? $voice;
+
+        $shortName = $voiceName;
+        if (preg_match('/\(([^)]+)\)/', $voiceName, $matches)) {
+            $shortName = $matches[1];
+        }
+
+        $text = (string) $request->query('text', "Hola, soy la voz {$shortName}.");
+        $audioPath = $tts->synthesize($text, $voice, 1.0);
+
+        return response()->file($audioPath, [
+            'Content-Type' => 'audio/wav',
+            'Accept-Ranges' => 'bytes',
+            'Cache-Control' => 'private, max-age=86400',
+        ]);
+    }
 }

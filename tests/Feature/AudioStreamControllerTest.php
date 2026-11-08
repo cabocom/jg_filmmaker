@@ -84,4 +84,43 @@ class AudioStreamControllerTest extends TestCase
         $streamResponse->assertHeader('Content-Type', 'audio/wav');
         $streamResponse->assertHeader('Accept-Ranges', 'bytes');
     }
+
+    public function test_owner_can_listen_to_voice_demo(): void
+    {
+        $owner = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $owner->id]);
+
+        $this->actingAs($owner);
+
+        // Demo con voz por defecto
+        $response = $this->get(route('projects.tts.demo-voice', [
+            'project' => $project->id,
+            'voice' => 'sharvard#M',
+        ]));
+
+        $response->assertOk();
+        $response->assertHeader('Content-Type', 'audio/wav');
+        $response->assertHeader('Accept-Ranges', 'bytes');
+
+        // Demo con voz específica (davefx)
+        $responseDave = $this->get(route('projects.tts.demo-voice', [
+            'project' => $project->id,
+            'voice' => 'davefx',
+        ]));
+
+        $responseDave->assertOk();
+        $responseDave->assertHeader('Content-Type', 'audio/wav');
+    }
+
+    public function test_unauthenticated_user_cannot_access_demo_voice(): void
+    {
+        $project = Project::factory()->create();
+
+        $response = $this->get(route('projects.tts.demo-voice', [
+            'project' => $project->id,
+            'voice' => 'sharvard#M',
+        ]));
+
+        $response->assertRedirect(route('login'));
+    }
 }
