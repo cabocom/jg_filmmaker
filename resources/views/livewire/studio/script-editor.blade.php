@@ -173,18 +173,11 @@
                     return entry.promise;
                 },
 
-                async queuePrefetch(fromIndex) {
-                    if (this.isPrefetching) return;
-                    this.isPrefetching = true;
-                    try {
-                        for (let offset = 1; offset <= this.prefetchAheadCount; offset++) {
-                            const targetIndex = fromIndex + offset;
-                            if (targetIndex >= this.manifest.length) break;
-                            if (!this.isPlaying) break;
-                            await this.preloadSegment(targetIndex);
-                        }
-                    } finally {
-                        this.isPrefetching = false;
+                queuePrefetch(fromIndex) {
+                    for (let offset = 1; offset <= this.prefetchAheadCount; offset++) {
+                        const targetIndex = fromIndex + offset;
+                        if (targetIndex >= this.manifest.length) break;
+                        this.preloadSegment(targetIndex);
                     }
                     this.pruneOldCache(fromIndex);
                 },
@@ -217,12 +210,7 @@
                     // Resaltar el bloque actual en pantalla y hacer scroll hacia él
                     this.highlightBlock(this.currentBlockId);
 
-                    if (this.audio) {
-                        this.audio.pause();
-                        this.audio = null;
-                    }
-
-                    // Iniciar de inmediato la precarga anticipada del siguiente segmento en segundo plano
+                    // Disparar precarga concurrente de los siguientes segmentos
                     this.queuePrefetch(index);
 
                     // Resolver fuente de audio (blob precargado o fallback directo)
@@ -253,23 +241,32 @@
                         return;
                     }
 
-                    this.audio = new Audio(audioSrc);
+                    if (!this.audio) {
+                        this.audio = new Audio();
+                    }
                     this.audio.playbackRate = this.speed;
+                    this.audio.src = audioSrc;
 
                     this.audio.onended = () => {
                         this.playSegment(this.currentIndex + 1);
                     };
 
                     this.audio.onerror = (e) => {
-                        console.error('Audio stream error on index ' + this.currentIndex + ':', e);
+                        console.warn('[TTS] Audio error en segmento #' + this.currentIndex + ', auto-avanzando:', e);
                         delete this.audioCache[this.currentIndex];
-                        this.isPaused = true;
-                        this.isLoading = false;
+                        setTimeout(() => {
+                            if (this.isPlaying) {
+                                this.playSegment(this.currentIndex + 1);
+                            }
+                        }, 200);
                     };
 
-                    this.audio.play().catch(err => {
-                        console.warn('Autoplay prevented or interrupted:', err);
-                    });
+                    const playPromise = this.audio.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch(err => {
+                            console.warn('[TTS] Play interrumpido o autoplay bloqueado:', err);
+                        });
+                    }
                     this.isPaused = false;
                 },
 

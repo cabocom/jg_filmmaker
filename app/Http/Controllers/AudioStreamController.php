@@ -27,6 +27,11 @@ class AudioStreamController extends Controller
 
         $manifest = $tts->buildManifestForScope($project, $sceneId, $blockId);
 
+        Log::info("[TTS Manifest] Manifiesto generado para proyecto {$project->id} (".count($manifest).' segmentos)', [
+            'scene_id' => $sceneId,
+            'block_id' => $blockId,
+        ]);
+
         // Disparar pre-warming en segundo plano si hay segmentos
         if (! empty($manifest) && ! app()->environment('testing')) {
             $this->dispatchPrewarm($project, $sceneId, $blockId);
@@ -72,6 +77,7 @@ class AudioStreamController extends Controller
      */
     public function streamAudio(Request $request, Project $project, TextToSpeechService $tts): BinaryFileResponse
     {
+        $startTime = microtime(true);
         Gate::authorize('view', $project);
 
         $blockId = (string) $request->query('block_id');
@@ -91,6 +97,12 @@ class AudioStreamController extends Controller
 
         $segment = $segments[$segmentIndex];
         $audioPath = $tts->synthesize($segment['text'], $segment['voice'], $speed);
+        $elapsedMs = round((microtime(true) - $startTime) * 1000, 2);
+
+        Log::info("[TTS Stream] Segmento #{$segmentIndex} ({$segment['speaker']}) servido en {$elapsedMs}ms", [
+            'block_id' => $blockId,
+            'bytes' => file_exists($audioPath) ? filesize($audioPath) : 0,
+        ]);
 
         return response()->file($audioPath, [
             'Content-Type' => 'audio/wav',
