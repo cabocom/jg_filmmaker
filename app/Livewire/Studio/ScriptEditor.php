@@ -1417,6 +1417,72 @@ class ScriptEditor extends Component
         session()->flash('success', "Bloque {$block->block_order} desglosado: {$createdShots->count()} planos sincronizados.");
     }
 
+    /**
+     * Ejecuta el pipeline completo de IA para todos los bloques de la escena especificada
+     * (Bruto ➔ Tratamiento ➔ Guión literario ➔ Desglose de planos).
+     */
+    public function runScenePipeline(string $sceneId, ScriptPipelineService $pipelineService): void
+    {
+        $scene = $this->projectScene($sceneId);
+        $blocks = $scene->scriptBlocks()->orderBy('block_order')->get();
+
+        if ($blocks->isEmpty()) {
+            session()->flash('info', "La Escena {$scene->scene_order} no contiene bloques para estructurar.");
+
+            return;
+        }
+
+        try {
+            $result = $pipelineService->batchRunFullPipeline($blocks);
+        } catch (QuotaExceededException $e) {
+            session()->flash('error', $e->getMessage());
+
+            return;
+        } catch (\Throwable $e) {
+            session()->flash('error', "Error al procesar el pipeline de la Escena {$scene->scene_order}: {$e->getMessage()}");
+
+            return;
+        }
+
+        // Sincronizar Biblia del proyecto si han emergido nuevos personajes o localizaciones
+        $pipelineService->syncProjectCharacters($this->project);
+        $pipelineService->syncProjectLocations($this->project);
+
+        $this->project->refresh();
+
+        // Conmutar la escena a la vista de planos para mostrar el resultado final desglosado
+        $this->scenePipelineStages[$scene->id] = 'shots';
+        foreach ($blocks as $block) {
+            $this->activeBlockTabs[$block->id] = 'shots';
+        }
+
+        if ($this->detailBlockId) {
+            $freshDetail = $scene->scriptBlocks()->find($this->detailBlockId);
+            if ($freshDetail) {
+                $this->editStructuredText = (string) $freshDetail->structured_text;
+                $this->editScreenplayContent = (string) $freshDetail->screenplay_content;
+                $this->detailActiveTab = 'shots';
+            }
+        }
+
+        $this->logActivity('run_scene_pipeline_ai', 'Scene', $scene->id, "Pipeline completo ejecutado con IA para la Escena #{$scene->scene_order} (Tratamiento ➔ Guión ➔ Planos)", [
+            'scene_id' => $scene->id,
+            'scene_order' => $scene->scene_order,
+            'scene_slugline' => $scene->slugline,
+            'blocks_count' => $blocks->count(),
+            'structured_count' => $result['structured'],
+            'screenplay_count' => $result['screenplay'],
+            'shots_count' => $result['shots'],
+            'errors' => $result['errors'],
+        ]);
+
+        if (! empty($result['errors'])) {
+            session()->flash('warning', "Escena {$scene->scene_order} procesada con avisos: ".implode('; ', $result['errors']));
+        } else {
+            session()->flash('success', "⚡ Escena {$scene->scene_order}: {$result['structured']} tratamientos, {$result['screenplay']} guiones y {$result['shots']} bloques desglosados en planos con IA.");
+        }
+    }
+
     public function setStoryboardStyle(string $style): void
     {
         if (! array_key_exists($style, StoryboardService::STYLES)) {

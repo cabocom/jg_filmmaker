@@ -77,3 +77,4 @@ El objetivo de esta funcionalidad es implementar un **Sistema Híbrido de Inteli
 - Purga exitosa de personajes espurios (*"Mira A Su Alrededor"*, *"Sonido En Off"*).
 - Documentación contextual viva en `PROJECT_CONTEXT.md` de ambos repositorios.
 - Cierre del issue en GitLab con comentario técnico detallado.
+

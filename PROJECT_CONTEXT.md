@@ -1,12 +1,22 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.30.0  
+**Versión del documento:** 3.31.0  
 **Fecha de consolidación:** 8 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Speaches-AI (Piper TTS), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), PHPUnit 12, Laravel Pint  
-**Estado:** ISSUE-049 (GitLab #3) completado: Sistema Híbrido de Inteligencia de Personajes (Detección Semántica con IA + Grounding Determinista anti-alucinaciones y Auditoría de Uso con Forzado HITL "Eliminar de todos modos"). 228 tests automatizados pasando al 100% y Pint superado.
+**Estado:** Automatización del Pipeline Cinematográfico por Escena incorporada (`runScenePipeline` con icono de rayo ⚡ en cabecera de escena: Bruto ➔ Tratamiento ➔ Guión ➔ Planos para todos los bloques de la sección). 229 tests automatizados pasando al 100% y Pint superado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **Pipeline IA Automático por Escena (Bruto ➔ Tratamiento ➔ Guión ➔ Descomposición en Planos):**
+  - **Acción Rápida en Cabecera de Escena (`runScenePipeline`):** Incorporado nuevo botón interactivo con icono de rayo (`⚡`) en la barra de acciones de cada escena (tanto en vista Pipeline de estudio como en vista Story Architect).
+  - **Orquestación End-to-End Desatendida:** Al pulsar el icono, el sistema toma automáticamente todos los bloques que integran la sección/escena y ejecuta secuencialmente la cadena completa:
+    1. Conversión de texto bruto a tratamiento cinematográfico (`transitionToStructured`).
+    2. Formateo de tratamiento a guión literario canónico (`transitionToScreenplay`).
+    3. Desglose técnico del guión en planos de cámara con tomas base sincronizadas (`generateShotsBreakdown`).
+  - **Respeto de Bloqueos y Sincronización:** Respeta los candados individuales de etapa (`isStageLocked`) y sincroniza automáticamente las entidades dramáticas que emerjan en la Biblia del proyecto (`syncProjectCharacters` y `syncProjectLocations`).
+  - **Conmutación Visual Inmediata:** Al finalizar el procesamiento, conmuta la pestaña de la escena directamente a la etapa de Planos/Tomas (`shots`) para que el cineasta visualice el resultado de forma inmediata.
+  - **Suite de Pruebas Ampliada a 229 Tests al 100%:** Nueva prueba en `LivewireScriptEditorTest` validando el ciclo completo end-to-end por escena y la respuesta reactiva en interfaz.
 
 - **ISSUE-049 (GitLab #3): Sistema Híbrido de Inteligencia de Personajes (IA Semántica + Grounding Determinista + Forzado HITL):**
   - **Inferencia Híbrida en `ScriptPipelineService`:** Integración con la tool canónica `extract_characters` de `jg_plugin_filmmaker`. Capacidad para reconocer personajes dramáticos reales (tanto personajes con diálogo como personajes mudos/silentes que intervienen en la acción física), complementada con grounding textual estricto en el texto original y catálogo de stopwords técnicas de cine (`INT`, `EXT`, `CORTE`, `SONIDO EN OFF`, `MIRA A SU ALREDEDOR`).

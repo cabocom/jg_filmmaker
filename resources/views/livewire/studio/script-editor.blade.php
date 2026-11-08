@@ -416,6 +416,26 @@
                                     </svg>
                                 </button>
 
+                                <!-- Botón Ejecutar Pipeline IA Completo para la Escena (Bruto ➔ Tratamiento ➔ Guión ➔ Planos) -->
+                                <button wire:click="runScenePipeline('{{ $scene->id }}')"
+                                        wire:loading.attr="disabled"
+                                        wire:target="runScenePipeline('{{ $scene->id }}')"
+                                        type="button"
+                                        title="Estructurar con IA todos los bloques de la Escena {{ $scene->scene_order }} (Bruto ➔ Tratamiento ➔ Guión ➔ Descomposición en Planos)"
+                                        class="p-1 rounded text-slate-400 hover:text-amber-500 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 transition cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <span wire:loading.remove wire:target="runScenePipeline('{{ $scene->id }}')">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                        </svg>
+                                    </span>
+                                    <span wire:loading wire:target="runScenePipeline('{{ $scene->id }}')">
+                                        <svg class="animate-spin w-3.5 h-3.5 text-amber-500" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                                        </svg>
+                                    </span>
+                                </button>
+
                                 <button wire:click="openEditSceneModal('{{ $scene->id }}')"
                                         type="button"
                                         title="Editar nombre y datos de la Escena {{ $scene->scene_order }}"
@@ -787,6 +807,24 @@
                                     <span class="font-mono font-black text-sm uppercase tracking-wide text-slate-950 dark:text-amber-400">
                                         {{ $scene->scene_order }}. {{ $scene->slugline }}
                                     </span>
+                                    <button wire:click="runScenePipeline('{{ $scene->id }}')"
+                                            wire:loading.attr="disabled"
+                                            wire:target="runScenePipeline('{{ $scene->id }}')"
+                                            type="button"
+                                            title="Estructurar con IA todos los bloques de la Escena {{ $scene->scene_order }} (Bruto ➔ Tratamiento ➔ Guión ➔ Planos)"
+                                            class="p-1 rounded text-slate-400 hover:text-amber-500 hover:bg-slate-200 dark:hover:bg-slate-800 transition cursor-pointer disabled:opacity-50">
+                                        <span wire:loading.remove wire:target="runScenePipeline('{{ $scene->id }}')">
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                            </svg>
+                                        </span>
+                                        <span wire:loading wire:target="runScenePipeline('{{ $scene->id }}')">
+                                            <svg class="animate-spin w-3.5 h-3.5 text-amber-500" fill="none" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                                            </svg>
+                                        </span>
+                                    </button>
                                     <button wire:click="openEditSceneModal('{{ $scene->id }}')"
                                             type="button"
                                             title="Editar nombre y datos de la Escena {{ $scene->scene_order }}"

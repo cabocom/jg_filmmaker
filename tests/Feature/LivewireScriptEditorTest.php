@@ -1522,4 +1522,59 @@ class LivewireScriptEditorTest extends TestCase
         $this->assertDatabaseMissing('shots', ['id' => $shot1->id]);
         $this->assertEquals(1, $shot2->fresh()->shot_number);
     }
+
+    public function test_run_scene_pipeline_structures_formats_and_breaks_down_all_blocks_in_scene(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+
+        $scene = Scene::factory()->create([
+            'project_id' => $project->id,
+            'scene_order' => 1,
+            'slugline' => 'INT. DORMITORIO - DIA 1',
+        ]);
+
+        $b1 = ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'block_order' => 1,
+            'raw_text' => 'MARCUS se despierta agitado y mira el reloj digital.',
+            'structured_text' => null,
+            'screenplay_content' => null,
+            'stage' => 'raw',
+            'user_locks' => ['locked_fields' => []],
+        ]);
+
+        $b2 = ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'block_order' => 2,
+            'raw_text' => 'ELENA entra en la habitación con dos tazas de café.',
+            'structured_text' => null,
+            'screenplay_content' => null,
+            'stage' => 'raw',
+            'user_locks' => ['locked_fields' => []],
+        ]);
+
+        $this->assertCount(0, $b1->shots);
+        $this->assertCount(0, $b2->shots);
+
+        $test = Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->assertSeeHtml('runScenePipeline(\''.$scene->id.'\')')
+            ->call('runScenePipeline', $scene->id, app(ScriptPipelineService::class))
+            ->assertHasNoErrors()
+            ->assertSee('desglosados en planos con IA');
+
+        $b1Fresh = $b1->fresh();
+        $b2Fresh = $b2->fresh();
+
+        $this->assertNotEmpty($b1Fresh->structured_text);
+        $this->assertNotEmpty($b1Fresh->screenplay_content);
+        $this->assertGreaterThan(0, $b1Fresh->shots()->count());
+
+        $this->assertNotEmpty($b2Fresh->structured_text);
+        $this->assertNotEmpty($b2Fresh->screenplay_content);
+        $this->assertGreaterThan(0, $b2Fresh->shots()->count());
+
+        $this->assertSame('shots', $test->get('scenePipelineStages')[$scene->id]);
+    }
 }
