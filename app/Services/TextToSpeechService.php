@@ -209,18 +209,26 @@ class TextToSpeechService
 
     /**
      * Síntesis de voz neural con Google AI Studio (Gemini TTS).
+     * Incorpora conmutación automática entre modelos compatibles ante límites de cuota (HTTP 429)
+     * y recorte de silencios muertos iniciales/finales con FFmpeg para máxima fluidez conversacional.
      */
     protected function synthesizeWithGoogleAi(string $cleanText, string $voice, string $cachedFilePath): string
     {
-        try {
-            $url = "{$this->googleAiBaseUrl}/models/{$this->googleAiTtsModel}:generateContent?key={$this->googleApiKey}";
+        $candidateModels = array_values(array_unique([
+            $this->googleAiTtsModel,
+            'gemini-3.8-flash-lite-tts',
+            'gemini-2.5-flash-preview-tts',
+            'gemini-3.1-flash-tts-preview',
+        ]));
 
-            $maxRetries = 3;
-            $attempt = 0;
-            $response = null;
+        $response = null;
+        $usedModel = null;
+        $lastErrorStatus = null;
 
-            while ($attempt < $maxRetries) {
-                $attempt++;
+        foreach ($candidateModels as $model) {
+            $url = "{$this->googleAiBaseUrl}/models/{$model}:generateContent?key={$this->googleApiKey}";
+
+            try {
                 $response = Http::timeout($this->timeout)
                     ->withHeaders(['Content-Type' => 'application/json'])
                     ->post($url, [
@@ -243,50 +251,78 @@ class TextToSpeechService
                         ],
                     ]);
 
-                if ($response->status() === 429 && $attempt < $maxRetries) {
-                    Log::warning("Rate limit 429 en Google AI TTS (intento {$attempt}/{$maxRetries}). Esperando backoff...");
-                    sleep($attempt * 2);
+                if ($response->status() === 429) {
+                    Log::warning("Cuota agotada (HTTP 429) en Google AI modelo {$model}. Probando modelo alternativo...");
+                    $lastErrorStatus = 429;
 
                     continue;
                 }
 
-                break;
-            }
-
-            if (! $response || ! $response->successful()) {
-                Log::error('Fallo en síntesis TTS con Google AI', [
-                    'status' => $response ? $response->status() : 'null',
-                    'error' => $response ? $response->body() : 'No response',
-                    'voice' => $voice,
-                ]);
-
-                throw new RuntimeException('Error al contactar con Google AI TTS: '.($response ? $response->status() : 'desconocido'));
-            }
-
-            $parts = $response->json('candidates.0.content.parts') ?? [];
-            $base64Data = null;
-            foreach ($parts as $part) {
-                if (! empty($part['inlineData']['data'])) {
-                    $base64Data = $part['inlineData']['data'];
+                if ($response->successful()) {
+                    $usedModel = $model;
                     break;
                 }
+
+                $lastErrorStatus = $response->status();
+            } catch (\Throwable $e) {
+                Log::warning("Error de conexión con modelo {$model}: ".$e->getMessage());
             }
+        }
 
-            if (! $base64Data) {
-                throw new RuntimeException('Google AI TTS no devolvió datos de audio válidos.');
-            }
-
-            $wavBytes = base64_decode($base64Data);
-            File::put($cachedFilePath, $wavBytes);
-
-            return $cachedFilePath;
-        } catch (\Throwable $e) {
-            Log::error('Excepción al sintetizar voz vía Google AI', [
-                'message' => $e->getMessage(),
+        if (! $response || ! $response->successful()) {
+            Log::error('Fallo en síntesis TTS con todos los modelos de Google AI', [
+                'status' => $lastErrorStatus,
                 'voice' => $voice,
             ]);
 
-            throw new RuntimeException('No se pudo generar la locución con Google AI: '.$e->getMessage(), 0, $e);
+            throw new RuntimeException('Error al contactar con Google AI TTS: '.($lastErrorStatus ?? 'desconocido'));
+        }
+
+        $parts = $response->json('candidates.0.content.parts') ?? [];
+        $base64Data = null;
+        foreach ($parts as $part) {
+            if (! empty($part['inlineData']['data'])) {
+                $base64Data = $part['inlineData']['data'];
+                break;
+            }
+        }
+
+        if (! $base64Data) {
+            throw new RuntimeException('Google AI TTS no devolvió datos de audio válidos.');
+        }
+
+        $wavBytes = base64_decode($base64Data);
+        File::put($cachedFilePath, $wavBytes);
+
+        // Recorte inteligente de silencios muertos iniciales y finales para lectura fluida
+        $this->trimAudioSilence($cachedFilePath);
+
+        return $cachedFilePath;
+    }
+
+    /**
+     * Recorta el silencio artificial inicial y final que añade la síntesis neural
+     * para asegurar un ritmo dramático fluido y continuo entre personajes.
+     */
+    protected function trimAudioSilence(string $filePath): void
+    {
+        if (! File::exists($filePath) || File::size($filePath) === 0) {
+            return;
+        }
+
+        $trimmedPath = $filePath.'.trimmed.wav';
+        $cmd = sprintf(
+            'ffmpeg -y -i %s -af "silenceremove=start_periods=1:start_duration=0.02:start_threshold=-35dB:stop_periods=1:stop_duration=0.04:stop_threshold=-35dB" %s 2>/dev/null',
+            escapeshellarg($filePath),
+            escapeshellarg($trimmedPath)
+        );
+
+        @exec($cmd, $output, $returnVar);
+
+        if ($returnVar === 0 && file_exists($trimmedPath) && filesize($trimmedPath) > 500) {
+            @rename($trimmedPath, $filePath);
+        } elseif (file_exists($trimmedPath)) {
+            @unlink($trimmedPath);
         }
     }
 

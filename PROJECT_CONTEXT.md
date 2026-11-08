@@ -1,12 +1,18 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.41.0  
+**Versión del documento:** 3.42.0  
 **Fecha de consolidación:** 8 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** ISSUE-059 completado: Blindaje de tolerancia a límites de tasa (HTTP 429) en Google AI TTS mediante reintentos automáticos con backoff exponencial y auto-recuperación sin bloqueo en el reproductor web. 233 tests automatizados pasando al 100% y Pint superado.
+**Estado:** ISSUE-060 completado: Fluidez y ritmo dramático instantáneo (0 ms de delay) mediante pre-decodificación en memoria HTML5 Audio, precarga concurrente no bloqueante de los 2 siguientes segmentos, conmutación automática de modelos ante cuotas (HTTP 429) y recorte de silencios muertos con FFmpeg. 233 tests automatizados pasando al 100% y Pint superado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **ISSUE-060: Fluidez Gapless y Eliminación de Pausas Muertas en Reproducción Dramática:**
+  - **Pre-decodificación en Memoria del Navegador (Transición en 0 ms):** En `script-editor.blade.php`, cada segmento precargado ahora pre-instancia y decodifica un objeto `Audio` nativo (`preload = 'auto'`). Al finalizar un parlamento, el siguiente elemento de audio se reproduce al instante sin reconstruir el objeto DOM ni renegociar el pipeline de audio del navegador.
+  - **Precarga Asíncrona sin Cuello de Botella:** Se eliminó el semáforo booleano bloqueante `isPrefetching`, permitiendo que la cola de precarga (`queuePrefetch`) mantenga siempre en caliente los 2 segmentos siguientes de forma verdaderamente paralela y fluida.
+  - **Recorte Automático de Silencios Artificiales con FFmpeg:** Se incorporó en `TextToSpeechService::trimAudioSilence` el filtro `silenceremove` para limpiar los ~300ms de silencio inicial y ~340ms de cola que Google AI inyecta de serie en cada archivo WAV. Los personajes se responden con ritmo natural cinematográfico.
+  - **Conmutación Inteligente ante Cuotas Diarias de Modelo:** Detección de agotamiento de cuota diaria (HTTP 429 por modelo en Google AI Studio Tier 1). `synthesizeWithGoogleAi` conmuta al instante hacia modelos compatibles de respaldo (`gemini-3.8-flash-lite-tts`, `gemini-2.5-flash-preview-tts`), garantizando generación ininterrumpida sin esperas de backoff prolongadas.
 
 - **ISSUE-059: Auto-retry con Backoff Exponencial en Google AI TTS (HTTP 429) y Recuperación en Player:**
   - **Manejo Resiliente de Cuota y Límite de Ráfaga en Google AI:** `TextToSpeechService::synthesizeWithGoogleAi` ahora incorpora un bucle de reintento progresivo ante respuestas HTTP 429 (Too Many Requests / Rate Limit de la API de Gemini). El servicio espera con backoff exponencial (2s, 4s...) permitiendo que la ventana de cuota por minuto se desbloquee sin interrumpir la lectura ni arrojar errores 500 al cliente.
