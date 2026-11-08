@@ -1,12 +1,17 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.49.0  
+**Versión del documento:** 3.50.0  
 **Fecha de consolidación:** 8 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** ISSUE-067 completado: Migración crítica de `tts_cache` a NVMe SSD local (`storage/tts_cache`). Diagnóstico definitivo del cuello de botella de 30s: `storage/app` estaba montado por FUSE rclone hacia Google Drive (`/mnt/gdrive_filmmaker`), causando que cada chunk de audio WAV sufriera latencias de red y bloqueos de I/O por peticiones concurrentes a la API de Google Drive. Con la reubicación en SSD local, la lectura y escritura se realiza en <1 ms. 238 tests pasando al 100% y Pint verificado.
+**Estado:** ISSUE-068 completado: Resiliencia ante ráfagas de navegación rápida (debounce de saltos 1-50 en cliente) y corrección de falso positivo en cuota diaria de Google AI TTS. Ignorado de `storage/tts_cache` en `.gitignore` para prevenir inclusión de audios en git. 238 tests pasando al 100% y Pint verificado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **ISSUE-068: Protección Antirráfagas en Reproductor y Corrección de Falso Positivo en Cuota Diaria Google AI:**
+  - **Exclusión Estricta de Ficheros WAV en Git (`.gitignore`):** Añadido `/storage/tts_cache` al `.gitignore` principal del proyecto para asegurar que los fragmentos de audio temporales en disco jamás se marquen como untracked ni se incluyan en commits.
+  - **Debounce de Saltos Rápidos en Cliente (`jumpToSegment`):** Implementada navegación desacoplada en `script-editor.blade.php`. Cuando el usuario pulsa repetidamente "Siguiente" o "Anterior" (p. ej. saltando del bloque 1 al 50 velozmente), la UI se actualiza de forma instantánea a 60 FPS, pero la petición de audio se retarda 180 ms. Esto evita saturar el servidor con 50 peticiones HTTP concurrentes e inútiles para bloques que el usuario ya ha saltado.
+  - **Corrección de Detección de Cuota Diaria (HTTP 429):** Eliminada la comprobación genérica de `RESOURCE_EXHAUSTED` (que es el estado estándar de gRPC para cualquier error 429, incluso límites por minuto). La desactivación temporal de 60 min solo se activa ante strings explícitos de límite diario (`per_model_per_day`, `limit: 100`). Ante ráfagas por minuto, se aplica un backoff corto y se conmuta de inmediato a modelos alternativos activos (`gemini-3.8-flash-lite-tts`, `gemini-2.5-flash-preview-tts`, `gemini-2.5-pro-preview-tts`, `gemini-3.1-flash-tts-preview`). Si todos los modelos estuvieran bloqueados, se purgan automáticamente para restaurar el servicio.
 
 - **ISSUE-067: Migración Crítica de `tts_cache` a Disco Local SSD (Resolución Cuello de Botella 30s):**
   - **Diagnóstico del Mount FUSE rclone:** En el host de producción, `/var/www/html/storage/app` está montado sobre `/mnt/gdrive_filmmaker` (Google Drive vía FUSE rclone). Al ubicar `tts_cache` en `storage/app/private/tts_cache`, cada operación de lectura, escritura o sondeo de audio WAV desencadenaba peticiones HTTP a la API de Google Drive a través de FUSE, provocando bloqueos de 30-50 segundos, throttling de API y bloqueo de procesos PHP-FPM y del contenedor.

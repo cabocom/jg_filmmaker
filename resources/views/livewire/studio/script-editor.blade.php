@@ -65,6 +65,7 @@
                 audio: null,
                 nextAudio: null,
                 abortController: null,
+                skipTimer: null,
 
                 get progressText() {
                     if (!this.manifest.length) return '';
@@ -213,14 +214,43 @@
 
                 nextSegment() {
                     if (this.currentIndex < this.manifest.length - 1) {
-                        this.playSegment(this.currentIndex + 1);
+                        this.jumpToSegment(this.currentIndex + 1);
                     }
                 },
 
                 prevSegment() {
                     if (this.currentIndex > 0) {
-                        this.playSegment(this.currentIndex - 1);
+                        this.jumpToSegment(this.currentIndex - 1);
                     }
+                },
+
+                jumpToSegment(index) {
+                    this.currentIndex = index;
+                    const seg = this.manifest[index];
+                    if (seg) {
+                        this.currentSpeaker = seg.speaker || 'NARRADOR';
+                        this.currentText = seg.text || '';
+                        this.currentBlockId = seg.block_id || null;
+                        this.highlightBlock(this.currentBlockId);
+                    }
+                    if (this.skipTimer) {
+                        clearTimeout(this.skipTimer);
+                    }
+                    if (this.audio) {
+                        this.audio.onended = null;
+                        this.audio.onerror = null;
+                        this.audio.pause();
+                        this.audio = null;
+                    }
+                    if (this.nextAudio) {
+                        this.nextAudio.src = '';
+                        this.nextAudio = null;
+                    }
+                    this.skipTimer = setTimeout(() => {
+                        if (this.isPlaying) {
+                            this.playSegment(this.currentIndex);
+                        }
+                    }, 180);
                 },
 
                 cycleSpeed() {
@@ -234,6 +264,10 @@
                 },
 
                 stopPlayback() {
+                    if (this.skipTimer) {
+                        clearTimeout(this.skipTimer);
+                        this.skipTimer = null;
+                    }
                     if (this.abortController) {
                         this.abortController.abort();
                         this.abortController = null;

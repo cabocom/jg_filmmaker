@@ -252,8 +252,22 @@ class TextToSpeechService
             $this->googleAiTtsModel,
             'gemini-3.8-flash-lite-tts',
             'gemini-2.5-flash-preview-tts',
+            'gemini-2.5-pro-preview-tts',
             'gemini-3.1-flash-tts-preview',
         ]));
+
+        $allExhausted = true;
+        foreach ($candidateModels as $model) {
+            if (! Cache::has("tts_model_exhausted_{$model}")) {
+                $allExhausted = false;
+                break;
+            }
+        }
+        if ($allExhausted) {
+            foreach ($candidateModels as $model) {
+                Cache::forget("tts_model_exhausted_{$model}");
+            }
+        }
 
         $response = null;
         $usedModel = null;
@@ -292,12 +306,17 @@ class TextToSpeechService
 
                 if ($response->status() === 429) {
                     $errorBody = (string) $response->body();
-                    $isDailyQuota = str_contains($errorBody, 'limit: 100') || str_contains($errorBody, 'RESOURCE_EXHAUSTED') || str_contains($errorBody, 'per_day');
+                    $isDailyQuota = str_contains($errorBody, 'per_model_per_day')
+                        || str_contains($errorBody, 'generate_requests_per_model_per_day')
+                        || str_contains($errorBody, 'requests_per_day')
+                        || (str_contains($errorBody, 'limit: 100') && str_contains($errorBody, 'day'));
+
                     if ($isDailyQuota) {
-                        Cache::put($exhaustedKey, true, now()->addHours(6));
-                        Log::warning("Cuota diaria agotada (HTTP 429) en Google AI modelo {$model}. Desactivado por 6h, conmutando...");
+                        Cache::put($exhaustedKey, true, now()->addMinutes(60));
+                        Log::warning("Cuota diaria agotada (HTTP 429) en Google AI modelo {$model}. Conmutando a modelos de reserva...");
                     } else {
-                        Log::warning("Cuota agotada (HTTP 429) en Google AI modelo {$model}. Probando modelo alternativo...");
+                        Log::warning("Rate limit por minuto (HTTP 429) en Google AI modelo {$model}. Probando modelo alternativo...");
+                        usleep(300000);
                     }
                     $lastErrorStatus = 429;
 
