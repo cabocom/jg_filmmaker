@@ -10,6 +10,7 @@ use App\Models\ScriptBlock;
 use App\Models\User;
 use App\Services\TextToSpeechService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -23,6 +24,7 @@ class TextToSpeechServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Cache::flush();
         config(['services.google_ai.api_key' => 'testing_google_ai_key']);
         $this->service = new TextToSpeechService;
 
@@ -208,6 +210,26 @@ class TextToSpeechServiceTest extends TestCase
 
     public function test_prewarm_manifest_synthesizes_and_caches_segments(): void
     {
+        $fakeBase64 = base64_encode('RIFF_FAKE_AUDIO_DATA');
+        Http::fake([
+            'https://generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [
+                    [
+                        'content' => [
+                            'parts' => [
+                                [
+                                    'inlineData' => [
+                                        'mimeType' => 'audio/wav',
+                                        'data' => $fakeBase64,
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ], 200),
+        ]);
+
         $id = uniqid();
         $manifest = [
             [

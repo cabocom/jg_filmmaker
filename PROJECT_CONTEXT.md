@@ -1,12 +1,17 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.46.0  
+**Versión del documento:** 3.47.0  
 **Fecha de consolidación:** 8 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** ISSUE-064 completado: Ergononomía de la ficha del personaje en la Biblia (eliminación de textos psicológicos residuales, badges e importancia narrativa cuantitativa, notas de vestuario en textarea y protección reactiva de doble clic en botones de guardado). 238 tests automatizados pasando al 100% y Pint superado.
+**Estado:** ISSUE-065 completado: Diagnóstico y resolución de cuellos de botella en streaming de audio y observabilidad en Docker logs. Escalamiento de pool PHP-FPM a 25 workers, integración de logs Laravel a stderr para `docker logs -f jg_filmmaker` y conmutación en 0 ms para modelos TTS agotados. 238 tests automatizados pasando al 100% y Pint superado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **ISSUE-065: Observabilidad en Docker Logs y Optimización de Rendimiento en Streaming de Audio:**
+  - **Emisión de Logs Laravel a Docker (`docker logs -f jg_filmmaker`):** Activado en `config/logging.php` el stack predeterminado `single,stderr` y configurado `php-fpm.d/www.conf` con `catch_workers_output = yes` y `decorate_workers_output = no`. Cualquier `Log::info`, `Log::warning` o excepción no capturada de Laravel se transmite de inmediato a la salida estándar/error del contenedor, posibilitando una depuración fluida y en tiempo real con `docker logs -f jg_filmmaker`.
+  - **Escalamiento del Pool de Workers PHP-FPM (25 workers):** Se eliminó la inanición de workers (`pm.max_children = 5` por defecto en Alpine) que originaba colas de hasta 32 segundos de espera (TTFB) cuando el navegador abría 12 peticiones HTTP paralelas para streaming y precarga de audio. El pool se ajustó a `pm.max_children = 25`, `pm.start_servers = 5`, `pm.min_spare_servers = 3` y `pm.max_spare_servers = 10`.
+  - **Caché de Agotamiento de Cuota Diaria TTS (6h):** Al recibir un HTTP 429 por agotamiento de cuota diaria en Google AI Studio (Tier 1), `TextToSpeechService` guarda la clave `tts_model_exhausted_{model}` durante 6 horas. En subsiguientes peticiones, el modelo agotado se omite en 0 ms, evitando penalizaciones de red y reintentos innecesarios.
 
 - **ISSUE-064: Ergonomía de Ficha de Personaje en la Biblia (Importancia Narrativa, Vestuario Textarea y Bloqueo Reactivo):**
   - **Supresión de Frase Genérica Residual:** Eliminada de `ScriptPipelineService` y de la vista Blade la frase fija de relleno *"Interviene activamente en el desarrollo de la escena."* que aparecía de forma inmutable debajo del nombre del personaje.

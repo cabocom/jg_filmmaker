@@ -7,6 +7,7 @@ use App\Models\Project;
 use App\Models\Scene;
 use App\Models\ScriptBlock;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -247,6 +248,11 @@ class TextToSpeechService
         $lastErrorStatus = null;
 
         foreach ($candidateModels as $model) {
+            $exhaustedKey = "tts_model_exhausted_{$model}";
+            if (Cache::has($exhaustedKey)) {
+                continue;
+            }
+
             $url = "{$this->googleAiBaseUrl}/models/{$model}:generateContent?key={$this->googleApiKey}";
 
             try {
@@ -273,7 +279,14 @@ class TextToSpeechService
                     ]);
 
                 if ($response->status() === 429) {
-                    Log::warning("Cuota agotada (HTTP 429) en Google AI modelo {$model}. Probando modelo alternativo...");
+                    $errorBody = (string) $response->body();
+                    $isDailyQuota = str_contains($errorBody, 'limit: 100') || str_contains($errorBody, 'RESOURCE_EXHAUSTED') || str_contains($errorBody, 'per_day');
+                    if ($isDailyQuota) {
+                        Cache::put($exhaustedKey, true, now()->addHours(6));
+                        Log::warning("Cuota diaria agotada (HTTP 429) en Google AI modelo {$model}. Desactivado por 6h, conmutando...");
+                    } else {
+                        Log::warning("Cuota agotada (HTTP 429) en Google AI modelo {$model}. Probando modelo alternativo...");
+                    }
                     $lastErrorStatus = 429;
 
                     continue;
