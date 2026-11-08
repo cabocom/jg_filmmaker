@@ -3101,8 +3101,8 @@
                     <div class="space-y-2">
                         <div class="flex items-center justify-between">
                             <label class="text-[11px] font-bold text-slate-200 flex items-center gap-1">
-                                <span>✏️ Prompt para Google AI Studio</span>
-                                <span class="font-normal text-slate-400">(editable antes de generar)</span>
+                                <span>✏️ Prompt para el Motor de IA (Google AI Studio)</span>
+                                <span class="font-normal text-slate-400">(editable con referencias @)</span>
                             </label>
                             <button type="button"
                                     wire:click="resetStoryboardModalPrompt"
@@ -3111,10 +3111,50 @@
                                 <span>🔄 Restablecer prompt automático</span>
                             </button>
                         </div>
-                        <textarea wire:model.live.debounce.300ms="storyboardModalPrompt"
+
+                        <!-- Barra interactiva de etiquetas @ estilo Flow / Midjourney -->
+                        <div class="flex items-center flex-wrap gap-1.5 p-2 rounded-lg bg-slate-950/80 border border-slate-800">
+                            <span class="text-[10px] text-slate-400 font-mono mr-1">Etiquetas @:</span>
+                            @if($selectedModalChar)
+                                @php $cTag = '@' . preg_replace('/\s+/', '_', trim($selectedModalChar->name)); @endphp
+                                <button type="button"
+                                        onclick="insertTagToStoryboardPrompt('{{ $cTag }}')"
+                                        title="Insertar etiqueta del personaje en la posición del cursor"
+                                        class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 cursor-pointer transition">
+                                    {{ $cTag }}
+                                </button>
+                            @endif
+
+                            @if($selectedModalLoc)
+                                @php $lTag = '@' . preg_replace('/\s+/', '_', trim($selectedModalLoc->name)); @endphp
+                                <button type="button"
+                                        onclick="insertTagToStoryboardPrompt('{{ $lTag }}')"
+                                        title="Insertar etiqueta de la localización en la posición del cursor"
+                                        class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 cursor-pointer transition">
+                                    {{ $lTag }}
+                                </button>
+                            @endif
+
+                            @foreach($storyboardPropUploads as $pIdx => $pFile)
+                                @php $pTag = '@Atrezzo' . ($pIdx + 1); @endphp
+                                <button type="button"
+                                        onclick="insertTagToStoryboardPrompt('{{ $pTag }}')"
+                                        title="Insertar etiqueta del objeto de atrezzo {{ $pIdx + 1 }}"
+                                        class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 cursor-pointer transition">
+                                    {{ $pTag }}
+                                </button>
+                            @endforeach
+
+                            <span class="text-[10px] text-slate-500 italic ml-auto hidden sm:inline">
+                                💡 Haz clic para insertar la etiqueta @ en el texto
+                            </span>
+                        </div>
+
+                        <textarea id="storyboard_modal_prompt"
+                                  wire:model.live.debounce.300ms="storyboardModalPrompt"
                                   rows="4"
                                   class="w-full rounded-xl bg-slate-950 border border-slate-700 p-3 font-mono text-xs text-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 placeholder-slate-500 leading-relaxed"
-                                  placeholder="Escribe o edita el prompt detallado para la generación..."></textarea>
+                                  placeholder="Escribe o edita el prompt detallado usando etiquetas @personaje, @localizacion o @Atrezzo..."></textarea>
                         @error('storyboardModalPrompt')
                             <p class="text-rose-400 text-[10px]">{{ $message }}</p>
                         @enderror
@@ -3452,6 +3492,23 @@
                     });
                 }
             };
+        }
+
+        function insertTagToStoryboardPrompt(tag) {
+            const el = document.getElementById('storyboard_modal_prompt');
+            if (!el) return;
+            const start = el.selectionStart || 0;
+            const end = el.selectionEnd || 0;
+            const val = el.value || '';
+            const before = val.substring(0, start);
+            const after = val.substring(end);
+            const spaceBefore = (start > 0 && !/\s$/.test(before)) ? ' ' : '';
+            const spaceAfter = (!/^\s/.test(after)) ? ' ' : '';
+            el.value = before + spaceBefore + tag + spaceAfter + after;
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            const newPos = start + spaceBefore.length + tag.length + spaceAfter.length;
+            el.setSelectionRange(newPos, newPos);
+            el.focus();
         }
 
         document.addEventListener('livewire:initialized', () => {

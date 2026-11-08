@@ -999,6 +999,21 @@ class AgentClientService
             ];
         }
 
+        if ($toolName === 'generate_storyboard') {
+            return [
+                'success' => true,
+                'output' => 'Viñeta generada determinísticamente (modo offline).',
+                'metadata' => [
+                    'image_base64' => 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+                    'mime_type' => 'image/png',
+                    'style' => $payload['style'] ?? 'grayscale_sketch',
+                    'final_prompt' => $payload['prompt'] ?? '',
+                    'aspect_ratio' => $payload['aspect_ratio'] ?? '16:9',
+                    'source' => 'deterministic_fallback',
+                ],
+            ];
+        }
+
         return ['success' => false, 'output' => '', 'error' => "Herramienta desconocida: {$toolName}"];
     }
 

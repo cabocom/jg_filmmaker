@@ -5,15 +5,21 @@ namespace App\Services;
 use App\Models\Character;
 use App\Models\Location;
 use App\Models\Shot;
+use App\Services\JgAgente\AgentClientService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 class StoryboardService
 {
+    public function __construct(
+        protected ?AgentClientService $agentClient = null
+    ) {
+        $this->agentClient = $agentClient ?? app(AgentClientService::class);
+    }
+
     /**
      * Catálogo canónico de estilos visuales disponibles para el Storyboard.
      *
@@ -52,7 +58,7 @@ class StoryboardService
 
     /**
      * Construye el prompt descriptivo optimizado para Google AI Studio (Imagen 3 / Gemini),
-     * incorporando encuadre, escena, acción, estilo, localización, personaje y atrezzo.
+     * incorporando encuadre, escena, acción, estilo, localización, personaje y atrezzo con soporte para etiquetas @.
      */
     public function buildPrompt(
         Shot $shot,
@@ -71,10 +77,19 @@ class StoryboardService
         $description = trim((string) $shot->description) ?: 'Cinematic composition depicting the scene action.';
 
         // Comprobar si hay una localización asociada a la escena o en la Biblia
+        $location = $this->resolveLocationModel($shot, $locationId);
+        $locTag = $location ? '@'.preg_replace('/\s+/', '_', trim($location->name)) : '@localizacion';
         $locationDirective = $this->resolveLocationConditioning($shot, $locationId);
 
         // Comprobar si hay un personaje asociado al bloque de guion o mencionado en el plano
+        $character = $this->resolveCharacterModel($shot, $characterId);
+        $charTag = $character ? '@'.preg_replace('/\s+/', '_', trim($character->name)) : '@personaje';
         $characterDirective = $this->resolveCharacterConditioning($shot, $characterId);
+
+        // Si la descripción menciona el nombre del personaje, referenciarlo con @
+        if ($character && $character->name) {
+            $description = (string) preg_replace('/\b'.preg_quote($character->name, '/').'\b/iu', $charTag, $description);
+        }
 
         $promptParts = [
             'Cinematic film storyboard panel, aspect ratio 16:9.',
@@ -93,7 +108,8 @@ class StoryboardService
         }
 
         if ($propCount > 0) {
-            $promptParts[] = "Props & Objects: Incorporate and accurately depict the {$propCount} referenced prop item(s) from the provided visual reference images into the shot.";
+            $propTags = array_map(fn (int $i) => "@Atrezzo{$i}", range(1, $propCount));
+            $promptParts[] = 'Props & Objects: Incorporate and accurately depict '.implode(', ', $propTags).' from the provided visual reference images into the shot.';
         }
 
         $promptParts[] = "Artistic Style: {$styleData['modifier']}";
@@ -102,9 +118,9 @@ class StoryboardService
     }
 
     /**
-     * Genera la imagen de storyboard a través de la API de Google AI Studio,
-     * admitiendo acondicionamiento multimodal (personaje, localización y hasta 3 objetos de atrezzo),
-     * almacena el artefacto en el disco público y actualiza el plano.
+     * Genera la imagen de storyboard a través de jg_agente (jg_plugin_filmmaker),
+     * admitiendo acondicionamiento multimodal (personaje, localización y hasta 3 objetos de atrezzo con etiquetas @),
+     * almacena el artefacto en el disco público y actualiza el plano sin alterar su definición dramática.
      *
      * @param  array<int, mixed>  $propImages
      *
@@ -131,137 +147,56 @@ class StoryboardService
             ? trim($customPrompt)
             : $this->buildPrompt($shot, $styleKey, $characterId, $locationId, count($propImagesSlice));
 
-        $apiKey = config('services.google_ai.api_key');
-        $baseUrl = rtrim((string) config('services.google_ai.base_url', 'https://generativelanguage.googleapis.com/v1beta'), '/');
-        $model = config('services.google_ai.model', 'gemini-2.5-flash-image');
-        $timeout = (int) config('services.google_ai.timeout', 60);
+        $character = $this->resolveCharacterModel($shot, $characterId);
+        $charImgData = ($character && $character->hasReferenceImage())
+            ? $this->getStorageImageData($character->reference_image_path)
+            : null;
 
-        $imageBytes = null;
+        $location = $this->resolveLocationModel($shot, $locationId);
+        $locImgData = ($location && $location->hasReferenceImage())
+            ? $this->getStorageImageData($location->reference_image_path)
+            : null;
 
-        // Si no hay API key configurada o estamos en entorno de testing sin fake HTTP explícito
-        if (empty($apiKey)) {
-            if (app()->environment('testing', 'local')) {
-                Log::warning('StoryboardService: Sin GOOGLE_AI_API_KEY. Empleando viñeta de reserva para testing/local.');
-                $imageBytes = $this->getDummyJpegBytes();
-            } else {
-                throw new RuntimeException('No se ha configurado la variable GOOGLE_AI_API_KEY para generar viñetas de storyboard.');
+        $propsData = [];
+        foreach ($propImagesSlice as $propItem) {
+            $propData = $this->getUploadedOrImageData($propItem);
+            if ($propData) {
+                $propsData[] = $propData['data'];
             }
-        } else {
-            $isGenerateContent = str_starts_with($model, 'gemini') || str_contains($model, 'banana');
-
-            if ($isGenerateContent) {
-                $parts = [];
-
-                // 1. Imagen de referencia del personaje si existe
-                $character = $this->resolveCharacterModel($shot, $characterId);
-                if ($character && $character->hasReferenceImage()) {
-                    $charImgData = $this->getStorageImageData($character->reference_image_path);
-                    if ($charImgData) {
-                        $parts[] = [
-                            'inline_data' => [
-                                'mime_type' => $charImgData['mime_type'],
-                                'data' => $charImgData['data'],
-                            ],
-                        ];
-                    }
-                }
-
-                // 2. Imagen de referencia de la localización si existe
-                $location = $this->resolveLocationModel($shot, $locationId);
-                if ($location && $location->hasReferenceImage()) {
-                    $locImgData = $this->getStorageImageData($location->reference_image_path);
-                    if ($locImgData) {
-                        $parts[] = [
-                            'inline_data' => [
-                                'mime_type' => $locImgData['mime_type'],
-                                'data' => $locImgData['data'],
-                            ],
-                        ];
-                    }
-                }
-
-                // 3. Imágenes de referencia de atrezzo / props (hasta 3)
-                foreach ($propImagesSlice as $propItem) {
-                    $propData = $this->getUploadedOrImageData($propItem);
-                    if ($propData) {
-                        $parts[] = [
-                            'inline_data' => [
-                                'mime_type' => $propData['mime_type'],
-                                'data' => $propData['data'],
-                            ],
-                        ];
-                    }
-                }
-
-                // 4. Prompt descriptivo
-                $parts[] = ['text' => $prompt];
-
-                $endpoint = "{$baseUrl}/models/{$model}:generateContent?key={$apiKey}";
-                $response = Http::timeout($timeout)->post($endpoint, [
-                    'contents' => [
-                        [
-                            'parts' => $parts,
-                        ],
-                    ],
-                ]);
-            } else {
-                $endpoint = "{$baseUrl}/models/{$model}:predict?key={$apiKey}";
-                $response = Http::timeout($timeout)->post($endpoint, [
-                    'instances' => [
-                        ['prompt' => $prompt],
-                    ],
-                    'parameters' => [
-                        'sampleCount' => 1,
-                        'aspectRatio' => '16:9',
-                        'outputOptions' => [
-                            'mimeType' => 'image/jpeg',
-                        ],
-                    ],
-                ]);
-            }
-
-            if ($response->failed()) {
-                $errorMsg = $response->json('error.message') ?? $response->body();
-                Log::error("StoryboardService: Error de Google AI Studio ({$response->status()}): {$errorMsg}");
-
-                if ($response->status() === 402) {
-                    throw new RuntimeException('Google AI Studio requiere créditos prepago o facturación activa en tu proyecto de Google Cloud (Error 402: Prepayment credits depleted). Revisa https://ai.studio/projects o la facturación de Google Cloud.');
-                }
-
-                throw new RuntimeException("Error en Google AI Studio ({$response->status()}): {$errorMsg}");
-            }
-
-            $base64 = $response->json('predictions.0.bytesBase64Encoded');
-            $mimeType = 'image/jpeg';
-
-            if (empty($base64)) {
-                $parts = (array) ($response->json('candidates.0.content.parts') ?? []);
-                foreach ($parts as $part) {
-                    if (! empty($part['inlineData']['data'])) {
-                        $base64 = $part['inlineData']['data'];
-                        $mimeType = $part['inlineData']['mimeType'] ?? 'image/png';
-                        break;
-                    }
-                    if (! empty($part['inline_data']['data'])) {
-                        $base64 = $part['inline_data']['data'];
-                        $mimeType = $part['inline_data']['mime_type'] ?? 'image/png';
-                        break;
-                    }
-                }
-            }
-
-            if (empty($base64)) {
-                Log::error('StoryboardService: La API de Google AI no devolvió datos base64 en la respuesta.', [
-                    'response' => $response->json(),
-                ]);
-                throw new RuntimeException('Google AI Studio no devolvió la imagen esperada.');
-            }
-
-            $imageBytes = base64_decode($base64);
         }
 
+        $payload = [
+            'prompt' => $prompt,
+            'style' => $styleKey,
+            'character_name' => $character?->name,
+            'character_image_base64' => $charImgData ? $charImgData['data'] : null,
+            'location_name' => $location?->name,
+            'location_image_base64' => $locImgData ? $locImgData['data'] : null,
+            'prop_images_base64' => $propsData,
+            'aspect_ratio' => '16:9',
+        ];
+
+        // Invocar la herramienta desacoplada en jg_agente / jg_plugin_filmmaker
+        $result = $this->agentClient->callTool('generate_storyboard', $payload);
+
+        if (! ($result['success'] ?? false)) {
+            $errorMsg = $result['error'] ?? 'Error desconocido al generar la viñeta con el agente.';
+            Log::error("StoryboardService: Fallo en generate_storyboard: {$errorMsg}");
+            throw new RuntimeException("Error en generación de storyboard: {$errorMsg}");
+        }
+
+        $base64 = $result['metadata']['image_base64'] ?? ($result['image_base64'] ?? null);
+        $mimeType = $result['metadata']['mime_type'] ?? ($result['mime_type'] ?? 'image/png');
+
+        if (empty($base64)) {
+            Log::error('StoryboardService: El agente no devolvió datos base64 en la respuesta.');
+            throw new RuntimeException('Google AI Studio no devolvió la imagen esperada a través del agente.');
+        }
+
+        $imageBytes = base64_decode($base64);
+
         if (empty($imageBytes)) {
-            throw new RuntimeException('No se pudieron obtener los bytes de la imagen generada.');
+            throw new RuntimeException('No se pudieron decodificar los bytes de la imagen generada.');
         }
 
         // Eliminar viñeta previa si existía en disco
@@ -269,12 +204,13 @@ class StoryboardService
             Storage::disk('public')->delete($shot->storyboard_image_path);
         }
 
-        // Guardar nuevo artefacto con su extensión correspondiente
+        // Guardar nuevo artefacto organizado por escena: /projects/{id}/storyboards/scene_{id}/shot_{id}_{time}.ext
+        $sceneId = $shot->scene_id ?? 'scene_default';
         $ext = str_contains($mimeType, 'png') ? 'png' : 'jpg';
-        $filename = "projects/{$projectId}/storyboards/shot_{$shot->id}_".time().".{$ext}";
+        $filename = "projects/{$projectId}/storyboards/scene_{$sceneId}/shot_{$shot->id}_".time().".{$ext}";
         Storage::disk('public')->put($filename, $imageBytes);
 
-        // Actualizar registro en base de datos
+        // Actualizar registro en base de datos (preservando intactos el shot_type y la descripción)
         $shot->update([
             'storyboard_image_path' => $filename,
             'storyboard_style' => $styleKey,

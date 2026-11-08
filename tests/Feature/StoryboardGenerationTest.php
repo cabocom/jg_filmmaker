@@ -152,17 +152,17 @@ class StoryboardGenerationTest extends TestCase
 
     public function test_storyboard_service_generates_image_from_google_ai_studio_api(): void
     {
-        Config::set('services.google_ai.api_key', 'test-fake-key-google-ai');
+        Config::set('services.jg_agente.mock', false);
+        Config::set('services.jg_agente.secret', 'test-long-secret-key-for-storyboard-service-tests-1234');
 
-        $fakeBase64Image = base64_encode('fake_jpeg_binary_image_data_from_google_imagen_3');
+        $fakeBase64Image = base64_encode('fake_jpeg_binary_image_data_from_agent');
 
         Http::fake([
-            'https://generativelanguage.googleapis.com/*' => Http::response([
-                'predictions' => [
-                    [
-                        'bytesBase64Encoded' => $fakeBase64Image,
-                        'mimeType' => 'image/jpeg',
-                    ],
+            '*/api/v1/tools/*' => Http::response([
+                'success' => true,
+                'metadata' => [
+                    'image_base64' => $fakeBase64Image,
+                    'mime_type' => 'image/png',
                 ],
             ], 200),
         ]);
@@ -172,7 +172,7 @@ class StoryboardGenerationTest extends TestCase
 
         $this->assertNotNull($savedPath);
         Storage::disk('public')->assertExists($savedPath);
-        $this->assertSame('fake_jpeg_binary_image_data_from_google_imagen_3', Storage::disk('public')->get($savedPath));
+        $this->assertSame('fake_jpeg_binary_image_data_from_agent', Storage::disk('public')->get($savedPath));
 
         $this->shot->refresh();
         $this->assertTrue($this->shot->hasStoryboard());
@@ -184,17 +184,14 @@ class StoryboardGenerationTest extends TestCase
 
     public function test_script_editor_can_switch_storyboard_style_and_generate_from_livewire(): void
     {
-        Config::set('services.google_ai.api_key', 'test-fake-key-google-ai');
-
         $fakeBase64Image = base64_encode('test_livewire_storyboard_render');
 
         Http::fake([
-            'https://generativelanguage.googleapis.com/*' => Http::response([
-                'predictions' => [
-                    [
-                        'bytesBase64Encoded' => $fakeBase64Image,
-                        'mimeType' => 'image/jpeg',
-                    ],
+            '*/api/v1/tools/*' => Http::response([
+                'success' => true,
+                'metadata' => [
+                    'image_base64' => $fakeBase64Image,
+                    'mime_type' => 'image/png',
                 ],
             ], 200),
         ]);
@@ -283,31 +280,19 @@ class StoryboardGenerationTest extends TestCase
 
     public function test_script_editor_storyboard_modal_opens_with_prefilled_prompt_and_allows_customization(): void
     {
-        Config::set('services.google_ai.api_key', 'test-fake-key-google-ai');
-
         $fakeBase64Image = base64_encode('test_custom_prompt_rendered_image');
 
         Http::fake([
-            'https://generativelanguage.googleapis.com/*' => Http::response([
-                'candidates' => [
-                    [
-                        'content' => [
-                            'parts' => [
-                                ['text' => 'Storyboard generated successfully.'],
-                                [
-                                    'inlineData' => [
-                                        'mimeType' => 'image/png',
-                                        'data' => $fakeBase64Image,
-                                    ],
-                                ],
-                            ],
-                        ],
-                    ],
+            '*/api/v1/tools/*' => Http::response([
+                'success' => true,
+                'metadata' => [
+                    'image_base64' => $fakeBase64Image,
+                    'mime_type' => 'image/png',
                 ],
             ], 200),
         ]);
 
-        $customPrompt = 'Primer plano dramático de Marcus sosteniendo un amuleto alienígena con luz cian.';
+        $customPrompt = 'Primer plano dramático de @Marcus sosteniendo @amuleto alienígena con luz cian.';
 
         $lw = Livewire::actingAs($this->user)
             ->test(ScriptEditor::class, ['project' => $this->project])
@@ -330,23 +315,12 @@ class StoryboardGenerationTest extends TestCase
 
     public function test_script_editor_storyboard_modal_manages_props_and_limits_to_three(): void
     {
-        Config::set('services.google_ai.api_key', 'test-fake-key-google-ai');
-
         Http::fake([
-            'https://generativelanguage.googleapis.com/*' => Http::response([
-                'candidates' => [
-                    [
-                        'content' => [
-                            'parts' => [
-                                [
-                                    'inlineData' => [
-                                        'mimeType' => 'image/png',
-                                        'data' => base64_encode('fake_img'),
-                                    ],
-                                ],
-                            ],
-                        ],
-                    ],
+            '*/api/v1/tools/*' => Http::response([
+                'success' => true,
+                'metadata' => [
+                    'image_base64' => base64_encode('fake_img'),
+                    'mime_type' => 'image/png',
                 ],
             ], 200),
         ]);
@@ -371,8 +345,8 @@ class StoryboardGenerationTest extends TestCase
 
     public function test_storyboard_service_multimodal_sends_character_location_and_props_to_gemini(): void
     {
-        Config::set('services.google_ai.api_key', 'test-fake-key-google-ai');
-        Config::set('services.google_ai.model', 'gemini-2.5-flash-image');
+        Config::set('services.jg_agente.mock', false);
+        Config::set('services.jg_agente.secret', 'test-long-secret-key-for-storyboard-service-tests-1234');
 
         // Crear personaje con imagen
         $charImgPath = 'projects/'.$this->project->id.'/characters/char.png';
@@ -398,23 +372,14 @@ class StoryboardGenerationTest extends TestCase
 
         $capturedPayload = null;
         Http::fake([
-            'https://generativelanguage.googleapis.com/*' => function ($request) use (&$capturedPayload) {
-                $capturedPayload = $request->data();
+            '*/api/v1/tools/generate_storyboard' => function ($request) use (&$capturedPayload) {
+                $capturedPayload = json_decode($request->body(), true);
 
                 return Http::response([
-                    'candidates' => [
-                        [
-                            'content' => [
-                                'parts' => [
-                                    [
-                                        'inlineData' => [
-                                            'mimeType' => 'image/png',
-                                            'data' => base64_encode('rendered_gemini_image'),
-                                        ],
-                                    ],
-                                ],
-                            ],
-                        ],
+                    'success' => true,
+                    'metadata' => [
+                        'image_base64' => base64_encode('rendered_gemini_image'),
+                        'mime_type' => 'image/png',
                     ],
                 ], 200);
             },
@@ -433,23 +398,12 @@ class StoryboardGenerationTest extends TestCase
         $this->assertNotNull($savedPath);
         $this->assertNotNull($capturedPayload);
 
-        // Validar que se enviaron los parts multimodales a Google AI Studio
-        $parts = $capturedPayload['contents'][0]['parts'] ?? [];
-        $this->assertCount(4, $parts); // 1 char image + 1 loc image + 1 prop image + 1 text prompt
-
-        // Verificar que hay 3 inline_data y 1 text
-        $inlineDataCount = 0;
-        $textContent = null;
-        foreach ($parts as $part) {
-            if (isset($part['inline_data'])) {
-                $inlineDataCount++;
-            }
-            if (isset($part['text'])) {
-                $textContent = $part['text'];
-            }
-        }
-
-        $this->assertSame(3, $inlineDataCount);
-        $this->assertSame('Edurne en el baño sosteniendo el ambientador.', $textContent);
+        // Validar que se enviaron los campos multimodales a jg_agente
+        $this->assertSame('EDURNE', $capturedPayload['character_name']);
+        $this->assertNotNull($capturedPayload['character_image_base64']);
+        $this->assertSame('BAÑO', $capturedPayload['location_name']);
+        $this->assertNotNull($capturedPayload['location_image_base64']);
+        $this->assertCount(1, $capturedPayload['prop_images_base64']);
+        $this->assertSame('Edurne en el baño sosteniendo el ambientador.', $capturedPayload['prompt']);
     }
 }

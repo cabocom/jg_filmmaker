@@ -1,12 +1,25 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.28.0  
+**Versión del documento:** 3.29.0  
 **Fecha de consolidación:** 8 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
-**Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Speaches-AI (Piper TTS), Google AI Studio (`gemini-2.5-flash-image` / Imagen 3), PHPUnit 12, Laravel Pint  
-**Estado:** Modal de Composición Visual y Generación de Storyboard con IA operativo: edición libre de prompts previa al envío a Google AI Studio, condicionamiento multimodal con imagen de personaje (*turn-around*), foto de localización de la Biblia y hasta 3 imágenes de atrezzo/objetos para máxima fidelidad compositiva. 226 tests automatizados pasando al 100% y Pint superado.
+**Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Speaches-AI (Piper TTS), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard` en `gemini-2.5-flash-image`), PHPUnit 12, Laravel Pint  
+**Estado:** Generación de Storyboards 100% desacoplada en `jg_plugin_filmmaker` (`generate_storyboard`). Soporte para etiquetado visual con arroba (`@personaje`, `@localizacion`, `@Atrezzo1..3`) en prompts de viñeta estilo Flow/Midjourney con botonera interactiva de inserción en cursor. Almacenamiento organizado por carpetas de escena (`projects/{id}/storyboards/scene_{id}/shot_{id}_{time}.ext`). 226 tests automatizados pasando al 100% y Pint superado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **Desacoplamiento Total de Generación de Storyboards hacia `jg_plugin_filmmaker`:**
+  - `StoryboardService` en Laravel cesa cualquier conexión HTTP directa o acoplamiento con endpoints de proveedores de IA; delega íntegramente en `AgentClientService::callTool('generate_storyboard', $payload)`.
+  - La herramienta canónica `generate_storyboard` en `jg_plugin_filmmaker` asume la orquestación multimodal con Google AI Studio (`gemini-2.5-flash-image`), gestión de API keys y modo mock determinista fail-closed para CI/CD.
+  - Almacenamiento físico de viñetas estructurado canónicamente a nivel de escena (`projects/{project_id}/storyboards/scene_{scene_id}/shot_{shot_id}_{time}.ext`), blindando los enlaces contra renumeraciones y facilitando el montaje con rclone en `/media`.
+
+- **Sintaxis de Referencia Visual con Arroba (`@`) en Prompts (Estilo Flow / Midjourney):**
+  - El cineasta puede referenciar explícitamente entidades visuales dentro del prompt editable:
+    - `@NombrePersonaje` o `@personaje` (ej. `@EDURNE`, `@MARCUS`).
+    - `@NombreLocalizacion` o `@localizacion` (ej. `@CASA_ENTRADA`, `@BAÑO`).
+    - `@Atrezzo1`, `@Atrezzo2`, `@Atrezzo3` para asociar objetos y accesorios específicos del plano a sus imágenes subidas.
+  - El generador de prompts sugiere automáticamente la redacción integrando las etiquetas `@` correspondientes a la escena.
+  - En el modal de composición se incluye una botonera interactiva con las etiquetas `@` activas; al hacer clic sobre una etiqueta, se inserta inmediatamente en la posición exacta del cursor en el área de texto del prompt.
 
 - **Modal de Composición Visual y Generación de Storyboard con IA (`ScriptEditor` & `StoryboardService`):**
   - **Prompt Editable Previo a la Generación:** El cineasta puede inspeccionar, reescribir y refinar libremente el prompt descriptivo generado automáticamente antes de remitirlo a la API de Google AI Studio, con un botón reactivo de *Restablecer prompt automático* para sincronizarlo al vuelo con las referencias seleccionadas.
