@@ -202,10 +202,22 @@ class TextToSpeechService
         }
 
         if ($this->googleApiKey) {
-            return $this->synthesizeWithGoogleAi($cleanText, $activeVoice, $cachedFilePath);
+            try {
+                return $this->synthesizeWithGoogleAi($cleanText, $activeVoice, $cachedFilePath);
+            } catch (\Throwable $e) {
+                Log::warning("Google AI TTS no pudo sintetizar [{$cleanText}]: {$e->getMessage()}. Intentando fallback...");
+            }
         }
 
-        return $this->synthesizeWithSpeaches($cleanText, $activeVoice, $speed, $cachedFilePath);
+        try {
+            return $this->synthesizeWithSpeaches($cleanText, $activeVoice, $speed, $cachedFilePath);
+        } catch (\Throwable $e) {
+            Log::warning("Speaches TTS no disponible o falló: {$e->getMessage()}. Generando silencio de seguridad para mantener la continuidad.");
+            $silentWav = base64_decode('UklGRjIAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=');
+            File::put($cachedFilePath, $silentWav);
+
+            return $cachedFilePath;
+        }
     }
 
     /**
