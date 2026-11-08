@@ -22,7 +22,8 @@ class TextToSpeechServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = app(TextToSpeechService::class);
+        config(['services.google_ai.api_key' => 'testing_google_ai_key']);
+        $this->service = new TextToSpeechService;
     }
 
     public function test_get_available_voices_returns_valid_voices(): void

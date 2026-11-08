@@ -1,12 +1,17 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.37.0  
+**Versión del documento:** 3.38.0  
 **Fecha de consolidación:** 8 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** ISSUE-055 completado: Segmentación dramática para bloques en etapa de planos (`shots`) y tratamientos con diálogos inline, soporte de nombres femeninos vascos/hispánicos e infalibilidad del reproductor flotante con eventos desacoplados y carga previa. 233 tests automatizados pasando al 100% y Pint superado.
+**Estado:** ISSUE-056 completado: Blindaje de compatibilidad en pipeline CI/CD (runner GitLab sin extensión GD) mediante `createWithContent` binario y configuración hermética de `GOOGLE_AI_API_KEY` para tests en `phpunit.xml`. 233 tests automatizados pasando al 100% y Pint superado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **ISSUE-056: Blindaje CI/CD sin Dependencia de Extensión GD y Aislamiento de Clave TTS:**
+  - **Eliminación de Dependencia de GD en Tests:** Se reemplazó el uso de `UploadedFile::fake()->image()` por `UploadedFile::fake()->createWithContent()` con bytes binarios reales PNG en `ContextBibleAndTimelineIsolationTest`, garantizando que los tests se ejecuten sin requerir la extensión PHP `gd` en el runner oficial de GitLab CI.
+  - **Aislamiento Hermético de Google AI en Entornos de Prueba:** Se inyectó `GOOGLE_AI_API_KEY` de prueba forzada en `phpunit.xml` y en el `setUp` de `TextToSpeechServiceTest`, previniendo que los runners de integración continua que carecen de `.env` local ejecuten los tests en modo de fallback imprevisto.
+  - **Formateo Pint:** Normalización estricta de instanciaciones según el estándar Laravel Pint.
 
 - **ISSUE-055: Segmentación Multivocal en Todas las Etapas y Apertura Garantizada del Reproductor TTS:**
   - **Segmentación Dramática en Etapa `shots` (Planos):** Se corrigió `TextToSpeechService::parseBlockToSegments` para que procese el formato Fountain de `screenplay_content` tanto en bloques en estado `screenplay` como en bloques avanzados a etapa de planos técnicos (`shots`). Antes se trataba como prosa continua de un único narrador omitiendo las voces de los personajes.

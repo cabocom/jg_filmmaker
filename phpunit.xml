@@ -34,6 +34,7 @@
         <env name="JG_AGENTE_URL" value="http://agent.invalid" force="true"/>
         <env name="GROQ_API_KEY" value="" force="true"/>
         <env name="LLM_API_KEY" value="" force="true"/>
+        <env name="GOOGLE_AI_API_KEY" value="testing_google_ai_key" force="true"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

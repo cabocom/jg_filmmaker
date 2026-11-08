@@ -118,7 +118,8 @@ class ContextBibleAndTimelineIsolationTest extends TestCase
             'bio' => 'Líder de la resistencia humana.',
         ]);
 
-        $fakeImage = UploadedFile::fake()->image('connor.jpg', 400, 400);
+        $pngBytes = (string) base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
+        $fakeImage = UploadedFile::fake()->createWithContent('connor.png', $pngBytes);
 
         Livewire::actingAs($user)
             ->test(ContextBibleDrawer::class, ['project' => $project])
