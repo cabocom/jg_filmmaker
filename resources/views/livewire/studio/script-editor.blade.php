@@ -366,25 +366,66 @@
     <!-- ================= BARRA SUPERIOR STICKY: TÍTULO DEL PROYECTO Y NAVEGACIÓN STORY ARCHITECT ================= -->
     <div class="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 shadow-xs backdrop-blur-md px-3 sm:px-6 lg:px-8 py-2 transition-colors">
         <div class="max-w-7xl mx-auto flex items-center gap-2 flex-wrap py-1">
-            <!-- Título del Proyecto con Botón de Edición -->
-            <div class="flex items-center gap-1.5 shrink-0">
-                <span class="text-xs sm:text-sm font-bold font-mono uppercase tracking-wider text-slate-900 dark:text-white" title="{{ $project->title }}">
-                    {{ $project->title }}
-                </span>
-                <button wire:click="openEditTitleModal"
-                        type="button"
-                        title="Modificar nombre del proyecto"
-                        class="p-1 rounded-md text-slate-400 hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                </button>
-            </div>
+            <!-- Identificación del Proyecto y Acciones Rápidas -->
+            <div class="flex items-center gap-2 shrink-0 flex-wrap">
+                <div class="flex items-center gap-1 shrink-0">
+                    <span class="text-xs sm:text-sm font-bold font-mono uppercase tracking-wider text-slate-900 dark:text-white truncate max-w-[200px] sm:max-w-xs" title="{{ $project->title }}">
+                        {{ $project->title }}
+                    </span>
 
-            <!-- Contador de Escenas -->
-            <span class="px-2 py-1 rounded-lg text-xs font-bold font-mono bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
-                {{ $scenes->count() }} {{ $scenes->count() === 1 ? 'escena' : 'escenas' }}
-            </span>
+                    <!-- Lápiz para cambiar nombre -->
+                    <button wire:click="openEditTitleModal"
+                            type="button"
+                            title="Modificar nombre del proyecto"
+                            class="p-1 rounded-md text-slate-400 hover:text-amber-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                    </button>
+
+                    <!-- Iconos al lado del lápiz: Exportar PDF, Lectura TTS y Renderizar en Lote -->
+                    <div class="flex items-center gap-0.5 ml-0.5 pl-1.5 border-l border-slate-200 dark:border-slate-700">
+                        <!-- 1. Icono: Exportar Guión Completo a PDF -->
+                        <button type="button"
+                                wire:click="exportPdf"
+                                wire:loading.attr="disabled"
+                                class="p-1.5 rounded-lg text-emerald-600 hover:text-emerald-500 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/60 transition cursor-pointer disabled:opacity-50"
+                                title="Exportar guión completo a PDF">
+                            <span wire:loading.remove wire:target="exportPdf" class="flex items-center">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                            </span>
+                            <span wire:loading wire:target="exportPdf" class="animate-spin text-xs">⏳</span>
+                        </button>
+
+                        <!-- 2. Icono: Lectura de Guión Automatizada (TTS) -->
+                        <button type="button"
+                                onclick="window.dispatchEvent(new CustomEvent('play-tts', { detail: { scope: 'project' } }))"
+                                class="p-1.5 rounded-lg text-indigo-600 hover:text-indigo-500 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/60 transition cursor-pointer"
+                                title="Lectura dramática de todo el guión con voces neurales (TTS)">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                            </svg>
+                        </button>
+
+                        <!-- 3. Icono: Renderizado / Procesamiento en Lote -->
+                        <button type="button"
+                                wire:click="openBatchModal"
+                                class="p-1.5 rounded-lg text-amber-500 hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/60 transition cursor-pointer"
+                                title="Renderizar en lote: estructurar brutos, generar guiones y desglosar planos">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Contador de Escenas -->
+                <span class="px-2 py-0.5 rounded-lg text-xs font-bold font-mono bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shrink-0">
+                    {{ $scenes->count() }} {{ $scenes->count() === 1 ? 'escena' : 'escenas' }}
+                </span>
+            </div>
 
             <!-- Menú Desplegable Contraído de Etapas (Pipeline, Idea, Tratamiento, Guion, Planos/Tomas) -->
             @php
@@ -532,43 +573,7 @@
                 <span>Historial</span>
             </button>
 
-            <!-- Botón de Exportar Guión Completo a PDF -->
-            <button type="button"
-                    wire:click="exportPdf"
-                    wire:loading.attr="disabled"
-                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-xs cursor-pointer shrink-0 disabled:opacity-50"
-                    title="Exportar y descargar el guión cinematográfico completo en PDF estándar">
-                <span wire:loading.remove wire:target="exportPdf">📄</span>
-                <span wire:loading wire:target="exportPdf" class="animate-spin text-xs">⏳</span>
-                <span>Exportar PDF</span>
-            </button>
 
-            <!-- Botón de Lectura de Guión Automatizada (TTS vía Speaches-AI) -->
-            <button type="button"
-                    onclick="window.dispatchEvent(new CustomEvent('play-tts', { detail: { scope: 'project' } }))"
-                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-xs cursor-pointer shrink-0"
-                    title="Lectura dramática automatizada de todo el guión con voces sintetizadas por IA">
-                <span>🔊</span>
-                <span>Lectura de Guión</span>
-            </button>
-
-            <!-- Botón de Renderizado / Procesamiento en Lote ("Renderizar Todo de Golpe") -->
-            <button type="button"
-                    wire:click="openBatchModal"
-                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-xs cursor-pointer shrink-0"
-                    title="Renderizar todo de golpe: estructurar brutos, generar guiones y desglosar planos">
-                <span>⚡</span>
-                <span>Renderizar en Lote</span>
-            </button>
-
-            <!-- Botón de Importar Guión (PDF/TXT) -->
-            <button type="button"
-                    wire:click="openImportModal"
-                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 hover:border-amber-500/40 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-200 transition shadow-2xs cursor-pointer shrink-0"
-                    title="Importar guion en PDF o TXT reemplazando el contenido del proyecto">
-                <span>📥</span>
-                <span>Importar Guión</span>
-            </button>
         </div>
     </div>
 
@@ -3237,166 +3242,7 @@
         </div>
     @endif
 
-    <!-- ================= MODAL: SUBIDA E IMPORTACIÓN DE GUIÓN (CON AVISO DESTRUCTIVO) ================= -->
-    @if($showImportModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 dark:bg-slate-950/80 backdrop-blur-sm p-4">
-            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-2xl w-full shadow-2xl relative animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
-                <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-                    <h3 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                        <span>📥</span>
-                        <span>Importar Guión (Reemplazo de Proyecto)</span>
-                    </h3>
-                    <button wire:click="$set('showImportModal', false)" class="text-slate-400 hover:text-slate-600 dark:hover:text-white text-lg cursor-pointer">✕</button>
-                </div>
 
-                @if($importStep === 'upload')
-                    <form wire:submit="processImportFile" class="mt-4 space-y-4">
-                        <div class="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-8 text-center bg-slate-50/50 dark:bg-slate-950/50 hover:border-amber-500/70 transition">
-                            <span class="text-4xl block mb-2">📄</span>
-                            <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1 cursor-pointer">
-                                <span>Selecciona un archivo de guión (.txt o .pdf)</span>
-                                <input type="file"
-                                       wire:model="importFile"
-                                       accept=".txt,.pdf"
-                                       class="sr-only">
-                            </label>
-                            <p class="text-xs text-slate-500 dark:text-slate-400">
-                                Detección automática de encabezados de escena (INT./EXT.), personajes y diálogos. Máx. 10 MB.
-                            </p>
-
-                            @if($importFile)
-                                <div class="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs font-mono">
-                                    <span>📎 {{ $importFile->getClientOriginalName() }}</span>
-                                    <span>({{ number_format($importFile->getSize() / 1024, 1) }} KB)</span>
-                                </div>
-                            @endif
-
-                            @error('importFile')
-                                <span class="text-rose-500 dark:text-rose-400 text-xs mt-2 block font-medium">{{ $message }}</span>
-                            @enderror
-                        </div>
-
-                        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
-                            <div>
-                                <span class="block text-xs font-bold text-slate-800 dark:text-slate-200">Asistencia Cognitiva jg_plugin_filmmaker</span>
-                                <span class="block text-[11px] text-slate-500">Refinar detección de escenas y personajes con IA si el guion no tiene formato estricto.</span>
-                            </div>
-                            <input type="checkbox" wire:model="useAiForImport" class="rounded border-slate-300 text-amber-600 focus:ring-amber-500 h-4 w-4">
-                        </div>
-
-                        <div class="pt-4 flex items-center justify-end gap-3 border-t border-slate-100 dark:border-slate-800">
-                            <button type="button"
-                                    wire:click="$set('showImportModal', false)"
-                                    class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer">
-                                Cancelar
-                            </button>
-                            <button type="submit"
-                                    wire:loading.attr="disabled"
-                                    class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-lg shadow-amber-500/30 transition cursor-pointer">
-                                <span wire:loading.remove wire:target="processImportFile">Analizar Guión</span>
-                                <span wire:loading wire:target="processImportFile">Extrayendo texto...</span>
-                            </button>
-                        </div>
-                    </form>
-                @elseif($importStep === 'preview')
-                    <div class="mt-4 space-y-4">
-                        <!-- AVISO DESTRUCTIVO DESTACADO -->
-                        <div class="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/60 border-2 border-rose-500 text-rose-800 dark:text-rose-200">
-                            <div class="flex items-start gap-3">
-                                <span class="text-2xl shrink-0">⚠️</span>
-                                <div class="text-xs space-y-1">
-                                    <span class="block font-bold text-sm uppercase tracking-wide text-rose-700 dark:text-rose-300">
-                                        Atención: Reemplazo Completo del Proyecto Actual
-                                    </span>
-                                    <p>
-                                        Si confirmas la importación, <strong>se sobreescribirá por completo el guion, todas las escenas, bloques de texto y tomas de rodaje</strong> de la obra actual <em>"{{ $project->title }}"</em>.
-                                    </p>
-                                    <p class="font-semibold text-rose-600 dark:text-rose-400">
-                                        Esta acción no se puede deshacer. Se reemplazará con el contenido detectado a continuación.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Resumen del Análisis -->
-                        <div class="grid grid-cols-3 gap-3 text-center">
-                            <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
-                                <span class="text-xs text-slate-500 dark:text-slate-400 block">Escenas detectadas</span>
-                                <span class="text-xl font-bold font-mono text-amber-600 dark:text-amber-400">{{ $parsedImportData['scenes_count'] ?? 0 }}</span>
-                            </div>
-                            <div class="p-3 rounded-xl bg-blue-500/10 border border-blue-500/30">
-                                <span class="text-xs text-slate-500 dark:text-slate-400 block">Personajes detectados</span>
-                                <span class="text-xl font-bold font-mono text-blue-600 dark:text-blue-400">{{ count($parsedImportData['characters'] ?? []) }}</span>
-                            </div>
-                            <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-                                <span class="text-xs text-slate-500 dark:text-slate-400 block">Locaciones detectadas</span>
-                                <span class="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400">{{ count($parsedImportData['locations'] ?? []) }}</span>
-                            </div>
-                        </div>
-
-                        <!-- Previsualización de Escenas -->
-                        <div>
-                            <span class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Escenas que se importarán</span>
-                            <div class="max-h-48 overflow-y-auto space-y-1.5 p-2 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 font-mono text-xs">
-                                @forelse($parsedImportData['scenes'] ?? [] as $sc)
-                                    <div class="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800">
-                                        <span class="font-bold text-slate-800 dark:text-slate-200">#{{ $sc['scene_order'] }} {{ $sc['slugline'] }}</span>
-                                        <span class="text-[11px] text-slate-500">{{ count($sc['blocks'] ?? []) }} bloques</span>
-                                    </div>
-                                @empty
-                                    <div class="text-center py-4 text-slate-400">No se detectaron escenas</div>
-                                @endforelse
-                            </div>
-                        </div>
-
-                        <!-- Personajes Detectados -->
-                        @if(! empty($parsedImportData['characters']))
-                            <div>
-                                <span class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Personajes detectados para la Biblia</span>
-                                <div class="flex flex-wrap gap-1.5">
-                                    @foreach($parsedImportData['characters'] as $char)
-                                        <span class="px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20 text-xs font-mono font-bold">
-                                            {{ $char }}
-                                        </span>
-                                    @endforeach
-                                </div>
-                            </div>
-                        @endif
-
-                        <!-- Checkbox de Confirmación Explícita -->
-                        <div class="p-3 rounded-xl bg-rose-50/70 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800">
-                            <label class="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox"
-                                       wire:model="confirmDestructiveImport"
-                                       class="rounded border-rose-300 text-rose-600 focus:ring-rose-500 h-4 w-4 shrink-0">
-                                <span class="text-xs font-semibold text-rose-900 dark:text-rose-200">
-                                    Confirmo que deseo sobreescribir y reemplazar todo el guion actual de "{{ $project->title }}".
-                                </span>
-                            </label>
-                            @error('confirmDestructiveImport')
-                                <span class="text-rose-600 dark:text-rose-400 text-xs mt-1 block font-bold">{{ $message }}</span>
-                            @enderror
-                        </div>
-
-                        <div class="pt-4 flex items-center justify-between border-t border-slate-100 dark:border-slate-800">
-                            <button type="button"
-                                    wire:click="$set('importStep', 'upload')"
-                                    class="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer">
-                                ⬅️ Volver a subir
-                            </button>
-                            <button type="button"
-                                    wire:click="confirmAndExecuteDestructiveImport"
-                                    wire:loading.attr="disabled"
-                                    class="px-4 py-2 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white font-bold shadow-lg shadow-rose-600/30 transition cursor-pointer">
-                                <span wire:loading.remove wire:target="confirmAndExecuteDestructiveImport">🔥 Sobreescribir e Importar</span>
-                                <span wire:loading wire:target="confirmAndExecuteDestructiveImport">Importando guión...</span>
-                            </button>
-                        </div>
-                    </div>
-                @endif
-            </div>
-        </div>
-    @endif
 
     <!-- ================= REPRODUCTOR FLOTANTE DE LOCUCIÓN TTS (GOOGLE-AI / GEMINI-TTS) ================= -->
     <div x-data="ttsPlayer({ projectId: '{{ $project->id }}' })"

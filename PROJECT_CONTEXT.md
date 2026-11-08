@@ -1,12 +1,21 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.39.0  
+**Versión del documento:** 3.40.0  
 **Fecha de consolidación:** 8 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** ISSUE-057 completado: Purgado de caché legacy TTS en producción y desactivación de caché HTTP agresiva del navegador (`no-cache, private`) en `AudioStreamController` para garantizar la entrega inmediata de voces neurales de Google AI. 233 tests automatizados pasando al 100% y Pint superado.
+**Estado:** ISSUE-058 completado: Reorganización ergonómica de la barra superior del estudio (iconos rápidos de exportar PDF, TTS y renderizado junto al lápiz de título, contador de escenas visible) y reubicación exclusiva de importación de guion al catálogo global de proyectos. 233 tests automatizados pasando al 100% y Pint superado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **ISSUE-058: Reorganización Ergonómica de Barra Superior y Centralización de Importación de Guion:**
+  - **Acciones Rápidas Compactas en Cabecera de Proyecto:** Reorganizada la barra superior de `script-editor.blade.php`: el título del proyecto y el lápiz de edición ahora conviven directamente con tres botones de iconos compactos y discretos:
+    1. *Exportar PDF:* Icono de documento/descarga con indicador de progreso reactivo (`wire:loading`).
+    2. *Lectura de Guion:* Icono de sonido/altavoz para disparar la locución TTS neural con Google AI.
+    3. *Renderizar en Lote:* Icono de rayo para abrir el modal de renderizado integral.
+  - **Contador de Escenas:** Píldora de escenas (`X escenas`) ubicada de forma limpia junto al bloque de identidad y acciones directas.
+  - **Desacoplamiento Estricto de la Importación de Guion:** Eliminación de la funcionalidad de "Importar Guión" y de su modal de reemplazo destructivo dentro del espacio de trabajo del proyecto. La importación de guiones en PDF/TXT se centraliza exclusivamente en la vista global de proyectos (`project-list.blade.php`), reforzando la regla de dominio: *un guion importado crea un nuevo proyecto cinematográfico*, impidiendo la sobreescritura accidental desde el interior de una obra existente.
+  - **Eliminación de Botones Redundantes:** Despejada la barra superior eliminando los antiguos botones sobredimensionados de exportación, lectura, render y sustitución de guion, dejando un diseño minimalista enfocado en la edición y las herramientas de flujo (Pipeline, Biblia, Agujeros e Historial).
 
 - **ISSUE-057: Prevención de Caché Obsoleta de Audio y Entrega Inmediata de Voces Neurales Google AI:**
   - **Desactivación de Caché HTTP Agresiva en Navegador:** Se sustituyó la cabecera `Cache-Control: private, max-age=86400` por `Cache-Control: no-cache, private` en `AudioStreamController::streamAudio` y `AudioStreamController::demoVoice`. Esto evita que los navegadores almacenen en caché de disco durante 24 horas audios antiguos y garantiza que cualquier cambio de voz o transición de proveedor TTS se escuche al instante.
