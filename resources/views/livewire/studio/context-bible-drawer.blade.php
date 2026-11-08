@@ -118,7 +118,7 @@
                                         }
                                         this.error = false;
                                         const voice = this.$refs.newVoiceSelect ? this.$refs.newVoiceSelect.value : $wire.newCharVoiceId;
-                                        const url = '{{ route('projects.tts.demo-voice', $project) }}?voice=' + encodeURIComponent(voice);
+                                        const url = '{{ route('projects.tts.demo-voice', $project, false) }}?voice=' + encodeURIComponent(voice);
                                         this.audio = new Audio(url);
                                         this.isPlaying = true;
                                         this.audio.onended = () => { this.isPlaying = false; this.audio = null; };
@@ -287,7 +287,7 @@
                                                 }
                                                 this.error = false;
                                                 const voice = this.$refs.voiceSelect ? this.$refs.voiceSelect.value : $wire.editingCharVoiceId;
-                                                const url = '{{ route('projects.tts.demo-voice', $project) }}?voice=' + encodeURIComponent(voice);
+                                                const url = '{{ route('projects.tts.demo-voice', $project, false) }}?voice=' + encodeURIComponent(voice);
                                                 this.audio = new Audio(url);
                                                 this.isPlaying = true;
                                                 this.audio.onended = () => { this.isPlaying = false; this.audio = null; };

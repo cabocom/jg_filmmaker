@@ -3564,7 +3564,12 @@
                     }
 
                     const seg = this.manifest[index];
-                    const streamUrl = new URL(seg.stream_url, window.location.origin);
+                    let streamPath = seg.stream_url;
+                    try {
+                        const parsed = new URL(streamPath, window.location.origin);
+                        streamPath = parsed.pathname + parsed.search;
+                    } catch (e) {}
+                    const streamUrl = new URL(streamPath, window.location.origin);
                     streamUrl.searchParams.set('speed', this.speed);
 
                     const entry = {
@@ -3663,7 +3668,12 @@
 
                     // Fallback a URL directa si no existía precarga o si falló
                     if (!audioSrc) {
-                        const streamUrl = new URL(seg.stream_url, window.location.origin);
+                        let streamPath = seg.stream_url;
+                        try {
+                            const parsed = new URL(streamPath, window.location.origin);
+                            streamPath = parsed.pathname + parsed.search;
+                        } catch (e) {}
+                        const streamUrl = new URL(streamPath, window.location.origin);
                         streamUrl.searchParams.set('speed', this.speed);
                         audioSrc = streamUrl.toString();
                     }
@@ -3681,8 +3691,9 @@
                     };
 
                     this.audio.onerror = (e) => {
-                        console.error('Audio stream error:', e);
-                        this.playSegment(this.currentIndex + 1);
+                        console.error('Audio stream error on index ' + this.currentIndex + ':', e);
+                        this.isPaused = true;
+                        this.isLoading = false;
                     };
 
                     this.audio.play().catch(err => {

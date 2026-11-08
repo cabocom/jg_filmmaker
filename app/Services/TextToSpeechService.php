@@ -389,7 +389,7 @@ class TextToSpeechService
                         'project' => $project->id,
                         'block_id' => $block->id,
                         'segment_index' => $idx,
-                    ]),
+                    ], false),
                 ];
             }
 
@@ -419,7 +419,7 @@ class TextToSpeechService
                             'project' => $project->id,
                             'block_id' => $block->id,
                             'segment_index' => $idx,
-                        ]),
+                        ], false),
                     ];
                 }
             }

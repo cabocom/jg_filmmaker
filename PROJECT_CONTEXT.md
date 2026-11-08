@@ -1,12 +1,17 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.35.0  
+**Versión del documento:** 3.36.0  
 **Fecha de consolidación:** 8 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** ISSUE-053 completado: Transición del motor de lectura dramática TTS a las voces neurales de estudio de Google AI (`gemini-3.8-flash-tts`), proporcionando 7 timbres vocales realistas, diferenciados y cinematográficos en castellano. 233 tests automatizados pasando al 100% y Pint superado.
+**Estado:** ISSUE-054 completado: Corrección de rutas relativas y prevención del bucle de auto-cierre en el reproductor flotante de locución dramática TTS. 233 tests automatizados pasando al 100% y Pint superado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **ISSUE-054: Corrección de Rutas Relativas y Estabilidad del Reproductor Flotante TTS:**
+  - **Resolución de Rutas Relativas:** Modificada la generación de URLs en `TextToSpeechService::buildManifestForScope` y `context-bible-drawer.blade.php` con el parámetro `$absolute = false` en `route('projects.tts.stream', ..., false)` y `route('projects.tts.demo-voice', ..., false)`. Esto previene que entornos servidos tras dominios y proxies HTTPS (como `https://films.cabocom.net`) reciban URLs con el `APP_URL` interno (`http://localhost:8010`), evitando el bloqueo por contenido mixto (Mixed Content) o CORS en navegadores.
+  - **Sanitización de URL en el Cliente:** En `script-editor.blade.php` (`ttsPlayer`), tanto en la precarga como en la reproducción directa, se normaliza cualquier URL de stream para forzar su resolución bajo `window.location.origin`.
+  - **Eliminación del Bucle de Desvanecimiento:** Se sustituyó el auto-avance descontrolado en `audio.onerror` (`this.playSegment(this.currentIndex + 1)`), el cual ante cualquier fallo de conexión recorría todos los segmentos en milisegundos hasta llegar al final y ejecutar `this.stopPlayback()` (ocultando el reproductor). Ahora se detiene en pausa controlada informando el estado sin cerrar la interfaz.
 
 - **ISSUE-053: Voces Neurales Cinematográficas con Google AI Studio (`gemini-3.8-flash-tts`):**
   - **Reemplazo del Motor TTS:** Se sustituye la síntesis robótica local de Piper por el modelo oficial de síntesis de voz neural de Google AI Studio (`gemini-3.8-flash-tts`) aprovechando la API key existente en el entorno.
