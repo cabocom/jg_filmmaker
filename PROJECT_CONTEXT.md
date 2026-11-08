@@ -1,12 +1,20 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.36.0  
+**Versión del documento:** 3.37.0  
 **Fecha de consolidación:** 8 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** ISSUE-054 completado: Corrección de rutas relativas y prevención del bucle de auto-cierre en el reproductor flotante de locución dramática TTS. 233 tests automatizados pasando al 100% y Pint superado.
+**Estado:** ISSUE-055 completado: Segmentación dramática para bloques en etapa de planos (`shots`) y tratamientos con diálogos inline, soporte de nombres femeninos vascos/hispánicos e infalibilidad del reproductor flotante con eventos desacoplados y carga previa. 233 tests automatizados pasando al 100% y Pint superado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **ISSUE-055: Segmentación Multivocal en Todas las Etapas y Apertura Garantizada del Reproductor TTS:**
+  - **Segmentación Dramática en Etapa `shots` (Planos):** Se corrigió `TextToSpeechService::parseBlockToSegments` para que procese el formato Fountain de `screenplay_content` tanto en bloques en estado `screenplay` como en bloques avanzados a etapa de planos técnicos (`shots`). Antes se trataba como prosa continua de un único narrador omitiendo las voces de los personajes.
+  - **Soporte de Diálogos Inline en Tratamiento/Bruto:** Se incorporó en el parser la detección de patrones de diálogo inline `PERSONAJE (acotación): parlamento` y `PERSONAJE: parlamento` frecuentes en etapas tempranas de tratamiento y notas.
+  - **Inferencia Vocal Expandida e Inclusión de Nombres Regionales:** Se amplió `inferIsFemale` y la resolución de voces para detectar automáticamente personajes femeninos con nombres vascos/catalanes/gallegos/castellanos (como `Edurne`, `Nekane`, `Ainhoa`, `Itziar`, etc.) y entidades como `VOZ IA`, asignándoles timbres de estudio diferenciados (`Aoede`, `Kore`, `Leda`) y contrastando con el narrador (`Puck`) y personajes masculinos (`Charon`, `Fenrir`, `Zephyr`).
+  - **Disparo Nativo de Eventos TTS Desacoplados de Alpine:** Todos los botones de escucha (toolbar superior, cabecera de escena, bloque en vista de guion y drawer de bloque) ahora despachan el evento mediante `window.dispatchEvent(new CustomEvent('play-tts', { detail: ... }))`, eliminando la dependencia del ámbito léxico de Alpine.js en la barra superior.
+  - **Carga Temprana y Forzado de Visibilidad:** `ttsPlayer` se define al inicio del documento registrándose en `window.ttsPlayer` y `Alpine.data`, y el contenedor flotante aplica `:style="(isPlaying || isLoading) ? 'display: block !important;' : 'display: none !important;'"` con estado inicial visual de carga y z-index `99999` para evitar solapamientos.
+  - **Corrección en Demo de Voz de Biblia:** Ajustado el disparador de prueba de voz en `context-bible-drawer.blade.php` para apuntar a `playDemo()` sobre el selector del DOM.
 
 - **ISSUE-054: Corrección de Rutas Relativas y Estabilidad del Reproductor Flotante TTS:**
   - **Resolución de Rutas Relativas:** Modificada la generación de URLs en `TextToSpeechService::buildManifestForScope` y `context-bible-drawer.blade.php` con el parámetro `$absolute = false` en `route('projects.tts.stream', ..., false)` y `route('projects.tts.demo-voice', ..., false)`. Esto previene que entornos servidos tras dominios y proxies HTTPS (como `https://films.cabocom.net`) reciban URLs con el `APP_URL` interno (`http://localhost:8010`), evitando el bloqueo por contenido mixto (Mixed Content) o CORS en navegadores.

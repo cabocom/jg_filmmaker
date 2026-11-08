@@ -329,8 +329,8 @@ class TextToSpeechService
     {
         $characterVoiceMap = $this->buildCharacterVoiceMap($characters);
 
-        // Si el bloque está en 'screenplay' (Guión Literario), aplicamos análisis dramático Fountain
-        if ($block->stage === 'screenplay' && ! empty($block->screenplay_content)) {
+        // Si el bloque está en 'screenplay' o 'shots', aplicamos análisis dramático Fountain sobre el guión literario
+        if (in_array($block->stage, ['screenplay', 'shots'], true) && ! empty($block->screenplay_content)) {
             return $this->parseScreenplayText($block->screenplay_content, $characterVoiceMap);
         }
 
@@ -464,7 +464,7 @@ class TextToSpeechService
             if ($currentSpeaker !== null && ! empty($currentDialogueLines)) {
                 $text = trim(implode(' ', $currentDialogueLines));
                 if ($text !== '') {
-                    $cleanSpeaker = strtoupper(trim(preg_replace('/\s*\([^\)]+\)$/u', '', $currentSpeaker)));
+                    $cleanSpeaker = rtrim(strtoupper(trim(preg_replace('/\s*\([^\)]+\)$/u', '', $currentSpeaker))), '.');
                     $voice = $voiceMap[$cleanSpeaker] ?? $this->resolveFallbackVoice($cleanSpeaker);
 
                     $segments[] = [
@@ -491,6 +491,19 @@ class TextToSpeechService
                 }
 
                 continue;
+            }
+
+            // Detección de diálogo inline: "PERSONAJE (acotación): texto" o "PERSONAJE: texto"
+            if (! $inDialogue && preg_match('/^([A-ZÁÉÍÓÚÑ0-9\s\.\-\'\’]+?)(?:\s*\([^\)]+\))?:\s*(.+)$/u', $line, $inlineMatch)) {
+                $possibleSpeaker = trim($inlineMatch[1]);
+                if ($this->isCharacterLine($possibleSpeaker)) {
+                    $flushAction();
+                    $currentSpeaker = $possibleSpeaker;
+                    $currentDialogueLines[] = trim($inlineMatch[2]);
+                    $flushDialogue();
+
+                    continue;
+                }
             }
 
             // Detección de personaje en mayúsculas
@@ -570,7 +583,7 @@ class TextToSpeechService
         $maleIdx = 0;
 
         foreach ($characters as $char) {
-            $nameKey = strtoupper(trim((string) $char->name));
+            $nameKey = rtrim(strtoupper(trim((string) $char->name)), '.');
             $customAttrs = is_array($char->custom_attributes) ? $char->custom_attributes : [];
             $assignedVoice = $customAttrs['voice_id'] ?? null;
 
@@ -599,11 +612,21 @@ class TextToSpeechService
      */
     protected function resolveFallbackVoice(string $speaker): string
     {
-        $clean = strtoupper(trim($speaker));
-        $isFemale = str_contains($clean, 'MUJER') || str_contains($clean, 'CHICA') || str_contains($clean, 'MADRE') || str_contains($clean, 'LUCÍA') || str_contains($clean, 'ANA');
+        $clean = rtrim(strtoupper(trim($speaker)), '.');
+        $isFemale = str_contains($clean, 'MUJER')
+            || str_contains($clean, 'CHICA')
+            || str_contains($clean, 'MADRE')
+            || str_contains($clean, 'LUCÍA')
+            || str_contains($clean, 'ANA')
+            || str_contains($clean, 'EDURNE')
+            || str_contains($clean, 'MARIA')
+            || str_contains($clean, 'MARÍA')
+            || str_contains($clean, 'NEKANE')
+            || str_contains($clean, 'VOZ IA')
+            || str_contains($clean, 'IA');
 
         if ($this->googleApiKey) {
-            return $isFemale ? 'Aoede' : 'Puck';
+            return $isFemale ? 'Aoede' : 'Charon';
         }
 
         return $isFemale ? 'sharvard#F' : 'sharvard#M';
@@ -614,15 +637,36 @@ class TextToSpeechService
      */
     protected function inferIsFemale(Character $char): bool
     {
+        $customAttrs = is_array($char->custom_attributes) ? $char->custom_attributes : [];
+        if (! empty($customAttrs['gender'])) {
+            return in_array(mb_strtolower((string) $customAttrs['gender']), ['female', 'femenino', 'mujer'], true);
+        }
+
         $text = mb_strtolower($char->name.' '.($char->bio ?? '').' '.($char->psychology ?? ''));
 
-        if (preg_match('/\b(mujer|femenina|femenino|chica|actriz|hija|madre|hermana|abuela|señora|camarera|doctora)\b/u', $text)) {
+        if (preg_match('/\b(mujer|femenina|femenino|chica|actriz|hija|madre|hermana|abuela|señora|camarera|doctora|muchacha|chavala|locutora|protagonista femenina)\b/u', $text)) {
             return true;
         }
 
-        $name = mb_strtolower(trim($char->name));
-        $femaleNames = ['ana', 'lucía', 'lucia', 'maría', 'maria', 'carmen', 'elena', 'laura', 'sofía', 'sofia', 'clara', 'marta', 'sara', 'irene', 'paula'];
+        $name = rtrim(mb_strtolower(trim($char->name)), '.');
+        $femaleNames = [
+            'ana', 'lucía', 'lucia', 'maría', 'maria', 'carmen', 'elena', 'laura', 'sofía', 'sofia',
+            'clara', 'marta', 'sara', 'irene', 'paula', 'edurne', 'nekane', 'ainhoa', 'itziar',
+            'arantxa', 'maite', 'leire', 'nerea', 'begoña', 'idoia', 'amaia', 'miren', 'almudena',
+            'inés', 'ines', 'rocío', 'rocio', 'raquel', 'beatriz', 'isabel', 'teresa', 'eva',
+            'silvia', 'cristina', 'patricia', 'mónica', 'monica', 'alicia', 'rosa', 'pilar',
+            'mercedes', 'lourdes', 'victoria', 'blanca', 'esther', 'ester', 'julia', 'natalia',
+            'lorena', 'alba', 'claudia', 'andrea', 'celia', 'marina', 'triana', 'voz ia', 'ia',
+        ];
 
-        return in_array($name, $femaleNames, true);
+        if (in_array($name, $femaleNames, true)) {
+            return true;
+        }
+
+        if (preg_match('/(a|ne|z|is|ina|esa|isa|triz)$/u', $name) && ! in_array($name, ['borja', 'luca', 'joshua', 'andrea'], true)) {
+            return true;
+        }
+
+        return false;
     }
 }

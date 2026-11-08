@@ -117,7 +117,8 @@
                                             return;
                                         }
                                         this.error = false;
-                                        const voice = this.$refs.newVoiceSelect ? this.$refs.newVoiceSelect.value : $wire.newCharVoiceId;
+                                        const selectEl = this.$el.querySelector('select');
+                                        const voice = selectEl ? selectEl.value : $wire.newCharVoiceId;
                                         const url = '{{ route('projects.tts.demo-voice', $project, false) }}?voice=' + encodeURIComponent(voice);
                                         this.audio = new Audio(url);
                                         this.isPlaying = true;
@@ -286,7 +287,8 @@
                                                     return;
                                                 }
                                                 this.error = false;
-                                                const voice = this.$refs.voiceSelect ? this.$refs.voiceSelect.value : $wire.editingCharVoiceId;
+                                                const selectEl = this.$el.querySelector('select');
+                                                const voice = selectEl ? selectEl.value : $wire.editingCharVoiceId;
                                                 const url = '{{ route('projects.tts.demo-voice', $project, false) }}?voice=' + encodeURIComponent(voice);
                                                 this.audio = new Audio(url);
                                                 this.isPlaying = true;

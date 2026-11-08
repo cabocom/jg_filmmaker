@@ -44,7 +44,324 @@
             pointer-events: auto !important;
             z-index: 6 !important;
         }
+        [x-cloak] {
+            display: none !important;
+        }
     </style>
+
+    <script>
+        window.ttsPlayer = function({ projectId }) {
+            return {
+                projectId: projectId,
+                isPlaying: false,
+                isPaused: false,
+                isLoading: false,
+                manifest: [],
+                currentIndex: 0,
+                currentSpeaker: '',
+                currentText: '',
+                currentBlockId: null,
+                speed: 1.0,
+                audio: null,
+                audioCache: {},
+                abortController: null,
+                isPrefetching: false,
+                prefetchAheadCount: 2,
+
+                get progressText() {
+                    if (!this.manifest.length) return '';
+                    return `(${this.currentIndex + 1} de ${this.manifest.length})`;
+                },
+
+                async startPlayback(detail) {
+                    detail = detail || {};
+                    const scope = detail.scope || 'project';
+                    const sceneId = detail.sceneId || '';
+                    const blockId = detail.blockId || '';
+
+                    this.stopPlayback();
+                    this.isLoading = true;
+                    this.isPlaying = true;
+                    this.isPaused = false;
+                    this.currentSpeaker = 'CARGANDO...';
+                    this.currentText = 'Obteniendo locución de ' + (scope === 'scene' ? 'la escena' : (scope === 'block' ? 'el bloque' : 'el guión completo')) + '...';
+                    this.manifest = [];
+                    this.currentIndex = 0;
+                    this.audioCache = {};
+                    this.abortController = new AbortController();
+
+                    try {
+                        const url = new URL(`/projects/${this.projectId}/tts/manifest`, window.location.origin);
+                        if (sceneId) url.searchParams.set('scene_id', sceneId);
+                        if (blockId) url.searchParams.set('block_id', blockId);
+
+                        console.log('[TTS] Solicitando manifiesto:', url.toString());
+
+                        const res = await fetch(url.toString(), {
+                            headers: { 'Accept': 'application/json' },
+                            signal: this.abortController.signal
+                        });
+
+                        if (!res.ok) {
+                            throw new Error('Error al generar manifiesto de lectura: ' + res.status);
+                        }
+
+                        const data = await res.json();
+                        console.log('[TTS] Manifiesto recibido (' + (data.manifest ? data.manifest.length : 0) + ' segmentos):', data);
+                        if (!data.manifest || data.manifest.length === 0) {
+                            alert('No hay texto disponible para locutar en este elemento.');
+                            this.stopPlayback();
+                            return;
+                        }
+
+                        this.manifest = data.manifest;
+                        this.playSegment(0);
+                    } catch (e) {
+                        if (e.name !== 'AbortError') {
+                            console.error('TTS playback error:', e);
+                            alert('No se pudo iniciar la locución: ' + e.message);
+                        }
+                        this.stopPlayback();
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+
+                async preloadSegment(index) {
+                    if (index < 0 || index >= this.manifest.length) return null;
+                    if (this.audioCache[index]) {
+                        return this.audioCache[index].promise;
+                    }
+
+                    const seg = this.manifest[index];
+                    let streamPath = seg.stream_url;
+                    try {
+                        const parsed = new URL(streamPath, window.location.origin);
+                        streamPath = parsed.pathname + parsed.search;
+                    } catch (e) {}
+                    const streamUrl = new URL(streamPath, window.location.origin);
+                    streamUrl.searchParams.set('speed', this.speed);
+
+                    const entry = {
+                        status: 'loading',
+                        blobUrl: null,
+                        promise: null
+                    };
+
+                    entry.promise = fetch(streamUrl.toString(), {
+                        headers: { 'Accept': 'audio/wav, audio/*' },
+                        signal: this.abortController ? this.abortController.signal : undefined
+                    })
+                    .then(res => {
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+                        return res.blob();
+                    })
+                    .then(blob => {
+                        entry.blobUrl = URL.createObjectURL(blob);
+                        entry.status = 'ready';
+                        return entry.blobUrl;
+                    })
+                    .catch(err => {
+                        if (err.name !== 'AbortError') {
+                            console.warn(`[TTS] Error precargando segmento #${index}:`, err);
+                        }
+                        entry.status = 'error';
+                        return null;
+                    });
+
+                    this.audioCache[index] = entry;
+                    return entry.promise;
+                },
+
+                async queuePrefetch(fromIndex) {
+                    if (this.isPrefetching) return;
+                    this.isPrefetching = true;
+                    try {
+                        for (let offset = 1; offset <= this.prefetchAheadCount; offset++) {
+                            const targetIndex = fromIndex + offset;
+                            if (targetIndex >= this.manifest.length) break;
+                            if (!this.isPlaying) break;
+                            await this.preloadSegment(targetIndex);
+                        }
+                    } finally {
+                        this.isPrefetching = false;
+                    }
+                    this.pruneOldCache(fromIndex);
+                },
+
+                pruneOldCache(currentIndex) {
+                    Object.keys(this.audioCache).forEach(key => {
+                        const idx = parseInt(key, 10);
+                        if (idx < currentIndex - 1) {
+                            const entry = this.audioCache[idx];
+                            if (entry && entry.blobUrl) {
+                                URL.revokeObjectURL(entry.blobUrl);
+                            }
+                            delete this.audioCache[idx];
+                        }
+                    });
+                },
+
+                async playSegment(index) {
+                    if (index < 0 || index >= this.manifest.length) {
+                        this.stopPlayback();
+                        return;
+                    }
+
+                    this.currentIndex = index;
+                    const seg = this.manifest[index];
+                    this.currentSpeaker = seg.speaker || 'NARRADOR';
+                    this.currentText = seg.text || '';
+                    this.currentBlockId = seg.block_id || null;
+
+                    // Resaltar el bloque actual en pantalla y hacer scroll hacia él
+                    this.highlightBlock(this.currentBlockId);
+
+                    if (this.audio) {
+                        this.audio.pause();
+                        this.audio = null;
+                    }
+
+                    // Iniciar de inmediato la precarga anticipada del siguiente segmento en segundo plano
+                    this.queuePrefetch(index);
+
+                    // Resolver fuente de audio (blob precargado o fallback directo)
+                    let audioSrc = null;
+                    const cached = this.audioCache[index];
+                    if (cached) {
+                        if (cached.status === 'ready' && cached.blobUrl) {
+                            audioSrc = cached.blobUrl;
+                        } else if (cached.status === 'loading' && cached.promise) {
+                            audioSrc = await cached.promise;
+                        }
+                    }
+
+                    // Fallback a URL directa si no existía precarga o si falló
+                    if (!audioSrc) {
+                        let streamPath = seg.stream_url;
+                        try {
+                            const parsed = new URL(streamPath, window.location.origin);
+                            streamPath = parsed.pathname + parsed.search;
+                        } catch (e) {}
+                        const streamUrl = new URL(streamPath, window.location.origin);
+                        streamUrl.searchParams.set('speed', this.speed);
+                        audioSrc = streamUrl.toString();
+                    }
+
+                    // Si durante la espera el usuario detuvo o cambió de segmento, no reproducir
+                    if (!this.isPlaying || this.currentIndex !== index) {
+                        return;
+                    }
+
+                    this.audio = new Audio(audioSrc);
+                    this.audio.playbackRate = this.speed;
+
+                    this.audio.onended = () => {
+                        this.playSegment(this.currentIndex + 1);
+                    };
+
+                    this.audio.onerror = (e) => {
+                        console.error('Audio stream error on index ' + this.currentIndex + ':', e);
+                        this.isPaused = true;
+                        this.isLoading = false;
+                    };
+
+                    this.audio.play().catch(err => {
+                        console.warn('Autoplay prevented or interrupted:', err);
+                    });
+                    this.isPaused = false;
+                },
+
+                togglePlayPause() {
+                    if (!this.audio) return;
+                    if (this.audio.paused) {
+                        this.audio.play();
+                        this.isPaused = false;
+                    } else {
+                        this.audio.pause();
+                        this.audio = true;
+                    }
+                },
+
+                nextSegment() {
+                    if (this.currentIndex < this.manifest.length - 1) {
+                        this.playSegment(this.currentIndex + 1);
+                    }
+                },
+
+                prevSegment() {
+                    if (this.currentIndex > 0) {
+                        this.playSegment(this.currentIndex - 1);
+                    }
+                },
+
+                cycleSpeed() {
+                    const speeds = [1.0, 1.25, 1.5];
+                    const nextIdx = (speeds.indexOf(this.speed) + 1) % speeds.length;
+                    this.speed = speeds[nextIdx];
+                    if (this.audio) {
+                        this.audio.playbackRate = this.speed;
+                    }
+                    // Limpiar caché de blobs con velocidad previa y precargar con la nueva
+                    Object.values(this.audioCache).forEach(entry => {
+                        if (entry && entry.blobUrl) {
+                            URL.revokeObjectURL(entry.blobUrl);
+                        }
+                    });
+                    this.audioCache = {};
+                    this.queuePrefetch(this.currentIndex);
+                },
+
+                stopPlayback() {
+                    if (this.abortController) {
+                        this.abortController.abort();
+                        this.abortController = null;
+                    }
+                    if (this.audio) {
+                        this.audio.pause();
+                        this.audio = null;
+                    }
+                    Object.values(this.audioCache).forEach(entry => {
+                        if (entry && entry.blobUrl) {
+                            URL.revokeObjectURL(entry.blobUrl);
+                        }
+                    });
+                    this.audioCache = {};
+                    this.isPlaying = false;
+                    this.isPaused = false;
+                    this.isLoading = false;
+                    this.manifest = [];
+                    this.currentIndex = 0;
+                    this.clearHighlight();
+                },
+
+                highlightBlock(blockId) {
+                    this.clearHighlight();
+                    if (!blockId) return;
+
+                    const el = document.getElementById('block-' + blockId);
+                    if (el) {
+                        el.classList.add('tts-active-block', 'ring-2', 'ring-indigo-500', 'bg-indigo-500/10', 'dark:bg-indigo-950/40');
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                },
+
+                clearHighlight() {
+                    document.querySelectorAll('.tts-active-block').forEach(el => {
+                        el.classList.remove('tts-active-block', 'ring-2', 'ring-indigo-500', 'bg-indigo-500/10', 'dark:bg-indigo-950/40');
+                    });
+                }
+            };
+        };
+
+        if (window.Alpine) {
+            window.Alpine.data('ttsPlayer', window.ttsPlayer);
+        } else {
+            document.addEventListener('alpine:init', () => {
+                window.Alpine.data('ttsPlayer', window.ttsPlayer);
+            });
+        }
+    </script>
 
     <!-- ================= BARRA SUPERIOR STICKY: TÍTULO DEL PROYECTO Y NAVEGACIÓN STORY ARCHITECT ================= -->
     <div class="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 shadow-xs backdrop-blur-md px-3 sm:px-6 lg:px-8 py-2 transition-colors">
@@ -228,7 +545,7 @@
 
             <!-- Botón de Lectura de Guión Automatizada (TTS vía Speaches-AI) -->
             <button type="button"
-                    @click="$dispatch('play-tts', { scope: 'project' })"
+                    onclick="window.dispatchEvent(new CustomEvent('play-tts', { detail: { scope: 'project' } }))"
                     class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-xs cursor-pointer shrink-0"
                     title="Lectura dramática automatizada de todo el guión con voces sintetizadas por IA">
                 <span>🔊</span>
@@ -407,7 +724,7 @@
 
                             <!-- Botones de Edición Rápida, Borrado y Lectura de Audio -->
                             <div class="flex items-center gap-1 shrink-0">
-                                <button @click.stop="$dispatch('play-tts', { scope: 'scene', sceneId: '{{ $scene->id }}' })"
+                                <button onclick="window.dispatchEvent(new CustomEvent('play-tts', { detail: { scope: 'scene', sceneId: '{{ $scene->id }}' } }))"
                                         type="button"
                                         title="Escuchar locución completa de la Escena {{ $scene->scene_order }}"
                                         class="p-1 rounded text-slate-400 hover:text-indigo-600 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 transition cursor-pointer shrink-0">
@@ -684,7 +1001,7 @@
                                                         🔒
                                                     </span>
                                                 @endif
-                                                <button @click.stop="$dispatch('play-tts', { scope: 'block', blockId: '{{ $block->id }}' })"
+                                                <button onclick="window.dispatchEvent(new CustomEvent('play-tts', { detail: { scope: 'block', blockId: '{{ $block->id }}' } }))"
                                                         type="button"
                                                         title="Escuchar locución de este bloque (TTS)"
                                                         class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition shadow-2xs cursor-pointer">
@@ -1014,7 +1331,7 @@
                         </div>
 
                         <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                            <button @click="$dispatch('play-tts', { scope: 'block', blockId: '{{ $detailBlock->id }}' })"
+                            <button onclick="window.dispatchEvent(new CustomEvent('play-tts', { detail: { scope: 'block', blockId: '{{ $detailBlock->id }}' } }))"
                                     type="button"
                                     title="Escuchar locución de este bloque"
                                     class="px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-800 transition flex items-center gap-1 cursor-pointer">
@@ -3081,19 +3398,15 @@
         </div>
     @endif
 
-    <!-- ================= REPRODUCTOR FLOTANTE DE LOCUCIÓN TTS (SPEACHES-AI) ================= -->
+    <!-- ================= REPRODUCTOR FLOTANTE DE LOCUCIÓN TTS (GOOGLE-AI / GEMINI-TTS) ================= -->
     <div x-data="ttsPlayer({ projectId: '{{ $project->id }}' })"
          x-on:play-tts.window="startPlayback($event.detail)"
          x-on:stop-tts.window="stopPlayback()"
          x-show="isPlaying || isLoading"
-         x-transition:enter="transition ease-out duration-200"
-         x-transition:enter-start="opacity-0 translate-y-4"
-         x-transition:enter-end="opacity-100 translate-y-0"
-         x-transition:leave="transition ease-in duration-150"
-         x-transition:leave-start="opacity-100 translate-y-0"
-         x-transition:leave-end="opacity-0 translate-y-4"
-         class="fixed bottom-4 left-1/2 -translate-x-1/2 z-[9999] w-[94vw] max-w-2xl bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md border border-amber-500/40 rounded-2xl shadow-2xl p-3 sm:p-4 text-white font-mono"
-         style="display: none;">
+         x-cloak
+         id="floating-tts-player"
+         class="fixed bottom-4 left-1/2 -translate-x-1/2 z-[99999] w-[94vw] max-w-2xl bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md border border-amber-500/40 rounded-2xl shadow-2xl p-3 sm:p-4 text-white font-mono"
+         :style="(isPlaying || isLoading) ? 'display: block !important;' : 'display: none !important;'">
 
         <div class="flex items-center justify-between gap-3">
             <!-- Info del segmento actual -->
@@ -3486,304 +3799,6 @@
     @endif
 
     <script>
-        function ttsPlayer({ projectId }) {
-            return {
-                projectId: projectId,
-                isPlaying: false,
-                isPaused: false,
-                isLoading: false,
-                manifest: [],
-                currentIndex: 0,
-                currentSpeaker: '',
-                currentText: '',
-                currentBlockId: null,
-                speed: 1.0,
-                audio: null,
-                audioCache: {},
-                abortController: null,
-                isPrefetching: false,
-                prefetchAheadCount: 2,
-
-                get progressText() {
-                    if (!this.manifest.length) return '';
-                    return `(${this.currentIndex + 1} de ${this.manifest.length})`;
-                },
-
-                async startPlayback(detail) {
-                    const scope = detail.scope || 'project';
-                    const sceneId = detail.sceneId || '';
-                    const blockId = detail.blockId || '';
-
-                    this.stopPlayback();
-                    this.isLoading = true;
-                    this.isPlaying = true;
-                    this.isPaused = false;
-                    this.manifest = [];
-                    this.currentIndex = 0;
-                    this.audioCache = {};
-                    this.abortController = new AbortController();
-
-                    try {
-                        const url = new URL(`/projects/${this.projectId}/tts/manifest`, window.location.origin);
-                        if (sceneId) url.searchParams.set('scene_id', sceneId);
-                        if (blockId) url.searchParams.set('block_id', blockId);
-
-                        const res = await fetch(url.toString(), {
-                            headers: { 'Accept': 'application/json' },
-                            signal: this.abortController.signal
-                        });
-
-                        if (!res.ok) {
-                            throw new Error('Error al generar manifiesto de lectura: ' + res.status);
-                        }
-
-                        const data = await res.json();
-                        if (!data.manifest || data.manifest.length === 0) {
-                            alert('No hay texto disponible para locutar en este elemento.');
-                            this.stopPlayback();
-                            return;
-                        }
-
-                        this.manifest = data.manifest;
-                        this.playSegment(0);
-                    } catch (e) {
-                        if (e.name !== 'AbortError') {
-                            console.error('TTS playback error:', e);
-                            alert('No se pudo iniciar la locución: ' + e.message);
-                        }
-                        this.stopPlayback();
-                    } finally {
-                        this.isLoading = false;
-                    }
-                },
-
-                async preloadSegment(index) {
-                    if (index < 0 || index >= this.manifest.length) return null;
-                    if (this.audioCache[index]) {
-                        return this.audioCache[index].promise;
-                    }
-
-                    const seg = this.manifest[index];
-                    let streamPath = seg.stream_url;
-                    try {
-                        const parsed = new URL(streamPath, window.location.origin);
-                        streamPath = parsed.pathname + parsed.search;
-                    } catch (e) {}
-                    const streamUrl = new URL(streamPath, window.location.origin);
-                    streamUrl.searchParams.set('speed', this.speed);
-
-                    const entry = {
-                        status: 'loading',
-                        blobUrl: null,
-                        promise: null
-                    };
-
-                    entry.promise = fetch(streamUrl.toString(), {
-                        headers: { 'Accept': 'audio/wav, audio/*' },
-                        signal: this.abortController ? this.abortController.signal : undefined
-                    })
-                    .then(res => {
-                        if (!res.ok) throw new Error('HTTP ' + res.status);
-                        return res.blob();
-                    })
-                    .then(blob => {
-                        entry.blobUrl = URL.createObjectURL(blob);
-                        entry.status = 'ready';
-                        return entry.blobUrl;
-                    })
-                    .catch(err => {
-                        if (err.name !== 'AbortError') {
-                            console.warn(`[TTS] Error precargando segmento #${index}:`, err);
-                        }
-                        entry.status = 'error';
-                        return null;
-                    });
-
-                    this.audioCache[index] = entry;
-                    return entry.promise;
-                },
-
-                async queuePrefetch(fromIndex) {
-                    if (this.isPrefetching) return;
-                    this.isPrefetching = true;
-                    try {
-                        for (let offset = 1; offset <= this.prefetchAheadCount; offset++) {
-                            const targetIndex = fromIndex + offset;
-                            if (targetIndex >= this.manifest.length) break;
-                            if (!this.isPlaying) break;
-                            await this.preloadSegment(targetIndex);
-                        }
-                    } finally {
-                        this.isPrefetching = false;
-                    }
-                    this.pruneOldCache(fromIndex);
-                },
-
-                pruneOldCache(currentIndex) {
-                    Object.keys(this.audioCache).forEach(key => {
-                        const idx = parseInt(key, 10);
-                        if (idx < currentIndex - 1) {
-                            const entry = this.audioCache[idx];
-                            if (entry && entry.blobUrl) {
-                                URL.revokeObjectURL(entry.blobUrl);
-                            }
-                            delete this.audioCache[idx];
-                        }
-                    });
-                },
-
-                async playSegment(index) {
-                    if (index < 0 || index >= this.manifest.length) {
-                        this.stopPlayback();
-                        return;
-                    }
-
-                    this.currentIndex = index;
-                    const seg = this.manifest[index];
-                    this.currentSpeaker = seg.speaker || 'NARRADOR';
-                    this.currentText = seg.text || '';
-                    this.currentBlockId = seg.block_id || null;
-
-                    // Resaltar el bloque actual en pantalla y hacer scroll hacia él
-                    this.highlightBlock(this.currentBlockId);
-
-                    if (this.audio) {
-                        this.audio.pause();
-                        this.audio = null;
-                    }
-
-                    // Iniciar de inmediato la precarga anticipada del siguiente segmento en segundo plano
-                    this.queuePrefetch(index);
-
-                    // Resolver fuente de audio (blob precargado o fallback directo)
-                    let audioSrc = null;
-                    const cached = this.audioCache[index];
-                    if (cached) {
-                        if (cached.status === 'ready' && cached.blobUrl) {
-                            audioSrc = cached.blobUrl;
-                        } else if (cached.status === 'loading' && cached.promise) {
-                            audioSrc = await cached.promise;
-                        }
-                    }
-
-                    // Fallback a URL directa si no existía precarga o si falló
-                    if (!audioSrc) {
-                        let streamPath = seg.stream_url;
-                        try {
-                            const parsed = new URL(streamPath, window.location.origin);
-                            streamPath = parsed.pathname + parsed.search;
-                        } catch (e) {}
-                        const streamUrl = new URL(streamPath, window.location.origin);
-                        streamUrl.searchParams.set('speed', this.speed);
-                        audioSrc = streamUrl.toString();
-                    }
-
-                    // Si durante la espera el usuario detuvo o cambió de segmento, no reproducir
-                    if (!this.isPlaying || this.currentIndex !== index) {
-                        return;
-                    }
-
-                    this.audio = new Audio(audioSrc);
-                    this.audio.playbackRate = this.speed;
-
-                    this.audio.onended = () => {
-                        this.playSegment(this.currentIndex + 1);
-                    };
-
-                    this.audio.onerror = (e) => {
-                        console.error('Audio stream error on index ' + this.currentIndex + ':', e);
-                        this.isPaused = true;
-                        this.isLoading = false;
-                    };
-
-                    this.audio.play().catch(err => {
-                        console.warn('Autoplay prevented or interrupted:', err);
-                    });
-                    this.isPaused = false;
-                },
-
-                togglePlayPause() {
-                    if (!this.audio) return;
-                    if (this.audio.paused) {
-                        this.audio.play();
-                        this.isPaused = false;
-                    } else {
-                        this.audio.pause();
-                        this.isPaused = true;
-                    }
-                },
-
-                nextSegment() {
-                    if (this.currentIndex < this.manifest.length - 1) {
-                        this.playSegment(this.currentIndex + 1);
-                    }
-                },
-
-                prevSegment() {
-                    if (this.currentIndex > 0) {
-                        this.playSegment(this.currentIndex - 1);
-                    }
-                },
-
-                cycleSpeed() {
-                    const speeds = [1.0, 1.25, 1.5];
-                    const nextIdx = (speeds.indexOf(this.speed) + 1) % speeds.length;
-                    this.speed = speeds[nextIdx];
-                    if (this.audio) {
-                        this.audio.playbackRate = this.speed;
-                    }
-                    // Limpiar caché de blobs con velocidad previa y precargar con la nueva
-                    Object.values(this.audioCache).forEach(entry => {
-                        if (entry && entry.blobUrl) {
-                            URL.revokeObjectURL(entry.blobUrl);
-                        }
-                    });
-                    this.audioCache = {};
-                    this.queuePrefetch(this.currentIndex);
-                },
-
-                stopPlayback() {
-                    if (this.abortController) {
-                        this.abortController.abort();
-                        this.abortController = null;
-                    }
-                    if (this.audio) {
-                        this.audio.pause();
-                        this.audio = null;
-                    }
-                    Object.values(this.audioCache).forEach(entry => {
-                        if (entry && entry.blobUrl) {
-                            URL.revokeObjectURL(entry.blobUrl);
-                        }
-                    });
-                    this.audioCache = {};
-                    this.isPlaying = false;
-                    this.isPaused = false;
-                    this.isLoading = false;
-                    this.manifest = [];
-                    this.currentIndex = 0;
-                    this.clearHighlight();
-                },
-
-                highlightBlock(blockId) {
-                    this.clearHighlight();
-                    if (!blockId) return;
-
-                    const el = document.getElementById('block-' + blockId);
-                    if (el) {
-                        el.classList.add('tts-active-block', 'ring-2', 'ring-indigo-500', 'bg-indigo-500/10', 'dark:bg-indigo-950/40');
-                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }
-                },
-
-                clearHighlight() {
-                    document.querySelectorAll('.tts-active-block').forEach(el => {
-                        el.classList.remove('tts-active-block', 'ring-2', 'ring-indigo-500', 'bg-indigo-500/10', 'dark:bg-indigo-950/40');
-                    });
-                }
-            };
-        }
-
         function insertTagToStoryboardPrompt(tag) {
             const el = document.getElementById('storyboard_modal_prompt');
             if (!el) return;
