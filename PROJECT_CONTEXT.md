@@ -1,12 +1,17 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.43.0  
+**Versión del documento:** 3.44.0  
 **Fecha de consolidación:** 8 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** ISSUE-061 completado: Persistencia automática de voces inferidas en la ficha del personaje en la Biblia durante la lectura del guion, asociando permanentemente la voz asignada y registrando automáticamente nuevos personajes dialogantes. 234 tests automatizados pasando al 100% y Pint superado.
+**Estado:** ISSUE-062 completado: Expansión fonética de abreviaturas de guion (INT. -> Interior, EXT. -> Exterior) en la síntesis neural de audio y restauración del reproductor secuencial estable en el editor. 235 tests automatizados pasando al 100% y Pint superado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **ISSUE-062: Expansión Fonética de Abreviaturas de Guion (INT./EXT.) y Estabilización Secuencial del Reproductor:**
+  - **Expansión Fonética en Locución (`expandScreenplayAbbreviations`):** `TextToSpeechService` ahora expande automáticamente las abreviaturas técnicas de las cabeceras de escena cinematográficas (`INT.` -> `Interior, `, `EXT.` -> `Exterior, `, `INT./EXT.` / `I/E.` -> `Interior y exterior, `, `EST.` -> `Estudio, `) antes de enviar el texto al motor neural de Google AI. Esto garantiza una dicción orgánica y cinematográfica en español evitando deletreos o cortes antinaturales.
+  - **Restauración del Reproductor Secuencial Estable:** En `script-editor.blade.php` se eliminó la concurrencia agresiva de múltiples elementos `Audio` simultáneos que provocaban saltos descontrolados entre bloques al interceptar errores DOM o reintentos HTTP 500. El reproductor opera en modo secuencial confiable con recuperación controlada.
+  - **Conmutación Inteligente de Modelos ante Cuota Diaria (HTTP 429):** Integrado en `synthesizeWithGoogleAi` el failover automático entre modelos (`gemini-3.8-flash-tts` -> `gemini-3.8-flash-lite-tts` -> `gemini-2.5-flash-preview-tts`), evitando la interrupción de la lectura cuando se agota la cuota diaria por modelo en Google AI Studio Tier 1.
 
 - **ISSUE-061: Persistencia Automática de Voces en la Ficha del Personaje en la Biblia:**
   - **Sincronización Bidireccional de la Biblia:** Al iniciar la lectura del guion o solicitar el manifiesto TTS (`buildManifestForScope` / `parseBlockToSegments`), cada personaje sin voz previa (`custom_attributes['voice_id']`) recibe su voz asignada automáticamente (según nombre/género) y **se guarda de inmediato en su ficha en base de datos** (`$char->saveQuietly()`).

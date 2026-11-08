@@ -177,7 +177,7 @@ class TextToSpeechService
      */
     public function synthesize(string $text, ?string $voice = null, float $speed = 1.0): string
     {
-        $cleanText = trim($text);
+        $cleanText = $this->expandScreenplayAbbreviations(trim($text));
         if ($cleanText === '') {
             throw new RuntimeException('El texto a sintetizar no puede estar vacío.');
         }
@@ -208,9 +208,30 @@ class TextToSpeechService
     }
 
     /**
+     * Expande abreviaturas técnicas de guión cinematográfico (INT., EXT., I/E.) a palabras
+     * completas ("Interior", "Exterior") para una dicción natural y profesional en la locución.
+     */
+    public function expandScreenplayAbbreviations(string $text): string
+    {
+        // INT./EXT. o I/E. -> Interior y exterior,
+        $expanded = preg_replace('/(^|[\r\n\s])INT\.?\s*[\/\-]\s*EXT\.?\s*/ui', '$1Interior y exterior, ', $text);
+        $expanded = preg_replace('/(^|[\r\n\s])I\.?\s*[\/\-]\s*E\.?\s*/ui', '$1Interior y exterior, ', $expanded);
+
+        // INT. -> Interior
+        $expanded = preg_replace('/(^|[\r\n\s])INT\.\s*/ui', '$1Interior, ', $expanded);
+
+        // EXT. -> Exterior
+        $expanded = preg_replace('/(^|[\r\n\s])EXT\.\s*/ui', '$1Exterior, ', $expanded);
+
+        // EST. (Estudio) -> Estudio
+        $expanded = preg_replace('/(^|[\r\n\s])EST\.\s*/ui', '$1Estudio, ', $expanded);
+
+        return trim($expanded);
+    }
+
+    /**
      * Síntesis de voz neural con Google AI Studio (Gemini TTS).
-     * Incorpora conmutación automática entre modelos compatibles ante límites de cuota (HTTP 429)
-     * y recorte de silencios muertos iniciales/finales con FFmpeg para máxima fluidez conversacional.
+     * Incorpora conmutación automática entre modelos compatibles ante límites de cuota (HTTP 429).
      */
     protected function synthesizeWithGoogleAi(string $cleanText, string $voice, string $cachedFilePath): string
     {
@@ -294,36 +315,7 @@ class TextToSpeechService
         $wavBytes = base64_decode($base64Data);
         File::put($cachedFilePath, $wavBytes);
 
-        // Recorte inteligente de silencios muertos iniciales y finales para lectura fluida
-        $this->trimAudioSilence($cachedFilePath);
-
         return $cachedFilePath;
-    }
-
-    /**
-     * Recorta el silencio artificial inicial y final que añade la síntesis neural
-     * para asegurar un ritmo dramático fluido y continuo entre personajes.
-     */
-    protected function trimAudioSilence(string $filePath): void
-    {
-        if (! File::exists($filePath) || File::size($filePath) === 0) {
-            return;
-        }
-
-        $trimmedPath = $filePath.'.trimmed.wav';
-        $cmd = sprintf(
-            'ffmpeg -y -i %s -af "silenceremove=start_periods=1:start_duration=0.02:start_threshold=-35dB:stop_periods=1:stop_duration=0.04:stop_threshold=-35dB" %s 2>/dev/null',
-            escapeshellarg($filePath),
-            escapeshellarg($trimmedPath)
-        );
-
-        @exec($cmd, $output, $returnVar);
-
-        if ($returnVar === 0 && file_exists($trimmedPath) && filesize($trimmedPath) > 500) {
-            @rename($trimmedPath, $filePath);
-        } elseif (file_exists($trimmedPath)) {
-            @unlink($trimmedPath);
-        }
     }
 
     /**

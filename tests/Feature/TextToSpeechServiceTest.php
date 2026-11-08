@@ -174,4 +174,14 @@ class TextToSpeechServiceTest extends TestCase
         $this->assertNotNull($refreshedEdurne->custom_attributes['voice_id'] ?? null);
         $this->assertEquals('Aoede', $refreshedEdurne->custom_attributes['voice_id']);
     }
+
+    public function test_expand_screenplay_abbreviations(): void
+    {
+        $input = "INT. HABITACIÓN - DÍA\nJuan mira por la ventana.\nEXT. CALLE - NOCHE\nLa lluvia cae.\nINT./EXT. COCHE - TARDE\nArranca el motor.";
+        $expanded = $this->service->expandScreenplayAbbreviations($input);
+
+        $this->assertStringContainsString('Interior, HABITACIÓN - DÍA', $expanded);
+        $this->assertStringContainsString('Exterior, CALLE - NOCHE', $expanded);
+        $this->assertStringContainsString('Interior y exterior, COCHE - TARDE', $expanded);
+    }
 }

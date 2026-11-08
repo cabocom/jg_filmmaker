@@ -145,7 +145,6 @@
                     const entry = {
                         status: 'loading',
                         blobUrl: null,
-                        audio: null,
                         promise: null
                     };
 
@@ -159,13 +158,8 @@
                     })
                     .then(blob => {
                         entry.blobUrl = URL.createObjectURL(blob);
-                        // Pre-instanciar y decodificar el elemento de audio para inicio inmediato (0 ms)
-                        const preAudio = new Audio(entry.blobUrl);
-                        preAudio.preload = 'auto';
-                        preAudio.playbackRate = this.speed;
-                        entry.audio = preAudio;
                         entry.status = 'ready';
-                        return entry;
+                        return entry.blobUrl;
                     })
                     .catch(err => {
                         if (err.name !== 'AbortError') {
@@ -179,14 +173,18 @@
                     return entry.promise;
                 },
 
-                queuePrefetch(fromIndex) {
-                    // Lanzar la precarga de los siguientes segmentos sin bloqueo de semáforo
-                    for (let offset = 1; offset <= this.prefetchAheadCount; offset++) {
-                        const targetIndex = fromIndex + offset;
-                        if (targetIndex >= this.manifest.length) break;
-                        if (!this.audioCache[targetIndex]) {
-                            this.preloadSegment(targetIndex);
+                async queuePrefetch(fromIndex) {
+                    if (this.isPrefetching) return;
+                    this.isPrefetching = true;
+                    try {
+                        for (let offset = 1; offset <= this.prefetchAheadCount; offset++) {
+                            const targetIndex = fromIndex + offset;
+                            if (targetIndex >= this.manifest.length) break;
+                            if (!this.isPlaying) break;
+                            await this.preloadSegment(targetIndex);
                         }
+                    } finally {
+                        this.isPrefetching = false;
                     }
                     this.pruneOldCache(fromIndex);
                 },
@@ -196,14 +194,8 @@
                         const idx = parseInt(key, 10);
                         if (idx < currentIndex - 1) {
                             const entry = this.audioCache[idx];
-                            if (entry) {
-                                if (entry.audio) {
-                                    entry.audio.src = '';
-                                    entry.audio = null;
-                                }
-                                if (entry.blobUrl) {
-                                    URL.revokeObjectURL(entry.blobUrl);
-                                }
+                            if (entry && entry.blobUrl) {
+                                URL.revokeObjectURL(entry.blobUrl);
                             }
                             delete this.audioCache[idx];
                         }
@@ -227,32 +219,25 @@
 
                     if (this.audio) {
                         this.audio.pause();
-                        this.audio.onended = null;
-                        this.audio.onerror = null;
                         this.audio = null;
                     }
 
-                    // Iniciar de inmediato la precarga anticipada de los siguientes segmentos
+                    // Iniciar de inmediato la precarga anticipada del siguiente segmento en segundo plano
                     this.queuePrefetch(index);
 
-                    // Resolver elemento de audio pre-instanciado o esperar promesa
-                    let targetAudio = null;
+                    // Resolver fuente de audio (blob precargado o fallback directo)
+                    let audioSrc = null;
                     const cached = this.audioCache[index];
                     if (cached) {
-                        if (cached.status === 'ready' && cached.audio) {
-                            targetAudio = cached.audio;
-                        } else if (cached.promise) {
-                            await cached.promise;
-                            if (this.audioCache[index] && this.audioCache[index].audio) {
-                                targetAudio = this.audioCache[index].audio;
-                            } else if (this.audioCache[index] && this.audioCache[index].blobUrl) {
-                                targetAudio = new Audio(this.audioCache[index].blobUrl);
-                            }
+                        if (cached.status === 'ready' && cached.blobUrl) {
+                            audioSrc = cached.blobUrl;
+                        } else if (cached.status === 'loading' && cached.promise) {
+                            audioSrc = await cached.promise;
                         }
                     }
 
                     // Fallback a URL directa si no existía precarga o si falló
-                    if (!targetAudio) {
+                    if (!audioSrc) {
                         let streamPath = seg.stream_url;
                         try {
                             const parsed = new URL(streamPath, window.location.origin);
@@ -260,7 +245,7 @@
                         } catch (e) {}
                         const streamUrl = new URL(streamPath, window.location.origin);
                         streamUrl.searchParams.set('speed', this.speed);
-                        targetAudio = new Audio(streamUrl.toString());
+                        audioSrc = streamUrl.toString();
                     }
 
                     // Si durante la espera el usuario detuvo o cambió de segmento, no reproducir
@@ -268,9 +253,8 @@
                         return;
                     }
 
-                    this.audio = targetAudio;
+                    this.audio = new Audio(audioSrc);
                     this.audio.playbackRate = this.speed;
-                    this.audio.currentTime = 0;
 
                     this.audio.onended = () => {
                         this.playSegment(this.currentIndex + 1);
