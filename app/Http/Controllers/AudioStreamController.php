@@ -60,7 +60,7 @@ class AudioStreamController extends Controller
         return response()->file($audioPath, [
             'Content-Type' => 'audio/wav',
             'Accept-Ranges' => 'bytes',
-            'Cache-Control' => 'private, max-age=86400',
+            'Cache-Control' => 'no-cache, private',
         ]);
     }
 
@@ -84,7 +84,7 @@ class AudioStreamController extends Controller
             return response()->file($audioPath, [
                 'Content-Type' => 'audio/wav',
                 'Accept-Ranges' => 'bytes',
-                'Cache-Control' => 'private, max-age=86400',
+                'Cache-Control' => 'no-cache, private',
             ]);
         } catch (\Throwable $e) {
             return response()->json([

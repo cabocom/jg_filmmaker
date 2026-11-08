@@ -1,12 +1,17 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.38.0  
+**Versión del documento:** 3.39.0  
 **Fecha de consolidación:** 8 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** ISSUE-056 completado: Blindaje de compatibilidad en pipeline CI/CD (runner GitLab sin extensión GD) mediante `createWithContent` binario y configuración hermética de `GOOGLE_AI_API_KEY` para tests en `phpunit.xml`. 233 tests automatizados pasando al 100% y Pint superado.
+**Estado:** ISSUE-057 completado: Purgado de caché legacy TTS en producción y desactivación de caché HTTP agresiva del navegador (`no-cache, private`) en `AudioStreamController` para garantizar la entrega inmediata de voces neurales de Google AI. 233 tests automatizados pasando al 100% y Pint superado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **ISSUE-057: Prevención de Caché Obsoleta de Audio y Entrega Inmediata de Voces Neurales Google AI:**
+  - **Desactivación de Caché HTTP Agresiva en Navegador:** Se sustituyó la cabecera `Cache-Control: private, max-age=86400` por `Cache-Control: no-cache, private` en `AudioStreamController::streamAudio` y `AudioStreamController::demoVoice`. Esto evita que los navegadores almacenen en caché de disco durante 24 horas audios antiguos y garantiza que cualquier cambio de voz o transición de proveedor TTS se escuche al instante.
+  - **Depuración de Archivos Residuales en Almacenamiento Persistente:** Purgado completo del directorio `storage/app/private/tts_cache` en el entorno de producción y desarrollo local, eliminando más de 115 MB de archivos WAV obsoletos generados con la síntesis robótica previa de Piper/Speaches.
+  - **Preservación de Caché Eficiente en Servidor:** El hash SHA-256 en disco (`google_ai_gemini-2.5-flash|voz|speed|texto`) se mantiene para evitar consumos duplicados de cuota de API, pero la cabecera HTTP fuerza la revalidación del cliente.
 
 - **ISSUE-056: Blindaje CI/CD sin Dependencia de Extensión GD y Aislamiento de Clave TTS:**
   - **Eliminación de Dependencia de GD en Tests:** Se reemplazó el uso de `UploadedFile::fake()->image()` por `UploadedFile::fake()->createWithContent()` con bytes binarios reales PNG en `ContextBibleAndTimelineIsolationTest`, garantizando que los tests se ejecuten sin requerir la extensión PHP `gd` en el runner oficial de GitLab CI.
