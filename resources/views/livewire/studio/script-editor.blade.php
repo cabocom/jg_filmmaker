@@ -279,7 +279,7 @@
                         this.isPaused = false;
                     } else {
                         this.audio.pause();
-                        this.audio = true;
+                        this.isPaused = true;
                     }
                 },
 
@@ -3403,10 +3403,10 @@
          x-on:play-tts.window="startPlayback($event.detail)"
          x-on:stop-tts.window="stopPlayback()"
          x-show="isPlaying || isLoading"
-         x-cloak
          id="floating-tts-player"
-         class="fixed bottom-4 left-1/2 -translate-x-1/2 z-[99999] w-[94vw] max-w-2xl bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md border border-amber-500/40 rounded-2xl shadow-2xl p-3 sm:p-4 text-white font-mono"
-         :style="(isPlaying || isLoading) ? 'display: block !important;' : 'display: none !important;'">
+         class="rounded-2xl shadow-2xl p-3 sm:p-4 text-white font-mono"
+         :style="(isPlaying || isLoading) ? 'position: fixed !important; bottom: 24px !important; left: 50% !important; transform: translateX(-50%) !important; z-index: 999999 !important; width: min(94vw, 680px) !important; background-color: rgba(15, 23, 42, 0.96) !important; border: 1.5px solid rgba(245, 158, 11, 0.6) !important; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7) !important; backdrop-filter: blur(12px) !important; display: block !important;' : 'display: none !important;'"
+         style="position: fixed !important; bottom: 24px !important; left: 50% !important; transform: translateX(-50%) !important; z-index: 999999 !important; width: min(94vw, 680px) !important; background-color: rgba(15, 23, 42, 0.96) !important; border: 1.5px solid rgba(245, 158, 11, 0.6) !important; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7) !important; backdrop-filter: blur(12px) !important; display: none;">
 
         <div class="flex items-center justify-between gap-3">
             <!-- Info del segmento actual -->
