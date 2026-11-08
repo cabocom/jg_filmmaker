@@ -48,7 +48,7 @@ class AudioStreamController extends Controller
             ->firstOrFail();
 
         $characters = $project->characters()->get();
-        $segments = $tts->parseBlockToSegments($block, $characters);
+        $segments = $tts->parseBlockToSegments($block, $characters, $project);
 
         if (! isset($segments[$segmentIndex])) {
             abort(404, 'Segmento de audio no encontrado para el bloque especificado.');

@@ -1,12 +1,17 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.42.0  
+**Versión del documento:** 3.43.0  
 **Fecha de consolidación:** 8 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** ISSUE-060 completado: Fluidez y ritmo dramático instantáneo (0 ms de delay) mediante pre-decodificación en memoria HTML5 Audio, precarga concurrente no bloqueante de los 2 siguientes segmentos, conmutación automática de modelos ante cuotas (HTTP 429) y recorte de silencios muertos con FFmpeg. 233 tests automatizados pasando al 100% y Pint superado.
+**Estado:** ISSUE-061 completado: Persistencia automática de voces inferidas en la ficha del personaje en la Biblia durante la lectura del guion, asociando permanentemente la voz asignada y registrando automáticamente nuevos personajes dialogantes. 234 tests automatizados pasando al 100% y Pint superado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **ISSUE-061: Persistencia Automática de Voces en la Ficha del Personaje en la Biblia:**
+  - **Sincronización Bidireccional de la Biblia:** Al iniciar la lectura del guion o solicitar el manifiesto TTS (`buildManifestForScope` / `parseBlockToSegments`), cada personaje sin voz previa (`custom_attributes['voice_id']`) recibe su voz asignada automáticamente (según nombre/género) y **se guarda de inmediato en su ficha en base de datos** (`$char->saveQuietly()`).
+  - **Creación y Asociación Automática de Nuevos Personajes:** Si en los diálogos del guion aparece un personaje que aún no tenía ficha creada en la Biblia, el sistema lo crea en el proyecto asociándole su voz respectiva, asegurando que todos los personajes queden listados en el cajón de la Biblia.
+  - **Respeto a Modificaciones Manuales:** Si el usuario modifica la voz de un personaje desde el cajón de la Biblia, esa preferencia manual se respeta y tiene prioridad absoluta sobre la asignación automática.
 
 - **ISSUE-060: Fluidez Gapless y Eliminación de Pausas Muertas en Reproducción Dramática:**
   - **Pre-decodificación en Memoria del Navegador (Transición en 0 ms):** En `script-editor.blade.php`, cada segmento precargado ahora pre-instancia y decodifica un objeto `Audio` nativo (`preload = 'auto'`). Al finalizar un parlamento, el siguiente elemento de audio se reproduce al instante sin reconstruir el objeto DOM ni renegociar el pipeline de audio del navegador.

@@ -377,13 +377,17 @@ class TextToSpeechService
      * @param  Collection<int, Character>|array<int, Character>  $characters
      * @return array<int, array{type: string, speaker: string, voice: string, text: string}>
      */
-    public function parseBlockToSegments(ScriptBlock $block, Collection|array $characters = []): array
+    public function parseBlockToSegments(ScriptBlock $block, Collection|array $characters = [], ?Project $project = null): array
     {
+        if (! $project && $block->relationLoaded('scene') && $block->scene) {
+            $project = $block->scene->project ?? null;
+        }
+
         $characterVoiceMap = $this->buildCharacterVoiceMap($characters);
 
         // Si el bloque está en 'screenplay' o 'shots', aplicamos análisis dramático Fountain sobre el guión literario
         if (in_array($block->stage, ['screenplay', 'shots'], true) && ! empty($block->screenplay_content)) {
-            return $this->parseScreenplayText($block->screenplay_content, $characterVoiceMap);
+            return $this->parseScreenplayText($block->screenplay_content, $characterVoiceMap, $project);
         }
 
         // Si está en 'structured' o 'raw', comprobamos si contiene formato dramático con personajes
@@ -396,7 +400,7 @@ class TextToSpeechService
             return [];
         }
 
-        $candidateSegments = $this->parseScreenplayText($cleanProse, $characterVoiceMap);
+        $candidateSegments = $this->parseScreenplayText($cleanProse, $characterVoiceMap, $project);
         $hasDialogue = collect($candidateSegments)->contains('type', 'dialogue');
 
         if ($hasDialogue) {
@@ -428,7 +432,7 @@ class TextToSpeechService
                 ->whereHas('scene', fn ($q) => $q->where('project_id', $project->id))
                 ->firstOrFail();
 
-            $segments = $this->parseBlockToSegments($block, $characters);
+            $segments = $this->parseBlockToSegments($block, $characters, $project);
             foreach ($segments as $idx => $segment) {
                 $manifest[] = [
                     'block_id' => $block->id,
@@ -458,7 +462,7 @@ class TextToSpeechService
 
         foreach ($scenes as $scene) {
             foreach ($scene->scriptBlocks as $block) {
-                $segments = $this->parseBlockToSegments($block, $characters);
+                $segments = $this->parseBlockToSegments($block, $characters, $project);
                 foreach ($segments as $idx => $segment) {
                     $manifest[] = [
                         'block_id' => $block->id,
@@ -487,7 +491,7 @@ class TextToSpeechService
      * @param  array<string, string>  $voiceMap
      * @return array<int, array{type: string, speaker: string, voice: string, text: string}>
      */
-    protected function parseScreenplayText(string $text, array $voiceMap): array
+    protected function parseScreenplayText(string $text, array &$voiceMap, ?Project $project = null): array
     {
         $normalized = str_replace(["\r\n", "\r"], "\n", trim($text));
         $lines = explode("\n", $normalized);
@@ -512,12 +516,38 @@ class TextToSpeechService
             }
         };
 
-        $flushDialogue = function () use (&$segments, &$currentSpeaker, &$currentDialogueLines, $voiceMap) {
+        $flushDialogue = function () use (&$segments, &$currentSpeaker, &$currentDialogueLines, &$voiceMap, $project) {
             if ($currentSpeaker !== null && ! empty($currentDialogueLines)) {
                 $text = trim(implode(' ', $currentDialogueLines));
                 if ($text !== '') {
                     $cleanSpeaker = rtrim(strtoupper(trim(preg_replace('/\s*\([^\)]+\)$/u', '', $currentSpeaker))), '.');
-                    $voice = $voiceMap[$cleanSpeaker] ?? $this->resolveFallbackVoice($cleanSpeaker);
+
+                    if (! isset($voiceMap[$cleanSpeaker])) {
+                        $voice = $this->resolveFallbackVoice($cleanSpeaker);
+                        $voiceMap[$cleanSpeaker] = $voice;
+
+                        // Si hay proyecto activo, asociar la voz a la ficha de la Biblia o crearla si no existe
+                        if ($project && $project->exists) {
+                            try {
+                                $existingChar = $project->characters()->whereRaw('UPPER(TRIM(name)) = ?', [$cleanSpeaker])->first();
+                                if ($existingChar) {
+                                    $attrs = is_array($existingChar->custom_attributes) ? $existingChar->custom_attributes : [];
+                                    $attrs['voice_id'] = $voice;
+                                    $existingChar->custom_attributes = $attrs;
+                                    $existingChar->saveQuietly();
+                                } else {
+                                    $project->characters()->create([
+                                        'name' => ucwords(strtolower($cleanSpeaker)),
+                                        'custom_attributes' => ['voice_id' => $voice],
+                                    ]);
+                                }
+                            } catch (\Throwable $e) {
+                                Log::warning("No se pudo persistir personaje {$cleanSpeaker} en la Biblia: ".$e->getMessage());
+                            }
+                        }
+                    } else {
+                        $voice = $voiceMap[$cleanSpeaker];
+                    }
 
                     $segments[] = [
                         'type' => 'dialogue',
@@ -648,11 +678,20 @@ class TextToSpeechService
             // Inferencia heurística por nombre o género si está especificado
             $isFemale = $this->inferIsFemale($char);
             if ($isFemale) {
-                $map[$nameKey] = $femaleList[$femaleIdx % count($femaleList)];
+                $chosenVoice = $femaleList[$femaleIdx % count($femaleList)];
                 $femaleIdx++;
             } else {
-                $map[$nameKey] = $maleList[$maleIdx % count($maleList)];
+                $chosenVoice = $maleList[$maleIdx % count($maleList)];
                 $maleIdx++;
+            }
+
+            $map[$nameKey] = $chosenVoice;
+
+            // Persistir la voz asignada automáticamente en la ficha del personaje en la Biblia
+            $customAttrs['voice_id'] = $chosenVoice;
+            $char->custom_attributes = $customAttrs;
+            if ($char->exists) {
+                $char->saveQuietly();
             }
         }
 

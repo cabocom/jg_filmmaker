@@ -143,4 +143,35 @@ class TextToSpeechServiceTest extends TestCase
         $this->assertStringContainsString('persecución', $manifest[0]['text']);
         $this->assertStringContainsString('/tts/stream', $manifest[0]['stream_url']);
     }
+
+    public function test_automatic_voice_assignment_persists_to_character_in_bible(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id]);
+        $scene = Scene::factory()->create(['project_id' => $project->id, 'scene_order' => 1]);
+
+        // Personaje sin voice_id en custom_attributes
+        $edurne = Character::factory()->create([
+            'project_id' => $project->id,
+            'name' => 'Edurne',
+            'custom_attributes' => [],
+        ]);
+
+        $block = ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'stage' => 'screenplay',
+            'screenplay_content' => "EDURNE\nHola, estamos grabando.",
+        ]);
+
+        $this->assertNull($edurne->fresh()->custom_attributes['voice_id'] ?? null);
+
+        // Al generar el manifiesto o parsear para locución
+        $manifest = $this->service->buildManifestForScope($project, $scene->id);
+
+        $this->assertNotEmpty($manifest);
+        // La voz de Edurne (femenina) se asignó automáticamente y se guardó en la base de datos
+        $refreshedEdurne = $edurne->fresh();
+        $this->assertNotNull($refreshedEdurne->custom_attributes['voice_id'] ?? null);
+        $this->assertEquals('Aoede', $refreshedEdurne->custom_attributes['voice_id']);
+    }
 }
