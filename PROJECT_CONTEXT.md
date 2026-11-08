@@ -1,12 +1,17 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.40.0  
+**Versión del documento:** 3.41.0  
 **Fecha de consolidación:** 8 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** ISSUE-058 completado: Reorganización ergonómica de la barra superior del estudio (iconos rápidos de exportar PDF, TTS y renderizado junto al lápiz de título, contador de escenas visible) y reubicación exclusiva de importación de guion al catálogo global de proyectos. 233 tests automatizados pasando al 100% y Pint superado.
+**Estado:** ISSUE-059 completado: Blindaje de tolerancia a límites de tasa (HTTP 429) en Google AI TTS mediante reintentos automáticos con backoff exponencial y auto-recuperación sin bloqueo en el reproductor web. 233 tests automatizados pasando al 100% y Pint superado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **ISSUE-059: Auto-retry con Backoff Exponencial en Google AI TTS (HTTP 429) y Recuperación en Player:**
+  - **Manejo Resiliente de Cuota y Límite de Ráfaga en Google AI:** `TextToSpeechService::synthesizeWithGoogleAi` ahora incorpora un bucle de reintento progresivo ante respuestas HTTP 429 (Too Many Requests / Rate Limit de la API de Gemini). El servicio espera con backoff exponencial (2s, 4s...) permitiendo que la ventana de cuota por minuto se desbloquee sin interrumpir la lectura ni arrojar errores 500 al cliente.
+  - **Auto-recuperación y Reintento en el Reproductor Web:** Si un segmento experimenta un fallo de conexión o retardo transitorio, el reproductor purga la entrada corrupta de la memoria local (`delete this.audioCache[index]`) y permite reanudar o reintentar la carga del segmento actual al pulsar Play/Pausa en lugar de lanzar una excepción de DOM.
+  - **Caché en Disco Persistente Confirmada:** Todos los segmentos sintetizados continúan almacenándose de forma inmutable en `storage/app/private/tts_cache` asegurando coste cero y latencia nula en reproducciones sucesivas.
 
 - **ISSUE-058: Reorganización Ergonómica de Barra Superior y Centralización de Importación de Guion:**
   - **Acciones Rápidas Compactas en Cabecera de Proyecto:** Reorganizada la barra superior de `script-editor.blade.php`: el título del proyecto y el lápiz de edición ahora conviven directamente con tres botones de iconos compactos y discretos:

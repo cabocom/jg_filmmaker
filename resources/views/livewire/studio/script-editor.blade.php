@@ -262,6 +262,7 @@
 
                     this.audio.onerror = (e) => {
                         console.error('Audio stream error on index ' + this.currentIndex + ':', e);
+                        delete this.audioCache[this.currentIndex];
                         this.isPaused = true;
                         this.isLoading = false;
                     };
@@ -273,9 +274,16 @@
                 },
 
                 togglePlayPause() {
-                    if (!this.audio) return;
+                    if (!this.audio || this.audio.error) {
+                        delete this.audioCache[this.currentIndex];
+                        this.playSegment(this.currentIndex);
+                        return;
+                    }
                     if (this.audio.paused) {
-                        this.audio.play();
+                        this.audio.play().catch(e => {
+                            delete this.audioCache[this.currentIndex];
+                            this.playSegment(this.currentIndex);
+                        });
                         this.isPaused = false;
                     } else {
                         this.audio.pause();

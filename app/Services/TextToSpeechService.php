@@ -215,36 +215,52 @@ class TextToSpeechService
         try {
             $url = "{$this->googleAiBaseUrl}/models/{$this->googleAiTtsModel}:generateContent?key={$this->googleApiKey}";
 
-            $response = Http::timeout($this->timeout)
-                ->withHeaders(['Content-Type' => 'application/json'])
-                ->post($url, [
-                    'contents' => [
-                        [
-                            'parts' => [
-                                ['text' => $cleanText],
-                            ],
-                        ],
-                    ],
-                    'generationConfig' => [
-                        'responseModalities' => ['AUDIO'],
-                        'speechConfig' => [
-                            'voiceConfig' => [
-                                'prebuiltVoiceConfig' => [
-                                    'voiceName' => $voice,
+            $maxRetries = 3;
+            $attempt = 0;
+            $response = null;
+
+            while ($attempt < $maxRetries) {
+                $attempt++;
+                $response = Http::timeout($this->timeout)
+                    ->withHeaders(['Content-Type' => 'application/json'])
+                    ->post($url, [
+                        'contents' => [
+                            [
+                                'parts' => [
+                                    ['text' => $cleanText],
                                 ],
                             ],
                         ],
-                    ],
-                ]);
+                        'generationConfig' => [
+                            'responseModalities' => ['AUDIO'],
+                            'speechConfig' => [
+                                'voiceConfig' => [
+                                    'prebuiltVoiceConfig' => [
+                                        'voiceName' => $voice,
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ]);
 
-            if (! $response->successful()) {
+                if ($response->status() === 429 && $attempt < $maxRetries) {
+                    Log::warning("Rate limit 429 en Google AI TTS (intento {$attempt}/{$maxRetries}). Esperando backoff...");
+                    sleep($attempt * 2);
+
+                    continue;
+                }
+
+                break;
+            }
+
+            if (! $response || ! $response->successful()) {
                 Log::error('Fallo en síntesis TTS con Google AI', [
-                    'status' => $response->status(),
-                    'error' => $response->body(),
+                    'status' => $response ? $response->status() : 'null',
+                    'error' => $response ? $response->body() : 'No response',
                     'voice' => $voice,
                 ]);
 
-                throw new RuntimeException('Error al contactar con Google AI TTS: '.$response->status());
+                throw new RuntimeException('Error al contactar con Google AI TTS: '.($response ? $response->status() : 'desconocido'));
             }
 
             $parts = $response->json('candidates.0.content.parts') ?? [];
