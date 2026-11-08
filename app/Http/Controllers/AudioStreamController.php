@@ -67,7 +67,7 @@ class AudioStreamController extends Controller
     /**
      * Devuelve el flujo de audio WAV correspondiente a una muestra o demo de voz para la biblia.
      */
-    public function demoVoice(Request $request, Project $project, TextToSpeechService $tts): BinaryFileResponse
+    public function demoVoice(Request $request, Project $project, TextToSpeechService $tts): BinaryFileResponse|JsonResponse
     {
         Gate::authorize('view', $project);
 
@@ -81,12 +81,20 @@ class AudioStreamController extends Controller
         }
 
         $text = (string) $request->query('text', "Hola, soy la voz {$shortName}.");
-        $audioPath = $tts->synthesize($text, $voice, 1.0);
 
-        return response()->file($audioPath, [
-            'Content-Type' => 'audio/wav',
-            'Accept-Ranges' => 'bytes',
-            'Cache-Control' => 'private, max-age=86400',
-        ]);
+        try {
+            $audioPath = $tts->synthesize($text, $voice, 1.0);
+
+            return response()->file($audioPath, [
+                'Content-Type' => 'audio/wav',
+                'Accept-Ranges' => 'bytes',
+                'Cache-Control' => 'private, max-age=86400',
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No se pudo generar la muestra de voz en este momento: '.$e->getMessage(),
+            ], 503);
+        }
     }
 }
