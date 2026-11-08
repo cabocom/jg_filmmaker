@@ -1,12 +1,17 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.48.0  
+**Versión del documento:** 3.49.0  
 **Fecha de consolidación:** 8 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** ISSUE-066 completado: Estabilización definitiva de reproducción TTS y eliminación del salto rápido ("efecto metralleta") en script-editor. blade. Implementación de doble búfer nativo HTML5 Audio (`nextAudio.preload = 'auto'`), supresión del auto-avance descontrolado en onerror y liberación de bloqueo de sesión en streaming. 238 tests pasando al 100% y Pint verificado.
+**Estado:** ISSUE-067 completado: Migración crítica de `tts_cache` a NVMe SSD local (`storage/tts_cache`). Diagnóstico definitivo del cuello de botella de 30s: `storage/app` estaba montado por FUSE rclone hacia Google Drive (`/mnt/gdrive_filmmaker`), causando que cada chunk de audio WAV sufriera latencias de red y bloqueos de I/O por peticiones concurrentes a la API de Google Drive. Con la reubicación en SSD local, la lectura y escritura se realiza en <1 ms. 238 tests pasando al 100% y Pint verificado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **ISSUE-067: Migración Crítica de `tts_cache` a Disco Local SSD (Resolución Cuello de Botella 30s):**
+  - **Diagnóstico del Mount FUSE rclone:** En el host de producción, `/var/www/html/storage/app` está montado sobre `/mnt/gdrive_filmmaker` (Google Drive vía FUSE rclone). Al ubicar `tts_cache` en `storage/app/private/tts_cache`, cada operación de lectura, escritura o sondeo de audio WAV desencadenaba peticiones HTTP a la API de Google Drive a través de FUSE, provocando bloqueos de 30-50 segundos, throttling de API y bloqueo de procesos PHP-FPM y del contenedor.
+  - **Reubicación en NVMe SSD Local (`storage/tts_cache`):** Se trasladó el directorio de caché de TTS a `storage_path('tts_cache')` (`/var/www/html/storage/tts_cache`), el cual reside en el disco NVMe SSD local `/dev/sda1` (ext4). La entrega y persistencia de archivos WAV pasa de 30.000 ms a <1 ms.
+  - **Actualización de Comando de Purga (`tts:prune-orphans`):** Ajustada la ruta del escaneo en `PruneOrphanTtsAudiosCommand` a `storage_path('tts_cache')`.
 
 - **ISSUE-066: Estabilización Definitiva del Reproductor TTS y Eliminación de Saltos Rápidos en Diálogos:**
   - **Eliminación del Auto-avance en Cascada (`onerror`):** Se eliminó el `setTimeout(..., 200)` en el manejador `onerror` de `script-editor.blade.php`. Dicho retardo provocaba que ante cualquier error temporal o recambio de `.src` en un elemento `Audio` en reproducción, el reproductor avanzara compulsivamente cada 200ms cortando las frases a medias ("efecto metralleta / frases entrecortadas").

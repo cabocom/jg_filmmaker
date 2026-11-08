@@ -40,7 +40,7 @@ class TextToSpeechService
         $this->googleAiTtsModel = (string) config('services.google_ai.tts_model', 'gemini-3.8-flash-tts');
         $this->defaultVoice = $this->googleApiKey ? 'Puck' : (string) config('services.speaches.default_voice', 'sharvard#M');
         $this->timeout = (int) config('services.speaches.timeout', 30);
-        $this->cacheDir = storage_path('app/private/tts_cache');
+        $this->cacheDir = storage_path('tts_cache');
 
         if (! File::exists($this->cacheDir)) {
             File::makeDirectory($this->cacheDir, 0775, true, true);

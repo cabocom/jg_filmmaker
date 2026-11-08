@@ -37,7 +37,7 @@ class PruneOrphanTtsAudiosCommand extends Command
         $dryRun = (bool) $this->option('dry-run');
         $force = (bool) $this->option('force');
 
-        $cacheDir = storage_path('app/private/tts_cache');
+        $cacheDir = storage_path('tts_cache');
         if (! File::isDirectory($cacheDir)) {
             $this->info("El directorio de caché TTS [{$cacheDir}] no existe. Nada que limpiar.");
 
