@@ -73,6 +73,13 @@ class StoryboardGenerationTest extends TestCase
         ]);
     }
 
+    protected function fakeImage(string $filename = 'test.png'): UploadedFile
+    {
+        $pngBytes = (string) base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
+
+        return UploadedFile::fake()->createWithContent($filename, $pngBytes);
+    }
+
     public function test_storyboard_service_catalog_contains_the_three_required_styles(): void
     {
         $service = app(StoryboardService::class);
@@ -218,7 +225,7 @@ class StoryboardGenerationTest extends TestCase
 
     public function test_context_bible_drawer_supports_character_reference_image_upload_and_delete(): void
     {
-        $fakeUpload = UploadedFile::fake()->image('marcus_design_sheet.png', 800, 600);
+        $fakeUpload = $this->fakeImage('marcus_design_sheet.png');
 
         Livewire::actingAs($this->user)
             ->test(ContextBibleDrawer::class, ['project' => $this->project])
@@ -249,7 +256,7 @@ class StoryboardGenerationTest extends TestCase
 
     public function test_context_bible_drawer_supports_location_reference_image_upload_and_delete(): void
     {
-        $fakeUpload = UploadedFile::fake()->image('pasillo_entrada.jpg', 1280, 720);
+        $fakeUpload = $this->fakeImage('pasillo_entrada.jpg');
 
         Livewire::actingAs($this->user)
             ->test(ContextBibleDrawer::class, ['project' => $this->project])
@@ -325,10 +332,10 @@ class StoryboardGenerationTest extends TestCase
             ], 200),
         ]);
 
-        $prop1 = UploadedFile::fake()->image('ambientador.jpg', 400, 400);
-        $prop2 = UploadedFile::fake()->image('movil.jpg', 400, 400);
-        $prop3 = UploadedFile::fake()->image('llaves.jpg', 400, 400);
-        $prop4 = UploadedFile::fake()->image('reloj.jpg', 400, 400);
+        $prop1 = $this->fakeImage('ambientador.jpg');
+        $prop2 = $this->fakeImage('movil.jpg');
+        $prop3 = $this->fakeImage('llaves.jpg');
+        $prop4 = $this->fakeImage('reloj.jpg');
 
         Livewire::actingAs($this->user)
             ->test(ScriptEditor::class, ['project' => $this->project])
@@ -368,7 +375,7 @@ class StoryboardGenerationTest extends TestCase
 
         $this->scene->update(['location_id' => $location->id]);
 
-        $prop1 = UploadedFile::fake()->image('prop_ambientador.png', 200, 200);
+        $prop1 = $this->fakeImage('prop_ambientador.png');
 
         $capturedPayload = null;
         Http::fake([

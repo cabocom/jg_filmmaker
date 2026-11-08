@@ -31,7 +31,7 @@
   - **Gestión Visual de Localizaciones en la Biblia de Producción (`ContextBibleDrawer`):**
     - Nueva columna `reference_image_path` en la tabla `locations`.
     - Formulario reactivo en el cajón de la Biblia para subir, previsualizar y suprimir la fotografía o referencia visual de cada localización (interior/exterior).
-  - **Suite de Pruebas Ampliada a 226 Tests al 100%:** Nuevas pruebas de integración en `StoryboardGenerationTest` cubriendo el ciclo de vida de imágenes de localización, apertura del modal de composición, edición de prompts, límite estricto de 3 objetos de atrezzo y carga multimodal a los endpoints de Google AI.
+  - **Suite de Pruebas Ampliada a 226 Tests al 100% y Compatibilidad CI/CD sin Extensión GD:** Nuevas pruebas de integración en `StoryboardGenerationTest` cubriendo el ciclo de vida de imágenes de localización, apertura del modal de composición, edición de prompts, límite estricto de 3 objetos de atrezzo y carga multimodal a los endpoints de Google AI. Se implementó el helper `fakeImage` con bytes binarios reales PNG (`createWithContent`) para evitar el uso de `UploadedFile::fake()->image()`, garantizando la ejecución de la suite sin requerir la extensión PHP `gd` en el runner de GitLab CI (`composer:2`).
 
 - **Condicionamiento Escenográfico de Localización en Storyboard (`StoryboardService`):**
   - Resolución inteligente de la localización vinculada a la escena o mediante coincidencia heurística con el *slugline*.
