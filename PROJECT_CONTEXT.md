@@ -1,12 +1,17 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.47.0  
+**Versión del documento:** 3.48.0  
 **Fecha de consolidación:** 8 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** ISSUE-065 completado: Diagnóstico y resolución de cuellos de botella en streaming de audio y observabilidad en Docker logs. Escalamiento de pool PHP-FPM a 25 workers, integración de logs Laravel a stderr para `docker logs -f jg_filmmaker` y conmutación en 0 ms para modelos TTS agotados. 238 tests automatizados pasando al 100% y Pint superado.
+**Estado:** ISSUE-066 completado: Estabilización definitiva de reproducción TTS y eliminación del salto rápido ("efecto metralleta") en script-editor. blade. Implementación de doble búfer nativo HTML5 Audio (`nextAudio.preload = 'auto'`), supresión del auto-avance descontrolado en onerror y liberación de bloqueo de sesión en streaming. 238 tests pasando al 100% y Pint verificado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **ISSUE-066: Estabilización Definitiva del Reproductor TTS y Eliminación de Saltos Rápidos en Diálogos:**
+  - **Eliminación del Auto-avance en Cascada (`onerror`):** Se eliminó el `setTimeout(..., 200)` en el manejador `onerror` de `script-editor.blade.php`. Dicho retardo provocaba que ante cualquier error temporal o recambio de `.src` en un elemento `Audio` en reproducción, el reproductor avanzara compulsivamente cada 200ms cortando las frases a medias ("efecto metralleta / frases entrecortadas").
+  - **Arquitectura de Doble Búfer Nativo (`nextAudio`):** Se descartó la compleja gestión manual de URLs blob (`URL.createObjectURL` / `revokeObjectURL`) a favor de dos instancias nativas HTML5 `Audio`: una activa (`this.audio`) y una de precarga inmediata (`this.nextAudio`) con `preload = 'auto'`. La precarga delegada en la capa multimedia del navegador garantiza transición gapless continua sin conflictos de punteros DOM.
+  - **Liberación Inmediata del Bloqueo de Sesión PHP-FPM:** Se añadió `$request->session()->save()` antes del streaming en `AudioStreamController::streamAudio`. Esto previene que peticiones concurrentes del mismo usuario queden serializadas esperando la finalización de streams de audio largos.
 
 - **ISSUE-065: Observabilidad en Docker Logs y Optimización de Rendimiento en Streaming de Audio:**
   - **Emisión de Logs Laravel a Docker (`docker logs -f jg_filmmaker`):** Activado en `config/logging.php` el stack predeterminado `single,stderr` y configurado `php-fpm.d/www.conf` con `catch_workers_output = yes` y `decorate_workers_output = no`. Incorporados logs de traza en tiempo real en `AudioStreamController` (`[TTS Stream]` y `[TTS Manifest]`) detallando latencia de respuesta en milisegundos y peso entregado. En el frontend `script-editor.blade.php`, se unificó la instancia de reproducción HTML5 Audio con auto-avance ante silencios y precarga paralela.

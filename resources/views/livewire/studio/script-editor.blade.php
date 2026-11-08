@@ -63,10 +63,8 @@
                 currentBlockId: null,
                 speed: 1.0,
                 audio: null,
-                audioCache: {},
+                nextAudio: null,
                 abortController: null,
-                isPrefetching: false,
-                prefetchAheadCount: 2,
 
                 get progressText() {
                     if (!this.manifest.length) return '';
@@ -84,10 +82,9 @@
                     this.isPlaying = true;
                     this.isPaused = false;
                     this.currentSpeaker = 'CARGANDO...';
-                    this.currentText = 'Obteniendo locución de ' + (scope === 'scene' ? 'la escena' : (scope === 'block' ? 'el bloque' : 'el guión completo')) + '...';
+                    this.currentText = 'Obteniendo locución...';
                     this.manifest = [];
                     this.currentIndex = 0;
-                    this.audioCache = {};
                     this.abortController = new AbortController();
 
                     try {
@@ -95,21 +92,15 @@
                         if (sceneId) url.searchParams.set('scene_id', sceneId);
                         if (blockId) url.searchParams.set('block_id', blockId);
 
-                        console.log('[TTS] Solicitando manifiesto:', url.toString());
-
                         const res = await fetch(url.toString(), {
                             headers: { 'Accept': 'application/json' },
                             signal: this.abortController.signal
                         });
 
-                        if (!res.ok) {
-                            throw new Error('Error al generar manifiesto de lectura: ' + res.status);
-                        }
-
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
                         const data = await res.json();
-                        console.log('[TTS] Manifiesto recibido (' + (data.manifest ? data.manifest.length : 0) + ' segmentos):', data);
                         if (!data.manifest || data.manifest.length === 0) {
-                            alert('No hay texto disponible para locutar en este elemento.');
+                            alert('No hay texto disponible para locutar.');
                             this.stopPlayback();
                             return;
                         }
@@ -118,7 +109,7 @@
                         this.playSegment(0);
                     } catch (e) {
                         if (e.name !== 'AbortError') {
-                            console.error('TTS playback error:', e);
+                            console.error('[TTS] Error iniciando locución:', e);
                             alert('No se pudo iniciar la locución: ' + e.message);
                         }
                         this.stopPlayback();
@@ -127,12 +118,8 @@
                     }
                 },
 
-                async preloadSegment(index) {
+                getStreamUrl(index) {
                     if (index < 0 || index >= this.manifest.length) return null;
-                    if (this.audioCache[index]) {
-                        return this.audioCache[index].promise;
-                    }
-
                     const seg = this.manifest[index];
                     let streamPath = seg.stream_url;
                     try {
@@ -141,61 +128,23 @@
                     } catch (e) {}
                     const streamUrl = new URL(streamPath, window.location.origin);
                     streamUrl.searchParams.set('speed', this.speed);
-
-                    const entry = {
-                        status: 'loading',
-                        blobUrl: null,
-                        promise: null
-                    };
-
-                    entry.promise = fetch(streamUrl.toString(), {
-                        headers: { 'Accept': 'audio/wav, audio/*' },
-                        signal: this.abortController ? this.abortController.signal : undefined
-                    })
-                    .then(res => {
-                        if (!res.ok) throw new Error('HTTP ' + res.status);
-                        return res.blob();
-                    })
-                    .then(blob => {
-                        entry.blobUrl = URL.createObjectURL(blob);
-                        entry.status = 'ready';
-                        return entry.blobUrl;
-                    })
-                    .catch(err => {
-                        if (err.name !== 'AbortError') {
-                            console.warn(`[TTS] Error precargando segmento #${index}:`, err);
-                        }
-                        entry.status = 'error';
-                        return null;
-                    });
-
-                    this.audioCache[index] = entry;
-                    return entry.promise;
+                    return streamUrl.toString();
                 },
 
-                queuePrefetch(fromIndex) {
-                    for (let offset = 1; offset <= this.prefetchAheadCount; offset++) {
-                        const targetIndex = fromIndex + offset;
-                        if (targetIndex >= this.manifest.length) break;
-                        this.preloadSegment(targetIndex);
-                    }
-                    this.pruneOldCache(fromIndex);
+                preloadNext(index) {
+                    const nextIdx = index + 1;
+                    if (nextIdx >= this.manifest.length) return;
+                    const nextUrl = this.getStreamUrl(nextIdx);
+                    if (!nextUrl) return;
+
+                    // Precarga nativa del navegador: crea un Audio con preload='auto'
+                    this.nextAudio = new Audio();
+                    this.nextAudio.preload = 'auto';
+                    this.nextAudio.src = nextUrl;
                 },
 
-                pruneOldCache(currentIndex) {
-                    Object.keys(this.audioCache).forEach(key => {
-                        const idx = parseInt(key, 10);
-                        if (idx < currentIndex - 1) {
-                            const entry = this.audioCache[idx];
-                            if (entry && entry.blobUrl) {
-                                URL.revokeObjectURL(entry.blobUrl);
-                            }
-                            delete this.audioCache[idx];
-                        }
-                    });
-                },
-
-                async playSegment(index) {
+                playSegment(index) {
+                    if (!this.isPlaying) return;
                     if (index < 0 || index >= this.manifest.length) {
                         this.stopPlayback();
                         return;
@@ -207,80 +156,54 @@
                     this.currentText = seg.text || '';
                     this.currentBlockId = seg.block_id || null;
 
-                    // Resaltar el bloque actual en pantalla y hacer scroll hacia él
                     this.highlightBlock(this.currentBlockId);
 
-                    // Disparar precarga concurrente de los siguientes segmentos
-                    this.queuePrefetch(index);
-
-                    // Resolver fuente de audio (blob precargado o fallback directo)
-                    let audioSrc = null;
-                    const cached = this.audioCache[index];
-                    if (cached) {
-                        if (cached.status === 'ready' && cached.blobUrl) {
-                            audioSrc = cached.blobUrl;
-                        } else if (cached.status === 'loading' && cached.promise) {
-                            audioSrc = await cached.promise;
-                        }
+                    // Si teníamos un audio previo sonando, detenerlo limpiamente
+                    if (this.audio) {
+                        this.audio.onended = null;
+                        this.audio.onerror = null;
+                        this.audio.pause();
+                        this.audio = null;
                     }
 
-                    // Fallback a URL directa si no existía precarga o si falló
-                    if (!audioSrc) {
-                        let streamPath = seg.stream_url;
-                        try {
-                            const parsed = new URL(streamPath, window.location.origin);
-                            streamPath = parsed.pathname + parsed.search;
-                        } catch (e) {}
-                        const streamUrl = new URL(streamPath, window.location.origin);
-                        streamUrl.searchParams.set('speed', this.speed);
-                        audioSrc = streamUrl.toString();
+                    // Reutilizar el nextAudio precargado si coincide la URL, o crear uno nuevo
+                    const targetUrl = this.getStreamUrl(index);
+                    if (this.nextAudio && this.nextAudio.src === targetUrl) {
+                        this.audio = this.nextAudio;
+                        this.nextAudio = null;
+                    } else {
+                        this.audio = new Audio(targetUrl);
                     }
 
-                    // Si durante la espera el usuario detuvo o cambió de segmento, no reproducir
-                    if (!this.isPlaying || this.currentIndex !== index) {
-                        return;
-                    }
-
-                    if (!this.audio) {
-                        this.audio = new Audio();
-                    }
                     this.audio.playbackRate = this.speed;
-                    this.audio.src = audioSrc;
 
                     this.audio.onended = () => {
-                        this.playSegment(this.currentIndex + 1);
+                        if (this.isPlaying && !this.isPaused) {
+                            this.playSegment(this.currentIndex + 1);
+                        }
                     };
 
                     this.audio.onerror = (e) => {
-                        console.warn('[TTS] Audio error en segmento #' + this.currentIndex + ', auto-avanzando:', e);
-                        delete this.audioCache[this.currentIndex];
-                        setTimeout(() => {
-                            if (this.isPlaying) {
-                                this.playSegment(this.currentIndex + 1);
-                            }
-                        }, 200);
+                        console.warn('[TTS] Audio error en segmento #' + this.currentIndex, e);
+                        this.isPaused = true;
                     };
 
-                    const playPromise = this.audio.play();
-                    if (playPromise !== undefined) {
-                        playPromise.catch(err => {
-                            console.warn('[TTS] Play interrumpido o autoplay bloqueado:', err);
-                        });
-                    }
+                    this.audio.play().catch(err => {
+                        console.warn('[TTS] Error al iniciar play:', err);
+                    });
+
+                    // Precargar el siguiente de inmediato en el navegador
+                    this.preloadNext(index);
                     this.isPaused = false;
                 },
 
                 togglePlayPause() {
-                    if (!this.audio || this.audio.error) {
-                        delete this.audioCache[this.currentIndex];
+                    if (!this.audio) {
                         this.playSegment(this.currentIndex);
                         return;
                     }
                     if (this.audio.paused) {
-                        this.audio.play().catch(e => {
-                            delete this.audioCache[this.currentIndex];
-                            this.playSegment(this.currentIndex);
-                        });
+                        this.audio.play().catch(() => this.playSegment(this.currentIndex));
                         this.isPaused = false;
                     } else {
                         this.audio.pause();
@@ -307,14 +230,7 @@
                     if (this.audio) {
                         this.audio.playbackRate = this.speed;
                     }
-                    // Limpiar caché de blobs con velocidad previa y precargar con la nueva
-                    Object.values(this.audioCache).forEach(entry => {
-                        if (entry && entry.blobUrl) {
-                            URL.revokeObjectURL(entry.blobUrl);
-                        }
-                    });
-                    this.audioCache = {};
-                    this.queuePrefetch(this.currentIndex);
+                    this.preloadNext(this.currentIndex);
                 },
 
                 stopPlayback() {
@@ -323,15 +239,15 @@
                         this.abortController = null;
                     }
                     if (this.audio) {
+                        this.audio.onended = null;
+                        this.audio.onerror = null;
                         this.audio.pause();
                         this.audio = null;
                     }
-                    Object.values(this.audioCache).forEach(entry => {
-                        if (entry && entry.blobUrl) {
-                            URL.revokeObjectURL(entry.blobUrl);
-                        }
-                    });
-                    this.audioCache = {};
+                    if (this.nextAudio) {
+                        this.nextAudio.src = '';
+                        this.nextAudio = null;
+                    }
                     this.isPlaying = false;
                     this.isPaused = false;
                     this.isLoading = false;
