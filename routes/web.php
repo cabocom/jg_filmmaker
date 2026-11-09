@@ -37,10 +37,13 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('can:view,project')
         ->name('projects.show');
 
-    // Exportación del Guión Completo en PDF
+    // Exportación del Guión Completo en PDF y Audio MP3
     Route::get('/projects/{project}/export-pdf', [ScriptExportController::class, 'exportPdf'])
         ->middleware('can:view,project')
         ->name('projects.export-pdf');
+    Route::get('/projects/{project}/export-mp3', [AudioStreamController::class, 'exportMp3'])
+        ->middleware('can:view,project')
+        ->name('projects.export-mp3');
 
     // Síntesis de voz (TTS) y streaming de audio para lectura dramática
     Route::get('/projects/{project}/tts/manifest', [AudioStreamController::class, 'manifest'])

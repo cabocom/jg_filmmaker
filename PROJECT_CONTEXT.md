@@ -1,12 +1,18 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.50.0  
-**Fecha de consolidación:** 8 de noviembre de 2026  
+**Versión del documento:** 3.51.0  
+**Fecha de consolidación:** 9 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
-**Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg, DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** ISSUE-068 completado: Resiliencia ante ráfagas de navegación rápida (debounce de saltos 1-50 en cliente) y corrección de falso positivo en cuota diaria de Google AI TTS. Ignorado de `storage/tts_cache` en `.gitignore` para prevenir inclusión de audios en git. 238 tests pasando al 100% y Pint verificado.
+**Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
+**Estado:** ISSUE-069 completado: Exportación de guión completo a MP3 con concatenación FFmpeg (`libmp3lame`) y diferenciación visual de botones PDF / MP3 con validación reactiva de integridad de audios. 239 tests pasando al 100% y Pint verificado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **ISSUE-069: Exportación de Guión Completo a MP3 y Diferenciación de Botones PDF / MP3:**
+  - **Diferenciación Visual en Toolbar:** Añadido texto explícito y distintivo a los botones de exportación: botón esmeralda con icono y texto `PDF` para descarga del guion en PDF, y botón violeta/slate con icono y texto `MP3` para descarga de la locución completa.
+  - **Validación de Completitud de Audio (`isProjectAudioComplete`):** El botón de descarga MP3 se encuentra deshabilitado de forma reactiva (`disabled`, `opacity-50`, `cursor-not-allowed`) con tooltip explicativo si faltan bloques por locutar en el guion (*"No puede descargarse porque faltan audios por generar, primero tienes que escucharlo."*). Se activa instantáneamente al completar la audición de la historia.
+  - **Concatenación y Compresión con FFmpeg (`exportProjectToMp3`):** Implementada la concatenación ultra-rápida (120x velocidad real) de los fragmentos WAV en memoria temporal mediante FFmpeg con códec `libmp3lame` a 192 kbps y 44.1 kHz, reduciendo el peso final de ~300 MB a ~20 MB y permitiendo descarga limpia sin ficheros residuales (`deleteFileAfterSend`).
+  - **Doble Vía de Descarga:** Soportada tanto vía Livewire reactivo en `ScriptEditor::exportMp3` como vía ruta directa HTTP `GET /projects/{project}/export-mp3` en `AudioStreamController`.
 
 - **ISSUE-068: Protección Antirráfagas en Reproductor y Corrección de Falso Positivo en Cuota Diaria Google AI:**
   - **Exclusión Estricta de Ficheros WAV en Git (`.gitignore`):** Añadido `/storage/tts_cache` al `.gitignore` principal del proyecto para asegurar que los fragmentos de audio temporales en disco jamás se marquen como untracked ni se incluyan en commits.

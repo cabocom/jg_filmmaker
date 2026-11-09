@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 class TextToSpeechService
@@ -541,6 +543,99 @@ class TextToSpeechService
         $path = $this->getCachedAudioPath($text, $voice, $speed);
 
         return File::exists($path) && File::size($path) > 0;
+    }
+
+    /**
+     * Comprueba si todos los fragmentos de audio de un proyecto ya han sido sintetizados y están disponibles en caché.
+     */
+    public function isProjectAudioComplete(Project $project, float $speed = 1.0): bool
+    {
+        $manifest = $this->buildManifestForScope($project);
+        if (empty($manifest)) {
+            return false;
+        }
+
+        foreach ($manifest as $segment) {
+            $text = trim($segment['text'] ?? '');
+            if ($text === '') {
+                continue;
+            }
+            if (! $this->isAudioCached($text, $segment['voice'] ?? null, $speed)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Concatena y comprime todos los segmentos de audio del proyecto en un único archivo MP3 optimizado.
+     *
+     * @throws RuntimeException Si faltan audios por generar o si falla FFmpeg.
+     */
+    public function exportProjectToMp3(Project $project, float $speed = 1.0): string
+    {
+        $manifest = $this->buildManifestForScope($project);
+        if (empty($manifest)) {
+            throw new RuntimeException('El guión no contiene ningún segmento de texto locutable.');
+        }
+
+        $lines = [];
+        foreach ($manifest as $segment) {
+            $text = trim($segment['text'] ?? '');
+            if ($text === '') {
+                continue;
+            }
+            $path = $this->getCachedAudioPath($text, $segment['voice'] ?? null, $speed);
+            if (! File::exists($path) || File::size($path) === 0) {
+                throw new RuntimeException('Faltan audios por generar antes de exportar el guión completo a MP3.');
+            }
+            $lines[] = "file '".addcslashes($path, "'")."'";
+        }
+
+        if (empty($lines)) {
+            throw new RuntimeException('No hay archivos de audio válidos para concatenar.');
+        }
+
+        $tempDir = storage_path('framework/cache');
+        if (! File::exists($tempDir)) {
+            File::makeDirectory($tempDir, 0775, true, true);
+        }
+
+        $listFile = $tempDir.'/concat_'.Str::uuid().'.txt';
+        $outputMp3 = $tempDir.'/screenplay_'.Str::uuid().'.mp3';
+
+        File::put($listFile, implode("\n", $lines));
+
+        try {
+            $cmd = [
+                'ffmpeg',
+                '-y',
+                '-f', 'concat',
+                '-safe', '0',
+                '-i', $listFile,
+                '-c:a', 'libmp3lame',
+                '-b:a', '192k',
+                '-ar', '44100',
+                $outputMp3,
+            ];
+
+            $result = Process::timeout(300)->run($cmd);
+
+            if (! $result->successful() || ! File::exists($outputMp3) || File::size($outputMp3) === 0) {
+                Log::error('Fallo en concatenación FFmpeg a MP3', [
+                    'error' => $result->errorOutput(),
+                    'output' => $result->output(),
+                ]);
+                throw new RuntimeException('Error al procesar y convertir el audio a MP3 con FFmpeg.');
+            }
+
+            return $outputMp3;
+        } finally {
+            if (File::exists($listFile)) {
+                File::delete($listFile);
+            }
+        }
     }
 
     /**

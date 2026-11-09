@@ -288,6 +288,7 @@
                     this.manifest = [];
                     this.currentIndex = 0;
                     this.clearHighlight();
+                    $wire.$refresh();
                 },
 
                 highlightBlock(blockId) {
@@ -338,23 +339,51 @@
                         </svg>
                     </button>
 
-                    <!-- Iconos al lado del lápiz: Exportar PDF, Lectura TTS y Renderizar en Lote -->
-                    <div class="flex items-center gap-0.5 ml-0.5 pl-1.5 border-l border-slate-200 dark:border-slate-700">
+                    <!-- Iconos al lado del lápiz: Exportar PDF, Exportar MP3, Lectura TTS y Renderizar en Lote -->
+                    <div class="flex items-center gap-1 ml-0.5 pl-1.5 border-l border-slate-200 dark:border-slate-700">
                         <!-- 1. Icono: Exportar Guión Completo a PDF -->
                         <button type="button"
                                 wire:click="exportPdf"
                                 wire:loading.attr="disabled"
-                                class="p-1.5 rounded-lg text-emerald-600 hover:text-emerald-500 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/60 transition cursor-pointer disabled:opacity-50"
+                                class="inline-flex items-center gap-1 px-1.5 py-1 rounded-lg text-xs font-semibold text-emerald-600 hover:text-emerald-500 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/60 transition cursor-pointer disabled:opacity-50"
                                 title="Exportar guión completo a PDF">
-                            <span wire:loading.remove wire:target="exportPdf" class="flex items-center">
+                            <span wire:loading.remove wire:target="exportPdf" class="flex items-center gap-1">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg>
+                                <span class="font-bold">PDF</span>
                             </span>
                             <span wire:loading wire:target="exportPdf" class="animate-spin text-xs">⏳</span>
                         </button>
 
-                        <!-- 2. Icono: Lectura de Guión Automatizada (TTS) -->
+                        <!-- 2. Icono: Descargar Locución Completa a MP3 -->
+                        @if($this->isAudioComplete)
+                            <button type="button"
+                                    wire:click="exportMp3"
+                                    wire:loading.attr="disabled"
+                                    class="inline-flex items-center gap-1 px-1.5 py-1 rounded-lg text-xs font-semibold text-violet-600 hover:text-violet-500 hover:bg-violet-50 dark:text-violet-400 dark:hover:bg-violet-950/60 transition cursor-pointer disabled:opacity-50"
+                                    title="Descargar locución completa del guión en MP3">
+                                <span wire:loading.remove wire:target="exportMp3" class="flex items-center gap-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                    </svg>
+                                    <span class="font-bold">MP3</span>
+                                </span>
+                                <span wire:loading wire:target="exportMp3" class="animate-spin text-xs">⏳</span>
+                            </button>
+                        @else
+                            <button type="button"
+                                    disabled
+                                    class="inline-flex items-center gap-1 px-1.5 py-1 rounded-lg text-xs font-semibold text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-50"
+                                    title="No puede descargarse porque faltan audios por generar, primero tienes que escucharlo.">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                <span class="font-bold">MP3</span>
+                            </button>
+                        @endif
+
+                        <!-- 3. Icono: Lectura de Guión Automatizada (TTS) -->
                         <button type="button"
                                 onclick="window.dispatchEvent(new CustomEvent('play-tts', { detail: { scope: 'project' } }))"
                                 class="p-1.5 rounded-lg text-indigo-600 hover:text-indigo-500 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/60 transition cursor-pointer"
@@ -364,7 +393,7 @@
                             </svg>
                         </button>
 
-                        <!-- 3. Icono: Renderizado / Procesamiento en Lote -->
+                        <!-- 4. Icono: Renderizado / Procesamiento en Lote -->
                         <button type="button"
                                 wire:click="openBatchModal"
                                 class="p-1.5 rounded-lg text-amber-500 hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/60 transition cursor-pointer"

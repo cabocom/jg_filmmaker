@@ -18,6 +18,7 @@ use App\Services\ScriptExportService;
 use App\Services\ScriptImportService;
 use App\Services\ScriptPipelineService;
 use App\Services\StoryboardService;
+use App\Services\TextToSpeechService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
@@ -30,6 +31,7 @@ use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithFileUploads;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 #[Layout('layouts.app')]
@@ -2983,6 +2985,34 @@ class ScriptEditor extends Component
         return response()->streamDownload(fn () => print ($pdf->output()), $filename, [
             'Content-Type' => 'application/pdf',
         ]);
+    }
+
+    public function getIsAudioCompleteProperty(TextToSpeechService $tts): bool
+    {
+        return $tts->isProjectAudioComplete($this->project);
+    }
+
+    public function exportMp3(TextToSpeechService $tts): ?BinaryFileResponse
+    {
+        Gate::authorize('view', $this->project);
+
+        if (! $tts->isProjectAudioComplete($this->project)) {
+            $this->dispatch('notify', [
+                'type' => 'error',
+                'message' => 'No puede descargarse porque faltan audios por generar, primero tienes que escucharlo.',
+            ]);
+
+            return null;
+        }
+
+        $this->logActivity('export_script_mp3', 'Project', $this->project->id, 'Exportación de guión completo a MP3');
+
+        $mp3Path = $tts->exportProjectToMp3($this->project);
+        $filename = Str::slug($this->project->title ?: 'guion').'-locucion-completa.mp3';
+
+        return response()->download($mp3Path, $filename, [
+            'Content-Type' => 'audio/mpeg',
+        ])->deleteFileAfterSend(true);
     }
 
     public function openBatchModal(): void

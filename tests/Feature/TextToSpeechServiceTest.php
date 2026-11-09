@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Jobs\PrewarmScopeTtsJob;
+use App\Livewire\Studio\ScriptEditor;
 use App\Models\Character;
 use App\Models\Project;
 use App\Models\Scene;
@@ -10,9 +11,12 @@ use App\Models\ScriptBlock;
 use App\Models\User;
 use App\Services\TextToSpeechService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Process;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class TextToSpeechServiceTest extends TestCase
@@ -289,5 +293,67 @@ class TextToSpeechServiceTest extends TestCase
         $this->artisan('tts:prune-orphans', [
             '--dry-run' => true,
         ])->assertExitCode(0);
+    }
+
+    public function test_is_project_audio_complete_and_export_mp3(): void
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $user->id, 'title' => 'Historia Épica']);
+        $scene = Scene::factory()->create(['project_id' => $project->id, 'scene_order' => 1]);
+        ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'stage' => 'screenplay',
+            'screenplay_content' => "INT. NAVE - NOCHE\n\nMARIA\nTexto unico e irrepetible para prueba mp3.",
+        ]);
+
+        // 1. Al inicio, sin sintetizar, el audio está incompleto
+        $this->assertFalse($this->service->isProjectAudioComplete($project));
+
+        // 2. Ruta export-mp3 debe retornar error 400 si faltan audios
+        $this->actingAs($user)
+            ->get(route('projects.export-mp3', $project))
+            ->assertStatus(400);
+
+        // 3. Sintetizamos todos los segmentos del manifiesto
+        $manifest = $this->service->buildManifestForScope($project);
+        $this->service->prewarmManifest($manifest);
+
+        // 4. Ahora debe reportar que el audio está completo
+        $this->assertTrue($this->service->isProjectAudioComplete($project));
+
+        // 5. Simular llamada a FFmpeg para exportar MP3
+        Process::fake([
+            '*' => function (PendingProcess $process) {
+                $cmd = $process->command;
+                $outputArg = is_array($cmd) ? end($cmd) : null;
+                if ($outputArg) {
+                    file_put_contents($outputArg, 'ID3_FAKE_MP3_CONTENT');
+                }
+
+                return Process::result(output: 'ffmpeg success', exitCode: 0);
+            },
+        ]);
+
+        $mp3Path = $this->service->exportProjectToMp3($project);
+        $this->assertFileExists($mp3Path);
+        $this->assertGreaterThan(0, filesize($mp3Path));
+
+        // 6. Descarga mediante la ruta del controlador
+        $response = $this->actingAs($user)
+            ->get(route('projects.export-mp3', $project));
+        $response->assertOk();
+        $this->assertEquals('audio/mpeg', $response->headers->get('Content-Type'));
+
+        // 7. Descarga mediante Livewire ScriptEditor
+        Livewire::actingAs($user)
+            ->test(ScriptEditor::class, ['project' => $project])
+            ->assertSee('MP3')
+            ->assertSee('PDF')
+            ->call('exportMp3')
+            ->assertFileDownloaded('historia-epica-locucion-completa.mp3');
+
+        if (file_exists($mp3Path)) {
+            @unlink($mp3Path);
+        }
     }
 }

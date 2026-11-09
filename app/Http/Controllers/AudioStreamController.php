@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class AudioStreamController extends Controller
@@ -142,6 +143,35 @@ class AudioStreamController extends Controller
                 'status' => 'error',
                 'message' => 'No se pudo generar la muestra de voz en este momento: '.$e->getMessage(),
             ], 503);
+        }
+    }
+
+    /**
+     * Exporta y descarga la locución completa del proyecto en un único archivo MP3 concatenado.
+     */
+    public function exportMp3(Project $project, TextToSpeechService $tts): BinaryFileResponse|JsonResponse
+    {
+        Gate::authorize('view', $project);
+
+        if (! $tts->isProjectAudioComplete($project)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No puede descargarse porque faltan audios por generar, primero tienes que escucharlo.',
+            ], 400);
+        }
+
+        try {
+            $mp3Path = $tts->exportProjectToMp3($project);
+            $filename = Str::slug($project->title ?: 'guion').'-locucion-completa.mp3';
+
+            return response()->download($mp3Path, $filename, [
+                'Content-Type' => 'audio/mpeg',
+            ])->deleteFileAfterSend(true);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al exportar audio MP3: '.$e->getMessage(),
+            ], 500);
         }
     }
 }
