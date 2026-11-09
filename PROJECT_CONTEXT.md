@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.51.0  
+**Versión del documento:** 3.51.1  
 **Fecha de consolidación:** 9 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** ISSUE-069 completado: Exportación de guión completo a MP3 con concatenación FFmpeg (`libmp3lame`) y diferenciación visual de botones PDF / MP3 con validación reactiva de integridad de audios. 239 tests pasando al 100% y Pint verificado.
+**Estado:** ISSUE-069 completado y sincronización automática de *mirror* público hacia `https://github.com/cabocom/jg_filmmaker` vía GitLab CI/CD (`workspace#8`). 239 tests pasando al 100% y Pint verificado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
 

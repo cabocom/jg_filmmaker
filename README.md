@@ -1,3 +1,5 @@
+> ⚠️ **Nota:** Este repositorio es un *mirror* público sincronizado automáticamente desde [GitLab](https://gitlab.com/javiergalvez-ia). El desarrollo activo, pipelines CI/CD, *issues* y discusiones técnicas se gestionan en https://gitlab.com/javiergalvez-ia
+
 # jg_filmmaker
 
 **jg_filmmaker** es una aplicación web desacoplada en Laravel 12 concebida para la gestión integral y asistencia con Inteligencia Artificial del ciclo completo de producción cinematográfica: desde la concepción dramática inicial hasta el montaje y pre-corte NLE:
