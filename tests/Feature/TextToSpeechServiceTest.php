@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Str;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -303,7 +304,7 @@ class TextToSpeechServiceTest extends TestCase
         ScriptBlock::factory()->create([
             'scene_id' => $scene->id,
             'stage' => 'screenplay',
-            'screenplay_content' => "INT. NAVE - NOCHE\n\nMARIA\nTexto unico e irrepetible para prueba mp3.",
+            'screenplay_content' => "INT. NAVE - NOCHE\n\nMARIA\nTexto ".Str::uuid().' para prueba mp3.',
         ]);
 
         // 1. Al inicio, sin sintetizar, el audio está incompleto

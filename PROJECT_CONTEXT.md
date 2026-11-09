@@ -1,12 +1,18 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.51.1  
+**Versión del documento:** 3.52.0  
 **Fecha de consolidación:** 9 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** ISSUE-069 completado y sincronización automática de *mirror* público hacia `https://github.com/cabocom/jg_filmmaker` vía GitLab CI/CD (`workspace#8`). 239 tests pasando al 100% y Pint verificado.
+**Estado:** ISSUE-070 completado: Rediseño integral y profesionalización del `README.md` principal para publicación en GitHub/GitLab, alineado con los estándares de diseño y estructura de `jg_agente` y `jg_dashboard`. Diagrama de arquitectura ASCII Art, matriz de pipeline en 6 etapas, especificación de capacidades y guías de ejecución. 239 tests pasando al 100% y Pint verificado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **ISSUE-070: Rediseño Integral y Profesionalización del `README.md` (Publicación GitHub):**
+  - **Estructura Empresarial Homogénea:** Adaptada la estructura al nivel de elegancia y rigor técnico de `jg_agente` y `jg_dashboard`. Eliminadas referencias desestructuradas a fases/issues internos para presentar una visión de producto cinematográfico completa.
+  - **Diagrama de Arquitectura y Flujos en ASCII Art:** Representación integral de capas (Navegador/Guionista, Laravel 12 Backend, PostgreSQL, SSD Local, Motores de Voz TTS y Plugin de Inferencia `jg_plugin_filmmaker`).
+  - **Matriz de Pipeline Cinematográfico en 6 Etapas:** Desglose tabular claro de las etapas de transformación dramática (Idea/Bruto, Tratamiento, Guion Literario Fountain, Planos Técnicos, Rodaje/Tomas y Montaje NLE) con su correspondiente valor asistido por IA.
+  - **Catálogo de Capacidades Técnicas:** Detalle exhaustivo de la locución multivoz con failover y exportación MP3/PDF, editor continuo StoryArchitect, gobernanza de candados (`user_locks`), panel de administración y protocolos criptográficos HMAC-SHA256.
 
 - **ISSUE-069: Exportación de Guión Completo a MP3 y Diferenciación de Botones PDF / MP3:**
   - **Diferenciación Visual en Toolbar:** Añadido texto explícito y distintivo a los botones de exportación: botón esmeralda con icono y texto `PDF` para descarga del guion en PDF, y botón violeta/slate con icono y texto `MP3` para descarga de la locución completa.
