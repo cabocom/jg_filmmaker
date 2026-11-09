@@ -1,6 +1,24 @@
 > ⚠️ **Nota:** Este repositorio es un *mirror* público sincronizado automáticamente desde [GitLab](https://gitlab.com/javiergalvez-ia). El desarrollo activo, pipelines CI/CD, *issues* y discusiones técnicas se gestionan en https://gitlab.com/javiergalvez-ia
 
-# jg_filmmaker
+<div align="center">
+
+# 🎬 `jg_filmmaker`
+
+### Suite Creativa Audiovisual Asistida por Inteligencia Artificial
+*Pipeline Cinematográfico Integral: Tratamiento, Guion Literario, Planos Técnicos y Audio Dramático*
+
+[![GitLab CI/CD](https://img.shields.io/badge/GitLab_CI-Pipeline_Passing-108548?style=flat-square&logo=gitlab&logoColor=white)](https://gitlab.com/javiergalvez-ia/jg_filmmaker)
+[![Mirror to GitHub](https://img.shields.io/badge/GitHub-Mirror_Active-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/cabocom/jg_filmmaker)
+[![PHP](https://img.shields.io/badge/PHP-8.4-777BB4?style=flat-square&logo=php&logoColor=white)](https://www.php.net/)
+[![Laravel](https://img.shields.io/badge/Laravel-12-FF2D20?style=flat-square&logo=laravel&logoColor=white)](https://laravel.com/)
+[![Livewire](https://img.shields.io/badge/Reactive-Livewire_4-FB70A9?style=flat-square&logo=livewire&logoColor=white)](https://livewire.laravel.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![FFmpeg](https://img.shields.io/badge/Audio-FFmpeg_libmp3lame-007808?style=flat-square&logo=ffmpeg&logoColor=white)](https://ffmpeg.org/)
+[![Pint](https://img.shields.io/badge/Code_Style-Laravel_Pint-success?style=flat-square)](https://laravel.com/docs/pint)
+
+</div>
+
+---
 
 **jg_filmmaker** es una aplicación web desacoplada en Laravel 12 concebida para la gestión integral y asistencia con Inteligencia Artificial del ciclo completo de producción cinematográfica: desde la concepción dramática inicial hasta el montaje y pre-corte NLE:
 
