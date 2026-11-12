@@ -1,18 +1,21 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use App\Models\Character;
 use App\Models\Project;
-use App\Models\Scene;
 use App\Models\ScriptBlock;
+use App\Services\Tts\Contracts\TtsProviderInterface;
+use App\Services\Tts\Providers\GoogleAiTtsProvider;
+use App\Services\Tts\Providers\SpeachesTtsProvider;
+use App\Services\Tts\ScreenplaySegmenter;
+use App\Services\Tts\TtsManifestService;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Process;
-use Illuminate\Support\Str;
 use RuntimeException;
 
 class TextToSpeechService
@@ -33,6 +36,14 @@ class TextToSpeechService
 
     protected string $googleAiTtsModel;
 
+    protected TtsProviderInterface $googleAiProvider;
+
+    protected TtsProviderInterface $speachesProvider;
+
+    protected ScreenplaySegmenter $segmenter;
+
+    protected TtsManifestService $manifestService;
+
     public function __construct()
     {
         $this->speachesUrl = rtrim((string) config('services.speaches.url', 'http://speaches:8000'), '/');
@@ -47,6 +58,11 @@ class TextToSpeechService
         if (! File::exists($this->cacheDir)) {
             File::makeDirectory($this->cacheDir, 0775, true, true);
         }
+
+        $this->googleAiProvider = new GoogleAiTtsProvider($this->googleApiKey, $this->googleAiBaseUrl, $this->googleAiTtsModel, $this->timeout);
+        $this->speachesProvider = new SpeachesTtsProvider($this->speachesUrl, $this->model, $this->timeout);
+        $this->segmenter = new ScreenplaySegmenter($this->defaultVoice, ! empty($this->googleApiKey));
+        $this->manifestService = new TtsManifestService($this, $this->segmenter, $this->cacheDir);
     }
 
     public function getDefaultVoice(): string
@@ -55,116 +71,39 @@ class TextToSpeechService
     }
 
     /**
-     * Voces canónicas disponibles para la lectura dramática.
-     * Si está configurado Google AI, se proporcionan las voces neurales de estudio de Gemini.
-     *
      * @return array<int, array{id: string, name: string, gender: string, lang: string}>
      */
     public function getAvailableVoices(): array
     {
         if ($this->googleApiKey) {
             return [
-                [
-                    'id' => 'Puck',
-                    'name' => 'Puck (Masculino - Cálido y Narrativo)',
-                    'gender' => 'male',
-                    'lang' => 'es_ES',
-                ],
-                [
-                    'id' => 'Charon',
-                    'name' => 'Charon (Masculino - Profundo y Maduro)',
-                    'gender' => 'male',
-                    'lang' => 'es_ES',
-                ],
-                [
-                    'id' => 'Fenrir',
-                    'name' => 'Fenrir (Masculino - Enérgico e Intenso)',
-                    'gender' => 'male',
-                    'lang' => 'es_ES',
-                ],
-                [
-                    'id' => 'Zephyr',
-                    'name' => 'Zephyr (Masculino - Joven y Dinámico)',
-                    'gender' => 'male',
-                    'lang' => 'es_ES',
-                ],
-                [
-                    'id' => 'Aoede',
-                    'name' => 'Aoede (Femenino - Expresivo y Teatral)',
-                    'gender' => 'female',
-                    'lang' => 'es_ES',
-                ],
-                [
-                    'id' => 'Kore',
-                    'name' => 'Kore (Femenino - Sereno y Claro)',
-                    'gender' => 'female',
-                    'lang' => 'es_ES',
-                ],
-                [
-                    'id' => 'Leda',
-                    'name' => 'Leda (Femenino - Elegante y Cálido)',
-                    'gender' => 'female',
-                    'lang' => 'es_ES',
-                ],
+                ['id' => 'Puck', 'name' => 'Puck (Masculino - Cálido y Narrativo)', 'gender' => 'male', 'lang' => 'es_ES'],
+                ['id' => 'Charon', 'name' => 'Charon (Masculino - Profundo y Maduro)', 'gender' => 'male', 'lang' => 'es_ES'],
+                ['id' => 'Fenrir', 'name' => 'Fenrir (Masculino - Enérgico e Intenso)', 'gender' => 'male', 'lang' => 'es_ES'],
+                ['id' => 'Zephyr', 'name' => 'Zephyr (Masculino - Joven y Dinámico)', 'gender' => 'male', 'lang' => 'es_ES'],
+                ['id' => 'Aoede', 'name' => 'Aoede (Femenino - Expresivo y Teatral)', 'gender' => 'female', 'lang' => 'es_ES'],
+                ['id' => 'Kore', 'name' => 'Kore (Femenino - Sereno y Claro)', 'gender' => 'female', 'lang' => 'es_ES'],
+                ['id' => 'Leda', 'name' => 'Leda (Femenino - Elegante y Cálido)', 'gender' => 'female', 'lang' => 'es_ES'],
             ];
         }
 
         return [
-            [
-                'id' => 'sharvard#M',
-                'name' => 'Castellano - Masculino (Sharvard M)',
-                'gender' => 'male',
-                'lang' => 'es_ES',
-            ],
-            [
-                'id' => 'sharvard#F',
-                'name' => 'Castellano - Femenino (Sharvard F)',
-                'gender' => 'female',
-                'lang' => 'es_ES',
-            ],
-            [
-                'id' => 'davefx',
-                'name' => 'Castellano - Masculino Profundo (Davefx)',
-                'gender' => 'male',
-                'lang' => 'es_ES',
-            ],
-            [
-                'id' => 'carlfm',
-                'name' => 'Castellano - Masculino Joven (Carlfm)',
-                'gender' => 'male',
-                'lang' => 'es_ES',
-            ],
-            [
-                'id' => 'mls_9972',
-                'name' => 'Castellano - Femenino Suave (MLS 9972)',
-                'gender' => 'female',
-                'lang' => 'es_ES',
-            ],
-            [
-                'id' => 'mls_10246',
-                'name' => 'Castellano - Masculino Sereno (MLS 10246)',
-                'gender' => 'male',
-                'lang' => 'es_ES',
-            ],
+            ['id' => 'sharvard#M', 'name' => 'Castellano - Masculino (Sharvard M)', 'gender' => 'male', 'lang' => 'es_ES'],
+            ['id' => 'sharvard#F', 'name' => 'Castellano - Femenino (Sharvard F)', 'gender' => 'female', 'lang' => 'es_ES'],
+            ['id' => 'davefx', 'name' => 'Castellano - Masculino Profundo (Davefx)', 'gender' => 'male', 'lang' => 'es_ES'],
+            ['id' => 'carlfm', 'name' => 'Castellano - Masculino Joven (Carlfm)', 'gender' => 'male', 'lang' => 'es_ES'],
+            ['id' => 'mls_9972', 'name' => 'Castellano - Femenino Suave (MLS 9972)', 'gender' => 'female', 'lang' => 'es_ES'],
+            ['id' => 'mls_10246', 'name' => 'Castellano - Masculino Sereno (MLS 10246)', 'gender' => 'male', 'lang' => 'es_ES'],
         ];
     }
 
-    /**
-     * Resuelve y normaliza el identificador de voz, mapeando automáticamente
-     * voces legadas de Speaches a las voces de estudio de Google AI si procede.
-     */
     public function resolveVoice(?string $voice = null): string
     {
         $v = $voice ?: $this->defaultVoice;
-
         if ($this->googleApiKey) {
             $legacyMap = [
-                'sharvard#M' => 'Puck',
-                'sharvard#F' => 'Aoede',
-                'davefx' => 'Charon',
-                'carlfm' => 'Zephyr',
-                'mls_9972' => 'Kore',
-                'mls_10246' => 'Fenrir',
+                'sharvard#M' => 'Puck', 'sharvard#F' => 'Aoede', 'davefx' => 'Charon',
+                'carlfm' => 'Zephyr', 'mls_9972' => 'Kore', 'mls_10246' => 'Fenrir',
             ];
             $valid = ['Puck', 'Charon', 'Fenrir', 'Zephyr', 'Aoede', 'Kore', 'Leda'];
 
@@ -174,10 +113,6 @@ class TextToSpeechService
         return $v;
     }
 
-    /**
-     * Resuelve la ruta del archivo de audio sintetizado. Si ya existe en caché,
-     * se devuelve de inmediato sin realizar peticiones de red.
-     */
     public function synthesize(string $text, ?string $voice = null, float $speed = 1.0): string
     {
         $cleanText = $this->expandScreenplayAbbreviations(trim($text));
@@ -186,345 +121,55 @@ class TextToSpeechService
         }
 
         $activeVoice = $this->resolveVoice($voice);
-        $providerKey = $this->googleApiKey ? 'google_ai_'.$this->googleAiTtsModel : $this->model;
-        $hash = hash('sha256', $providerKey.'|'.$activeVoice.'|'.number_format($speed, 2, '.', '').'|'.$cleanText);
-        $cachedFilePath = $this->cacheDir.'/'.$hash.'.wav';
-
-        // Caché hit
+        $cachedFilePath = $this->getCachedAudioPath($cleanText, $activeVoice, $speed);
         if (File::exists($cachedFilePath) && File::size($cachedFilePath) > 0) {
             return $cachedFilePath;
         }
 
-        // Si estamos en testing y no hay mock HTTP activo, generar un archivo WAV dummy
         if (app()->environment('testing') && ! Http::hasMacro('tts_testing_real')) {
-            $dummyWav = base64_decode('UklGRjIAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=');
-            File::put($cachedFilePath, $dummyWav);
+            File::put($cachedFilePath, base64_decode('UklGRjIAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA='));
 
             return $cachedFilePath;
         }
 
-        if ($this->googleApiKey) {
+        return $this->executeSynthesisPipeline($cleanText, $activeVoice, $speed, $cachedFilePath);
+    }
+
+    protected function executeSynthesisPipeline(string $cleanText, string $activeVoice, float $speed, string $cachedFilePath): string
+    {
+        if ($this->googleAiProvider->isAvailable()) {
             try {
-                return $this->synthesizeWithGoogleAi($cleanText, $activeVoice, $cachedFilePath);
+                return $this->googleAiProvider->synthesize($cleanText, $activeVoice, $speed, $cachedFilePath);
             } catch (\Throwable $e) {
                 Log::warning("Google AI TTS no pudo sintetizar [{$cleanText}]: {$e->getMessage()}. Intentando fallback...");
             }
         }
 
         try {
-            return $this->synthesizeWithSpeaches($cleanText, $activeVoice, $speed, $cachedFilePath);
+            return $this->speachesProvider->synthesize($cleanText, $activeVoice, $speed, $cachedFilePath);
         } catch (\Throwable $e) {
-            Log::warning("Speaches TTS no disponible o falló: {$e->getMessage()}. Generando silencio de seguridad para mantener la continuidad.");
-            $silentWav = base64_decode('UklGRjIAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=');
-            File::put($cachedFilePath, $silentWav);
+            Log::warning("Speaches TTS no disponible o falló: {$e->getMessage()}. Generando silencio de seguridad.");
+            File::put($cachedFilePath, base64_decode('UklGRjIAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA='));
 
             return $cachedFilePath;
         }
     }
 
-    /**
-     * Expande abreviaturas técnicas de guión cinematográfico (INT., EXT., I/E.) a palabras
-     * completas ("Interior", "Exterior") para una dicción natural y profesional en la locución.
-     */
     public function expandScreenplayAbbreviations(string $text): string
     {
-        // INT./EXT. o I/E. -> Interior y exterior,
-        $expanded = preg_replace('/(^|[\r\n\s])INT\.?\s*[\/\-]\s*EXT\.?\s*/ui', '$1Interior y exterior, ', $text);
-        $expanded = preg_replace('/(^|[\r\n\s])I\.?\s*[\/\-]\s*E\.?\s*/ui', '$1Interior y exterior, ', $expanded);
-
-        // INT. -> Interior
-        $expanded = preg_replace('/(^|[\r\n\s])INT\.\s*/ui', '$1Interior, ', $expanded);
-
-        // EXT. -> Exterior
-        $expanded = preg_replace('/(^|[\r\n\s])EXT\.\s*/ui', '$1Exterior, ', $expanded);
-
-        // EST. (Estudio) -> Estudio
-        $expanded = preg_replace('/(^|[\r\n\s])EST\.\s*/ui', '$1Estudio, ', $expanded);
-
-        return trim($expanded);
+        return $this->segmenter->expandScreenplayAbbreviations($text);
     }
 
-    /**
-     * Síntesis de voz neural con Google AI Studio (Gemini TTS).
-     * Incorpora conmutación automática entre modelos compatibles ante límites de cuota (HTTP 429).
-     */
-    protected function synthesizeWithGoogleAi(string $cleanText, string $voice, string $cachedFilePath): string
-    {
-        $candidateModels = array_values(array_unique([
-            $this->googleAiTtsModel,
-            'gemini-3.8-flash-lite-tts',
-            'gemini-2.5-flash-preview-tts',
-            'gemini-2.5-pro-preview-tts',
-            'gemini-3.1-flash-tts-preview',
-        ]));
-
-        $allExhausted = true;
-        foreach ($candidateModels as $model) {
-            if (! Cache::has("tts_model_exhausted_{$model}")) {
-                $allExhausted = false;
-                break;
-            }
-        }
-        if ($allExhausted) {
-            foreach ($candidateModels as $model) {
-                Cache::forget("tts_model_exhausted_{$model}");
-            }
-        }
-
-        $response = null;
-        $usedModel = null;
-        $lastErrorStatus = null;
-
-        foreach ($candidateModels as $model) {
-            $exhaustedKey = "tts_model_exhausted_{$model}";
-            if (Cache::has($exhaustedKey)) {
-                continue;
-            }
-
-            $url = "{$this->googleAiBaseUrl}/models/{$model}:generateContent?key={$this->googleApiKey}";
-
-            try {
-                $response = Http::timeout($this->timeout)
-                    ->withHeaders(['Content-Type' => 'application/json'])
-                    ->post($url, [
-                        'contents' => [
-                            [
-                                'parts' => [
-                                    ['text' => $cleanText],
-                                ],
-                            ],
-                        ],
-                        'generationConfig' => [
-                            'responseModalities' => ['AUDIO'],
-                            'speechConfig' => [
-                                'voiceConfig' => [
-                                    'prebuiltVoiceConfig' => [
-                                        'voiceName' => $voice,
-                                    ],
-                                ],
-                            ],
-                        ],
-                    ]);
-
-                if ($response->status() === 429) {
-                    $errorBody = (string) $response->body();
-                    $isDailyQuota = str_contains($errorBody, 'per_model_per_day')
-                        || str_contains($errorBody, 'generate_requests_per_model_per_day')
-                        || str_contains($errorBody, 'requests_per_day')
-                        || (str_contains($errorBody, 'limit: 100') && str_contains($errorBody, 'day'));
-
-                    if ($isDailyQuota) {
-                        Cache::put($exhaustedKey, true, now()->addMinutes(60));
-                        Log::warning("Cuota diaria agotada (HTTP 429) en Google AI modelo {$model}. Conmutando a modelos de reserva...");
-                    } else {
-                        Log::warning("Rate limit por minuto (HTTP 429) en Google AI modelo {$model}. Probando modelo alternativo...");
-                        usleep(300000);
-                    }
-                    $lastErrorStatus = 429;
-
-                    continue;
-                }
-
-                if ($response->successful()) {
-                    $usedModel = $model;
-                    break;
-                }
-
-                $lastErrorStatus = $response->status();
-            } catch (\Throwable $e) {
-                Log::warning("Error de conexión con modelo {$model}: ".$e->getMessage());
-            }
-        }
-
-        if (! $response || ! $response->successful()) {
-            Log::error('Fallo en síntesis TTS con todos los modelos de Google AI', [
-                'status' => $lastErrorStatus,
-                'voice' => $voice,
-            ]);
-
-            throw new RuntimeException('Error al contactar con Google AI TTS: '.($lastErrorStatus ?? 'desconocido'));
-        }
-
-        $parts = $response->json('candidates.0.content.parts') ?? [];
-        $base64Data = null;
-        foreach ($parts as $part) {
-            if (! empty($part['inlineData']['data'])) {
-                $base64Data = $part['inlineData']['data'];
-                break;
-            }
-        }
-
-        if (! $base64Data) {
-            throw new RuntimeException('Google AI TTS no devolvió datos de audio válidos.');
-        }
-
-        $wavBytes = base64_decode($base64Data);
-        File::put($cachedFilePath, $wavBytes);
-
-        return $cachedFilePath;
-    }
-
-    /**
-     * Síntesis de voz con Speaches-AI (Piper local).
-     */
-    protected function synthesizeWithSpeaches(string $cleanText, string $activeVoice, float $speed, string $cachedFilePath): string
-    {
-        try {
-            $response = Http::timeout($this->timeout)
-                ->withHeaders([
-                    'Content-Type' => 'application/json',
-                    'Accept' => 'audio/wav',
-                ])
-                ->post($this->speachesUrl.'/v1/audio/speech', [
-                    'model' => $this->model,
-                    'input' => $cleanText,
-                    'voice' => $activeVoice,
-                    'response_format' => 'wav',
-                    'speed' => $speed,
-                ]);
-
-            if (! $response->successful()) {
-                Log::error('Fallo en síntesis TTS con Speaches', [
-                    'status' => $response->status(),
-                    'error' => $response->body(),
-                    'text_snippet' => mb_substr($cleanText, 0, 80),
-                    'voice' => $activeVoice,
-                ]);
-
-                throw new RuntimeException('Error al contactar con el servicio de voz Speaches: '.$response->status());
-            }
-
-            File::put($cachedFilePath, $response->body());
-
-            return $cachedFilePath;
-        } catch (\Throwable $e) {
-            Log::error('Excepción al sintetizar voz vía Speaches', [
-                'message' => $e->getMessage(),
-                'voice' => $activeVoice,
-                'endpoint' => $this->speachesUrl,
-            ]);
-
-            throw new RuntimeException('No se pudo generar la locución: '.$e->getMessage(), 0, $e);
-        }
-    }
-
-    /**
-     * Parsea un bloque de guión literario (Screenplay) o texto libre en segmentos
-     * ordenados de locución, diferenciando al narrador y a los personajes dialogantes.
-     *
-     * @param  Collection<int, Character>|array<int, Character>  $characters
-     * @return array<int, array{type: string, speaker: string, voice: string, text: string}>
-     */
     public function parseBlockToSegments(ScriptBlock $block, Collection|array $characters = [], ?Project $project = null): array
     {
-        if (! $project && $block->relationLoaded('scene') && $block->scene) {
-            $project = $block->scene->project ?? null;
-        }
-
-        $characterVoiceMap = $this->buildCharacterVoiceMap($characters);
-
-        // Si el bloque está en 'screenplay' o 'shots', aplicamos análisis dramático Fountain sobre el guión literario
-        if (in_array($block->stage, ['screenplay', 'shots'], true) && ! empty($block->screenplay_content)) {
-            return $this->parseScreenplayText($block->screenplay_content, $characterVoiceMap, $project);
-        }
-
-        // Si está en 'structured' o 'raw', comprobamos si contiene formato dramático con personajes
-        $prose = ($block->stage === 'raw')
-            ? ($block->raw_text ?: $block->structured_text)
-            : ($block->structured_text ?: $block->raw_text);
-        $cleanProse = trim((string) $prose);
-
-        if ($cleanProse === '') {
-            return [];
-        }
-
-        $candidateSegments = $this->parseScreenplayText($cleanProse, $characterVoiceMap, $project);
-        $hasDialogue = collect($candidateSegments)->contains('type', 'dialogue');
-
-        if ($hasDialogue) {
-            return $candidateSegments;
-        }
-
-        return [
-            [
-                'type' => 'narrator',
-                'speaker' => 'NARRADOR',
-                'voice' => $this->defaultVoice,
-                'text' => $cleanProse,
-            ],
-        ];
+        return $this->segmenter->parseBlockToSegments($block, $characters, $project);
     }
 
-    /**
-     * Construye el manifiesto completo de reproducción para un bloque, una escena o todo el proyecto.
-     *
-     * @return array<int, array{block_id: string, scene_id: string, type: string, speaker: string, voice: string, text: string, stream_url: string}>
-     */
     public function buildManifestForScope(Project $project, ?string $sceneId = null, ?string $blockId = null): array
     {
-        $characters = $project->characters()->get();
-        $manifest = [];
-
-        if ($blockId) {
-            $block = ScriptBlock::where('id', $blockId)
-                ->whereHas('scene', fn ($q) => $q->where('project_id', $project->id))
-                ->firstOrFail();
-
-            $segments = $this->parseBlockToSegments($block, $characters, $project);
-            foreach ($segments as $idx => $segment) {
-                $manifest[] = [
-                    'block_id' => $block->id,
-                    'scene_id' => $block->scene_id,
-                    'type' => $segment['type'],
-                    'speaker' => $segment['speaker'],
-                    'voice' => $segment['voice'],
-                    'text' => $segment['text'],
-                    'stream_url' => route('projects.tts.stream', [
-                        'project' => $project->id,
-                        'block_id' => $block->id,
-                        'segment_index' => $idx,
-                    ], false),
-                ];
-            }
-
-            return $manifest;
-        }
-
-        $scenesQuery = $project->scenes()->orderBy('scene_order');
-        if ($sceneId) {
-            $scenesQuery->where('id', $sceneId);
-        }
-
-        /** @var Collection<int, Scene> $scenes */
-        $scenes = $scenesQuery->with(['scriptBlocks' => fn ($q) => $q->orderBy('block_order')])->get();
-
-        foreach ($scenes as $scene) {
-            foreach ($scene->scriptBlocks as $block) {
-                $segments = $this->parseBlockToSegments($block, $characters, $project);
-                foreach ($segments as $idx => $segment) {
-                    $manifest[] = [
-                        'block_id' => $block->id,
-                        'scene_id' => $scene->id,
-                        'type' => $segment['type'],
-                        'speaker' => $segment['speaker'],
-                        'voice' => $segment['voice'],
-                        'text' => $segment['text'],
-                        'stream_url' => route('projects.tts.stream', [
-                            'project' => $project->id,
-                            'block_id' => $block->id,
-                            'segment_index' => $idx,
-                        ], false),
-                    ];
-                }
-            }
-        }
-
-        return $manifest;
+        return $this->manifestService->buildManifestForScope($project, $sceneId, $blockId);
     }
 
-    /**
-     * Calcula la ruta del archivo de caché para un texto, voz y velocidad específicos.
-     */
     public function getCachedAudioPath(string $text, ?string $voice = null, float $speed = 1.0): string
     {
         $cleanText = $this->expandScreenplayAbbreviations(trim($text));
@@ -535,439 +180,48 @@ class TextToSpeechService
         return $this->cacheDir.'/'.$hash.'.wav';
     }
 
-    /**
-     * Determina si el audio para un texto dado ya se encuentra generado en disco.
-     */
     public function isAudioCached(string $text, ?string $voice = null, float $speed = 1.0): bool
     {
-        $path = $this->getCachedAudioPath($text, $voice, $speed);
-
-        return File::exists($path) && File::size($path) > 0;
+        return $this->manifestService->isAudioCached($text, $voice, $speed);
     }
 
-    /**
-     * Comprueba si todos los fragmentos de audio de un proyecto ya han sido sintetizados y están disponibles en caché.
-     */
     public function isProjectAudioComplete(Project $project, float $speed = 1.0): bool
     {
-        $manifest = $this->buildManifestForScope($project);
-        if (empty($manifest)) {
-            return false;
-        }
-
-        foreach ($manifest as $segment) {
-            $text = trim($segment['text'] ?? '');
-            if ($text === '') {
-                continue;
-            }
-            if (! $this->isAudioCached($text, $segment['voice'] ?? null, $speed)) {
-                return false;
-            }
-        }
-
-        return true;
+        return $this->manifestService->isProjectAudioComplete($project, $speed);
     }
 
-    /**
-     * Concatena y comprime todos los segmentos de audio del proyecto en un único archivo MP3 optimizado.
-     *
-     * @throws RuntimeException Si faltan audios por generar o si falla FFmpeg.
-     */
     public function exportProjectToMp3(Project $project, float $speed = 1.0): string
     {
-        $manifest = $this->buildManifestForScope($project);
-        if (empty($manifest)) {
-            throw new RuntimeException('El guión no contiene ningún segmento de texto locutable.');
-        }
-
-        $lines = [];
-        foreach ($manifest as $segment) {
-            $text = trim($segment['text'] ?? '');
-            if ($text === '') {
-                continue;
-            }
-            $path = $this->getCachedAudioPath($text, $segment['voice'] ?? null, $speed);
-            if (! File::exists($path) || File::size($path) === 0) {
-                throw new RuntimeException('Faltan audios por generar antes de exportar el guión completo a MP3.');
-            }
-            $lines[] = "file '".addcslashes($path, "'")."'";
-        }
-
-        if (empty($lines)) {
-            throw new RuntimeException('No hay archivos de audio válidos para concatenar.');
-        }
-
-        $tempDir = storage_path('framework/cache');
-        if (! File::exists($tempDir)) {
-            File::makeDirectory($tempDir, 0775, true, true);
-        }
-
-        $listFile = $tempDir.'/concat_'.Str::uuid().'.txt';
-        $outputMp3 = $tempDir.'/screenplay_'.Str::uuid().'.mp3';
-
-        File::put($listFile, implode("\n", $lines));
-
-        try {
-            $cmd = [
-                'ffmpeg',
-                '-y',
-                '-f', 'concat',
-                '-safe', '0',
-                '-i', $listFile,
-                '-c:a', 'libmp3lame',
-                '-b:a', '192k',
-                '-ar', '44100',
-                $outputMp3,
-            ];
-
-            $result = Process::timeout(300)->run($cmd);
-
-            if (! $result->successful() || ! File::exists($outputMp3) || File::size($outputMp3) === 0) {
-                Log::error('Fallo en concatenación FFmpeg a MP3', [
-                    'error' => $result->errorOutput(),
-                    'output' => $result->output(),
-                ]);
-                throw new RuntimeException('Error al procesar y convertir el audio a MP3 con FFmpeg.');
-            }
-
-            return $outputMp3;
-        } finally {
-            if (File::exists($listFile)) {
-                File::delete($listFile);
-            }
-        }
+        return $this->manifestService->exportProjectToMp3($project, $speed);
     }
 
-    /**
-     * Pre-calienta en segundo plano todos los segmentos de un manifiesto,
-     * sintetizando aquellos que aún no existan en caché con pausas de cortesía
-     * para no saturar las tasas de peticiones por minuto (RPM) de la API.
-     *
-     * @param  array<int, array{block_id: string, scene_id: string, type: string, speaker: string, voice: string, text: string, stream_url: string}>  $manifest
-     * @return array{total: int, cached: int, synthesized: int, failed: int}
-     */
     public function prewarmManifest(array $manifest, float $speed = 1.0, ?callable $onProgress = null): array
     {
-        $stats = [
-            'total' => count($manifest),
-            'cached' => 0,
-            'synthesized' => 0,
-            'failed' => 0,
-        ];
-
-        foreach ($manifest as $index => $item) {
-            $text = trim($item['text'] ?? '');
-            if ($text === '') {
-                continue;
-            }
-
-            $voice = $item['voice'] ?? null;
-            if ($this->isAudioCached($text, $voice, $speed)) {
-                $stats['cached']++;
-                if ($onProgress) {
-                    $onProgress($index, $item, 'cached');
-                }
-
-                continue;
-            }
-
-            try {
-                $this->synthesize($text, $voice, $speed);
-                $stats['synthesized']++;
-                if ($onProgress) {
-                    $onProgress($index, $item, 'synthesized');
-                }
-                // Pausa de cortesía para respetar la ventana de rate limits por minuto (RPM)
-                usleep(150000); // 150ms
-            } catch (\Throwable $e) {
-                $stats['failed']++;
-                Log::warning("Fallo al pre-calentar segmento TTS #{$index}: ".$e->getMessage(), [
-                    'speaker' => $item['speaker'] ?? null,
-                    'text' => mb_substr($text, 0, 50),
-                ]);
-                if ($onProgress) {
-                    $onProgress($index, $item, 'failed');
-                }
-            }
-        }
-
-        return $stats;
+        return $this->manifestService->prewarmManifest($manifest, $speed, $onProgress);
     }
 
-    /**
-     * Parsea texto en formato de guión literario (Fountain/Canónico) aislando
-     * acotaciones, sluglines y diálogos directos por personaje.
-     *
-     * @param  array<string, string>  $voiceMap
-     * @return array<int, array{type: string, speaker: string, voice: string, text: string}>
-     */
     protected function parseScreenplayText(string $text, array &$voiceMap, ?Project $project = null): array
     {
-        $normalized = str_replace(["\r\n", "\r"], "\n", trim($text));
-        $lines = explode("\n", $normalized);
-
-        $segments = [];
-        $currentSpeaker = null;
-        $currentDialogueLines = [];
-        $currentActionLines = [];
-
-        $flushAction = function () use (&$segments, &$currentActionLines) {
-            if (! empty($currentActionLines)) {
-                $text = trim(implode("\n", $currentActionLines));
-                if ($text !== '') {
-                    $segments[] = [
-                        'type' => 'narrator',
-                        'speaker' => 'NARRADOR',
-                        'voice' => $this->defaultVoice,
-                        'text' => $text,
-                    ];
-                }
-                $currentActionLines = [];
-            }
-        };
-
-        $flushDialogue = function () use (&$segments, &$currentSpeaker, &$currentDialogueLines, &$voiceMap, $project) {
-            if ($currentSpeaker !== null && ! empty($currentDialogueLines)) {
-                $text = trim(implode(' ', $currentDialogueLines));
-                if ($text !== '') {
-                    $cleanSpeaker = rtrim(strtoupper(trim(preg_replace('/\s*\([^\)]+\)$/u', '', $currentSpeaker))), '.');
-
-                    if (! isset($voiceMap[$cleanSpeaker])) {
-                        $voice = $this->resolveFallbackVoice($cleanSpeaker);
-                        $voiceMap[$cleanSpeaker] = $voice;
-
-                        // Si hay proyecto activo, asociar la voz a la ficha de la Biblia o crearla si no existe
-                        if ($project && $project->exists) {
-                            try {
-                                $existingChar = $project->characters()->whereRaw('UPPER(TRIM(name)) = ?', [$cleanSpeaker])->first();
-                                if ($existingChar) {
-                                    $attrs = is_array($existingChar->custom_attributes) ? $existingChar->custom_attributes : [];
-                                    $attrs['voice_id'] = $voice;
-                                    $existingChar->custom_attributes = $attrs;
-                                    $existingChar->saveQuietly();
-                                } else {
-                                    $project->characters()->create([
-                                        'name' => ucwords(strtolower($cleanSpeaker)),
-                                        'custom_attributes' => ['voice_id' => $voice],
-                                    ]);
-                                }
-                            } catch (\Throwable $e) {
-                                Log::warning("No se pudo persistir personaje {$cleanSpeaker} en la Biblia: ".$e->getMessage());
-                            }
-                        }
-                    } else {
-                        $voice = $voiceMap[$cleanSpeaker];
-                    }
-
-                    $segments[] = [
-                        'type' => 'dialogue',
-                        'speaker' => $cleanSpeaker,
-                        'voice' => $voice,
-                        'text' => $text,
-                    ];
-                }
-                $currentSpeaker = null;
-                $currentDialogueLines = [];
-            }
-        };
-
-        $inDialogue = false;
-
-        foreach ($lines as $rawLine) {
-            $line = trim($rawLine);
-
-            if ($line === '') {
-                if ($inDialogue) {
-                    $flushDialogue();
-                    $inDialogue = false;
-                }
-
-                continue;
-            }
-
-            // Detección de diálogo inline: "PERSONAJE (acotación): texto" o "PERSONAJE: texto"
-            if (! $inDialogue && preg_match('/^([A-ZÁÉÍÓÚÑ0-9\s\.\-\'\’]+?)(?:\s*\([^\)]+\))?:\s*(.+)$/u', $line, $inlineMatch)) {
-                $possibleSpeaker = trim($inlineMatch[1]);
-                if ($this->isCharacterLine($possibleSpeaker)) {
-                    $flushAction();
-                    $currentSpeaker = $possibleSpeaker;
-                    $currentDialogueLines[] = trim($inlineMatch[2]);
-                    $flushDialogue();
-
-                    continue;
-                }
-            }
-
-            // Detección de personaje en mayúsculas
-            if ($this->isCharacterLine($line) && ! $inDialogue) {
-                $flushAction();
-                $currentSpeaker = $line;
-                $inDialogue = true;
-
-                continue;
-            }
-
-            // Si estamos en diálogo
-            if ($inDialogue) {
-                // Las acotaciones tipo (con desdén) se omiten en la lectura del actor
-                if (str_starts_with($line, '(') && str_ends_with($line, ')')) {
-                    continue;
-                }
-                $currentDialogueLines[] = $line;
-
-                continue;
-            }
-
-            // Acción descriptiva o slugline (leído por el narrador)
-            $currentActionLines[] = $line;
-        }
-
-        $flushDialogue();
-        $flushAction();
-
-        return $segments;
+        return $this->segmenter->parseScreenplayText($text, $voiceMap, $project);
     }
 
-    /**
-     * Determina si una línea corresponde a un nombre de personaje dialogante en guión.
-     */
     protected function isCharacterLine(string $line): bool
     {
-        $clean = trim($line);
-        if ($clean === '' || mb_strlen($clean) > 45) {
-            return false;
-        }
-
-        if (preg_match('/^(INT\.|EXT\.|INT\/EXT\.|I\/E\.|EST\.)\s+/iu', $clean)) {
-            return false;
-        }
-
-        if (preg_match('/^(CORTE A:|DISUELVE A:|FUNDIDO A NEGRO:|FADE OUT\.|FADE IN:|CUT TO:|DISSOLVE TO:)$/iu', $clean)) {
-            return false;
-        }
-
-        $withoutParenthetical = preg_replace('/\s*\([^\)]+\)$/u', '', $clean);
-        $withoutParenthetical = trim($withoutParenthetical);
-
-        if ($withoutParenthetical === '') {
-            return false;
-        }
-
-        return preg_match('/^[A-ZÁÉÍÓÚÑ0-9\s\.\-\'\’]+$/u', $withoutParenthetical)
-            && preg_match('/[A-ZÁÉÍÓÚÑ]/u', $withoutParenthetical)
-            && ! str_ends_with($withoutParenthetical, '.')
-            && ! str_ends_with($withoutParenthetical, ',')
-            && ! str_ends_with($withoutParenthetical, ':');
+        return $this->segmenter->isCharacterLine($line);
     }
 
-    /**
-     * Mapea personajes a sus voces asignadas.
-     *
-     * @param  Collection<int, Character>|array<int, Character>  $characters
-     * @return array<string, string>
-     */
     protected function buildCharacterVoiceMap(Collection|array $characters): array
     {
-        $map = [];
-        $femaleList = $this->googleApiKey ? ['Aoede', 'Kore', 'Leda'] : ['sharvard#F', 'mls_9972'];
-        $maleList = $this->googleApiKey ? ['Puck', 'Charon', 'Fenrir', 'Zephyr'] : ['sharvard#M', 'davefx', 'carlfm', 'mls_10246'];
-        $femaleIdx = 0;
-        $maleIdx = 0;
-
-        foreach ($characters as $char) {
-            $nameKey = rtrim(strtoupper(trim((string) $char->name)), '.');
-            $customAttrs = is_array($char->custom_attributes) ? $char->custom_attributes : [];
-            $assignedVoice = $customAttrs['voice_id'] ?? null;
-
-            if ($assignedVoice) {
-                $map[$nameKey] = $this->resolveVoice((string) $assignedVoice);
-
-                continue;
-            }
-
-            // Inferencia heurística por nombre o género si está especificado
-            $isFemale = $this->inferIsFemale($char);
-            if ($isFemale) {
-                $chosenVoice = $femaleList[$femaleIdx % count($femaleList)];
-                $femaleIdx++;
-            } else {
-                $chosenVoice = $maleList[$maleIdx % count($maleList)];
-                $maleIdx++;
-            }
-
-            $map[$nameKey] = $chosenVoice;
-
-            // Persistir la voz asignada automáticamente en la ficha del personaje en la Biblia
-            $customAttrs['voice_id'] = $chosenVoice;
-            $char->custom_attributes = $customAttrs;
-            if ($char->exists) {
-                $char->saveQuietly();
-            }
-        }
-
-        return $map;
+        return $this->segmenter->buildCharacterVoiceMap($characters);
     }
 
-    /**
-     * Resuelve una voz alternativa determinista si el personaje no está en la biblia.
-     */
     protected function resolveFallbackVoice(string $speaker): string
     {
-        $clean = rtrim(strtoupper(trim($speaker)), '.');
-        $isFemale = str_contains($clean, 'MUJER')
-            || str_contains($clean, 'CHICA')
-            || str_contains($clean, 'MADRE')
-            || str_contains($clean, 'LUCÍA')
-            || str_contains($clean, 'ANA')
-            || str_contains($clean, 'EDURNE')
-            || str_contains($clean, 'MARIA')
-            || str_contains($clean, 'MARÍA')
-            || str_contains($clean, 'NEKANE')
-            || str_contains($clean, 'VOZ IA')
-            || str_contains($clean, 'IA');
-
-        if ($this->googleApiKey) {
-            return $isFemale ? 'Aoede' : 'Charon';
-        }
-
-        return $isFemale ? 'sharvard#F' : 'sharvard#M';
+        return $this->segmenter->resolveFallbackVoice($speaker);
     }
 
-    /**
-     * Deduce si un personaje es femenino basándose en su psicología, bio o nombre.
-     */
     protected function inferIsFemale(Character $char): bool
     {
-        $customAttrs = is_array($char->custom_attributes) ? $char->custom_attributes : [];
-        if (! empty($customAttrs['gender'])) {
-            return in_array(mb_strtolower((string) $customAttrs['gender']), ['female', 'femenino', 'mujer'], true);
-        }
-
-        $text = mb_strtolower($char->name.' '.($char->bio ?? '').' '.($char->psychology ?? ''));
-
-        if (preg_match('/\b(mujer|femenina|femenino|chica|actriz|hija|madre|hermana|abuela|señora|camarera|doctora|muchacha|chavala|locutora|protagonista femenina)\b/u', $text)) {
-            return true;
-        }
-
-        $name = rtrim(mb_strtolower(trim($char->name)), '.');
-        $femaleNames = [
-            'ana', 'lucía', 'lucia', 'maría', 'maria', 'carmen', 'elena', 'laura', 'sofía', 'sofia',
-            'clara', 'marta', 'sara', 'irene', 'paula', 'edurne', 'nekane', 'ainhoa', 'itziar',
-            'arantxa', 'maite', 'leire', 'nerea', 'begoña', 'idoia', 'amaia', 'miren', 'almudena',
-            'inés', 'ines', 'rocío', 'rocio', 'raquel', 'beatriz', 'isabel', 'teresa', 'eva',
-            'silvia', 'cristina', 'patricia', 'mónica', 'monica', 'alicia', 'rosa', 'pilar',
-            'mercedes', 'lourdes', 'victoria', 'blanca', 'esther', 'ester', 'julia', 'natalia',
-            'lorena', 'alba', 'claudia', 'andrea', 'celia', 'marina', 'triana', 'voz ia', 'ia',
-        ];
-
-        if (in_array($name, $femaleNames, true)) {
-            return true;
-        }
-
-        if (preg_match('/(a|ne|z|is|ina|esa|isa|triz)$/u', $name) && ! in_array($name, ['borja', 'luca', 'joshua', 'andrea'], true)) {
-            return true;
-        }
-
-        return false;
+        return $this->segmenter->inferIsFemale($char);
     }
 }

@@ -1,12 +1,51 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.54.0  
+**Versión del documento:** 3.55.0  
 **Fecha de consolidación:** 12 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) en progreso: Fase 1 y Fase 2 completadas. Descomposición de la clase monolítica `AgentClientService.php` y extracción de 14 acciones atómicas de negocio (`app/Actions/Studio/`) desde los componentes Livewire `ScriptEditor.php` y `ContextBibleDrawer.php`. Métodos Livewire preservados como thin facades (1–3 LOC) para garantizar cero roturas de compatibilidad con vistas y tests. 239 tests pasando al 100% y Pint verificado.
+**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%: Fases 1, 2 y 3 cerradas con éxito. Se eliminaron todos los monolitos estructurales (>300 LOC) del proyecto: descomposición de `AgentClientService.php`, `ScriptEditor.php`, `ContextBibleDrawer.php`, `TextToSpeechService.php`, `ScriptPipelineService.php`, `StoryboardService.php`, `ScriptImportService.php` y modularización completa de plantillas Blade (`script-editor.blade.php`, `context-bible-drawer.blade.php`). El 100% de clases se encuentra por debajo de 300 LOC y métodos por debajo de 40 LOC. Suite completa de 239 tests pasando al 100% (1.166 assertions) y Pint con 0 infracciones.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **REFACTOR-v2.0: Fase 3 - Modularización de Vistas Blade y Descomposición de Servicios Secundarios (jg_filmmaker#33):**
+  - **Modularización de Vistas Blade Monolíticas:**
+    - `resources/views/livewire/studio/script-editor.blade.php`: Reducido drásticamente de 3.663 LOC a 23 LOC mediante extracción semántica en `resources/views/livewire/studio/partials/editor/`:
+      - `header-assets.blade.php` (estilos Gutenberg y componente Alpine para TTS).
+      - `top-toolbar.blade.php` (barra superior sticky con controles y filtros).
+      - `scenes-flow.blade.php` (flujo continuo interactivo de escenas y bloques).
+      - `consolidated-script.blade.php` (hoja continua de lectura y edición de guion consolidado).
+      - `block-detail-drawer.blade.php` (cajón lateral derecho al 60% para edición de bloque, candados y diffs).
+      - `crud-modals.blade.php` (modales de nuevo bloque, escena, plano técnico, borrados y trazabilidad).
+      - `token-quota-modals.blade.php` (modales de confirmación de cuota y estimación de tokens para pipelines).
+      - `project-modals.blade.php` (modales de edición de metadatos de obra y renderizado en lote).
+      - `floating-tts-player.blade.php` (reproductor de locución flotante).
+      - `storyboard-modals.blade.php` (modales de generación de storyboard con IA y lightbox).
+    - `resources/views/livewire/studio/context-bible-drawer.blade.php`: Reducido de 897 LOC a 85 LOC mediante extracción en `resources/views/livewire/studio/partials/bible/`:
+      - `characters-tab.blade.php` (pestaña y gestión reactiva de personajes con notas y avatares).
+      - `locations-tab.blade.php` (pestaña y gestión de localizaciones y fotos de set).
+      - `delete-modal.blade.php` (modal superior de confirmación o bloqueo seguro de borrado).
+  - **Descomposición de Servicios Secundarios bajo SOLID:**
+    - `TextToSpeechService.php`: Reducido de 973 LOC a 227 LOC bajo patrón Strategy:
+      - `app/Services/Tts/Contracts/TtsProviderInterface.php`: Contrato canónico de proveedores TTS.
+      - `app/Services/Tts/Providers/GoogleAiTtsProvider.php`: Proveedor de Gemini Flash TTS.
+      - `app/Services/Tts/Providers/SpeachesTtsProvider.php`: Proveedor de síntesis local Piper TTS.
+      - `app/Services/Tts/ScreenplaySegmenter.php` (241 LOC): Segmentación semántica de líneas dramáticas.
+      - `app/Services/Tts/CharacterVoiceMapper.php` (110 LOC): Mapeo y resolución heurística de voces y género.
+      - `app/Services/Tts/TtsManifestService.php` (200 LOC): Ensamblado de manifiestos y caché de streaming.
+    - `ScriptPipelineService.php`: Reducido de 882 LOC a 251 LOC mediante delegación de responsabilidades:
+      - `app/Services/Pipeline/BibleSyncService.php` (177 LOC): Inferencia de personajes y sincronización con Biblia.
+      - `app/Services/Pipeline/SluglineSyncService.php` (121 LOC): Parseo canónico de sluglines y sincronización de localizaciones.
+      - `app/Services/Pipeline/ShotsBreakdownService.php` (142 LOC): Desglose técnico de planos cinemáticos.
+      - `app/Services/Pipeline/BatchPipelineProcessor.php` (126 LOC): Procesamiento y validación en lote por etapas.
+      - `app/Services/Pipeline/UserLockManager.php` (94 LOC): Gobernanza y archivado de `user_locks` y diffs de autoría.
+    - `StoryboardService.php`: Reducido de 415 LOC a 219 LOC:
+      - `app/Services/Storyboard/StoryboardPromptBuilder.php` (186 LOC): Construcción de prompts multimodales condicionados por turn-around y set.
+      - `app/Services/Storyboard/StoryboardImageProcessor.php` (76 LOC): Procesamiento de artefactos y conversión base64.
+    - `ScriptImportService.php`: Reducido de 380 LOC a 129 LOC:
+      - `app/Services/Import/ScriptFileExtractor.php` (69 LOC): Extracción de texto y PDF con normalización UTF-8.
+      - `app/Services/Import/ScreenplayParser.php` (243 LOC): Parser estructurado de escenas, sluglines y diálogos.
+  - **Cumplimiento Estricto SOLID:** 100% de nuevas clases e interfaces por debajo de 300 LOC y métodos por debajo de 40 LOC. Suite completa de 239 tests pasando con 1.166 aserciones.
 
 - **REFACTOR-v2.0: Fase 2 - Descomposición de Lógica de Negocio en Acciones Atómicas (`app/Actions/Studio/`) (jg_filmmaker#33):**
   - **Extracción de Acciones del Estudio (`app/Actions/Studio/`):**
