@@ -1,12 +1,28 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.52.0  
-**Fecha de consolidación:** 9 de noviembre de 2026  
+**Versión del documento:** 3.53.0  
+**Fecha de consolidación:** 12 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** ISSUE-070 completado: Rediseño integral y profesionalización del `README.md` principal para publicación en GitHub/GitLab, alineado con los estándares de diseño y estructura de `jg_agente` y `jg_dashboard`. Diagrama de arquitectura ASCII Art, matriz de pipeline en 6 etapas, especificación de capacidades y guías de ejecución. 239 tests pasando al 100% y Pint verificado.
+**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) en progreso: Fase 1 completada. Descomposición de la clase monolítica `AgentClientService.php` (de 1.861 LOC a 227 LOC) extrayendo transporte HTTP, firma HMAC-SHA256, telemetría y clientes de dominio dedicados (`ScriptAgentClient`, `StoryboardAgentClient`, `ContinuityAgentClient`, `CharacterAgentClient`) junto a motores de fallback desacoplados. 239 tests pasando al 100% y Pint verificado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **REFACTOR-v2.0: Fase 1 - Descomposición Estructural SOLID de `AgentClientService.php` (jg_filmmaker#33):**
+  - **Reducción Monolítica:** Reducción drástica de `AgentClientService.php` de 1.861 LOC a 227 LOC, actuando como fachada 100% compatible hacia atrás para inyección de dependencias y tests.
+  - **Extracción de Transporte y Seguridad:**
+    - `App\Services\JgAgente\HmacSigner`: Firma criptográfica HMAC-SHA256 y cabeceras canónicas (`X-Signature`, `X-Timestamp`, `X-Client-Id`).
+    - `App\Services\JgAgente\TelemetryRecorder`: Registro de auditoría, trazabilidad de llamadas a IA y sanitización de bloqueos de usuario (`user_locks`).
+    - `App\Services\JgAgente\AgentHttpTransport`: Despacho HTTP seguro, timeout, reintentos y orquestación con mock fallback.
+  - **Clientes de Dominio Dedicados (`app/Services/JgAgente/Clients/`):**
+    - `ScriptAgentClient`: Estructuración dramática de notas y tratamiento, formateo canónico Fountain y gobernanza de candados (`user_locks`).
+    - `StoryboardAgentClient`: Desglose técnico de planos cinemáticos y parseo de anotaciones `--- shot N (tipo) ---`.
+    - `ContinuityAgentClient`: Detección y auditoría de agujeros de guion (`plot_hole_detector`) con filtro de falsos positivos tipográficos y de nombres.
+    - `CharacterAgentClient`: Extracción de personajes dramáticos reales y auditoría de presencia escénica (`extract_characters`, `audit_character_usage`).
+  - **Motores de Fallback Desacoplados (`app/Services/JgAgente/Fallbacks/`):**
+    - `DeterministicFallbackEngine`: Orquestador central de fallbacks ante indisponibilidad del servicio de IA.
+    - `ScriptDialogueRefiner`, `ScriptFallbackHandler`, `StoryboardFallbackHandler`, `ContinuityFallbackHandler`, `CharacterFallbackHandler`, `DirectLlmFallbackHandler`.
+  - **Cumplimiento Estricto SOLID:** 100% de clases por debajo de 300 LOC y métodos por debajo de 40 LOC. Suite completa de 239 tests pasando con 1.166 aserciones.
 
 - **ISSUE-070: Rediseño Integral y Profesionalización del `README.md` (Publicación GitHub):**
   - **Estructura Empresarial Homogénea:** Adaptada la estructura al nivel de elegancia y rigor técnico de `jg_agente` y `jg_dashboard`. Eliminadas referencias desestructuradas a fases/issues internos para presentar una visión de producto cinematográfico completa.

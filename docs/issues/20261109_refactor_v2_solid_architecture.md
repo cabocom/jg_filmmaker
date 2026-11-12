@@ -1,7 +1,7 @@
 # [REFACTOR-v2.0] Refactorización Estructural SOLID y Descomposición de Monolitos (`jg_filmmaker`)
 
-- **Estado:** Abierto / Planificado
-- **Fecha:** 2026-11-09
+- **Estado:** En Progreso (Fase 1 completada)
+- **Fecha:** 2026-11-09 (Actualizado: 2026-11-12)
 - **Proyecto:** `jg_filmmaker`
 - **GitLab Issue:** [jg_filmmaker#33](https://gitlab.com/javiergalvez-ia/jg_filmmaker/-/work_items/33) (Relacionado con Auditoría [jg_filmmaker#32](https://gitlab.com/javiergalvez-ia/jg_filmmaker/-/issues/32))
 - **Asignado a:** Javier Gálvez (`@cabocom`)
@@ -15,10 +15,10 @@ Este issue planifica la refactorización estructural v2.0 de `jg_filmmaker` para
 
 ## 2. Diagnóstico Real de Ficheros Monolíticos (`>300 LOC`)
 
-Actualmente `jg_filmmaker` cuenta con **12 ficheros por encima del umbral de 300 líneas**:
+Actualmente `jg_filmmaker` contaba con **12 ficheros por encima del umbral de 300 líneas**:
 1. `resources/views/livewire/studio/script-editor.blade.php` (**3.663 LOC**)
 2. `app/Livewire/Studio/ScriptEditor.php` (**3.284 LOC**, 114 métodos)
-3. `app/Services/JgAgente/AgentClientService.php` (**1.861 LOC**, 25 métodos)
+3. `app/Services/JgAgente/AgentClientService.php` (**1.861 LOC** -> **REDUCIDO a 227 LOC en Fase 1**)
 4. `app/Services/TextToSpeechService.php` (**974 LOC**, 20 métodos)
 5. `resources/views/livewire/studio/context-bible-drawer.blade.php` (**897 LOC**)
 6. `app/Services/ScriptPipelineService.php` (**883 LOC**, 18 métodos)
@@ -31,14 +31,15 @@ Actualmente `jg_filmmaker` cuenta con **12 ficheros por encima del umbral de 300
 
 ## 3. Plan de Refactorización Estructural (Patrón Strangler Fig / Cero Roturas)
 
-- **Fase 1 (`AgentClientService.php` -> Clientes de Dominio + Transporte):**
+- [x] **Fase 1 (`AgentClientService.php` -> Clientes de Dominio + Transporte):**
   - Extraer `HmacSigner`, `AgentHttpTransport` y `TelemetryRecorder`.
   - Dividir llamadas por dominio en `ScriptAgentClient`, `StoryboardAgentClient`, `ContinuityAgentClient` y `CharacterAgentClient` usando DTOs inmutables (`readonly class`).
-  - Eliminar las ~900 líneas de heurísticas locales duplicadas con `jg_plugin_filmmaker`.
-- **Fase 2 (`ScriptEditor.php` y `ContextBibleDrawer.php` -> Patrón Action):**
+  - Desacoplar heurísticas y motores de fallback en clases especializadas (`app/Services/JgAgente/Fallbacks/`).
+  - Mantener `AgentClientService` como fachada 100% compatible hacia atrás (<230 LOC).
+- [ ] **Fase 2 (`ScriptEditor.php` y `ContextBibleDrawer.php` -> Patrón Action):**
   - Extraer la lógica de negocio a clases `final readonly class <CasoDeUso>Action` en `app/Actions/Studio/` (`GenerateSceneBreakdownAction`, `AssembleRoughCutAction`, `ExportScriptAction`, `AnalyzePlotHolesAction`, etc.).
   - Mantener los métodos públicos de `wire:click` en Livewire como *thin facades* de 1–3 líneas para no romper vistas Blade ni los tests `Livewire::test()`.
-- **Fase 3 (Vistas Blade y Servicios Secundarios):**
+- [ ] **Fase 3 (Vistas Blade y Servicios Secundarios):**
   - Dividir `script-editor.blade.php` y `context-bible-drawer.blade.php` en parciales semánticos (`modals/`, `panels/`, `toolbar/`).
   - Refactorizar `TextToSpeechService.php` bajo el patrón Strategy (`TtsProviderInterface`) y dividir `ScriptPipelineService.php` y `ScriptImportService.php`.
 
@@ -47,4 +48,4 @@ Actualmente `jg_filmmaker` cuenta con **12 ficheros por encima del umbral de 300
 - **Esfuerzo estimado:** 8 – 10 sesiones (~4,5 M – 6,0 M tokens Gemini Flash, ~3 – 4 horas).
 - **Criterios de cierre:**
   - [ ] Ninguna clase de negocio/servicio supera las 300 LOC.
-  - [ ] 100% de tests en verde (`php artisan test`) y `./vendor/bin/pint --test` limpio.
+  - [x] 100% de tests en verde (`php artisan test`: 239/239 pasados) y `./vendor/bin/pint --test` limpio.
