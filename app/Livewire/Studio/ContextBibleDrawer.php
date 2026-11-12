@@ -2,14 +2,16 @@
 
 namespace App\Livewire\Studio;
 
+use App\Actions\Studio\AuditBibleEntityUsageAction;
+use App\Actions\Studio\ComputeCharacterImportanceAction;
+use App\Actions\Studio\DeleteBibleEntityAction;
+use App\Actions\Studio\ManageBibleCharacterAction;
+use App\Actions\Studio\ManageBibleLocationAction;
 use App\Models\Character;
 use App\Models\Location;
 use App\Models\Project;
-use App\Models\ScriptBlock;
-use App\Services\JgAgente\AgentClientService;
 use App\Services\TextToSpeechService;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
@@ -146,7 +148,7 @@ class ContextBibleDrawer extends Component
         $this->editingCharImportance = (string) ($custom['importance'] ?? '');
     }
 
-    public function saveCharacter(): void
+    public function saveCharacter(?ManageBibleCharacterAction $action = null): void
     {
         if (! $this->editingCharacterId) {
             return;
@@ -157,28 +159,12 @@ class ContextBibleDrawer extends Component
         ]);
 
         $char = $this->project->characters()->findOrFail($this->editingCharacterId);
-        $custom = is_array($char->custom_attributes) ? $char->custom_attributes : [];
-        $custom['voice_id'] = $this->editingCharVoiceId;
-        if (! empty($this->editingCharImportance)) {
-            $custom['importance'] = $this->editingCharImportance;
-        } else {
-            unset($custom['importance']);
-        }
-
-        $updateData = [
+        ($action ?? app(ManageBibleCharacterAction::class))->update($char, [
             'costume_notes' => $this->editingCharCostume,
             'bio' => $this->editingCharBio,
-            'custom_attributes' => $custom,
-        ];
-
-        if ($this->editingCharReferenceImage) {
-            if ($char->reference_image_path && Storage::disk('public')->exists($char->reference_image_path)) {
-                Storage::disk('public')->delete($char->reference_image_path);
-            }
-            $updateData['reference_image_path'] = $this->editingCharReferenceImage->store("projects/{$this->project->id}/characters", 'public');
-        }
-
-        $char->update($updateData);
+            'voice_id' => $this->editingCharVoiceId,
+            'importance' => $this->editingCharImportance,
+        ], $this->editingCharReferenceImage);
 
         $this->editingCharacterId = null;
         $this->editingCharReferenceImage = null;
@@ -186,17 +172,14 @@ class ContextBibleDrawer extends Component
         session()->flash('bible_success', "Personaje \"{$char->name}\" actualizado.");
     }
 
-    public function deleteCharacterReferenceImage(string $characterId): void
+    public function deleteCharacterReferenceImage(string $characterId, ?ManageBibleCharacterAction $action = null): void
     {
         $char = $this->project->characters()->findOrFail($characterId);
-        if ($char->reference_image_path && Storage::disk('public')->exists($char->reference_image_path)) {
-            Storage::disk('public')->delete($char->reference_image_path);
-        }
-        $char->update(['reference_image_path' => null]);
+        ($action ?? app(ManageBibleCharacterAction::class))->deleteReferenceImage($char);
         session()->flash('bible_success', "Imagen de referencia de \"{$char->name}\" eliminada.");
     }
 
-    public function createCharacter(): void
+    public function createCharacter(?ManageBibleCharacterAction $action = null): void
     {
         $this->validate([
             'newCharName' => [
@@ -215,26 +198,14 @@ class ContextBibleDrawer extends Component
             'newCharName.unique' => 'Ya existe un personaje registrado con este nombre en la Biblia del proyecto.',
         ]);
 
-        $custom = [];
-        if ($this->newCharVoiceId) {
-            $custom['voice_id'] = $this->newCharVoiceId;
-        }
-        if (! empty($this->newCharImportance)) {
-            $custom['importance'] = $this->newCharImportance;
-        }
-
-        $character = $this->project->characters()->create([
-            'name' => trim($this->newCharName),
-            'bio' => $this->newCharBio ?: null,
-            'psychology' => $this->newCharPsychology ?: null,
-            'costume_notes' => $this->newCharCostume ?: null,
-            'custom_attributes' => $custom,
-        ]);
-
-        if ($this->newCharReferenceImage) {
-            $path = $this->newCharReferenceImage->store("projects/{$this->project->id}/characters", 'public');
-            $character->update(['reference_image_path' => $path]);
-        }
+        ($action ?? app(ManageBibleCharacterAction::class))->create($this->project, [
+            'name' => $this->newCharName,
+            'bio' => $this->newCharBio,
+            'psychology' => $this->newCharPsychology,
+            'costume_notes' => $this->newCharCostume,
+            'voice_id' => $this->newCharVoiceId,
+            'importance' => $this->newCharImportance,
+        ], $this->newCharReferenceImage);
 
         $this->reset(['newCharName', 'newCharBio', 'newCharPsychology', 'newCharCostume', 'newCharVoiceId', 'newCharImportance', 'newCharReferenceImage', 'showNewCharacterForm']);
         session()->flash('bible_success', 'Nuevo personaje incorporado a la Biblia del proyecto.');
@@ -249,7 +220,7 @@ class ContextBibleDrawer extends Component
         $this->editingLocReferenceImage = null;
     }
 
-    public function saveLocation(): void
+    public function saveLocation(?ManageBibleLocationAction $action = null): void
     {
         if (! $this->editingLocationId) {
             return;
@@ -262,37 +233,25 @@ class ContextBibleDrawer extends Component
         ]);
 
         $loc = $this->project->locations()->findOrFail($this->editingLocationId);
-        $updateData = [
+        ($action ?? app(ManageBibleLocationAction::class))->update($loc, [
             'art_department_notes' => $this->editingLocArtNotes,
             'lighting_notes' => $this->editingLocLightingNotes,
-        ];
-
-        if ($this->editingLocReferenceImage) {
-            if ($loc->reference_image_path && Storage::disk('public')->exists($loc->reference_image_path)) {
-                Storage::disk('public')->delete($loc->reference_image_path);
-            }
-            $updateData['reference_image_path'] = $this->editingLocReferenceImage->store("projects/{$this->project->id}/locations", 'public');
-        }
-
-        $loc->update($updateData);
+        ], $this->editingLocReferenceImage);
 
         $this->editingLocationId = null;
         $this->editingLocReferenceImage = null;
         session()->flash('bible_success', "Localización \"{$loc->name}\" actualizada.");
     }
 
-    public function deleteLocationReferenceImage(string $locationId): void
+    public function deleteLocationReferenceImage(string $locationId, ?ManageBibleLocationAction $action = null): void
     {
         $loc = $this->project->locations()->findOrFail($locationId);
-        if ($loc->reference_image_path && Storage::disk('public')->exists($loc->reference_image_path)) {
-            Storage::disk('public')->delete($loc->reference_image_path);
-        }
-        $loc->update(['reference_image_path' => null]);
+        ($action ?? app(ManageBibleLocationAction::class))->deleteReferenceImage($loc);
         $this->editingLocReferenceImage = null;
         session()->flash('bible_success', "Imagen de referencia de \"{$loc->name}\" eliminada.");
     }
 
-    public function createLocation(): void
+    public function createLocation(?ManageBibleLocationAction $action = null): void
     {
         $this->validate([
             'newLocName' => [
@@ -312,18 +271,13 @@ class ContextBibleDrawer extends Component
             'newLocType.in' => 'El tipo de localización debe ser INT, EXT o INT/EXT.',
         ]);
 
-        $loc = $this->project->locations()->create([
-            'name' => strtoupper(trim($this->newLocName)),
+        ($action ?? app(ManageBibleLocationAction::class))->create($this->project, [
+            'name' => $this->newLocName,
             'type' => $this->newLocType,
-            'art_department_notes' => $this->newLocArtNotes ?: null,
-            'lighting_notes' => $this->newLocLightingNotes ?: null,
-            'address_reference' => $this->newLocAddress ?: null,
-        ]);
-
-        if ($this->newLocReferenceImage) {
-            $path = $this->newLocReferenceImage->store("projects/{$this->project->id}/locations", 'public');
-            $loc->update(['reference_image_path' => $path]);
-        }
+            'art_department_notes' => $this->newLocArtNotes,
+            'lighting_notes' => $this->newLocLightingNotes,
+            'address_reference' => $this->newLocAddress,
+        ], $this->newLocReferenceImage);
 
         $this->reset(['newLocName', 'newLocType', 'newLocArtNotes', 'newLocLightingNotes', 'newLocAddress', 'newLocReferenceImage', 'showNewLocationForm']);
         session()->flash('bible_success', 'Nueva localización incorporada a la Biblia del proyecto.');
@@ -336,37 +290,7 @@ class ContextBibleDrawer extends Component
      */
     private function auditCharacterUsages(Character $char): array
     {
-        $charName = trim($char->name);
-        $usages = [];
-        $scenes = $this->project->scenes()->with('scriptBlocks')->orderBy('scene_order')->get();
-
-        foreach ($scenes as $scene) {
-            foreach ($scene->scriptBlocks as $block) {
-                $texts = [
-                    $block->screenplay_content ?? '',
-                    $block->structured_text ?? '',
-                    $block->raw_text ?? '',
-                ];
-
-                $found = false;
-                foreach ($texts as $text) {
-                    if (! empty($text) && preg_match('/\b'.preg_quote($charName, '/').'\b/iu', $text)) {
-                        $found = true;
-                        break;
-                    }
-                }
-
-                if ($found) {
-                    $agentClient = app(AgentClientService::class);
-                    $audit = $agentClient->auditCharacterUsage($charName, $texts);
-                    if ($audit['in_use']) {
-                        $usages[] = "ESC. {$scene->scene_order} · BLOQUE {$block->block_order}";
-                    }
-                }
-            }
-        }
-
-        return array_values(array_unique($usages));
+        return app(AuditBibleEntityUsageAction::class)->auditCharacterUsages($this->project, $char);
     }
 
     /**
@@ -376,39 +300,7 @@ class ContextBibleDrawer extends Component
      */
     private function auditLocationUsages(Location $loc): array
     {
-        $locName = trim($loc->name);
-        $usages = [];
-        $scenes = $this->project->scenes()->with('scriptBlocks')->orderBy('scene_order')->get();
-
-        foreach ($scenes as $scene) {
-            if ($scene->location_id === $loc->id) {
-                $usages[] = "ESC. {$scene->scene_order} (Asignada a la escena)";
-            } elseif (! empty($scene->slugline) && preg_match('/\b'.preg_quote($locName, '/').'\b/iu', $scene->slugline)) {
-                $usages[] = "ESC. {$scene->scene_order} (Encabezado de escena)";
-            }
-
-            foreach ($scene->scriptBlocks as $block) {
-                $texts = [
-                    $block->screenplay_content ?? '',
-                    $block->structured_text ?? '',
-                    $block->raw_text ?? '',
-                ];
-
-                $found = false;
-                foreach ($texts as $text) {
-                    if (! empty($text) && preg_match('/\b'.preg_quote($locName, '/').'\b/iu', $text)) {
-                        $found = true;
-                        break;
-                    }
-                }
-
-                if ($found) {
-                    $usages[] = "ESC. {$scene->scene_order} · BLOQUE {$block->block_order}";
-                }
-            }
-        }
-
-        return array_values(array_unique($usages));
+        return app(AuditBibleEntityUsageAction::class)->auditLocationUsages($this->project, $loc);
     }
 
     /**
@@ -453,36 +345,23 @@ class ContextBibleDrawer extends Component
     /**
      * Confirma y ejecuta el borrado definitivo tras re-auditar en el servidor que no existan usos activos.
      */
-    public function confirmDelete(): void
+    public function confirmDelete(?DeleteBibleEntityAction $action = null): void
     {
-        if ($this->deletingType === 'character' && $this->deletingId) {
-            $char = $this->project->characters()->findOrFail($this->deletingId);
-            $serverUsages = $this->auditCharacterUsages($char);
+        if ($this->deletingType && $this->deletingId) {
+            $result = ($action ?? app(DeleteBibleEntityAction::class))->deleteIfUnused(
+                $this->project,
+                $this->deletingType,
+                $this->deletingId
+            );
 
-            if (! empty($serverUsages)) {
-                session()->flash('bible_error', 'No se puede eliminar: el elemento está siendo utilizado en el guión.');
+            if (! $result['success']) {
+                session()->flash('bible_error', $result['message']);
                 $this->cancelDelete();
 
                 return;
             }
 
-            $name = $char->name;
-            $char->delete();
-            session()->flash('bible_success', "Personaje \"{$name}\" eliminado correctamente de la Biblia.");
-        } elseif ($this->deletingType === 'location' && $this->deletingId) {
-            $loc = $this->project->locations()->findOrFail($this->deletingId);
-            $serverUsages = $this->auditLocationUsages($loc);
-
-            if (! empty($serverUsages)) {
-                session()->flash('bible_error', 'No se puede eliminar: el elemento está siendo utilizado en el guión.');
-                $this->cancelDelete();
-
-                return;
-            }
-
-            $name = $loc->name;
-            $loc->delete();
-            session()->flash('bible_success', "Localización \"{$name}\" eliminada correctamente de la Biblia.");
+            session()->flash('bible_success', $result['message']);
         }
 
         $this->cancelDelete();
@@ -492,18 +371,15 @@ class ContextBibleDrawer extends Component
     /**
      * Forzado soberano del director (HITL): elimina el elemento de la Biblia de todos modos.
      */
-    public function forceDelete(): void
+    public function forceDelete(?DeleteBibleEntityAction $action = null): void
     {
-        if ($this->deletingType === 'character' && $this->deletingId) {
-            $char = $this->project->characters()->findOrFail($this->deletingId);
-            $name = $char->name;
-            $char->delete();
-            session()->flash('bible_success', "Personaje \"{$name}\" eliminado de la Biblia.");
-        } elseif ($this->deletingType === 'location' && $this->deletingId) {
-            $loc = $this->project->locations()->findOrFail($this->deletingId);
-            $name = $loc->name;
-            $loc->delete();
-            session()->flash('bible_success', "Localización \"{$name}\" eliminada de la Biblia.");
+        if ($this->deletingType && $this->deletingId) {
+            $msg = ($action ?? app(DeleteBibleEntityAction::class))->forceDelete(
+                $this->project,
+                $this->deletingType,
+                $this->deletingId
+            );
+            session()->flash('bible_success', $msg);
         }
 
         $this->cancelDelete();
@@ -542,30 +418,9 @@ class ContextBibleDrawer extends Component
      *
      * @return array<string, int>
      */
-    public function computeCharacterInterventions(): array
+    public function computeCharacterInterventions(?ComputeCharacterImportanceAction $action = null): array
     {
-        $blocks = ScriptBlock::whereHas('scene', fn ($q) => $q->where('project_id', $this->project->id))
-            ->get(['screenplay_content', 'structured_text', 'raw_text']);
-
-        $counts = [];
-        foreach ($blocks as $block) {
-            $text = $block->screenplay_content ?: ($block->structured_text ?: $block->raw_text);
-            if (! $text) {
-                continue;
-            }
-
-            if (preg_match_all('/^[A-ZÁÉÍÓÚÑ0-9\s\.\-\(\)]+$/m', $text, $matches)) {
-                foreach ($matches[0] as $match) {
-                    $cleaned = trim(preg_replace('/\s*\(.*?\)\s*/', '', $match));
-                    $upper = mb_strtoupper($cleaned);
-                    if ($upper !== '' && ! in_array($upper, ['INT', 'EXT', 'INT.', 'EXT.', 'INT/EXT', 'CORTE A', 'DISUELVE A', 'FADE IN', 'FADE OUT'])) {
-                        $counts[$upper] = ($counts[$upper] ?? 0) + 1;
-                    }
-                }
-            }
-        }
-
-        return $counts;
+        return ($action ?? app(ComputeCharacterImportanceAction::class))->computeInterventions($this->project);
     }
 
     /**
@@ -574,36 +429,12 @@ class ContextBibleDrawer extends Component
      * @param  array<string, int>  $counts
      * @return array{level: string, count: int, is_auto: bool}
      */
-    public function resolveCharacterImportance(Character $character, array $counts): array
+    public function resolveCharacterImportance(Character $character, array $counts, ?ComputeCharacterImportanceAction $action = null): array
     {
-        $custom = is_array($character->custom_attributes) ? $character->custom_attributes : [];
-        $explicit = $custom['importance'] ?? null;
-        $count = $counts[mb_strtoupper(trim($character->name))] ?? 0;
-
-        if ($explicit) {
-            return [
-                'level' => $explicit,
-                'count' => $count,
-                'is_auto' => false,
-            ];
-        }
-
-        if ($count >= 10) {
-            $level = 'protagonista';
-        } elseif ($count >= 3) {
-            $level = 'secundario';
-        } else {
-            $level = 'reparto';
-        }
-
-        return [
-            'level' => $level,
-            'count' => $count,
-            'is_auto' => true,
-        ];
+        return ($action ?? app(ComputeCharacterImportanceAction::class))->resolveImportance($character, $counts);
     }
 
-    public function render()
+    public function render(?ComputeCharacterImportanceAction $action = null)
     {
         $characters = $this->project->characters()->latest()->get();
         $locations = $this->project->locations()->latest()->get();
@@ -611,7 +442,7 @@ class ContextBibleDrawer extends Component
         return view('livewire.studio.context-bible-drawer', [
             'characters' => $characters,
             'locations' => $locations,
-            'characterInterventions' => $this->computeCharacterInterventions(),
+            'characterInterventions' => $this->computeCharacterInterventions($action),
         ]);
     }
 }

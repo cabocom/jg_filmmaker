@@ -2,17 +2,23 @@
 
 namespace App\Livewire\Studio;
 
+use App\Actions\Studio\AnalyzePlotHolesAction;
+use App\Actions\Studio\ExecuteBatchPipelineAction;
+use App\Actions\Studio\ExecuteBlockPipelineAction;
+use App\Actions\Studio\ExportScriptAction;
+use App\Actions\Studio\ImportScriptAction;
+use App\Actions\Studio\JustifyPlotHoleAction;
+use App\Actions\Studio\ManageScriptStructureAction;
+use App\Actions\Studio\ManageStoryboardAction;
+use App\Actions\Studio\ManageTakeAction;
 use App\Exceptions\QuotaExceededException;
 use App\Models\AgentRequestLog;
-use App\Models\Character;
-use App\Models\Location;
 use App\Models\Project;
 use App\Models\Scene;
 use App\Models\ScriptBlock;
 use App\Models\Shot;
 use App\Models\Take;
 use App\Models\UserActivityLog;
-use App\Services\AgentTelemetryService;
 use App\Services\JgAgente\AgentClientService;
 use App\Services\ScriptExportService;
 use App\Services\ScriptImportService;
@@ -21,10 +27,6 @@ use App\Services\StoryboardService;
 use App\Services\TextToSpeechService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Process;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
@@ -686,63 +688,19 @@ class ScriptEditor extends Component
         session()->flash('success', "Bloque #{$newBlock->block_order} creado e insertado en la escena.");
     }
 
-    public function reorderBlock(string $draggedBlockId, int $targetOrder, ?string $sceneId = null): void
+    public function reorderBlock(string $draggedBlockId, int $targetOrder, ?string $sceneId = null, ?ManageScriptStructureAction $action = null): void
     {
         $sceneTargetId = $sceneId ?: $this->activeSceneId;
         if (! $sceneTargetId) {
             return;
         }
 
-        // Validar que la escena destino pertenezca a este proyecto
-        $targetScene = $this->projectScene($sceneTargetId);
-
-        DB::transaction(function () use ($draggedBlockId, $targetOrder, $targetScene) {
-            // Validar que el bloque arrastrado pertenezca estrictamente a este proyecto
-            $dragged = $this->projectBlock($draggedBlockId);
-            $originSceneId = $dragged->scene_id;
-
-            if ($originSceneId !== $targetScene->id) {
-                // Reasignar bloque a la nueva escena
-                $dragged->update(['scene_id' => $targetScene->id]);
-
-                // Reasignar planos vinculados al bloque para preservar integridad referencial
-                Shot::where('script_block_id', $dragged->id)->update(['scene_id' => $targetScene->id]);
-
-                // Reindexar la escena de origen
-                $originBlocks = ScriptBlock::where('scene_id', $originSceneId)
-                    ->where('id', '!=', $dragged->id)
-                    ->orderBy('block_order')
-                    ->get();
-
-                foreach ($originBlocks as $idx => $b) {
-                    $order = $idx + 1;
-                    if ($b->block_order !== $order) {
-                        $b->update(['block_order' => $order]);
-                    }
-                }
-
-                $dragged->refresh();
-            }
-
-            $blocks = ScriptBlock::where('scene_id', $targetScene->id)
-                ->orderBy('block_order')
-                ->get();
-
-            $remaining = $blocks->reject(fn ($b) => $b->id === $draggedBlockId)->values();
-            $targetIndex = max(0, min($targetOrder - 1, $remaining->count()));
-
-            $newBlocks = $remaining->slice(0, $targetIndex)
-                ->concat([$dragged])
-                ->concat($remaining->slice($targetIndex))
-                ->values();
-
-            foreach ($newBlocks as $idx => $block) {
-                $order = $idx + 1;
-                if ($block->block_order !== $order) {
-                    $block->update(['block_order' => $order]);
-                }
-            }
-        });
+        $targetScene = ($action ?? app(ManageScriptStructureAction::class))->reorderBlock(
+            $this->project,
+            $draggedBlockId,
+            $targetOrder,
+            $sceneTargetId
+        );
 
         $this->logActivity('reorder_block', 'ScriptBlock', $draggedBlockId, "Bloque reordenado en escena a posición #{$targetOrder}", [
             'block_id' => $draggedBlockId,
@@ -772,30 +730,9 @@ class ScriptEditor extends Component
         $this->showNewSceneModal = true;
     }
 
-    public function reorderScene(string $draggedSceneId, int $targetOrder): void
+    public function reorderScene(string $draggedSceneId, int $targetOrder, ?ManageScriptStructureAction $action = null): void
     {
-        DB::transaction(function () use ($draggedSceneId, $targetOrder) {
-            $scenes = $this->project->scenes()->orderBy('scene_order')->get();
-            $dragged = $scenes->firstWhere('id', $draggedSceneId);
-            if (! $dragged) {
-                return;
-            }
-
-            $remaining = $scenes->reject(fn ($s) => $s->id === $draggedSceneId)->values();
-            $targetIndex = max(0, min($targetOrder - 1, $remaining->count()));
-
-            $newScenes = $remaining->slice(0, $targetIndex)
-                ->concat([$dragged])
-                ->concat($remaining->slice($targetIndex))
-                ->values();
-
-            foreach ($newScenes as $idx => $sc) {
-                $order = $idx + 1;
-                if ($sc->scene_order !== $order) {
-                    $sc->update(['scene_order' => $order]);
-                }
-            }
-        });
+        ($action ?? app(ManageScriptStructureAction::class))->reorderScene($this->project, $draggedSceneId, $targetOrder);
 
         $this->logActivity('reorder_scene', 'Scene', $draggedSceneId, "Escena reordenada a posición #{$targetOrder}", [
             'scene_id' => $draggedSceneId,
@@ -805,43 +742,18 @@ class ScriptEditor extends Component
         session()->flash('success', 'Escena reordenada correctamente.');
     }
 
-    public function createScene(): void
+    public function createScene(?ManageScriptStructureAction $action = null): void
     {
         $this->validate([
             'newSceneSlugline' => 'required|min:3|max:120',
             'newSceneTimeOfDay' => 'required',
         ]);
 
-        $scene = DB::transaction(function () {
-            Project::whereKey($this->project->id)->lockForUpdate()->first();
-
-            if ($this->insertSceneAfterOrder !== null) {
-                $this->project->scenes()
-                    ->where('scene_order', '>', $this->insertSceneAfterOrder)
-                    ->increment('scene_order');
-                $newOrder = $this->insertSceneAfterOrder + 1;
-            } else {
-                $maxOrder = $this->project->scenes()->max('scene_order') ?? 0;
-                $newOrder = $maxOrder + 1;
-            }
-
-            $newScene = $this->project->scenes()->create([
-                'scene_order' => $newOrder,
-                'slugline' => strtoupper(trim($this->newSceneSlugline)),
-                'time_of_day' => strtoupper(trim($this->newSceneTimeOfDay)),
-                'location_id' => $this->newSceneLocationId ?: null,
-            ]);
-
-            // Crear bloque inicial vacío en la escena
-            $newScene->scriptBlocks()->create([
-                'block_order' => 1,
-                'raw_text' => 'Escribe aquí la acción o idea en bruto...',
-                'stage' => 'raw',
-                'user_locks' => [],
-            ]);
-
-            return $newScene;
-        });
+        $scene = ($action ?? app(ManageScriptStructureAction::class))->createScene($this->project, [
+            'slugline' => $this->newSceneSlugline,
+            'time_of_day' => $this->newSceneTimeOfDay,
+            'location_id' => $this->newSceneLocationId,
+        ], $this->insertSceneAfterOrder);
 
         if (! in_array($scene->id, $this->expandedSceneIds, true)) {
             $this->expandedSceneIds[] = $scene->id;
@@ -892,7 +804,7 @@ class ScriptEditor extends Component
     /**
      * Actualiza el encabezado canónico, momento del día y localización de la escena.
      */
-    public function updateScene(): void
+    public function updateScene(?ManageScriptStructureAction $action = null): void
     {
         if (! $this->editingSceneId) {
             return;
@@ -904,10 +816,10 @@ class ScriptEditor extends Component
         ]);
 
         $scene = $this->projectScene($this->editingSceneId);
-        $scene->update([
-            'slugline' => strtoupper(trim($this->editingSceneSlugline)),
-            'time_of_day' => strtoupper(trim($this->editingSceneTimeOfDay)),
-            'location_id' => $this->editingSceneLocationId ?: null,
+        ($action ?? app(ManageScriptStructureAction::class))->updateScene($scene, [
+            'slugline' => $this->editingSceneSlugline,
+            'time_of_day' => $this->editingSceneTimeOfDay,
+            'location_id' => $this->editingSceneLocationId,
         ]);
 
         // Sincronizar localizaciones del proyecto y notificar a la Biblia
@@ -952,7 +864,7 @@ class ScriptEditor extends Component
     /**
      * Confirma la eliminación irreversible del bloque, registra la auditoría y reordena.
      */
-    public function confirmDeleteBlock(): void
+    public function confirmDeleteBlock(?ManageScriptStructureAction $action = null): void
     {
         if (! $this->deletingBlockId) {
             return;
@@ -986,16 +898,7 @@ class ScriptEditor extends Component
             $this->isEditingInDrawer = false;
         }
 
-        $block->delete();
-
-        // Reordenar secuencialmente los bloques restantes de la escena
-        $remainingBlocks = $scene->scriptBlocks()->orderBy('block_order')->get();
-        foreach ($remainingBlocks as $idx => $rem) {
-            $order = $idx + 1;
-            if ($rem->block_order !== $order) {
-                $rem->update(['block_order' => $order]);
-            }
-        }
+        ($action ?? app(ManageScriptStructureAction::class))->deleteBlock($block);
 
         $this->dispatch('bible-updated');
 
@@ -1027,18 +930,17 @@ class ScriptEditor extends Component
     /**
      * Confirma la eliminación irreversible de la escena (solo si no contiene bloques).
      */
-    public function confirmDeleteScene(): void
+    public function confirmDeleteScene(?ManageScriptStructureAction $action = null): void
     {
         if (! $this->deletingSceneId) {
             return;
         }
 
         $scene = $this->projectScene($this->deletingSceneId);
+        $res = ($action ?? app(ManageScriptStructureAction::class))->deleteScene($scene);
 
-        // Regla estricta: primero no tiene que haber ningún bloque en la escena
-        $blockCount = $scene->scriptBlocks()->count();
-        if ($blockCount > 0) {
-            session()->flash('error', "No se puede eliminar la Escena #{$scene->scene_order}: contiene {$blockCount} bloque(s). Debes eliminar primero todos sus bloques.");
+        if (! $res['success']) {
+            session()->flash('error', $res['message']);
             $this->closeDeleteSceneModal();
 
             return;
@@ -1056,17 +958,6 @@ class ScriptEditor extends Component
             $nextScene = $this->project->scenes()->where('id', '!=', $scene->id)->first();
             $this->activeSceneId = $nextScene?->id;
             $this->selectedBlockId = null;
-        }
-
-        $scene->delete();
-
-        // Reordenar secuencialmente las escenas restantes del proyecto
-        $remainingScenes = $this->project->scenes()->orderBy('scene_order')->get();
-        foreach ($remainingScenes as $idx => $sc) {
-            $order = $idx + 1;
-            if ($sc->scene_order !== $order) {
-                $sc->update(['scene_order' => $order]);
-            }
         }
 
         $this->dispatch('bible-updated');
@@ -1207,7 +1098,7 @@ class ScriptEditor extends Component
         $this->editStage = $block->stage ?? 'raw';
     }
 
-    public function saveBlock(ScriptPipelineService $pipelineService): void
+    public function saveBlock(ScriptPipelineService $pipelineService, ?ExecuteBlockPipelineAction $action = null): void
     {
         if (! $this->editingBlockId) {
             return;
@@ -1220,40 +1111,13 @@ class ScriptEditor extends Component
             'editScreenplayContent' => ['nullable', 'string', 'max:50000'],
         ]);
 
-        $blockId = $this->editingBlockId;
-        $expectedVersion = $this->editLockVersion;
-
-        $savedBlock = DB::transaction(function () use ($blockId, $expectedVersion, $pipelineService) {
-            /** @var ScriptBlock|null $fresh */
-            $fresh = ScriptBlock::whereKey($blockId)->lockForUpdate()->first();
-            if (! $fresh) {
-                return null;
-            }
-
-            // Detección de colisión concurrente (Optimistic Locking)
-            if ($expectedVersion !== null && (int) $fresh->lock_version !== (int) $expectedVersion) {
-                return false;
-            }
-
-            // Retener modificaciones manuales en user_locks si el usuario editó etapas ya procesadas
-            if (! empty($fresh->structured_text) && $this->editStructuredText !== $fresh->structured_text) {
-                $pipelineService->recordManualOverride($fresh, 'structured', $fresh->structured_text, $this->editStructuredText);
-            }
-
-            if (! empty($fresh->screenplay_content) && $this->editScreenplayContent !== $fresh->screenplay_content) {
-                $pipelineService->recordManualOverride($fresh, 'screenplay', $fresh->screenplay_content, $this->editScreenplayContent);
-            }
-
-            $fresh->update([
-                'raw_text' => $this->editRawText,
-                'structured_text' => $this->editStructuredText ?: null,
-                'screenplay_content' => $this->editScreenplayContent ?: null,
-                'stage' => $this->editStage,
-                'lock_version' => ($fresh->lock_version ?? 1) + 1,
-            ]);
-
-            return $fresh;
-        });
+        $block = $this->projectBlock($this->editingBlockId);
+        $savedBlock = ($action ?? app(ExecuteBlockPipelineAction::class))->saveBlock($block, [
+            'stage' => $this->editStage,
+            'raw_text' => $this->editRawText,
+            'structured_text' => $this->editStructuredText,
+            'screenplay_content' => $this->editScreenplayContent,
+        ], $this->editLockVersion, $pipelineService);
 
         if ($savedBlock === false) {
             session()->flash('error', 'El bloque fue modificado concurrentemente por otro proceso o por la IA. Por favor, cancela y revisa la versión actualizada antes de guardar.');
@@ -1381,47 +1245,25 @@ class ScriptEditor extends Component
         session()->flash('success', "Bloque {$block->block_order} formateado a guion literario.");
     }
 
-    public function toggleStageLock(string $blockId, string $stage): void
+    public function toggleStageLock(string $blockId, string $stage, ?ExecuteBlockPipelineAction $action = null): void
     {
         if (! in_array($stage, ['structured', 'screenplay', 'shots'], true)) {
             return;
         }
 
         $block = $this->projectBlock($blockId);
-
-        $block->mutateUserLocks(function (array $userLocks) use ($stage) {
-            $lockedFields = $userLocks['locked_fields'] ?? [];
-
-            if (in_array($stage, $lockedFields, true)) {
-                // Al desbloquear 'structured', también se retira 'screenplay' para evitar que isStageLocked siga dando true
-                if ($stage === 'structured') {
-                    $lockedFields = array_values(array_filter($lockedFields, fn ($f) => ! in_array($f, ['structured', 'screenplay'], true)));
-                    session()->flash('info', "Etapa '{$stage}' desbloqueada (🔓). Tratamiento y guion listos para regenerar desde el bruto.");
-                } else {
-                    $lockedFields = array_values(array_filter($lockedFields, fn ($f) => $f !== $stage));
-                    session()->flash('info', "Etapa '{$stage}' desbloqueada (🔓). Ahora la IA podrá regenerarla si avanzas desde el paso anterior.");
-                }
-            } else {
-                $lockedFields[] = $stage;
-                if ($stage === 'screenplay' && ! in_array('structured', $lockedFields, true)) {
-                    $lockedFields[] = 'structured';
-                }
-                session()->flash('success', "Etapa '{$stage}' protegida con candado (🔒). No se sobreescribirá ante regeneraciones.");
-            }
-
-            $userLocks['locked_fields'] = array_values(array_unique($lockedFields));
-
-            return $userLocks;
-        });
+        $res = ($action ?? app(ExecuteBlockPipelineAction::class))->toggleStageLock($block, $stage);
 
         $this->logActivity('toggle_stage_lock', 'ScriptBlock', $block->id, "Candado de etapa '{$stage}' alternado en Bloque #{$block->block_order}", [
             'block_id' => $block->id,
             'stage' => $stage,
             'locked_fields' => $block->user_locks['locked_fields'] ?? [],
         ]);
+
+        session()->flash($res['flash_type'], $res['message']);
     }
 
-    public function breakdownBlockShots(string $blockId, ScriptPipelineService $pipelineService): void
+    public function breakdownBlockShots(string $blockId, ScriptPipelineService $pipelineService, ?ExecuteBlockPipelineAction $action = null): void
     {
         $block = $this->projectBlock($blockId);
 
@@ -1432,7 +1274,7 @@ class ScriptEditor extends Component
         }
 
         try {
-            $createdShots = $pipelineService->generateShotsBreakdown($block);
+            $count = ($action ?? app(ExecuteBlockPipelineAction::class))->breakdownBlockShots($block, $pipelineService);
         } catch (QuotaExceededException $e) {
             session()->flash('error', $e->getMessage());
 
@@ -1445,7 +1287,7 @@ class ScriptEditor extends Component
             $this->detailActiveTab = 'shots';
         }
 
-        session()->flash('success', "Bloque {$block->block_order} desglosado: {$createdShots->count()} planos sincronizados.");
+        session()->flash('success', "Bloque {$block->block_order} desglosado: {$count} planos sincronizados.");
     }
 
     /**
@@ -1600,7 +1442,7 @@ class ScriptEditor extends Component
      * Ejecuta el pipeline completo de IA para todos los bloques de la escena especificada
      * (Bruto ➔ Tratamiento ➔ Guión literario ➔ Desglose de planos).
      */
-    public function runScenePipeline(string $sceneId, ScriptPipelineService $pipelineService): void
+    public function runScenePipeline(string $sceneId, ScriptPipelineService $pipelineService, ?ExecuteBlockPipelineAction $action = null): void
     {
         $scene = $this->projectScene($sceneId);
         $blocks = $scene->scriptBlocks()->orderBy('block_order')->get();
@@ -1612,7 +1454,7 @@ class ScriptEditor extends Component
         }
 
         try {
-            $result = $pipelineService->batchRunFullPipeline($blocks);
+            $result = ($action ?? app(ExecuteBlockPipelineAction::class))->runScenePipeline($scene, $pipelineService);
         } catch (QuotaExceededException $e) {
             session()->flash('error', $e->getMessage());
 
@@ -1662,32 +1504,35 @@ class ScriptEditor extends Component
         }
     }
 
-    public function setStoryboardStyle(string $style): void
+    public function setStoryboardStyle(string $style, ?ManageStoryboardAction $action = null): void
     {
-        if (! array_key_exists($style, StoryboardService::STYLES)) {
+        if (! ($action ?? app(ManageStoryboardAction::class))->updateProjectStyle($this->project, $style)) {
             return;
         }
 
         $this->storyboardStyle = $style;
-        $this->project->update(['storyboard_style' => $style]);
         $styleName = StoryboardService::STYLES[$style]['name'];
         session()->flash('success', "Estilo de Storyboard actualizado a: {$styleName}.");
     }
 
-    public function generateShotStoryboard(string $shotId, StoryboardService $storyboardService): void
+    public function generateShotStoryboard(string $shotId, StoryboardService $storyboardService, ?ManageStoryboardAction $action = null): void
     {
         $shot = $this->projectShot($shotId);
+        $result = ($action ?? app(ManageStoryboardAction::class))->generate(
+            shot: $shot,
+            style: $this->storyboardStyle,
+            prompt: $shot->storyboard_prompt ?: '',
+            characterId: null,
+            locationId: null,
+            propImages: [],
+            user: auth()->user() ?? $this->project->user,
+            storyboardService: $storyboardService
+        );
 
-        try {
-            $storyboardService->generateStoryboard($shot, $this->storyboardStyle);
-            session()->flash('success', "Viñeta de storyboard para el Shot #{$shot->shot_number} generada correctamente.");
-        } catch (\Throwable $e) {
-            Log::error("Error al generar storyboard para el shot {$shotId}: ".$e->getMessage());
-            session()->flash('error', 'No se pudo generar el storyboard: '.$e->getMessage());
-        }
+        session()->flash($result['flash_type'], $result['message']);
     }
 
-    public function openStoryboardModal(string $shotId, StoryboardService $storyboardService): void
+    public function openStoryboardModal(string $shotId, StoryboardService $storyboardService, ?ManageStoryboardAction $action = null): void
     {
         $shot = $this->projectShot($shotId);
         $this->storyboardShotId = $shotId;
@@ -1703,12 +1548,13 @@ class ScriptEditor extends Component
         $this->storyboardPromptCustomized = false;
 
         $this->storyboardModalPrompt = $shot->storyboard_prompt
-            ?: $storyboardService->buildPrompt(
+            ?: ($action ?? app(ManageStoryboardAction::class))->buildPrompt(
                 shot: $shot,
                 style: $this->storyboardModalStyle,
                 characterId: $this->storyboardCharacterId,
                 locationId: $this->storyboardLocationId,
-                propCount: 0
+                propCount: 0,
+                storyboardService: $storyboardService
             );
 
         $this->showStoryboardModal = true;
@@ -1723,19 +1569,20 @@ class ScriptEditor extends Component
         $this->storyboardModalPrompt = '';
     }
 
-    public function resetStoryboardModalPrompt(StoryboardService $storyboardService): void
+    public function resetStoryboardModalPrompt(StoryboardService $storyboardService, ?ManageStoryboardAction $action = null): void
     {
         if (! $this->storyboardShotId) {
             return;
         }
 
         $shot = $this->projectShot($this->storyboardShotId);
-        $this->storyboardModalPrompt = $storyboardService->buildPrompt(
+        $this->storyboardModalPrompt = ($action ?? app(ManageStoryboardAction::class))->buildPrompt(
             shot: $shot,
             style: $this->storyboardModalStyle,
             characterId: $this->storyboardCharacterId,
             locationId: $this->storyboardLocationId,
-            propCount: count($this->storyboardPropUploads)
+            propCount: count($this->storyboardPropUploads),
+            storyboardService: $storyboardService
         );
         $this->storyboardPromptCustomized = false;
     }
@@ -1794,7 +1641,7 @@ class ScriptEditor extends Component
         }
     }
 
-    public function confirmGenerateStoryboard(StoryboardService $storyboardService): void
+    public function confirmGenerateStoryboard(StoryboardService $storyboardService, ?ManageStoryboardAction $action = null): void
     {
         $this->validate([
             'storyboardModalPrompt' => 'required|string|min:5',
@@ -1804,35 +1651,24 @@ class ScriptEditor extends Component
             return;
         }
 
-        $user = auth()->user() ?? $this->project->user;
-        if ($user && ! $user->hasDailyTokensAvailable(350)) {
-            $available = $user->getTokensAvailableToday();
-            $limit = $user->getDailyTokenLimit();
-            session()->flash('error', "Saldo insuficiente de tokens para generar la viñeta ({$available} disponibles, ~350 requeridos de tu cupo de ".number_format($limit, 0, ',', '.').' tokens). El cupo se renovará automáticamente a las 00:00.');
-
-            return;
-        }
-
         $shot = $this->projectShot($this->storyboardShotId);
+        $result = ($action ?? app(ManageStoryboardAction::class))->generate(
+            shot: $shot,
+            style: $this->storyboardModalStyle,
+            prompt: $this->storyboardModalPrompt,
+            characterId: $this->storyboardCharacterId,
+            locationId: $this->storyboardLocationId,
+            propImages: $this->storyboardPropUploads,
+            user: auth()->user() ?? $this->project->user,
+            storyboardService: $storyboardService
+        );
 
-        try {
-            $storyboardService->generateStoryboard(
-                shot: $shot,
-                style: $this->storyboardModalStyle,
-                customPrompt: $this->storyboardModalPrompt,
-                characterId: $this->storyboardCharacterId,
-                locationId: $this->storyboardLocationId,
-                propImages: $this->storyboardPropUploads
-            );
-
+        if ($result['success']) {
             $this->project->update(['storyboard_style' => $this->storyboardModalStyle]);
             $this->closeStoryboardModal();
-
-            session()->flash('success', "Viñeta de storyboard para el Shot #{$shot->shot_number} generada correctamente con Google AI Studio.");
-        } catch (\Throwable $e) {
-            Log::error("Error al generar storyboard para el shot {$shot->id}: ".$e->getMessage());
-            session()->flash('error', 'No se pudo generar el storyboard: '.$e->getMessage());
         }
+
+        session()->flash($result['flash_type'], $result['message']);
     }
 
     public function openStoryboardPreview(string $shotId): void
@@ -2333,12 +2169,10 @@ class ScriptEditor extends Component
         $block->update(['stage' => $stage]);
     }
 
-    public function toggleGoodTake(string $takeId): void
+    public function toggleGoodTake(string $takeId, ?ManageTakeAction $action = null): void
     {
         $take = $this->projectTake($takeId);
-        $take->update([
-            'is_good_take' => ! $take->is_good_take,
-        ]);
+        ($action ?? app(ManageTakeAction::class))->toggleGoodTake($take);
     }
 
     public function addShot(): void
@@ -2384,29 +2218,14 @@ class ScriptEditor extends Component
         session()->flash('success', "Plano {$shot->shot_number} ({$shot->shot_type}) añadido.");
     }
 
-    public function saveNewTake(): void
+    public function saveNewTake(?ManageTakeAction $action = null): void
     {
         if (! $this->addingTakeShotId) {
             return;
         }
 
         $shot = $this->projectShot($this->addingTakeShotId);
-
-        DB::transaction(function () use ($shot) {
-            Shot::whereKey($shot->id)->lockForUpdate()->first();
-            $maxTakeNumber = $shot->takes()->max('take_number') ?? 0;
-
-            $shot->takes()->create([
-                'take_number' => $maxTakeNumber + 1,
-                'is_good_take' => $this->newTakeIsGood,
-                'editorial_notes' => $this->newTakeEditorialNotes ?: null,
-                'technical_meta' => [
-                    'resolution' => '3840x2160',
-                    'codec' => 'prores422hq',
-                    'fps' => 24.0,
-                ],
-            ]);
-        });
+        ($action ?? app(ManageTakeAction::class))->createTake($shot, $this->newTakeIsGood, $this->newTakeEditorialNotes);
 
         $this->reset(['addingTakeShotId', 'newTakeEditorialNotes', 'newTakeIsGood']);
         session()->flash('success', "Toma añadida al Plano {$shot->shot_number}.");
@@ -2418,7 +2237,7 @@ class ScriptEditor extends Component
         $this->videoUpload = null;
     }
 
-    public function uploadTakeVideo(): void
+    public function uploadTakeVideo(?ManageTakeAction $action = null): void
     {
         if (! $this->uploadingTakeId) {
             return;
@@ -2428,135 +2247,26 @@ class ScriptEditor extends Component
             'videoUpload' => 'required|file|mimes:mp4,mov,webm,m4v,quicktime|extensions:mp4,mov,webm,m4v|max:102400',
         ]);
 
-        $allowedMimes = [
-            'video/mp4' => 'mp4',
-            'video/quicktime' => 'mov',
-            'video/webm' => 'webm',
-            'video/x-m4v' => 'm4v',
-        ];
-
-        $mime = (string) $this->videoUpload->getMimeType();
-        if (! isset($allowedMimes[$mime])) {
-            $this->addError('videoUpload', 'Formato de vídeo o tipo MIME no permitido.');
-
-            return;
-        }
-
         $take = $this->projectTake($this->uploadingTakeId, ['shot.scene']);
 
-        // Si ya existía un archivo previo, eliminarlo físicamente de disco privado o público
-        if ($take->file_path) {
-            if (Storage::disk('local')->exists($take->file_path)) {
-                Storage::disk('local')->delete($take->file_path);
-            }
-            if (Storage::disk('public')->exists($take->file_path)) {
-                Storage::disk('public')->delete($take->file_path);
-            }
-        }
-
-        $extension = $allowedMimes[$mime];
-        $storagePath = $take->generateStoragePath($extension);
-
-        $this->videoUpload->storeAs('', $storagePath, 'local');
-
-        $absolutePath = Storage::disk('local')->path($storagePath);
-        $probedMeta = $this->probeVideoFile($absolutePath);
-
-        $take->update([
-            'file_path' => $storagePath,
-            'technical_meta' => array_merge($take->technical_meta ?? [], $probedMeta),
-        ]);
-
-        $takeNumber = $take->take_number;
-        $this->reset(['videoUpload', 'uploadingTakeId']);
-        session()->flash('success', "Vídeo de la Toma {$takeNumber} subido y analizado correctamente.");
-    }
-
-    /**
-     * Sonda metadatos técnicos reales del fichero de vídeo mediante ffprobe (ISSUE-027).
-     *
-     * @return array<string, mixed>
-     */
-    protected function probeVideoFile(string $absolutePath): array
-    {
-        $defaultMeta = [
-            'probed' => false,
-            'duration_seconds' => null,
-            'resolution' => null,
-            'fps' => null,
-            'codec' => null,
-        ];
-
-        if (! file_exists($absolutePath)) {
-            return $defaultMeta;
-        }
-
         try {
-            $process = Process::timeout(15)->run([
-                'ffprobe',
-                '-v', 'error',
-                '-print_format', 'json',
-                '-show_format',
-                '-show_streams',
-                $absolutePath,
-            ]);
+            ($action ?? app(ManageTakeAction::class))->uploadVideo($take, $this->videoUpload);
 
-            if (! $process->successful()) {
-                return $defaultMeta;
-            }
-
-            $data = json_decode($process->output(), true);
-            if (! is_array($data) || empty($data['streams'])) {
-                return $defaultMeta;
-            }
-
-            $videoStream = null;
-            foreach ($data['streams'] as $stream) {
-                if (($stream['codec_type'] ?? '') === 'video') {
-                    $videoStream = $stream;
-                    break;
-                }
-            }
-
-            if (! $videoStream) {
-                return $defaultMeta;
-            }
-
-            $duration = (float) ($videoStream['duration'] ?? $data['format']['duration'] ?? 0);
-            $width = (int) ($videoStream['width'] ?? 0);
-            $height = (int) ($videoStream['height'] ?? 0);
-            $codec = (string) ($videoStream['codec_name'] ?? '');
-
-            $fps = null;
-            $fpsRaw = (string) ($videoStream['r_frame_rate'] ?? $videoStream['avg_frame_rate'] ?? '');
-            if (! empty($fpsRaw) && str_contains($fpsRaw, '/')) {
-                [$num, $den] = explode('/', $fpsRaw, 2);
-                if ((float) $den > 0) {
-                    $fps = round((float) $num / (float) $den, 2);
-                }
-            }
-
-            return [
-                'probed' => true,
-                'duration_seconds' => $duration > 0 ? round($duration, 2) : null,
-                'resolution' => ($width > 0 && $height > 0) ? "{$width}x{$height}" : null,
-                'fps' => $fps,
-                'codec' => ! empty($codec) ? strtolower($codec) : null,
-                'pix_fmt' => (string) ($videoStream['pix_fmt'] ?? ''),
-                'bit_rate' => (int) ($videoStream['bit_rate'] ?? $data['format']['bit_rate'] ?? 0),
-            ];
-        } catch (\Throwable) {
-            return $defaultMeta;
+            $takeNumber = $take->take_number;
+            $this->reset(['videoUpload', 'uploadingTakeId']);
+            session()->flash('success', "Vídeo de la Toma {$takeNumber} subido y analizado correctamente.");
+        } catch (\Throwable $e) {
+            $this->addError('videoUpload', $e->getMessage());
         }
     }
 
-    public function deleteTake(string $takeId): void
+    public function deleteTake(string $takeId, ?ManageTakeAction $action = null): void
     {
         $take = $this->projectTake($takeId);
         $shotNumber = $take->shot?->shot_number ?? 1;
         $takeNumber = $take->take_number;
 
-        $take->delete();
+        ($action ?? app(ManageTakeAction::class))->deleteTake($take);
 
         session()->flash('success', "Toma {$takeNumber} del Plano {$shotNumber} eliminada.");
     }
@@ -2568,7 +2278,7 @@ class ScriptEditor extends Component
         $this->editingTakeNotesText = (string) ($take->editorial_notes ?? '');
     }
 
-    public function saveTakeNotes(): void
+    public function saveTakeNotes(?ManageTakeAction $action = null): void
     {
         if (! $this->editingTakeNotesId) {
             return;
@@ -2579,9 +2289,7 @@ class ScriptEditor extends Component
         ]);
 
         $take = $this->projectTake($this->editingTakeNotesId);
-        $take->update([
-            'editorial_notes' => $this->editingTakeNotesText ?: null,
-        ]);
+        ($action ?? app(ManageTakeAction::class))->saveNotes($take, $this->editingTakeNotesText);
 
         $takeNumber = $take->take_number;
         $this->reset(['editingTakeNotesId', 'editingTakeNotesText']);
@@ -2592,228 +2300,16 @@ class ScriptEditor extends Component
      * Audita y detecta agujeros de guión pasando el análisis a cada consolidado por separado (Idea, Tratamiento, Guion).
      * Si un bloque presenta inconsistencias en varias etapas, se marca como agujero el del paso más temprano.
      */
-    public function analyzePlotHoles(?AgentClientService $agentClient = null): void
+    public function analyzePlotHoles(?AgentClientService $agentClient = null, ?AnalyzePlotHolesAction $action = null): void
     {
-        $agentClient = $agentClient ?? app(AgentClientService::class);
+        $result = ($action ?? app(AnalyzePlotHolesAction::class))->execute($this->project, auth()->user(), $agentClient);
 
-        $user = auth()->user() ?? $this->project->user;
-        if ($user && ! $user->hasDailyTokensAvailable(50)) {
-            session()->flash('error', 'Has alcanzado tu cupo diario de tokens de IA ('.number_format($user->getDailyTokenLimit(), 0, ',', '.').' tokens). El cupo se renovará automáticamente a las 00:00.');
-
-            return;
+        if ($result['activity_log']) {
+            $log = $result['activity_log'];
+            $this->logActivity($log['action'], $log['entity_type'], $log['entity_id'], $log['description'], $log['details']);
         }
 
-        $scenes = $this->project->scenes()
-            ->with(['scriptBlocks' => fn ($q) => $q->orderBy('block_order')])
-            ->orderBy('scene_order')
-            ->get();
-
-        $allBlocks = $scenes->flatMap(fn ($s) => $s->scriptBlocks);
-
-        if ($allBlocks->isEmpty()) {
-            session()->flash('warning', 'No hay bloques de guión en el proyecto para auditar.');
-
-            return;
-        }
-
-        $characters = $this->project->characters()->get()->map(fn (Character $c) => $c->toAgentContext())->toArray();
-
-        $locations = $this->project->locations()->get()->map(fn (Location $l) => $l->toAgentContext())->toArray();
-
-        // Secuencia estricta de consolidados de más temprano a más tardío
-        $stagesToAudit = [
-            'raw' => 'Idea (Bruto)',
-            'structured' => 'Tratamiento',
-            'screenplay' => 'Guion',
-        ];
-
-        // Guardará el agujero detectado en el paso más temprano: block_id => ['reason' => string, 'stage' => string, 'stage_label' => string]
-        $earliestHoleByBlockId = [];
-
-        foreach ($stagesToAudit as $stage => $stageLabel) {
-            $stageBlocksData = [];
-
-            foreach ($scenes as $scene) {
-                foreach ($scene->scriptBlocks as $block) {
-                    $text = match ($stage) {
-                        'raw' => (string) ($block->raw_text ?? ''),
-                        'structured' => (string) ($block->structured_text ?? ''),
-                        'screenplay' => (string) ($block->screenplay_content ?? ''),
-                    };
-
-                    // Solo enviar a auditar bloques que tengan contenido en esta etapa
-                    if (empty(trim($text))) {
-                        continue;
-                    }
-
-                    $stageBlocksData[] = [
-                        'id' => (string) $block->id,
-                        'scene_id' => (string) $scene->id,
-                        'scene_order' => $scene->scene_order,
-                        'scene_slugline' => $scene->slugline,
-                        'block_order' => $block->block_order,
-                        'stage' => $stage,
-                        'raw_text' => (string) ($block->raw_text ?? ''),
-                        'structured_text' => (string) ($block->structured_text ?? ''),
-                        'screenplay_content' => (string) ($block->screenplay_content ?? ''),
-                        'text' => $text,
-                    ];
-                }
-            }
-
-            if (empty($stageBlocksData)) {
-                continue;
-            }
-
-            // Comprobar disponibilidad de cuota para esta fase específica
-            $stageEstimated = max(50, (int) ceil(strlen(json_encode($stageBlocksData)) / 4) + 150);
-            if ($user && ! $user->hasDailyTokensAvailable($stageEstimated)) {
-                session()->flash('warning', 'La auditoría de agujeros se detuvo: saldo de tokens diario agotado antes de completar todas las etapas.');
-                break;
-            }
-
-            $result = $agentClient->auditPlotHoles($stageBlocksData, $characters, $locations);
-
-            // Registrar telemetría de tokens consumidos en agent_request_logs
-            $telemetry = $agentClient->getLastTelemetry();
-            app(AgentTelemetryService::class)->record(
-                projectId: $this->project->id,
-                scriptBlockId: null,
-                toolName: 'plot_hole_detector',
-                inputPayload: $stageBlocksData,
-                outputPayload: $result,
-                telemetry: $telemetry,
-                userId: $user?->id
-            );
-
-            $detectedHoles = (array) ($result['detected_holes'] ?? []);
-
-            foreach ($detectedHoles as $hole) {
-                $blockId = (string) ($hole['block_id'] ?? '');
-                $reason = trim((string) ($hole['reason'] ?? ''));
-
-                if (empty($blockId) || empty($reason)) {
-                    continue;
-                }
-
-                // Si este bloque ya tiene un agujero asignado de un paso más temprano, NO sobreescribir
-                if (isset($earliestHoleByBlockId[$blockId])) {
-                    continue;
-                }
-
-                // Comprobar si el autor ya justificó este agujero
-                $targetBlock = $allBlocks->firstWhere('id', $blockId);
-                if ($targetBlock) {
-                    $justified = $targetBlock->getJustifiedPlotHoles();
-                    $isJustified = false;
-                    foreach ($justified as $j) {
-                        $jReason = trim((string) ($j['hole_reason'] ?? $j['original_reason'] ?? ''));
-                        if (! empty($jReason) && (str_contains(mb_strtolower($reason), mb_strtolower($jReason)) || str_contains(mb_strtolower($jReason), mb_strtolower($reason)))) {
-                            $isJustified = true;
-                            break;
-                        }
-                    }
-                    if ($isJustified) {
-                        continue;
-                    }
-                }
-
-                // Asignar el agujero detectado en este paso temprano
-                $earliestHoleByBlockId[$blockId] = [
-                    'reason' => $reason,
-                    'stage' => $stage,
-                    'stage_label' => $stageLabel,
-                ];
-            }
-        }
-
-        // Aplicar a cada bloque y persistir
-        $stageCounts = ['raw' => 0, 'structured' => 0, 'screenplay' => 0];
-
-        foreach ($allBlocks as $block) {
-            $holeInfo = $earliestHoleByBlockId[$block->id] ?? null;
-
-            DB::transaction(function () use ($block, $holeInfo) {
-                /** @var ScriptBlock|null $fresh */
-                $fresh = ScriptBlock::whereKey($block->id)->lockForUpdate()->first();
-                if (! $fresh) {
-                    return;
-                }
-
-                $locks = $fresh->user_locks ?? [];
-
-                if ($holeInfo !== null) {
-                    $locks['plot_hole_stage'] = $holeInfo['stage'];
-                    $fresh->update([
-                        'plot_hole' => $holeInfo['reason'],
-                        'user_locks' => $locks,
-                        'lock_version' => ($fresh->lock_version ?? 1) + 1,
-                    ]);
-                } else {
-                    unset($locks['plot_hole_stage']);
-                    $fresh->update([
-                        'plot_hole' => null,
-                        'user_locks' => $locks,
-                        'lock_version' => ($fresh->lock_version ?? 1) + 1,
-                    ]);
-                }
-            });
-
-            if ($holeInfo !== null) {
-                $stageCounts[$holeInfo['stage']]++;
-            }
-        }
-
-        $totalMarked = array_sum($stageCounts);
-
-        $detectedHolesDetailed = [];
-        foreach ($earliestHoleByBlockId as $bId => $hInfo) {
-            $b = $allBlocks->firstWhere('id', $bId);
-            $sc = $b?->scene;
-            $text = trim(($b?->raw_text ?? '').' '.($b?->structured_text ?? '').' '.($b?->screenplay_content ?? ''));
-            $detectedHolesDetailed[] = [
-                'block_id' => $bId,
-                'scene_order' => $sc?->scene_order,
-                'scene_slugline' => $sc?->slugline,
-                'block_order' => $b?->block_order,
-                'stage' => $hInfo['stage'],
-                'stage_label' => $hInfo['stage_label'],
-                'reason' => $hInfo['reason'],
-                'block_preview' => mb_substr($text, 0, 150),
-            ];
-        }
-
-        if ($totalMarked > 0) {
-            $details = [];
-            if ($stageCounts['raw'] > 0) {
-                $details[] = "{$stageCounts['raw']} en Idea";
-            }
-            if ($stageCounts['structured'] > 0) {
-                $details[] = "{$stageCounts['structured']} en Tratamiento";
-            }
-            if ($stageCounts['screenplay'] > 0) {
-                $details[] = "{$stageCounts['screenplay']} en Guion";
-            }
-            $detailsStr = implode(', ', $details);
-
-            $this->logActivity('analyze_plot_holes', 'Project', $this->project->id, "Auditoría de agujeros de guión ejecutada ({$totalMarked} detectados: {$detailsStr})", [
-                'total_detected' => $totalMarked,
-                'total_blocks_audited' => $allBlocks->count(),
-                'by_stage' => $stageCounts,
-                'detected_holes' => $detectedHolesDetailed,
-            ]);
-
-            session()->flash('warning', "Se han detectado {$totalMarked} posibles agujeros de guión ({$detailsStr}). Marcado el origen más temprano.");
-        } else {
-            $this->logActivity('analyze_plot_holes', 'Project', $this->project->id, 'Auditoría de agujeros de guión ejecutada: sin inconsistencias detectadas', [
-                'total_detected' => 0,
-                'total_blocks_audited' => $allBlocks->count(),
-                'by_stage' => $stageCounts,
-                'detected_holes' => [],
-            ]);
-
-            session()->flash('success', 'Filtro de agujeros de guión: No se han detectado incongruencias en ninguna de las etapas.');
-        }
+        session()->flash($result['flash_type'], $result['message']);
     }
 
     public function openJustifyModal(string $blockId): void
@@ -2833,7 +2329,7 @@ class ScriptEditor extends Component
         $this->justificationText = '';
     }
 
-    public function savePlotHoleJustification(): void
+    public function savePlotHoleJustification(?JustifyPlotHoleAction $action = null): void
     {
         if (! $this->justifyingBlockId || empty(trim($this->justificationText))) {
             session()->flash('error', 'Debes introducir una explicación para justificar y retirar el agujero de guión.');
@@ -2842,44 +2338,8 @@ class ScriptEditor extends Component
         }
 
         $block = $this->projectBlock($this->justifyingBlockId);
-        $reason = $this->justifyingHoleReason ?: (string) $block->plot_hole;
-        $stage = $block->getPlotHoleStage() ?? 'raw';
-        $stageLabel = $block->getPlotHoleStageLabel();
-        $justificationText = trim($this->justificationText);
-
-        $block->mutateUserLocks(function (array $userLocks, ScriptBlock $fresh) use ($reason, $stage, $stageLabel, $justificationText) {
-            $justifiedHoles = (array) ($userLocks['justified_plot_holes'] ?? []);
-
-            $justifiedHoles[] = [
-                'id' => Str::uuid()->toString(),
-                'hole_reason' => $reason,
-                'original_reason' => $reason,
-                'stage' => $stage,
-                'stage_label' => $stageLabel,
-                'justification' => $justificationText,
-                'justified_at' => now()->toIso8601String(),
-            ];
-
-            unset($userLocks['plot_hole_stage']);
-            $userLocks['justified_plot_holes'] = $justifiedHoles;
-            $fresh->plot_hole = null;
-
-            return $userLocks;
-        });
-
-        $scene = $block->scene;
-        $this->logActivity('justify_plot_hole', 'ScriptBlock', $block->id, "Agujero de guión justificado en Bloque #{$block->block_order} (Escena #{$scene?->scene_order}): \"".Str::limit($justificationText, 80).'"', [
-            'block_id' => $block->id,
-            'scene_id' => $scene?->id,
-            'scene_order' => $scene?->scene_order,
-            'scene_slugline' => $scene?->slugline,
-            'block_order' => $block->block_order,
-            'hole_reason' => $reason,
-            'stage' => $stage,
-            'stage_label' => $stageLabel,
-            'justification' => $justificationText,
-            'raw_text' => $block->raw_text,
-        ]);
+        $log = ($action ?? app(JustifyPlotHoleAction::class))->justify($block, $this->justificationText, $this->justifyingHoleReason);
+        $this->logActivity($log['action'], $log['entity_type'], $log['entity_id'], $log['description'], $log['details']);
 
         $blockOrder = $block->block_order;
         $this->closeJustifyModal();
@@ -2917,28 +2377,9 @@ class ScriptEditor extends Component
     /**
      * Limpia todas las marcas de agujeros de guión activas en los bloques del proyecto.
      */
-    public function clearPlotHoles(): void
+    public function clearPlotHoles(?AnalyzePlotHolesAction $action = null): void
     {
-        foreach ($this->project->scenes as $scene) {
-            foreach ($scene->scriptBlocks as $block) {
-                if (filled($block->plot_hole)) {
-                    DB::transaction(function () use ($block) {
-                        /** @var ScriptBlock|null $fresh */
-                        $fresh = ScriptBlock::whereKey($block->id)->lockForUpdate()->first();
-                        if ($fresh && filled($fresh->plot_hole)) {
-                            $locks = $fresh->user_locks ?? [];
-                            unset($locks['plot_hole_stage']);
-                            $fresh->update([
-                                'plot_hole' => null,
-                                'user_locks' => $locks,
-                                'lock_version' => ($fresh->lock_version ?? 1) + 1,
-                            ]);
-                        }
-                    });
-                }
-            }
-        }
-
+        ($action ?? app(AnalyzePlotHolesAction::class))->clearPlotHoles($this->project);
         $this->logActivity('clear_plot_holes', 'Project', $this->project->id, 'Todas las marcas de agujeros de guión eliminadas del proyecto');
 
         session()->flash('success', 'Todas las marcas de agujeros de guión han sido eliminadas del proyecto.');
@@ -2973,18 +2414,12 @@ class ScriptEditor extends Component
         session()->flash('success', "Título del proyecto modificado a \"{$this->projectTitle}\".");
     }
 
-    public function exportPdf(ScriptExportService $exportService): StreamedResponse
+    public function exportPdf(ScriptExportService $exportService, ?ExportScriptAction $action = null): StreamedResponse
     {
         Gate::authorize('view', $this->project);
-
         $this->logActivity('export_script_pdf', 'Project', $this->project->id, 'Exportación de guión completo a PDF');
 
-        $pdf = $exportService->generateScreenplayPdf($this->project);
-        $filename = Str::slug($this->project->title ?: 'guion').'-guion.pdf';
-
-        return response()->streamDownload(fn () => print ($pdf->output()), $filename, [
-            'Content-Type' => 'application/pdf',
-        ]);
+        return ($action ?? app(ExportScriptAction::class))->exportPdf($this->project, $exportService);
     }
 
     public function getIsAudioCompleteProperty(TextToSpeechService $tts): bool
@@ -2992,7 +2427,7 @@ class ScriptEditor extends Component
         return $tts->isProjectAudioComplete($this->project);
     }
 
-    public function exportMp3(TextToSpeechService $tts): ?BinaryFileResponse
+    public function exportMp3(TextToSpeechService $tts, ?ExportScriptAction $action = null): ?BinaryFileResponse
     {
         Gate::authorize('view', $this->project);
 
@@ -3007,12 +2442,7 @@ class ScriptEditor extends Component
 
         $this->logActivity('export_script_mp3', 'Project', $this->project->id, 'Exportación de guión completo a MP3');
 
-        $mp3Path = $tts->exportProjectToMp3($this->project);
-        $filename = Str::slug($this->project->title ?: 'guion').'-locucion-completa.mp3';
-
-        return response()->download($mp3Path, $filename, [
-            'Content-Type' => 'audio/mpeg',
-        ])->deleteFileAfterSend(true);
+        return ($action ?? app(ExportScriptAction::class))->exportMp3($this->project, $tts);
     }
 
     public function openBatchModal(): void
@@ -3031,152 +2461,36 @@ class ScriptEditor extends Component
         $this->recalculateBatchTokenEstimation();
     }
 
-    public function recalculateBatchTokenEstimation(): void
+    public function recalculateBatchTokenEstimation(?ExecuteBatchPipelineAction $action = null): void
     {
-        if ($this->batchScope === 'scene') {
-            $scene = $this->activeSceneId
-                ? $this->projectScene($this->activeSceneId)
-                : $this->project->scenes()->first();
-
-            $blocks = $scene ? $scene->scriptBlocks()->orderBy('block_order')->get() : collect();
-        } else {
-            $blocks = ScriptBlock::whereIn('scene_id', $this->project->scenes()->pluck('id'))
-                ->orderBy('scene_id')
-                ->orderBy('block_order')
-                ->get();
-        }
-
-        $this->estimatedBatchBlocks = $blocks->count();
-        $totalEst = 0;
-
-        foreach ($blocks as $block) {
-            $sourceText = trim(($block->raw_text ?? '').' '.($block->structured_text ?? '').' '.($block->screenplay_content ?? ''));
-            $len = max(50, mb_strlen($sourceText));
-            $baseCost = (int) ceil($len / 4) + 150;
-
-            switch ($this->batchStage) {
-                case 'structured':
-                    if (! $block->isStageLocked('structured') && ! empty(trim((string) $block->raw_text))) {
-                        $totalEst += $baseCost;
-                    }
-                    break;
-                case 'screenplay':
-                    if (! $block->isStageLocked('screenplay')) {
-                        $totalEst += $baseCost;
-                    }
-                    break;
-                case 'shots':
-                    if (! $block->isStageLocked('shots')) {
-                        $totalEst += $baseCost;
-                    }
-                    break;
-                case 'all':
-                default:
-                    $stageMultiplier = 0;
-                    if (! $block->isStageLocked('structured') && ! empty(trim((string) $block->raw_text))) {
-                        $stageMultiplier++;
-                    }
-                    if (! $block->isStageLocked('screenplay')) {
-                        $stageMultiplier++;
-                    }
-                    if (! $block->isStageLocked('shots')) {
-                        $stageMultiplier++;
-                    }
-                    $totalEst += max(1, $stageMultiplier) * $baseCost;
-                    break;
-            }
-        }
-
-        $this->estimatedBatchTokens = max(50, $totalEst);
+        $action ??= app(ExecuteBatchPipelineAction::class);
+        $this->estimatedBatchTokens = $action->estimateTokens($this->project, $this->batchScope, $this->batchStage, $this->activeSceneId);
+        $this->estimatedBatchBlocks = $this->project->scenes()->count();
     }
 
-    public function executeBatchProcessing(ScriptPipelineService $pipelineService): void
+    public function executeBatchProcessing(ScriptPipelineService $pipelineService, ?ExecuteBatchPipelineAction $action = null): void
     {
         $this->isBatchProcessing = true;
-        $this->recalculateBatchTokenEstimation();
+        $this->recalculateBatchTokenEstimation($action);
 
-        $user = auth()->user() ?? $this->project->user;
-        if ($user && ! $user->hasDailyTokensAvailable($this->estimatedBatchTokens)) {
-            $available = $user->getTokensAvailableToday();
-            $limit = $user->getDailyTokenLimit();
-            session()->flash('error', "Saldo insuficiente de tokens para procesar en lote ({$available} disponibles, ~{$this->estimatedBatchTokens} requeridos de tu cupo de ".number_format($limit, 0, ',', '.').' tokens). El cupo se renovará a las 00:00.');
-            $this->isBatchProcessing = false;
+        $result = ($action ?? app(ExecuteBatchPipelineAction::class))->execute(
+            $this->project,
+            $this->batchScope,
+            $this->batchStage,
+            $this->activeSceneId,
+            $this->estimatedBatchTokens,
+            auth()->user() ?? $this->project->user,
+            $pipelineService
+        );
 
-            return;
+        if ($result['activity_log']) {
+            $log = $result['activity_log'];
+            $this->logActivity($log['action'], $log['entity_type'], $log['entity_id'], $log['description'], $log['details']);
         }
 
-        if ($this->batchScope === 'scene') {
-            $scene = $this->activeSceneId
-                ? $this->projectScene($this->activeSceneId)
-                : $this->project->scenes()->first();
-
-            if (! $scene) {
-                session()->flash('error', 'No hay ninguna escena activa para procesar.');
-                $this->showBatchModal = false;
-                $this->isBatchProcessing = false;
-
-                return;
-            }
-
-            $blocks = $scene->scriptBlocks()->orderBy('block_order')->get();
-            $scopeDesc = "Escena #{$scene->scene_order} ({$scene->slugline})";
-        } else {
-            $blocks = ScriptBlock::whereIn('scene_id', $this->project->scenes()->pluck('id'))
-                ->orderBy('scene_id')
-                ->orderBy('block_order')
-                ->get();
-            $scopeDesc = 'Proyecto Completo ('.count($blocks).' bloques)';
-        }
-
-        if ($blocks->isEmpty()) {
-            session()->flash('error', "No hay bloques de texto disponibles para procesar en {$scopeDesc}.");
-            $this->showBatchModal = false;
-            $this->isBatchProcessing = false;
-
-            return;
-        }
-
-        try {
-            switch ($this->batchStage) {
-                case 'structured':
-                    $res = $pipelineService->batchStructureBlocks($blocks);
-                    $msg = "Procesamiento por lote a Tratamiento finalizado en {$scopeDesc}: {$res['processed']} procesados, {$res['skipped']} omitidos (protegidos o vacíos).";
-                    break;
-
-                case 'screenplay':
-                    $res = $pipelineService->batchFormatBlocksToScreenplay($blocks);
-                    $msg = "Procesamiento por lote a Guion Literario finalizado en {$scopeDesc}: {$res['processed']} procesados, {$res['skipped']} omitidos.";
-                    break;
-
-                case 'shots':
-                    $res = $pipelineService->batchGenerateShots($blocks);
-                    $msg = "Desglose por lote a Planos Técnicos finalizado en {$scopeDesc}: {$res['processed']} procesados, {$res['skipped']} omitidos.";
-                    break;
-
-                case 'all':
-                default:
-                    $res = $pipelineService->batchRunFullPipeline($blocks);
-                    $msg = "Pipeline Completo ejecutado en {$scopeDesc}: {$res['structured']} estructurados, {$res['screenplay']} formateados a guion, {$res['shots']} desglosados a planos.";
-                    break;
-            }
-
-            $this->logActivity('batch_pipeline_execution', 'Project', $this->project->id, $msg, [
-                'scope' => $this->batchScope,
-                'stage' => $this->batchStage,
-                'blocks_total' => count($blocks),
-            ]);
-
-            if (! empty($res['errors'])) {
-                session()->flash('error', $msg.' Se produjeron advertencias: '.implode(' | ', array_slice($res['errors'], 0, 3)));
-            } else {
-                session()->flash('success', $msg);
-            }
-        } catch (\Throwable $e) {
-            session()->flash('error', "Error en el procesamiento en lote: {$e->getMessage()}");
-        } finally {
-            $this->showBatchModal = false;
-            $this->isBatchProcessing = false;
-        }
+        session()->flash($result['flash_type'], $result['message']);
+        $this->showBatchModal = false;
+        $this->isBatchProcessing = false;
     }
 
     public function openImportModal(): void
@@ -3186,7 +2500,7 @@ class ScriptEditor extends Component
         $this->showImportModal = true;
     }
 
-    public function processImportFile(ScriptImportService $importService): void
+    public function processImportFile(ScriptImportService $importService, ?ImportScriptAction $action = null): void
     {
         $this->resetErrorBag();
         $this->validate([
@@ -3198,8 +2512,12 @@ class ScriptEditor extends Component
         ]);
 
         try {
-            $rawText = $importService->extractTextFromFile($this->importFile);
-            $parsed = $importService->parseScreenplay($rawText, $this->useAiForImport, $this->project);
+            $parsed = ($action ?? app(ImportScriptAction::class))->parseFile(
+                $this->importFile,
+                $this->useAiForImport,
+                $this->project,
+                $importService
+            );
 
             $this->parsedImportData = $parsed;
             $this->importStep = 'preview';
@@ -3208,7 +2526,7 @@ class ScriptEditor extends Component
         }
     }
 
-    public function confirmAndExecuteDestructiveImport(ScriptImportService $importService): void
+    public function confirmAndExecuteDestructiveImport(ScriptImportService $importService, ?ImportScriptAction $action = null): void
     {
         $this->resetErrorBag();
         if (! $this->confirmDestructiveImport) {
@@ -3224,7 +2542,11 @@ class ScriptEditor extends Component
         }
 
         try {
-            $importService->importIntoProject($this->project, $this->parsedImportData, true);
+            ($action ?? app(ImportScriptAction::class))->executeDestructiveImport(
+                $this->project,
+                $this->parsedImportData,
+                $importService
+            );
 
             $this->logActivity('destructive_script_import', 'Project', $this->project->id, 'Guion importado sobreescribiendo por completo el proyecto anterior', [
                 'scenes_imported' => $this->parsedImportData['scenes_count'] ?? 0,
@@ -3233,8 +2555,6 @@ class ScriptEditor extends Component
             ]);
 
             $this->reset(['showImportModal', 'importStep', 'importFile', 'parsedImportData', 'confirmDestructiveImport']);
-
-            // Recargar escenas y activar la primera escena
             $this->activeSceneId = $this->project->scenes()->first()?->id;
 
             session()->flash('success', "Guión importado con éxito. Se han configurado {$this->project->scenes()->count()} escenas y {$this->project->characters()->count()} personajes.");

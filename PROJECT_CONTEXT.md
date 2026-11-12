@@ -1,12 +1,33 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.53.0  
+**Versión del documento:** 3.54.0  
 **Fecha de consolidación:** 12 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) en progreso: Fase 1 completada. Descomposición de la clase monolítica `AgentClientService.php` (de 1.861 LOC a 227 LOC) extrayendo transporte HTTP, firma HMAC-SHA256, telemetría y clientes de dominio dedicados (`ScriptAgentClient`, `StoryboardAgentClient`, `ContinuityAgentClient`, `CharacterAgentClient`) junto a motores de fallback desacoplados. 239 tests pasando al 100% y Pint verificado.
+**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) en progreso: Fase 1 y Fase 2 completadas. Descomposición de la clase monolítica `AgentClientService.php` y extracción de 14 acciones atómicas de negocio (`app/Actions/Studio/`) desde los componentes Livewire `ScriptEditor.php` y `ContextBibleDrawer.php`. Métodos Livewire preservados como thin facades (1–3 LOC) para garantizar cero roturas de compatibilidad con vistas y tests. 239 tests pasando al 100% y Pint verificado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **REFACTOR-v2.0: Fase 2 - Descomposición de Lógica de Negocio en Acciones Atómicas (`app/Actions/Studio/`) (jg_filmmaker#33):**
+  - **Extracción de Acciones del Estudio (`app/Actions/Studio/`):**
+    - `AnalyzePlotHolesAction`: Auditoría de consistencia dramática multi-etapa (Idea/Bruto, Tratamiento, Guion) y persistencia atómica de agujeros con bloqueo concurrente.
+    - `JustifyPlotHoleAction`: Justificación de incoherencias narrativas y traslado estructurado a `justified_plot_holes`.
+    - `ExecuteBlockPipelineAction`: Guardado optimista de bloques (`lock_version`), ejecución de estructuración dramática, formateo Fountain, desglose de planos y gobernanza de candados (`user_locks`).
+    - `ExecuteBatchPipelineAction`: Orquestación y verificación de cuota para pipelines en lote por ámbito (proyecto o escena).
+    - `ManageScriptStructureAction`: Creación, actualización canónica, borrado y reordenación continua de bloques y escenas entre secuencias.
+    - `ManageStoryboardAction`: Configuración de estilo visual y generación de viñetas gráficas con IA.
+    - `ManageTakeAction`: Creación de tomas de rodaje, selección de toma buena y sondeo de metadatos técnicos de vídeo con `ffprobe`.
+    - `ExportScriptAction`: Exportación de guiones literarios a formatos PDF y Fountain.
+    - `ImportScriptAction`: Importación estructurada de guiones externos desde texto crudo.
+    - `ManageBibleCharacterAction`: Creación, actualización y persistencia de personajes de la biblia con avatares visuales.
+    - `ManageBibleLocationAction`: Creación, actualización y persistencia de localizaciones con imágenes de referencia.
+    - `ComputeCharacterImportanceAction`: Cálculo heurístico de peso narrativo (`PROTAGONISTA`, `SECUNDARIO`, `REPARTO`) según diálogos en el guion.
+    - `AuditBibleEntityUsageAction`: Auditoría de referencias activas en escenas antes de operaciones destructivas.
+    - `DeleteBibleEntityAction`: Eliminación protegida de personajes o localizaciones no utilizados en el guion.
+  - **Adelgazamiento de Componentes Livewire:**
+    - `ContextBibleDrawer.php`: Reducido a 448 LOC delegando todas las operaciones en las acciones de la Biblia.
+    - `ScriptEditor.php`: Reducido en más de 650 LOC delegando casos de uso en las acciones de estudio manteniendo thin facades públicas para compatibilidad con eventos `wire:click`.
+  - **Cumplimiento Estricto SOLID:** 100% de nuevas clases por debajo de 300 LOC y métodos por debajo de 40 LOC. Suite completa de 239 tests pasando con 1.166 aserciones.
 
 - **REFACTOR-v2.0: Fase 1 - Descomposición Estructural SOLID de `AgentClientService.php` (jg_filmmaker#33):**
   - **Reducción Monolítica:** Reducción drástica de `AgentClientService.php` de 1.861 LOC a 227 LOC, actuando como fachada 100% compatible hacia atrás para inyección de dependencias y tests.
