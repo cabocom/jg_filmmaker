@@ -1,10 +1,10 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
 **Versión del documento:** 3.55.0  
-**Fecha de consolidación:** 12 de noviembre de 2026  
+**Fecha de consolidación:** 13 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%: Fases 1, 2 y 3 cerradas con éxito. Se eliminaron todos los monolitos estructurales (>300 LOC) del proyecto: descomposición de `AgentClientService.php`, `ScriptEditor.php`, `ContextBibleDrawer.php`, `TextToSpeechService.php`, `ScriptPipelineService.php`, `StoryboardService.php`, `ScriptImportService.php` y modularización completa de plantillas Blade (`script-editor.blade.php`, `context-bible-drawer.blade.php`). El 100% de clases se encuentra por debajo de 300 LOC y métodos por debajo de 40 LOC. Suite completa de 239 tests pasando al 100% (1.166 assertions) y Pint con 0 infracciones.
+**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%: Fases 1, 2 y 3 cerradas con éxito. Se eliminaron absolutamente todos los monolitos estructurales (>300 LOC) del proyecto, tanto en clases PHP como en vistas Blade. En PHP: `ScriptEditor.php` (reducido de 2.603 a 107 LOC mediante 12 traits modulares en `app/Livewire/Studio/Concerns/` y `StudioAiTraceBuilder`), `ContextBibleDrawer.php` (reducido de 448 a 151 LOC con traits `WithBibleEntities` y `WithBibleAudits`), `Login.php` (reducido de 309 a 98 LOC vía `RequestLoginOtpAction` y `VerifyLoginOtpAction`). En Blade: modularización integral de `token-quota-modals.blade.php`, `block-detail-drawer.blade.php`, `scenes-flow.blade.php`, `characters-tab.blade.php`, `crud-modals.blade.php`, `storyboard-modals.blade.php`, `header-assets.blade.php`, `app.blade.php` y `project-list.blade.php`. El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 239 tests pasando al 100% (1.166 assertions) y Pint con 0 infracciones.
 
 ## Resumen Ejecutivo de Capacidades Recientes
 
