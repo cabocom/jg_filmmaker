@@ -2,10 +2,11 @@
 
 namespace App\Livewire\Studio;
 
+use App\Jobs\AssembleRoughCutJob;
 use App\Models\Project;
 use App\Models\Take;
-use App\Services\RoughCutAssemblyService;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
@@ -25,22 +26,75 @@ class RoughCutTimeline extends Component
 
     public ?string $renderedVideoUrl = null;
 
+    public ?string $renderStatus = null;
+
     /**
      * @var Collection<int, Take>|null
      */
     protected ?Collection $memoizedGoodTakes = null;
 
-    public function assembleRoughCut(RoughCutAssemblyService $assemblyService): void
+    /**
+     * Despacha el ensamblaje asíncrono con FFmpeg en segundo plano.
+     */
+    public function assembleRoughCut(): void
     {
         Gate::authorize('view', $this->project);
 
-        try {
-            $result = $assemblyService->assemble($this->project, $this->filterSceneId);
-            $this->renderedVideoUrl = $result['video_url'];
+        $goodTakes = $this->getGoodTakes();
+        if ($goodTakes->isEmpty()) {
+            session()->flash('error', 'No hay tomas aprobadas (is_good_take = true) disponibles para ensamblar el pre-corte.');
 
-            session()->flash('success', "Pre-corte ensamblado con éxito ({$result['total_takes']} tomas, {$result['total_duration_seconds']}s).");
-        } catch (\RuntimeException $e) {
-            session()->flash('error', $e->getMessage());
+            return;
+        }
+
+        $cacheKey = "project_render_status_{$this->project->id}";
+        $current = Cache::get($cacheKey);
+        if (is_array($current) && ($current['status'] ?? '') === 'rendering') {
+            $this->renderStatus = 'rendering';
+            session()->flash('info', 'El ensamblaje con FFmpeg ya se encuentra en ejecución en segundo plano.');
+
+            return;
+        }
+
+        AssembleRoughCutJob::dispatch($this->project, $this->filterSceneId);
+
+        $this->syncRenderStatus();
+
+        if ($this->renderStatus === 'rendering') {
+            session()->flash('info', 'Ensamblaje multimedia iniciado en segundo plano. Te notificaremos en cuanto finalice.');
+        }
+    }
+
+    /**
+     * Comprueba y sincroniza el estado del renderizado mediante sondeo reactivo.
+     */
+    public function checkRenderStatus(): void
+    {
+        $this->syncRenderStatus();
+    }
+
+    protected function syncRenderStatus(): void
+    {
+        $cacheKey = "project_render_status_{$this->project->id}";
+        $data = Cache::get($cacheKey);
+
+        if (! is_array($data)) {
+            $this->renderStatus = null;
+
+            return;
+        }
+
+        $this->renderStatus = $data['status'] ?? null;
+
+        if ($this->renderStatus === 'ready') {
+            $this->renderedVideoUrl = $data['video_url'] ?? null;
+            if (! session()->has('success') && ! empty($data['video_url'])) {
+                session()->flash('success', "Pre-corte ensamblado con éxito ({$data['total_takes']} tomas, {$data['total_duration_seconds']}s).");
+            }
+        } elseif ($this->renderStatus === 'failed') {
+            if (! session()->has('error')) {
+                session()->flash('error', $data['error'] ?? 'Error desconocido al ensamblar el pre-corte.');
+            }
         }
     }
 
@@ -50,6 +104,8 @@ class RoughCutTimeline extends Component
 
         $this->project = $project;
         $this->filterSceneId = $activeSceneId;
+
+        $this->syncRenderStatus();
 
         $firstGoodTake = $this->getGoodTakes()->first();
         if ($firstGoodTake) {

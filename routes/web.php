@@ -44,6 +44,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/projects/{project}/export-mp3', [AudioStreamController::class, 'exportMp3'])
         ->middleware('can:view,project')
         ->name('projects.export-mp3');
+    Route::post('/projects/{project}/export-mp3/dispatch', [AudioStreamController::class, 'dispatchExportMp3'])
+        ->middleware('can:view,project')
+        ->name('projects.export-mp3.dispatch');
+    Route::get('/projects/{project}/export-mp3/status', [AudioStreamController::class, 'exportMp3Status'])
+        ->middleware('can:view,project')
+        ->name('projects.export-mp3.status');
 
     // Síntesis de voz (TTS) y streaming de audio para lectura dramática
     Route::get('/projects/{project}/tts/manifest', [AudioStreamController::class, 'manifest'])

@@ -2,16 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Studio\ExportScriptAction;
+use App\Jobs\ExportProjectMp3Job;
 use App\Jobs\PrewarmScopeTtsJob;
 use App\Models\Project;
 use App\Models\ScriptBlock;
 use App\Services\TextToSpeechService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
-use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class AudioStreamController extends Controller
@@ -149,7 +151,7 @@ class AudioStreamController extends Controller
     /**
      * Exporta y descarga la locución completa del proyecto en un único archivo MP3 concatenado.
      */
-    public function exportMp3(Project $project, TextToSpeechService $tts): BinaryFileResponse|JsonResponse
+    public function exportMp3(Project $project, TextToSpeechService $tts, ?ExportScriptAction $action = null): BinaryFileResponse|JsonResponse
     {
         Gate::authorize('view', $project);
 
@@ -161,17 +163,55 @@ class AudioStreamController extends Controller
         }
 
         try {
-            $mp3Path = $tts->exportProjectToMp3($project);
-            $filename = Str::slug($project->title ?: 'guion').'-locucion-completa.mp3';
-
-            return response()->download($mp3Path, $filename, [
-                'Content-Type' => 'audio/mpeg',
-            ])->deleteFileAfterSend(true);
+            return ($action ?? app(ExportScriptAction::class))->exportMp3($project, $tts);
         } catch (\Throwable $e) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Error al exportar audio MP3: '.$e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Despacha la exportación de audio MP3 en segundo plano a la cola 'media'.
+     */
+    public function dispatchExportMp3(Project $project, TextToSpeechService $tts): JsonResponse
+    {
+        Gate::authorize('view', $project);
+
+        if (! $tts->isProjectAudioComplete($project)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No puede descargarse porque faltan audios por generar, primero tienes que escucharlo.',
+            ], 400);
+        }
+
+        $cacheKey = "project_mp3_status_{$project->id}";
+        $current = Cache::get($cacheKey);
+        if (is_array($current) && ($current['status'] ?? '') === 'processing') {
+            return response()->json([
+                'status' => 'processing',
+                'message' => 'La exportación MP3 ya se encuentra en proceso.',
+            ]);
+        }
+
+        ExportProjectMp3Job::dispatch($project);
+
+        return response()->json([
+            'status' => 'processing',
+            'message' => 'Exportación MP3 iniciada en segundo plano.',
+        ]);
+    }
+
+    /**
+     * Consulta el estado de la tarea de exportación MP3 en segundo plano.
+     */
+    public function exportMp3Status(Project $project): JsonResponse
+    {
+        Gate::authorize('view', $project);
+
+        $data = Cache::get("project_mp3_status_{$project->id}");
+
+        return response()->json($data ?: ['status' => 'idle']);
     }
 }

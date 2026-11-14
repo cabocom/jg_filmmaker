@@ -46,17 +46,42 @@
             <!-- Botón Renderizar Pre-corte (FFmpeg) -->
             <button wire:click="assembleRoughCut"
                     wire:loading.attr="disabled"
+                    @if($renderStatus === 'rendering') disabled @endif
                     type="button"
                     class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-md shadow-indigo-600/20 disabled:opacity-50">
-                <span wire:loading.remove wire:target="assembleRoughCut">🎬</span>
-                <svg wire:loading wire:target="assembleRoughCut" class="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                </svg>
-                <span>Renderizar Pre-corte (FFmpeg)</span>
+                @if($renderStatus === 'rendering')
+                    <svg class="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>
+                    <span>Ensamblando en segundo plano...</span>
+                @else
+                    <span wire:loading.remove wire:target="assembleRoughCut">🎬</span>
+                    <svg wire:loading wire:target="assembleRoughCut" class="animate-spin h-3.5 w-3.5 text-white" viewBox="0 0 24 24" fill="none">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>
+                    <span>Renderizar Pre-corte (FFmpeg)</span>
+                @endif
             </button>
         </div>
     </div>
+
+    <!-- Banner de Sondeo Reactivo cuando el Ensamblaje está en Curso -->
+    @if($renderStatus === 'rendering')
+        <div wire:poll.3s="checkRenderStatus" class="p-3.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 dark:bg-blue-950/40 dark:border-blue-500/30 dark:text-blue-300 text-xs flex items-center justify-between animate-pulse">
+            <div class="flex items-center gap-2">
+                <svg class="animate-spin h-4 w-4 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24" fill="none">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                <span>Ensamblaje de pre-corte en proceso con FFmpeg en segundo plano... (comprobando automáticamente)</span>
+            </div>
+            <button wire:click="checkRenderStatus" type="button" class="underline text-xs font-semibold hover:text-blue-900">
+                Verificar estado
+            </button>
+        </div>
+    @endif
 
     <!-- Mensajes Flash y Enlace de Vídeo Ensamblado -->
     @if(session()->has('success'))

@@ -65,3 +65,18 @@ En [`jg_filmmaker/app/Services/TextToSpeechService.php`](file:///Users/javiergal
 ## 4. Solución o Mejora Recomendada
 Desacoplar el ensamblaje de vídeo (`AssembleRoughCutJob`) y la exportación de audiolibro MP3 (`ExportProjectMp3Job`) hacia una cola dedicada (`--queue=media,default`) procesada por el worker de Supervisord con un límite de concurrencia controlado (`Cache::lock("ffmpeg_render_{$project->id}", 360)`), notificando el estado (`rendering` -> `ready` / `failed`) a la interfaz Livewire mediante `wire:poll.3s` cuando el render está en curso.
 
+## 5. Resolución Aplicada (2026-11-14)
+- **Desacoplamiento Asíncrono de Ensamblaje de Vídeo (`AssembleRoughCutJob`):**
+  - Creado `app/Jobs/AssembleRoughCutJob.php` implementando `ShouldQueue` asignado a la cola `--queue=media`.
+  - Control de concurrencia atómico con `Cache::lock("ffmpeg_render_{$project->id}", 360)` para impedir saturación de CPU con ejecuciones duplicadas de FFmpeg.
+  - Almacena el ciclo de vida en caché (`project_render_status_{$project->id}`: `rendering` -> `ready` / `failed`).
+  - Actualizado `RoughCutTimeline.php` y `rough-cut-timeline.blade.php`: despacha el Job y activa sondeo reactivo con `wire:poll.3s="checkRenderStatus"`, mostrando spinner de progreso en segundo plano y deshabilitando el botón mientras se procesa.
+- **Desacoplamiento y Reutilización de Exportación MP3 (`ExportProjectMp3Job`):**
+  - Creado `app/Jobs/ExportProjectMp3Job.php` implementando `ShouldQueue` en la cola `--queue=media`.
+  - Adquiere exclusión mutua mediante `Cache::lock("ffmpeg_mp3_{$project->id}", 360)` y persiste el archivo concatenado en `Storage::disk('local')` bajo `media/projects/{id}/audio/screenplay_locucion.mp3`.
+  - Actualizado `ExportScriptAction.php`: si el MP3 ya fue pre-generado, lo sirve de inmediato sin invocar FFmpeg; si no existe, adquiere el lock atómico antes de procesar para evitar carreras concurrentes.
+  - Actualizado `AudioStreamController.php`: endpoints `POST /projects/{project}/export-mp3/dispatch` y `GET /projects/{project}/export-mp3/status` para ejecución y consulta desacoplada.
+- **Validación:**
+  - Creada suite `tests/Feature/AsyncMediaJobsAndLockingTest.php` con 5 tests verificando el encolado en `media`, los locks atómicos, la detección reactiva de polling y la exportación MP3.
+  - Suite de `jg_filmmaker` ampliada a 259 tests pasando al 100% y Pint limpio.
+
