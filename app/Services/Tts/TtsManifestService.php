@@ -23,14 +23,18 @@ class TtsManifestService
         protected string $cacheDir
     ) {}
 
-    public function buildManifestForScope(Project $project, ?string $sceneId = null, ?string $blockId = null): array
-    {
+    public function buildManifestForScope(
+        Project $project,
+        ?string $sceneId = null,
+        ?string $blockId = null,
+        bool $persistBibleChanges = false
+    ): array {
         $characters = $project->characters()->get();
 
         if ($blockId) {
             $block = ScriptBlock::where('id', $blockId)->whereHas('scene', fn ($q) => $q->where('project_id', $project->id))->firstOrFail();
 
-            return $this->buildSegmentsManifest($project, $block->scene_id, $block->id, $this->segmenter->parseBlockToSegments($block, $characters, $project));
+            return $this->buildSegmentsManifest($project, $block->scene_id, $block->id, $this->segmenter->parseBlockToSegments($block, $characters, $project, $persistBibleChanges));
         }
 
         $scenesQuery = $project->scenes()->orderBy('scene_order');
@@ -44,7 +48,7 @@ class TtsManifestService
 
         foreach ($scenes as $scene) {
             foreach ($scene->scriptBlocks as $block) {
-                $segments = $this->segmenter->parseBlockToSegments($block, $characters, $project);
+                $segments = $this->segmenter->parseBlockToSegments($block, $characters, $project, $persistBibleChanges);
                 $manifest = array_merge($manifest, $this->buildSegmentsManifest($project, $scene->id, $block->id, $segments));
             }
         }

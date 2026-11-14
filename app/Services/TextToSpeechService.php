@@ -195,14 +195,22 @@ class TextToSpeechService
         return $this->segmenter->expandScreenplayAbbreviations($text);
     }
 
-    public function parseBlockToSegments(ScriptBlock $block, Collection|array $characters = [], ?Project $project = null): array
-    {
-        return $this->segmenter->parseBlockToSegments($block, $characters, $project);
+    public function parseBlockToSegments(
+        ScriptBlock $block,
+        Collection|array $characters = [],
+        ?Project $project = null,
+        bool $persistBibleChanges = false
+    ): array {
+        return $this->segmenter->parseBlockToSegments($block, $characters, $project, $persistBibleChanges);
     }
 
-    public function buildManifestForScope(Project $project, ?string $sceneId = null, ?string $blockId = null): array
-    {
-        return $this->manifestService->buildManifestForScope($project, $sceneId, $blockId);
+    public function buildManifestForScope(
+        Project $project,
+        ?string $sceneId = null,
+        ?string $blockId = null,
+        bool $persistBibleChanges = false
+    ): array {
+        return $this->manifestService->buildManifestForScope($project, $sceneId, $blockId, $persistBibleChanges);
     }
 
     public function getCachedAudioPath(string $text, ?string $voice = null, float $speed = 1.0): string
@@ -235,9 +243,13 @@ class TextToSpeechService
         return $this->manifestService->prewarmManifest($manifest, $speed, $onProgress, $project);
     }
 
-    protected function parseScreenplayText(string $text, array &$voiceMap, ?Project $project = null): array
-    {
-        return $this->segmenter->parseScreenplayText($text, $voiceMap, $project);
+    protected function parseScreenplayText(
+        string $text,
+        array &$voiceMap,
+        ?Project $project = null,
+        bool $persistBibleChanges = false
+    ): array {
+        return $this->segmenter->parseScreenplayText($text, $voiceMap, $project, $persistBibleChanges);
     }
 
     protected function isCharacterLine(string $line): bool
@@ -245,9 +257,9 @@ class TextToSpeechService
         return $this->segmenter->isCharacterLine($line);
     }
 
-    protected function buildCharacterVoiceMap(Collection|array $characters): array
+    protected function buildCharacterVoiceMap(Collection|array $characters, bool $persistBibleChanges = false): array
     {
-        return $this->segmenter->buildCharacterVoiceMap($characters);
+        return $this->segmenter->buildCharacterVoiceMap($characters, $persistBibleChanges);
     }
 
     protected function resolveFallbackVoice(string $speaker): string

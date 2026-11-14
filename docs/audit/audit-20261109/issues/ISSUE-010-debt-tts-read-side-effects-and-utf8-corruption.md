@@ -44,3 +44,13 @@ En [`jg_filmmaker/app/Services/TextToSpeechService.php`](file:///Users/javiergal
 1. Añadir un flag booleano `$persistBibleChanges = false` en `parseBlockToSegments()` y `resolveSegmentVoice()` (activándolo únicamente cuando se construye el manifiesto interactivo desde el editor y nunca durante `streamAudio` ni `collectActiveCacheHashesForProject` / `tts:prune-orphans`).
 2. Reemplazar `ucwords(strtolower($cleanSpeaker))` por `mb_convert_case($cleanSpeaker, MB_CASE_TITLE, 'UTF-8')`.
 
+## 5. Implementación y Resolución (2026-11-14)
+- **Flag `$persistBibleChanges = false`:** Implementado en `CharacterVoiceMapper::buildCharacterVoiceMap()`, `CharacterVoiceMapper::persistSpeakerToBible()`, `ScreenplaySegmenter::parseBlockToSegments()`, `ScreenplaySegmenter::parseScreenplayText()`, `ScreenplaySegmenter::resolveVoiceForSpeaker()`, `TextToSpeechService::parseBlockToSegments()`, `TextToSpeechService::buildManifestForScope()` y `TtsManifestService::buildManifestForScope()`.
+- **Inmutabilidad en Operaciones de Lectura:** `GET /tts/manifest` (por defecto), `GET /tts/stream` y comandos de mantenimiento como `tts:prune-orphans --dry-run` operan en modo 100% lectura sin ejecutar `$char->saveQuietly()` ni `$project->characters()->create()`.
+- **Tratamiento UTF-8 Multibyte:**
+  - Sustituido `ucwords(strtolower(...))` por `mb_convert_case(trim($cleanSpeaker), MB_CASE_TITLE, 'UTF-8')`.
+  - Reemplazadas llamadas `strtoupper()` por `mb_strtoupper(..., 'UTF-8')` en `CharacterVoiceMapper` y `ScreenplaySegmenter`.
+  - Búsqueda insensible a mayúsculas/minúsculas compatible con caracteres acentuados en español mediante colección PHP `mb_strtoupper(...)`.
+- **Batería de Pruebas:** Creado `tests/Feature/TtsReadSideEffectsAndUtf8Test.php` verificando idempotencia en peticiones GET, ausencia de mutación en dry-run y preservación exacta de tildes en nombres como `Lucía`, `Íñigo`, `Álvaro`, `Señor Gómez` y `Óscar`.
+
+

@@ -15,7 +15,7 @@ class CharacterVoiceMapper
         protected bool $hasGoogleApiKey
     ) {}
 
-    public function buildCharacterVoiceMap(Collection|array $characters): array
+    public function buildCharacterVoiceMap(Collection|array $characters, bool $persistBibleChanges = false): array
     {
         $map = [];
         $femaleList = $this->hasGoogleApiKey ? ['Aoede', 'Kore', 'Leda'] : ['sharvard#F', 'mls_9972'];
@@ -24,7 +24,7 @@ class CharacterVoiceMapper
         $maleIdx = 0;
 
         foreach ($characters as $char) {
-            $nameKey = rtrim(strtoupper(trim((string) $char->name)), '.');
+            $nameKey = rtrim(mb_strtoupper(trim((string) $char->name), 'UTF-8'), '.');
             $customAttrs = is_array($char->custom_attributes) ? $char->custom_attributes : [];
             $assignedVoice = $customAttrs['voice_id'] ?? null;
 
@@ -38,10 +38,12 @@ class CharacterVoiceMapper
             $chosenVoice = $isFemale ? $femaleList[$femaleIdx++ % count($femaleList)] : $maleList[$maleIdx++ % count($maleList)];
             $map[$nameKey] = $chosenVoice;
 
-            $customAttrs['voice_id'] = $chosenVoice;
-            $char->custom_attributes = $customAttrs;
-            if ($char->exists) {
-                $char->saveQuietly();
+            if ($persistBibleChanges) {
+                $customAttrs['voice_id'] = $chosenVoice;
+                $char->custom_attributes = $customAttrs;
+                if ($char->exists) {
+                    $char->saveQuietly();
+                }
             }
         }
 
@@ -50,7 +52,7 @@ class CharacterVoiceMapper
 
     public function resolveFallbackVoice(string $speaker): string
     {
-        $clean = rtrim(strtoupper(trim($speaker)), '.');
+        $clean = rtrim(mb_strtoupper(trim($speaker), 'UTF-8'), '.');
         $femaleKeywords = ['MUJER', 'CHICA', 'MADRE', 'LUCÍA', 'ANA', 'EDURNE', 'MARIA', 'MARÍA', 'NEKANE', 'VOZ IA', 'IA'];
         $isFemale = collect($femaleKeywords)->contains(fn ($kw) => str_contains($clean, $kw));
 
@@ -61,10 +63,18 @@ class CharacterVoiceMapper
         return $isFemale ? 'sharvard#F' : 'sharvard#M';
     }
 
-    public function persistSpeakerToBible(Project $project, string $cleanSpeaker, string $voice): void
+    public function persistSpeakerToBible(Project $project, string $cleanSpeaker, string $voice, bool $persistBibleChanges = false): void
     {
+        if (! $persistBibleChanges) {
+            return;
+        }
+
         try {
-            $existing = $project->characters()->whereRaw('UPPER(TRIM(name)) = ?', [$cleanSpeaker])->first();
+            $upperSpeaker = mb_strtoupper(trim($cleanSpeaker), 'UTF-8');
+            $existing = $project->characters()
+                ->get()
+                ->first(fn (Character $c) => mb_strtoupper(trim((string) $c->name), 'UTF-8') === $upperSpeaker);
+
             if ($existing) {
                 $attrs = is_array($existing->custom_attributes) ? $existing->custom_attributes : [];
                 $attrs['voice_id'] = $voice;
@@ -72,7 +82,7 @@ class CharacterVoiceMapper
                 $existing->saveQuietly();
             } else {
                 $project->characters()->create([
-                    'name' => ucwords(strtolower($cleanSpeaker)),
+                    'name' => mb_convert_case(trim($cleanSpeaker), MB_CASE_TITLE, 'UTF-8'),
                     'custom_attributes' => ['voice_id' => $voice],
                 ]);
             }

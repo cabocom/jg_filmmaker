@@ -195,8 +195,8 @@ class TextToSpeechServiceTest extends TestCase
 
         $this->assertNull($edurne->fresh()->custom_attributes['voice_id'] ?? null);
 
-        // Al generar el manifiesto o parsear para locución
-        $manifest = $this->service->buildManifestForScope($project, $scene->id);
+        // Al generar el manifiesto con persistBibleChanges = true
+        $manifest = $this->service->buildManifestForScope($project, $scene->id, persistBibleChanges: true);
 
         $this->assertNotEmpty($manifest);
         // La voz de Edurne (femenina) se asignó automáticamente y se guardó en la base de datos

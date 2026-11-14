@@ -32,13 +32,17 @@ class ScreenplaySegmenter
         return trim($expanded);
     }
 
-    public function parseBlockToSegments(ScriptBlock $block, Collection|array $characters = [], ?Project $project = null): array
-    {
+    public function parseBlockToSegments(
+        ScriptBlock $block,
+        Collection|array $characters = [],
+        ?Project $project = null,
+        bool $persistBibleChanges = false
+    ): array {
         $project ??= $block->relationLoaded('scene') ? $block->scene?->project : null;
-        $characterVoiceMap = $this->voiceMapper->buildCharacterVoiceMap($characters);
+        $characterVoiceMap = $this->voiceMapper->buildCharacterVoiceMap($characters, $persistBibleChanges);
 
         if (in_array($block->stage, ['screenplay', 'shots'], true) && ! empty($block->screenplay_content)) {
-            return $this->parseScreenplayText($block->screenplay_content, $characterVoiceMap, $project);
+            return $this->parseScreenplayText($block->screenplay_content, $characterVoiceMap, $project, $persistBibleChanges);
         }
 
         $prose = ($block->stage === 'raw')
@@ -50,7 +54,7 @@ class ScreenplaySegmenter
             return [];
         }
 
-        $candidateSegments = $this->parseScreenplayText($cleanProse, $characterVoiceMap, $project);
+        $candidateSegments = $this->parseScreenplayText($cleanProse, $characterVoiceMap, $project, $persistBibleChanges);
         if (collect($candidateSegments)->contains('type', 'dialogue')) {
             return $candidateSegments;
         }
@@ -58,7 +62,7 @@ class ScreenplaySegmenter
         return [['type' => 'narrator', 'speaker' => 'NARRADOR', 'voice' => $this->defaultVoice, 'text' => $cleanProse]];
     }
 
-    public function parseScreenplayText(string $text, array &$voiceMap, ?Project $project = null): array
+    public function parseScreenplayText(string $text, array &$voiceMap, ?Project $project = null, bool $persistBibleChanges = false): array
     {
         $lines = explode("\n", str_replace(["\r\n", "\r"], "\n", trim($text)));
         $segments = [];
@@ -68,33 +72,35 @@ class ScreenplaySegmenter
         $inDialogue = false;
 
         foreach ($lines as $raw) {
-            $this->processScreenplayLine(trim($raw), $segments, $currentSpeaker, $dialogueLines, $actionLines, $inDialogue, $voiceMap, $project);
+            $this->processScreenplayLine($raw, $segments, $currentSpeaker, $dialogueLines, $actionLines, $inDialogue, $voiceMap, $project, $persistBibleChanges);
         }
 
-        $this->flushDialogue($segments, $currentSpeaker, $dialogueLines, $voiceMap, $project);
+        $this->flushDialogue($segments, $currentSpeaker, $dialogueLines, $voiceMap, $project, $persistBibleChanges);
         $this->flushAction($segments, $actionLines);
 
         return $segments;
     }
 
     protected function processScreenplayLine(
-        string $line,
+        string $rawLine,
         array &$segments,
         ?string &$currentSpeaker,
         array &$dialogueLines,
         array &$actionLines,
         bool &$inDialogue,
         array &$voiceMap,
-        ?Project $project
+        ?Project $project,
+        bool $persistBibleChanges = false
     ): void {
+        $line = trim($rawLine);
         if ($line === '') {
-            $this->handleEmptyLine($inDialogue, $segments, $currentSpeaker, $dialogueLines, $voiceMap, $project);
+            $this->handleEmptyLine($inDialogue, $segments, $currentSpeaker, $dialogueLines, $voiceMap, $project, $persistBibleChanges);
 
             return;
         }
 
         if (! $inDialogue && $this->matchInlineDialogue($line, $segments, $actionLines, $currentSpeaker, $dialogueLines)) {
-            $this->flushDialogue($segments, $currentSpeaker, $dialogueLines, $voiceMap, $project);
+            $this->flushDialogue($segments, $currentSpeaker, $dialogueLines, $voiceMap, $project, $persistBibleChanges);
 
             return;
         }
@@ -122,10 +128,11 @@ class ScreenplaySegmenter
         ?string &$currentSpeaker,
         array &$dialogueLines,
         array &$voiceMap,
-        ?Project $project
+        ?Project $project,
+        bool $persistBibleChanges = false
     ): void {
         if ($inDialogue) {
-            $this->flushDialogue($segments, $currentSpeaker, $dialogueLines, $voiceMap, $project);
+            $this->flushDialogue($segments, $currentSpeaker, $dialogueLines, $voiceMap, $project, $persistBibleChanges);
             $inDialogue = false;
         }
     }
@@ -164,8 +171,14 @@ class ScreenplaySegmenter
         }
     }
 
-    protected function flushDialogue(array &$segments, ?string &$speaker, array &$dialogueLines, array &$voiceMap, ?Project $project): void
-    {
+    protected function flushDialogue(
+        array &$segments,
+        ?string &$speaker,
+        array &$dialogueLines,
+        array &$voiceMap,
+        ?Project $project,
+        bool $persistBibleChanges = false
+    ): void {
         if ($speaker === null || empty($dialogueLines)) {
             $speaker = null;
             $dialogueLines = [];
@@ -175,8 +188,8 @@ class ScreenplaySegmenter
 
         $text = trim(implode(' ', $dialogueLines));
         if ($text !== '') {
-            $cleanSpeaker = rtrim(strtoupper(trim(preg_replace('/\s*\([^\)]+\)$/u', '', $speaker))), '.');
-            $voice = $this->resolveVoiceForSpeaker($cleanSpeaker, $voiceMap, $project);
+            $cleanSpeaker = rtrim(mb_strtoupper(trim((string) preg_replace('/\s*\([^\)]+\)$/u', '', $speaker)), 'UTF-8'), '.');
+            $voice = $this->resolveVoiceForSpeaker($cleanSpeaker, $voiceMap, $project, $persistBibleChanges);
             $segments[] = ['type' => 'dialogue', 'speaker' => $cleanSpeaker, 'voice' => $voice, 'text' => $text];
         }
 
@@ -184,8 +197,12 @@ class ScreenplaySegmenter
         $dialogueLines = [];
     }
 
-    protected function resolveVoiceForSpeaker(string $cleanSpeaker, array &$voiceMap, ?Project $project): string
-    {
+    protected function resolveVoiceForSpeaker(
+        string $cleanSpeaker,
+        array &$voiceMap,
+        ?Project $project,
+        bool $persistBibleChanges = false
+    ): string {
         if (isset($voiceMap[$cleanSpeaker])) {
             return $voiceMap[$cleanSpeaker];
         }
@@ -193,8 +210,8 @@ class ScreenplaySegmenter
         $voice = $this->voiceMapper->resolveFallbackVoice($cleanSpeaker);
         $voiceMap[$cleanSpeaker] = $voice;
 
-        if ($project && $project->exists) {
-            $this->voiceMapper->persistSpeakerToBible($project, $cleanSpeaker, $voice);
+        if ($persistBibleChanges && $project && $project->exists) {
+            $this->voiceMapper->persistSpeakerToBible($project, $cleanSpeaker, $voice, true);
         }
 
         return $voice;
@@ -224,9 +241,9 @@ class ScreenplaySegmenter
             && ! str_ends_with($withoutParenthetical, ':');
     }
 
-    public function buildCharacterVoiceMap(Collection|array $characters): array
+    public function buildCharacterVoiceMap(Collection|array $characters, bool $persistBibleChanges = false): array
     {
-        return $this->voiceMapper->buildCharacterVoiceMap($characters);
+        return $this->voiceMapper->buildCharacterVoiceMap($characters, $persistBibleChanges);
     }
 
     public function resolveFallbackVoice(string $speaker): string

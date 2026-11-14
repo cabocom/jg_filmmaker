@@ -27,8 +27,9 @@ class AudioStreamController extends Controller
 
         $sceneId = $request->query('scene_id');
         $blockId = $request->query('block_id');
+        $persistBible = $request->boolean('persist_bible', false);
 
-        $manifest = $tts->buildManifestForScope($project, $sceneId, $blockId);
+        $manifest = $tts->buildManifestForScope($project, $sceneId, $blockId, $persistBible);
 
         Log::info("[TTS Manifest] Manifiesto generado para proyecto {$project->id} (".count($manifest).' segmentos)', [
             'scene_id' => $sceneId,
@@ -101,7 +102,7 @@ class AudioStreamController extends Controller
             ->firstOrFail();
 
         $characters = $project->characters()->get();
-        $segments = $tts->parseBlockToSegments($block, $characters, $project);
+        $segments = $tts->parseBlockToSegments($block, $characters, $project, false);
 
         if (! isset($segments[$segmentIndex])) {
             abort(404, 'Segmento de audio no encontrado para el bloque especificado.');
