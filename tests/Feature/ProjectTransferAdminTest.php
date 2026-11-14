@@ -166,4 +166,27 @@ class ProjectTransferAdminTest extends TestCase
 
         $this->assertEquals($ownerB->id, $project->fresh()->user_id);
     }
+
+    public function test_user_detail_paginates_projects_and_aggregates_telemetry(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+        $owner = User::factory()->create();
+
+        // Crear 15 proyectos para forzar paginación (> 10)
+        for ($i = 1; $i <= 15; $i++) {
+            Project::create([
+                'user_id' => $owner->id,
+                'title' => "Proyecto {$i}",
+                'status' => 'draft',
+            ]);
+        }
+
+        $this->actingAs($admin);
+
+        Livewire::test(UserDetail::class, ['user' => $owner])
+            ->assertSee('Obras Cinematográficas del Autor (15)')
+            ->assertViewHas('projects', function ($projects) {
+                return $projects->total() === 15 && $projects->count() === 10;
+            });
+    }
 }

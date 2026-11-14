@@ -88,7 +88,7 @@
         <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden">
             <div class="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
                 <h3 class="text-sm font-bold font-mono text-slate-900 dark:text-white uppercase tracking-wider">
-                    Obras Cinematográficas del Autor ({{ $projects->count() }})
+                    Obras Cinematográficas del Autor ({{ $projects->total() }})
                 </h3>
             </div>
 
@@ -174,6 +174,12 @@
                     </tbody>
                 </table>
             </div>
+
+            @if($projects->hasPages())
+                <div class="p-4 border-t border-slate-200 dark:border-slate-800">
+                    {{ $projects->links() }}
+                </div>
+            @endif
         </div>
     </div>
 

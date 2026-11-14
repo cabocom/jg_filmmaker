@@ -11,11 +11,14 @@ use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
 #[Title('Auditoría de Usuario - Administración jG Filmmaker')]
 class UserDetail extends Component
 {
+    use WithPagination;
+
     public User $user;
 
     public bool $showTransferModal = false;
@@ -107,12 +110,12 @@ class UserDetail extends Component
 
     public function render()
     {
-        // Obtener proyectos del usuario solo con metadatos (Cero carga de textos de guión para privacidad estricta)
+        // Obtener proyectos del usuario solo con metadatos paginados (Cero carga de textos de guión para privacidad estricta)
         $projects = Project::where('user_id', $this->user->id)
             ->select(['id', 'user_id', 'title', 'status', 'created_at'])
             ->withCount('scenes')
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate(10);
 
         $projectIds = $projects->pluck('id')->toArray();
 

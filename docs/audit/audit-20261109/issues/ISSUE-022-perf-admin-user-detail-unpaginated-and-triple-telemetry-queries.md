@@ -60,3 +60,9 @@ Unificar las Queries 2 y 3 en una sola consulta directa sobre el índice `agent_
         $totalUserCostUsd = (float) ($userTotals->total_cost_usd ?? 0.0);
 ```
 
+## 5. Resolución y Verificación Técnica
+- **Paginación de Proyectos en `UserDetail`:** Integrado el trait `WithPagination` y paginación de 10 proyectos por página en `Project::where('user_id', ...)->paginate(10)`, agregando enlaces de navegación en `user-detail.blade.php`.
+- **Acotación de Métricas Cuantitativas por Página:** El cálculo de bloques por etapa y de telemetría de IA por proyecto se evalúa exclusivamente sobre los IDs de los proyectos de la página activa, acotando el uso de memoria y las agregaciones de base de datos a un máximo de 10 proyectos por ciclo de render.
+- **Consulta Directa e Indexada de Totales de Usuario:** Consolidación de los totales de tokens y costes mediante consulta indexada directa a `agent_request_logs.user_id`, eliminando `JOIN` redundantes y atribución errónea tras transferencias de obras.
+- **Validación Automatizada:** Suite PHPUnit con 295 tests (1.371 assertions) pasando al 100%, Pint con 0 incidencias.
+

@@ -1,12 +1,19 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.70.0  
+**Versión del documento:** 3.71.0  
 **Fecha de consolidación:** 14 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 a ISSUE-016 completados, e ISSUE-021 (Media, Preservación Forense en SecurityLogsViewer, Trait Prunable y Snapshot Histórico de Tarifas en AgentTelemetryService) resuelto. El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 294 tests pasando al 100% (1.369 assertions) y Pint con 0 infracciones.
+**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 a ISSUE-016 completados, e ISSUE-021 e ISSUE-022 (Media, Paginación de Obras y Optimización de Consultas SQL de Telemetría en UserDetail) resueltos. El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 295 tests pasando al 100% (1.371 assertions) y Pint con 0 infracciones.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **Paginación de Obras y Optimización de Consultas SQL de Telemetría (AUDIT-20261109 / ISSUE-022 / jg_filmmaker#27):**
+  - **Paginación de Obras Cinematográficas en `UserDetail`:**
+    - Incorporación de `WithPagination` con límite estricto de 10 proyectos por página y renderizado de controles en `user-detail.blade.php`.
+    - Acotación del cálculo cuantitativo de bloques y métricas de telemetría IA exclusivamente a los 10 proyectos visibles en la página actual, evitando el desbordamiento de memoria y tiempos de respuesta degradados en usuarios prolíficos.
+  - **Consolidación Directa de Totales Acumulados por Usuario:**
+    - Totalización de tokens consumidos y costes devengados mediante consulta indexada directa a `agent_request_logs.user_id`, eliminando consultas redundantes y asegurando que las transferencias de proyectos no alteren el cómputo de gasto del creador original.
 
 - **Preservación Forense de Seguridad y Snapshot Histórico de Tarifas (AUDIT-20261109 / ISSUE-021 / jg_filmmaker#26):**
   - **Preservación Forense en `SecurityLogsViewer`:**
