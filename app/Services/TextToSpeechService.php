@@ -173,6 +173,10 @@ class TextToSpeechService
                         );
                     }
 
+                    if ($project) {
+                        $this->manifestService->invalidateAudioCompleteCache($project);
+                    }
+
                     return $path;
                 } catch (\Throwable $e) {
                     Log::warning("Google AI TTS no pudo sintetizar [{$cleanText}]: {$e->getMessage()}. Intentando fallback...");
@@ -181,7 +185,12 @@ class TextToSpeechService
         }
 
         try {
-            return $this->speachesProvider->synthesize($cleanText, $activeVoice, $speed, $cachedFilePath);
+            $result = $this->speachesProvider->synthesize($cleanText, $activeVoice, $speed, $cachedFilePath);
+            if ($project) {
+                $this->manifestService->invalidateAudioCompleteCache($project);
+            }
+
+            return $result;
         } catch (\Throwable $e) {
             Log::warning("Speaches TTS no disponible o falló: {$e->getMessage()}. Generando silencio de seguridad.");
             File::put($cachedFilePath, base64_decode('UklGRjIAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA='));
@@ -231,6 +240,11 @@ class TextToSpeechService
     public function isProjectAudioComplete(Project $project, float $speed = 1.0): bool
     {
         return $this->manifestService->isProjectAudioComplete($project, $speed);
+    }
+
+    public function invalidateAudioCompleteCache(Project|string $project): void
+    {
+        $this->manifestService->invalidateAudioCompleteCache($project);
     }
 
     public function exportProjectToMp3(Project $project, float $speed = 1.0): string

@@ -9,6 +9,7 @@ use App\Models\Location;
 use App\Models\Project;
 use App\Services\AgentTelemetryService;
 use App\Services\JgAgente\AgentClientService;
+use Illuminate\Support\Facades\Cache;
 
 final readonly class AuditBibleEntityUsageAction
 {
@@ -19,48 +20,59 @@ final readonly class AuditBibleEntityUsageAction
      */
     public function auditCharacterUsages(Project $project, Character $char, ?AgentClientService $agentClient = null): array
     {
-        $charName = trim($char->name);
-        $usages = [];
-        $scenes = $project->scenes()->with('scriptBlocks')->orderBy('scene_order')->get();
-        $agentClient ??= app(AgentClientService::class);
+        $cacheKey = "project:{$project->id}:char_audit:{$char->id}";
 
-        foreach ($scenes as $scene) {
-            foreach ($scene->scriptBlocks as $block) {
-                $texts = [
-                    $block->screenplay_content ?? '',
-                    $block->structured_text ?? '',
-                    $block->raw_text ?? '',
-                ];
+        return Cache::remember($cacheKey, 30, function () use ($project, $char, $agentClient): array {
+            $charName = trim($char->name);
+            $scenes = $project->scenes()->with('scriptBlocks')->orderBy('scene_order')->get();
+            $agentClient ??= app(AgentClientService::class);
 
-                $found = false;
-                foreach ($texts as $text) {
-                    if (! empty($text) && preg_match('/\b'.preg_quote($charName, '/').'\b/iu', (string) $text)) {
-                        $found = true;
-                        break;
-                    }
-                }
+            $candidateBlocks = [];
+            $candidateSnippets = [];
+            $candidateBlockIds = [];
 
-                if ($found) {
-                    $audit = $agentClient->auditCharacterUsage($charName, $texts);
+            foreach ($scenes as $scene) {
+                foreach ($scene->scriptBlocks as $block) {
+                    $texts = [
+                        $block->screenplay_content ?? '',
+                        $block->structured_text ?? '',
+                        $block->raw_text ?? '',
+                    ];
 
-                    app(AgentTelemetryService::class)->record(
-                        projectId: $project->id,
-                        scriptBlockId: $block->id,
-                        toolName: 'audit_character_usage',
-                        inputPayload: ['character_name' => $charName, 'scene_texts' => $texts],
-                        outputPayload: $audit,
-                        telemetry: $agentClient->getLastTelemetry(),
-                        userId: $project->user_id
-                    );
-
-                    if ($audit['in_use']) {
-                        $usages[] = "ESC. {$scene->scene_order} · BLOQUE {$block->block_order}";
+                    foreach ($texts as $text) {
+                        if (! empty($text) && preg_match('/\b'.preg_quote($charName, '/').'\b/iu', (string) $text)) {
+                            $candidateBlocks[] = "ESC. {$scene->scene_order} · BLOQUE {$block->block_order}";
+                            $candidateSnippets[] = (string) $text;
+                            $candidateBlockIds[] = $block->id;
+                            break;
+                        }
                     }
                 }
             }
-        }
 
-        return array_values(array_unique($usages));
+            if (empty($candidateBlocks)) {
+                return [];
+            }
+
+            $snippetsBatch = array_slice($candidateSnippets, 0, 10);
+            $audit = $agentClient->auditCharacterUsage($charName, $snippetsBatch);
+
+            app(AgentTelemetryService::class)->record(
+                projectId: $project->id,
+                scriptBlockId: $candidateBlockIds[0] ?? null,
+                toolName: 'audit_character_usage',
+                inputPayload: ['character_name' => $charName, 'scene_texts' => $snippetsBatch],
+                outputPayload: $audit,
+                telemetry: $agentClient->getLastTelemetry(),
+                userId: $project->user_id
+            );
+
+            if (! ($audit['in_use'] ?? true)) {
+                return [];
+            }
+
+            return array_values(array_unique($candidateBlocks));
+        });
     }
 
     /**

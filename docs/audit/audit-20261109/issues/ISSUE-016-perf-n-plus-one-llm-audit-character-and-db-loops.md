@@ -52,3 +52,17 @@ Y en [`jg_filmmaker/app/Livewire/Studio/ScriptEditor.php`](file:///Users/javierg
 1. En `ContextBibleDrawer::auditCharacterUsages()`, agrupar los fragmentos candidatos en una sola llamada batch a `$agentClient->auditCharacterUsage($charName, $allCandidateSnippets)` (limitado a los primeros 10 fragmentos).
 2. Cachear el resultado de `isProjectAudioComplete($project)` durante 15-30 segundos invalidándolo al sintetizar nuevos segmentos o al modificar un `ScriptBlock`.
 3. Eliminar de `ScriptEditor.php` los métodos muertos `openImportModal()`, `processImportFile()` y `confirmAndExecuteDestructiveImport()` junto con sus propiedades públicas asociadas.
+
+## 5. Implementación y Resolución (2026-11-14)
+- **Auditoría IA en Lote Único y Caché Corta (`AuditBibleEntityUsageAction`):**
+  - Detección determinista previa con expresiones regulares. Si no hay menciones en el guion, se devuelve lista vacía con **0 llamadas a IA**.
+  - Si existen coincidencias, se agrupan los fragmentos en una única petición batch a `$agentClient->auditCharacterUsage($charName, $candidateSnippets)` (limitada a 10 fragmentos), reduciendo de $N$ llamadas secuenciales a exactamente 1.
+  - Caché de 30 segundos del resultado bajo `project:{$project->id}:char_audit:{$char->id}`, evitando que la posterior invocación en `confirmDelete()` repita la llamada a la IA.
+- **Caché Reactiva de `isProjectAudioComplete` (`TtsManifestService` y `ScriptBlock`):**
+  - Cacheo durante 20 segundos del resultado de `isProjectAudioComplete($project, $speed)` bajo clave `project:{$id}:audio_complete:{$speed}`.
+  - Invalidación reactiva instantánea mediante `TtsManifestService::invalidateAudioCompleteCache($projectId)` en los hooks `saved` y `deleted` de `ScriptBlock::booted()`, y al finalizar síntesis en `TextToSpeechService` y `prewarmManifest`.
+- **Eliminación de Métodos y Propiedades Huérfanas de Importación:**
+  - Supresión de `openImportModal()`, `processImportFile()` y `confirmAndExecuteDestructiveImport()` de `WithEditorImportExportBatch.php`.
+  - Supresión de propiedades no utilizadas (`$showImportModal`, `$importStep`, `$importFile`, `$parsedImportData`, `$confirmDestructiveImport`) en `WithEditorProperties.php`.
+- **Batería de Pruebas:** Creado `tests/Feature/AuditCharacterBatchAndTtsAudioCompleteCacheTest.php` con 5 tests verificando lote único de IA, ausencia de llamadas innecesarias, caché reactiva de audio complete y ausencia de endpoints muertos en `ScriptEditor`.
+

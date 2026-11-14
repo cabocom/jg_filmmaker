@@ -9,6 +9,7 @@ use App\Models\Scene;
 use App\Models\ScriptBlock;
 use App\Services\TextToSpeechService;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
@@ -87,19 +88,31 @@ class TtsManifestService
 
     public function isProjectAudioComplete(Project $project, float $speed = 1.0): bool
     {
-        $manifest = $this->buildManifestForScope($project);
-        if (empty($manifest)) {
-            return false;
-        }
+        $cacheKey = "project:{$project->id}:audio_complete:".number_format($speed, 2, '.', '');
 
-        foreach ($manifest as $segment) {
-            $text = trim($segment['text'] ?? '');
-            if ($text !== '' && ! $this->isAudioCached($text, $segment['voice'] ?? null, $speed)) {
+        return Cache::remember($cacheKey, 20, function () use ($project, $speed) {
+            $manifest = $this->buildManifestForScope($project, persistBibleChanges: false);
+            if (empty($manifest)) {
                 return false;
             }
-        }
 
-        return true;
+            foreach ($manifest as $segment) {
+                $text = trim($segment['text'] ?? '');
+                if ($text !== '' && ! $this->isAudioCached($text, $segment['voice'] ?? null, $speed)) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
+    }
+
+    public static function invalidateAudioCompleteCache(Project|string $project): void
+    {
+        $projectId = $project instanceof Project ? $project->id : $project;
+        foreach ([1.0, 1.25, 1.5] as $s) {
+            Cache::forget("project:{$projectId}:audio_complete:".number_format($s, 2, '.', ''));
+        }
     }
 
     public function exportProjectToMp3(Project $project, float $speed = 1.0): string
@@ -167,6 +180,11 @@ class TtsManifestService
     {
         $stats = ['total' => count($manifest), 'cached' => 0, 'synthesized' => 0, 'failed' => 0];
 
+        if (! $project && ! empty($manifest[0]['block_id'])) {
+            $firstBlock = ScriptBlock::find($manifest[0]['block_id']);
+            $project = $firstBlock?->scene?->project;
+        }
+
         foreach ($manifest as $index => $item) {
             $text = trim($item['text'] ?? '');
             if ($text === '') {
@@ -197,6 +215,10 @@ class TtsManifestService
                     $onProgress($index, $item, 'failed');
                 }
             }
+        }
+
+        if ($project && $stats['synthesized'] > 0) {
+            self::invalidateAudioCompleteCache($project);
         }
 
         return $stats;

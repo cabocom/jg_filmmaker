@@ -256,18 +256,4 @@ trait WithEditorProperties
     public string $batchStage = 'all'; // 'all', 'structured', 'screenplay', 'shots'
 
     public bool $isBatchProcessing = false;
-
-    // Subida e Importación de Guion (PDF/TXT) con aviso destructivo
-    public bool $showImportModal = false;
-
-    public string $importStep = 'upload'; // 'upload', 'preview'
-
-    public $importFile = null;
-
-    public bool $useAiForImport = false;
-
-    /** @var array<string, mixed> */
-    public array $parsedImportData = [];
-
-    public bool $confirmDestructiveImport = false;
 }

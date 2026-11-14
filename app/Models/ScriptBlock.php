@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Tts\TtsManifestService;
 use Database\Factories\ScriptBlockFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasVersion4Uuids as HasUuids;
@@ -44,6 +45,26 @@ class ScriptBlock extends Model
             'block_order' => 'integer',
             'lock_version' => 'integer',
         ];
+    }
+
+    /**
+     * Boot the model and register reactive cache invalidations.
+     */
+    protected static function booted(): void
+    {
+        static::saved(function (ScriptBlock $block): void {
+            $projectId = $block->scene?->project_id;
+            if ($projectId) {
+                TtsManifestService::invalidateAudioCompleteCache($projectId);
+            }
+        });
+
+        static::deleted(function (ScriptBlock $block): void {
+            $projectId = $block->scene?->project_id;
+            if ($projectId) {
+                TtsManifestService::invalidateAudioCompleteCache($projectId);
+            }
+        });
     }
 
     /**

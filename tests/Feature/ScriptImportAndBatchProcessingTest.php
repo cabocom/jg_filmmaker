@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Actions\Studio\ImportScriptAction;
 use App\Livewire\Projects\ProjectList;
 use App\Livewire\Studio\ScriptEditor;
 use App\Models\Project;
@@ -167,22 +168,18 @@ TXT;
 
         $file = UploadedFile::fake()->createWithContent('guion_prueba.txt', $scriptContent);
 
-        Livewire::test(ScriptEditor::class, ['project' => $this->project])
-            ->call('openImportModal')
-            ->assertSet('showImportModal', true)
-            ->assertSet('importStep', 'upload')
-            ->set('importFile', $file)
-            ->call('processImportFile', app(ScriptImportService::class))
-            ->assertSet('importStep', 'preview')
-            // Sin marcar confirmación debe dar error
-            ->set('confirmDestructiveImport', false)
-            ->call('confirmAndExecuteDestructiveImport', app(ScriptImportService::class))
-            ->assertHasErrors('confirmDestructiveImport')
-            // Con confirmación explícita
-            ->set('confirmDestructiveImport', true)
-            ->call('confirmAndExecuteDestructiveImport', app(ScriptImportService::class))
-            ->assertHasNoErrors()
-            ->assertSet('showImportModal', false);
+        // Validar que ScriptEditor ya no expone métodos huérfanos de importación destructiva
+        $this->assertFalse(method_exists(ScriptEditor::class, 'confirmAndExecuteDestructiveImport'));
+        $this->assertFalse(method_exists(ScriptEditor::class, 'openImportModal'));
+
+        // Ejecución de la acción de backend directamente
+        $importService = app(ScriptImportService::class);
+        $parsed = $importService->parseScreenplay($scriptContent);
+        app(ImportScriptAction::class)->executeDestructiveImport(
+            $this->project,
+            $parsed,
+            $importService
+        );
 
         // Verificar que la escena antigua desapareció y las nuevas están presentes
         $this->assertDatabaseMissing('scenes', ['id' => $oldScene->id]);
