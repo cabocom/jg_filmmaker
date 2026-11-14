@@ -1,12 +1,19 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.72.0  
+**Versión del documento:** 3.73.0  
 **Fecha de consolidación:** 14 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 a ISSUE-016 completados, e ISSUE-021, ISSUE-022 e ISSUE-023 (Media, Resecuenciación Correlativa de Planos por Escena y Restricción UNIQUE en Tomas) resueltos. El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 297 tests pasando al 100% (1.378 assertions) y Pint con 0 infracciones.
+**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 a ISSUE-016 completados, e ISSUE-021 a ISSUE-024 (Deuda Técnica, Puertas de Calidad CI/CD con Pint y Cobertura 85% en Plugin) resueltos. El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 297 tests pasando al 100% (1.378 assertions) y Pint con 0 infracciones.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **Puertas de Calidad CI/CD con Pint y Cobertura 85% en Plugin (AUDIT-20261109 / ISSUE-024 / jg_filmmaker#29):**
+  - **Verificación de Estilo en GitLab CI (`jg_filmmaker`):**
+    - Inclusión de `./vendor/bin/pint --test` en la etapa de tests de `.gitlab-ci.yml`, bloqueando la construcción de imágenes Docker en caso de inconsistencias de estilo o tipado estricto.
+  - **Umbral Estricto de Cobertura y Corrección de Agujeros de Guión (`jg_plugin_filmmaker`):**
+    - Configurado el flag `--cov=jg_plugin_filmmaker --cov-fail-under=85` en `.gitlab-ci.yml`.
+    - Reparación del fallo de sintaxis `KeyError` en `plot_holes.py` y ampliación de tests, alcanzando el 86.21% de cobertura de código con 73 tests pasando al 100%.
 
 - **Resecuenciación Correlativa de Planos por Escena y Restricción UNIQUE en Tomas (AUDIT-20261109 / ISSUE-023 / jg_filmmaker#28):**
   - **Resecuenciamiento Canónico de Planos por Escena (`resequenceSceneShots`):**

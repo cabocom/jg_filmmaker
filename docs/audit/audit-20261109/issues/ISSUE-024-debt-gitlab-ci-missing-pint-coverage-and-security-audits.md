@@ -50,3 +50,10 @@ En [`jg_plugin_filmmaker/.gitlab-ci.yml`](file:///Users/javiergalvez/Documents/C
    ```
 2. En `jg_plugin_filmmaker/.gitlab-ci.yml`, añadir `--cov=jg_plugin_filmmaker --cov-fail-under=85` a la ejecución de `pytest`.
 
+## 5. Resolución y Verificación Técnica
+- **Control de Estilo Automático en `jg_filmmaker/.gitlab-ci.yml`:** Integrado `./vendor/bin/pint --test` previo a la ejecución de `phpunit` en el job `test:phpunit`, bloqueando la compilación y despliegue de imágenes Docker si existen infracciones de estilo o ausencia de `declare(strict_types=1);`.
+- **Umbral de Cobertura Estricto en `jg_plugin_filmmaker/.gitlab-ci.yml`:** Configurado el flag `--cov=jg_plugin_filmmaker --cov-fail-under=85` y añadido `pytest-cov>=5.0.0` a las dependencias de desarrollo (`[project.optional-dependencies] dev`).
+- **Reparación de Escapado de Llaves JSON en `plot_holes.py`:** Corregido el bug de sintaxis `KeyError` en `PLOT_HOLE_SYSTEM_PROMPT.format(...)` al escapar las llaves del esquema JSON como `{{` y `}}`.
+- **Ampliación de Cobertura Unitaria:** Nuevas pruebas en `test_plot_holes.py`, `test_characters.py` y `test_llm_resilience_and_mock.py`, elevando la cobertura de `jg_plugin_filmmaker` del 79% al 86.21% (superando el umbral del 85% con 73 tests pasando al 100%).
+- **Validación Automatizada:** Laravel Pint con 0 incidencias, 297 tests PHPUnit pasando al 100%, Ruff check limpio y Pytest 86.21% de cobertura.
+

@@ -27,6 +27,8 @@ test:phpunit:
     - composer install --no-interaction --prefer-dist
     - php artisan key:generate
   script:
+    - echo "🎨 Verificando estándar de código con Laravel Pint..."
+    - ./vendor/bin/pint --test
     - echo "🐘 Ejecutando suite de pruebas automatizadas PHPUnit de jg_filmmaker..."
     - ./vendor/bin/phpunit
 
