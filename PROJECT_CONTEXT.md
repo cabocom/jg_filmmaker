@@ -1,12 +1,19 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.77.0  
+**Versión del documento:** 3.78.0  
 **Fecha de consolidación:** 14 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 a ISSUE-016 completados, e ISSUE-021 a ISSUE-027 e ISSUE-017 (Arquitectura, Pipeline Asíncrono de Ingesta y Transcodificación Mezzanine CFR 24fps) resueltos. El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 302 tests pasando al 100% (1.408 assertions) y Pint con 0 infracciones.
+**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 a ISSUE-016 completados, e ISSUE-021 a ISSUE-027, ISSUE-017 e ISSUE-018 (Arquitectura, Exportadores Profesionales NLE CMX 3600 EDL y Final Cut Pro XML v1.10) resueltos. El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 306 tests pasando al 100% (1.426 assertions) y Pint con 0 infracciones.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **Exportadores Profesionales NLE CMX 3600 EDL y FCPXML v1.10 (AUDIT-20261109 / ISSUE-018 / jg_filmmaker#23):**
+  - **Servicio de Exportación NLE (`NleTimelineExportService`):**
+    - Generación conforme al estándar CMX 3600 EDL (`.edl`) con conversión temporal SMPTE `HH:MM:SS:FF`, código de programa a 1 hora, nombres de clips y comentarios de escena/plano/acotaciones editoriales.
+    - Exportación Apple Final Cut Pro XML v1.10 (`.fcpxml`) con recursos `<format>`, `<asset>`, secuencia `<spine>` de clips y marcadores `<marker>` embebidos para DaVinci Resolve y Final Cut Pro.
+  - **Descargas Directas en `RoughCutTimeline`:**
+    - Incorporación de los métodos `exportCmx3600Edl()` y `exportFcpxml()` con botones dedicados en la interfaz de usuario de la mesa de montaje.
 
 - **Pipeline Asíncrono Mezzanine CFR y Ensamblado Stream Copy (AUDIT-20261109 / ISSUE-017 / jg_filmmaker#22):**
   - **Normalización Intermedia en Segundo Plano (`NormalizeTakeMediaJob`):**

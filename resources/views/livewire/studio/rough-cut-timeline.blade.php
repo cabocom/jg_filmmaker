@@ -35,13 +35,31 @@
                 </select>
             </div>
 
-            <!-- Botón Exportar Lista de Montaje -->
-            <button wire:click="exportRoughCutJson"
-                    type="button"
-                    class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-md shadow-amber-500/20">
-                <span>⬇️</span>
-                <span>Exportar EDL / JSON</span>
-            </button>
+            <!-- Botones Exportación Profesional NLE -->
+            <div class="flex items-center gap-1.5 flex-wrap">
+                <button wire:click="exportCmx3600Edl"
+                        type="button"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-sm"
+                        title="Exportar archivo CMX 3600 EDL para DaVinci Resolve, Premiere y Avid">
+                    <span>🎞️</span>
+                    <span>EDL (CMX 3600)</span>
+                </button>
+
+                <button wire:click="exportFcpxml"
+                        type="button"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 dark:text-amber-300 border border-amber-500/30 transition"
+                        title="Exportar archivo XML v1.10 para Final Cut Pro y DaVinci Resolve con marcadores">
+                    <span>🎬</span>
+                    <span>FCPXML</span>
+                </button>
+
+                <button wire:click="exportRoughCutJson"
+                        type="button"
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition"
+                        title="Exportar manifiesto técnico JSON">
+                    <span>JSON</span>
+                </button>
+            </div>
 
             <!-- Botón Renderizar Pre-corte (FFmpeg) -->
             <button wire:click="assembleRoughCut"

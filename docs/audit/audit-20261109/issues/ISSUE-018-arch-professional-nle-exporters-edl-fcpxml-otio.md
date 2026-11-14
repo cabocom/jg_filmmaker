@@ -45,3 +45,10 @@ Incorporar un servicio `NleTimelineExportService` capaz de exportar la secuencia
    ```
 2. **Final Cut Pro XML v1.10 (`.fcpxml`):** Compatible de forma nativa con **Final Cut Pro** y **DaVinci Resolve**, declarando los `<asset>` con sus rutas relativas de medios y construyendo el `<spine>` con marcadores (`<marker>`) para cada `editorial_note` y metadatos de escena/plano.
 
+## 5. Resolución y Verificación Técnica
+- **Servicio Dedicado de Exportación NLE (`NleTimelineExportService`):** Implementada la exportación profesional respetando SOLID (< 300 LOC) con soporte nativo de:
+  - **CMX 3600 EDL (`.edl`):** Conversión precisa de duraciones flotantes a código de tiempo SMPTE `HH:MM:SS:FF`, bloque de encabezado estándar (`TITLE`, `FCM: NON-DROP FRAME`), código de programa inicial a 1 hora (`01:00:00:00`), enlace al nombre del clip y comentarios con número de escena, slugline, tipo de plano y notas editoriales.
+  - **Final Cut Pro XML v1.10 (`.fcpxml`):** Estructura XML completa con formato de proyecto 1080p24, recursos `<asset>`, secuencia `<spine>` de clips con offsets de tiempo exactos y marcadores `<marker>` embebidos para cada anotación del director.
+- **Integración Reactiva en `RoughCutTimeline`:** Nuevos métodos de descarga `exportCmx3600Edl()` y `exportFcpxml()` con botones específicos en la barra superior de la mesa de montaje.
+- **Validación Automatizada:** Suite `NleTimelineExportTest` validando el cálculo SMPTE, sintaxis EDL, formato FCPXML y descarga desde el componente Livewire. 306 tests PHPUnit pasando al 100% (1.426 assertions).
+

@@ -7,6 +7,7 @@ namespace App\Livewire\Studio;
 use App\Jobs\AssembleRoughCutJob;
 use App\Models\Project;
 use App\Models\Take;
+use App\Services\Export\NleTimelineExportService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
@@ -217,6 +218,42 @@ class RoughCutTimeline extends Component
             echo json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         }, $filename, [
             'Content-Type' => 'application/json',
+        ]);
+    }
+
+    /**
+     * Exporta la secuencia al formato universal CMX 3600 EDL (.edl).
+     */
+    public function exportCmx3600Edl(?NleTimelineExportService $nleService = null): StreamedResponse
+    {
+        Gate::authorize('view', $this->project);
+
+        $service = $nleService ?? app(NleTimelineExportService::class);
+        $edlContent = $service->exportCmx3600Edl($this->project, $this->getGoodTakes());
+        $filename = 'montaje-cmx3600-'.Str::slug($this->project->title).'-'.now()->format('Ymd-His').'.edl';
+
+        return response()->streamDownload(function () use ($edlContent) {
+            echo $edlContent;
+        }, $filename, [
+            'Content-Type' => 'text/plain; charset=utf-8',
+        ]);
+    }
+
+    /**
+     * Exporta la secuencia al formato profesional Apple Final Cut Pro XML v1.10 (.fcpxml).
+     */
+    public function exportFcpxml(?NleTimelineExportService $nleService = null): StreamedResponse
+    {
+        Gate::authorize('view', $this->project);
+
+        $service = $nleService ?? app(NleTimelineExportService::class);
+        $fcpxmlContent = $service->exportFcpxml($this->project, $this->getGoodTakes());
+        $filename = 'montaje-fcpxml-'.Str::slug($this->project->title).'-'.now()->format('Ymd-His').'.fcpxml';
+
+        return response()->streamDownload(function () use ($fcpxmlContent) {
+            echo $fcpxmlContent;
+        }, $filename, [
+            'Content-Type' => 'application/xml; charset=utf-8',
         ]);
     }
 
