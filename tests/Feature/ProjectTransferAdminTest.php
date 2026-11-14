@@ -98,6 +98,41 @@ class ProjectTransferAdminTest extends TestCase
             ->assertSet('showTransferModal', false);
 
         $this->assertEquals($newOwner->id, $project->fresh()->user_id);
+
+        $this->assertDatabaseHas('admin_audit_logs', [
+            'user_id' => $admin->id,
+            'action' => 'transfer_project',
+            'target_type' => Project::class,
+            'target_id' => $project->id,
+        ]);
+    }
+
+    public function test_non_admin_cannot_open_modal_or_transfer_project_in_user_detail(): void
+    {
+        $nonAdmin = User::factory()->create(['is_admin' => false]);
+        $owner = User::factory()->create();
+        $target = User::factory()->create();
+
+        $project = Project::create([
+            'user_id' => $owner->id,
+            'title' => 'Proyecto Protegido',
+            'status' => 'draft',
+        ]);
+
+        $this->actingAs($nonAdmin);
+
+        Livewire::test(UserDetail::class, ['user' => $owner])
+            ->call('openTransferModal', $project->id)
+            ->assertForbidden();
+
+        Livewire::test(UserDetail::class, ['user' => $owner])
+            ->set('selectedProjectId', $project->id)
+            ->set('targetUserId', $target->id)
+            ->call('transferProject')
+            ->assertForbidden();
+
+        // El proyecto mantiene su propietario original
+        $this->assertSame($owner->id, $project->fresh()->user_id);
     }
 
     public function test_admin_can_transfer_project_from_project_manager_component(): void

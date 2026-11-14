@@ -67,3 +67,27 @@ Añadir `$this->authorize('admin');` al inicio de `openTransferModal()` y `trans
         ]);
 ```
 
+## 5. Resolución y Verificación (2026-11-14)
+
+### Implementación Realizada
+- **Defensa en Profundidad con Gate `admin` en `UserDetail`:**
+  - Se añadió `$this->authorize('admin');` al inicio de `openTransferModal(string $projectId)` y de `transferProject()`, blindando las acciones públicas Livewire contra llamadas no autorizadas ante degradación de sesión.
+- **Trazabilidad Forense en `AdminAuditLog`:**
+  - Se agregó la creación del registro en `AdminAuditLog` dentro de la transacción `DB::transaction()` en `UserDetail::transferProject()`, capturando:
+    - `user_id`: ID del administrador que realiza la transferencia.
+    - `action`: `'transfer_project'`.
+    - `target_type`: `Project::class`.
+    - `target_id`: ID del proyecto transferido.
+    - `details`: `project_title`, `previous_owner_id`, `new_owner_id`, `new_owner_email`.
+    - `ip_address`: Dirección IP del cliente (`request()->ip()`).
+  - La auditoría queda 100% simétrica con `ProjectManager::transferProject()`.
+
+### Verificación y Cobertura
+- **Pruebas Automatizadas:** `tests/Feature/ProjectTransferAdminTest.php` ampliado con:
+  - Verificación `assertDatabaseHas('admin_audit_logs', ...)` tras la transferencia exitosa desde `UserDetail`.
+  - `test_non_admin_cannot_open_modal_or_transfer_project_in_user_detail`: Comprueba que usuarios sin rol administrador (`is_admin = false`) reciben un `403 Forbidden` al invocar `openTransferModal` o `transferProject` en Livewire, y que la titularidad del proyecto se mantiene intacta.
+- **Validaciones CI/CD:**
+  - Pint: 0 infracciones.
+  - PHPUnit: 275 tests pasados al 100% (1.302 assertions).
+
+

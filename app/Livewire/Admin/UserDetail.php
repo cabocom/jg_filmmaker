@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Models\AdminAuditLog;
 use App\Models\Project;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +31,8 @@ class UserDetail extends Component
 
     public function openTransferModal(string $projectId): void
     {
+        $this->authorize('admin');
+
         $project = Project::where('id', $projectId)
             ->where('user_id', $this->user->id)
             ->firstOrFail();
@@ -52,6 +55,8 @@ class UserDetail extends Component
 
     public function transferProject(): void
     {
+        $this->authorize('admin');
+
         $this->validate([
             'selectedProjectId' => 'required|exists:projects,id',
             'targetUserId' => 'required|exists:users,id',
@@ -67,11 +72,26 @@ class UserDetail extends Component
             ->where('user_id', $this->user->id)
             ->firstOrFail();
 
+        $previousOwnerId = $project->user_id;
         $targetUser = User::findOrFail($this->targetUserId);
 
-        DB::transaction(function () use ($project, $targetUser) {
+        DB::transaction(function () use ($project, $targetUser, $previousOwnerId) {
             $project->user_id = $targetUser->id;
             $project->save();
+
+            AdminAuditLog::create([
+                'user_id' => auth()->id(),
+                'action' => 'transfer_project',
+                'target_type' => Project::class,
+                'target_id' => $project->id,
+                'details' => [
+                    'project_title' => $project->title,
+                    'previous_owner_id' => $previousOwnerId,
+                    'new_owner_id' => $targetUser->id,
+                    'new_owner_email' => $targetUser->email,
+                ],
+                'ip_address' => request()->ip(),
+            ]);
         });
 
         $projectTitle = $project->title;

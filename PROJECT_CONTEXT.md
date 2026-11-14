@@ -1,12 +1,19 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.63.0  
+**Versión del documento:** 3.64.0  
 **Fecha de consolidación:** 14 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 (Crítico, IDOR Storyboards), ISSUE-008 (Crítico, Pydantic Schema en plugin), ISSUE-002 (Alta, IDOR Escenas/Planos), ISSUE-003 (Alta, Exposición Gráfica en Disco Local Privado), ISSUE-004 (Alta, Privacidad Admin en Streaming), ISSUE-013 (Alta, Procesamiento Multimedia Asíncrono Jobs FFmpeg), ISSUE-009 (Alta, Telemetría Completa Herramientas IA), ISSUE-014 (Alta, Eliminación N+1 LLM en ScriptPipelineService), ISSUE-015 (Alta, Despacho Exclusivo Pre-warming TTS en Colas), e ISSUE-005 (Media, Acotación demoVoice, Rate-Limiting en Rutas de Audio y Control de Cuota Google AI TTS). El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 274 tests pasando al 100% (1.298 assertions) y Pint con 0 infracciones.
+**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 (Crítico, IDOR Storyboards), ISSUE-008 (Crítico, Pydantic Schema en plugin), ISSUE-002 (Alta, IDOR Escenas/Planos), ISSUE-003 (Alta, Exposición Gráfica en Disco Local Privado), ISSUE-004 (Alta, Privacidad Admin en Streaming), ISSUE-013 (Alta, Procesamiento Multimedia Asíncrono Jobs FFmpeg), ISSUE-009 (Alta, Telemetría Completa Herramientas IA), ISSUE-014 (Alta, Eliminación N+1 LLM en ScriptPipelineService), ISSUE-015 (Alta, Despacho Exclusivo Pre-warming TTS en Colas), ISSUE-005 (Media, Acotación demoVoice y Rate-Limiting en Rutas de Audio), e ISSUE-006 (Media, Gate Admin y Registro Forense en AdminAuditLog al Transferir Proyectos en UserDetail). El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 275 tests pasando al 100% (1.302 assertions) y Pint con 0 infracciones.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **Gate de Administración y Trazabilidad Forense en Transferencia de Proyectos (`UserDetail` / AUDIT-20261109 / ISSUE-006 / jg_filmmaker#11):**
+  - **Autorización Explícita en Livewire:**
+    - Incorporación de `$this->authorize('admin')` en `openTransferModal(string $projectId)` y `transferProject()`, aplicando defensa en profundidad y rechazando con `403 Forbidden` cualquier invocación no autorizada desde el cliente.
+  - **Auditoría Forense en `AdminAuditLog`:**
+    - Registro simétrico con `ProjectManager` dentro de la transacción `DB::transaction()` capturando `user_id` del administrador, acción `transfer_project`, `target_type` (`Project::class`), `target_id`, metadatos (`project_title`, `previous_owner_id`, `new_owner_id`, `new_owner_email`) e IP de la petición.
+  - **Pruebas Automatizadas:** `tests/Feature/ProjectTransferAdminTest.php` ampliado con validaciones de persistencia en `admin_audit_logs` y rechazo estricto de usuarios estándar en `UserDetail::openTransferModal` y `UserDetail::transferProject`. Suite ampliada a 275 tests pasando al 100% (1.302 assertions).
 
 - **Acotación de Muestras TTS, Rate-Limiting en Rutas de Audio y Control de Cuota en Google AI Studio (AUDIT-20261109 / ISSUE-005 / jg_filmmaker#10):**
   - **Restricción de Texto Libre en `demoVoice` (`AudioStreamController`):**
