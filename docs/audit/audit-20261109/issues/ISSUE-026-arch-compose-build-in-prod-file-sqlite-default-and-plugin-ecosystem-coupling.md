@@ -51,3 +51,9 @@ En [`jg_plugin_filmmaker/docker-compose.yml`](file:///Users/javiergalvez/Documen
 1. En `jg_filmmaker/docker-compose.yml`, retirar el bloque `build:` (manteniéndolo únicamente en `docker-compose.dev.yml`), parametrizar `DB_CONNECTION: ${DB_CONNECTION:-pgsql}` y usar `php artisan migrate --force --isolated` en `docker/entrypoint.sh`.
 2. En `jg_plugin_filmmaker/docker-compose.yml`, eliminar los servicios `jg_dashboard` y `jg_dashboard_postgres`, dejando únicamente el arnés mínimo de prueba del plugin (`jg_agente_filmmaker` + `jg_agente_postgres`).
 
+## 5. Resolución y Verificación Técnica
+- **Principio de Despliegue Inmutable en `jg_filmmaker/docker-compose.yml`:** Retirado el bloque `build:` local del compose principal de producción, reservándolo exclusivamente para `docker-compose.dev.yml`. Parametrizadas las variables de base de datos hacia PostgreSQL (`${DB_CONNECTION:-pgsql}`, `DB_HOST`, `DB_PORT`, etc.).
+- **Bloqueo Aislado en Migraciones (`docker/entrypoint.sh`):** Ejecución de `php artisan migrate --force --isolated`, adquiriendo un lock atómico que previene condiciones de carrera si arrancan múltiples instancias simultáneamente.
+- **Desacoplamiento Estricto en `jg_plugin_filmmaker/docker-compose.yml`:** Eliminados por completo los servicios `jg_dashboard` y `jg_dashboard_postgres` del arnés del plugin satélite, manteniendo un entorno ligero autónomo con `jg_agente_filmmaker` y `jg_agente_postgres`.
+- **Validación Automatizada:** Suites completas de ambos repositorios pasando al 100% (297 tests PHPUnit, 73 tests Pytest con 86.21% de cobertura, Pint y Ruff limpios).
+

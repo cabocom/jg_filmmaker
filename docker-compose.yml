@@ -3,10 +3,7 @@
 # ==============================================================================
 services:
   jg_filmmaker:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: jg_filmmaker:latest
+    image: ${IMAGE_NAME:-jg_filmmaker:latest}
     container_name: jg_filmmaker
     restart: unless-stopped
     environment:
@@ -15,9 +12,13 @@ services:
       APP_KEY: "${APP_KEY:?Error: APP_KEY requerida. Genere una valida con php artisan key:generate}"
       APP_DEBUG: ${APP_DEBUG:-false}
       APP_URL: ${APP_URL:-http://localhost:8010}
-      DB_CONNECTION: sqlite
-      DB_DATABASE: /var/www/html/database/database.sqlite
-      RUN_MIGRATIONS: "true"
+      DB_CONNECTION: ${DB_CONNECTION:-pgsql}
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_DATABASE: ${DB_DATABASE:-jg_filmmaker}
+      DB_USERNAME: ${DB_USERNAME:-jg_filmmaker}
+      DB_PASSWORD: "${DB_PASSWORD:-}"
+      RUN_MIGRATIONS: "${RUN_MIGRATIONS:-true}"
       SEED_DEMO: "${SEED_DEMO:-false}"
       JG_AGENTE_MOCK: "${JG_AGENTE_MOCK:-false}"
       JG_AGENTE_URL: "${JG_AGENTE_URL:-http://127.0.0.1:8001}"

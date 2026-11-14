@@ -81,8 +81,8 @@ php artisan livewire:publish --assets || true
 
 # Migraciones y seeders de base de datos
 if [ "$RUN_MIGRATIONS" = "true" ] || [ "$CURRENT_ENV" = "production" ]; then
-    echo "📦 Ejecutando migraciones de base de datos..."
-    php artisan migrate --force
+    echo "📦 Ejecutando migraciones de base de datos con bloqueo aislado..."
+    php artisan migrate --force --isolated
     if [ "$SEED_DEMO" = "true" ]; then
         if [ "$CURRENT_ENV" = "production" ]; then
             echo "⚠️ [Seguridad] SEED_DEMO=true ignorado en producción para proteger cuentas de usuario."
