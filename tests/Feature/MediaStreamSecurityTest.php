@@ -9,6 +9,7 @@ use App\Models\Location;
 use App\Models\Project;
 use App\Models\Scene;
 use App\Models\Shot;
+use App\Models\Take;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -117,18 +118,54 @@ class MediaStreamSecurityTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_admin_can_stream_any_project_media(): void
+    public function test_admin_cannot_stream_other_user_project_media(): void
     {
         $this->actingAs($this->admin)
             ->get(route('media.storyboard', ['shot' => $this->shot->id]))
-            ->assertOk();
+            ->assertForbidden();
 
         $this->actingAs($this->admin)
             ->get(route('media.character', ['character' => $this->character->id]))
-            ->assertOk();
+            ->assertForbidden();
 
         $this->actingAs($this->admin)
             ->get(route('media.location', ['location' => $this->location->id]))
+            ->assertForbidden();
+    }
+
+    public function test_admin_cannot_stream_other_user_take_or_render(): void
+    {
+        $take = Take::factory()->create([
+            'shot_id' => $this->shot->id,
+            'file_path' => "media/projects/{$this->project->id}/scenes/{$this->scene->id}/takes/take.mp4",
+        ]);
+        Storage::disk('local')->put($take->file_path, 'secret-footage');
+
+        $renderFile = 'cut.mp4';
+        Storage::disk('local')->put("media/projects/{$this->project->id}/renders/{$renderFile}", 'rendered-footage');
+
+        $this->actingAs($this->admin)
+            ->get(route('media.take', ['take' => $take->id]))
+            ->assertForbidden();
+
+        $this->actingAs($this->admin)
+            ->get(route('media.render', ['project' => $this->project->id, 'filename' => $renderFile]))
+            ->assertForbidden();
+    }
+
+    public function test_admin_can_stream_their_own_project_media(): void
+    {
+        $adminProject = Project::factory()->create(['user_id' => $this->admin->id]);
+        $adminScene = Scene::factory()->create(['project_id' => $adminProject->id]);
+        $adminPath = "media/projects/{$adminProject->id}/storyboards/scene_{$adminScene->id}/shot_admin.png";
+        Storage::disk('local')->put($adminPath, 'admin_storyboard_png_data');
+        $adminShot = Shot::factory()->create([
+            'scene_id' => $adminScene->id,
+            'storyboard_image_path' => $adminPath,
+        ]);
+
+        $this->actingAs($this->admin)
+            ->get(route('media.storyboard', ['shot' => $adminShot->id]))
             ->assertOk();
     }
 

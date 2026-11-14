@@ -10,7 +10,7 @@ use App\Models\Project;
 use App\Models\Shot;
 use App\Models\Take;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -70,7 +70,8 @@ class MediaStreamController extends Controller
     }
 
     /**
-     * Valida que el usuario autenticado sea propietario del proyecto o administrador.
+     * Valida que el usuario autenticado tenga permiso de visualización del proyecto mediante ProjectPolicy.
+     * Política de privacidad estricta: los administradores NO tienen acceso al material creativo ajeno.
      */
     protected function authorizeProjectAccess(?Project $project): void
     {
@@ -78,10 +79,7 @@ class MediaStreamController extends Controller
             abort(404, 'Proyecto no encontrado.');
         }
 
-        $user = Auth::user();
-        if (! $user || ($project->user_id !== $user->id && ! $user->is_admin)) {
-            abort(403, 'No autorizado para acceder a este contenido audiovisual.');
-        }
+        Gate::authorize('view', $project);
     }
 
     /**

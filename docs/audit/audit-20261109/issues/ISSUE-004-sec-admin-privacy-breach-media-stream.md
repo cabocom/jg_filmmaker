@@ -49,3 +49,11 @@ Delegar la autorización en `ProjectPolicy` mediante `$this->authorize('view', $
         }
 ```
 
+## 5. Resolución Aplicada (2026-11-14)
+- **Delegación Canónica en `ProjectPolicy::view()`:**
+  - En `MediaStreamController::authorizeProjectAccess()`, se sustituyó la condición ad-hoc `if (! $user || ($project->user_id !== $user->id && ! $user->is_admin))` por la llamada formal de autorización `Gate::authorize('view', $project);`.
+  - Con esta delegación, ningún usuario (incluidos administradores) puede reproducir tomas de vídeo (`streamTake`), montajes (`streamRender`), storyboards (`streamStoryboard`) o referencias de Biblia (`streamCharacter`, `streamLocation`) de un proyecto del que no sea propietario directo (`user_id === $user->id`).
+- **Verificación y Pruebas:**
+  - En `tests/Feature/MediaStreamSecurityTest.php`, se añadieron pruebas que comprueban que usuarios administradores reciben `403 Forbidden` al solicitar material audiovisual ajeno (storyboard, toma, render, personaje, localización), pero mantienen acceso normal a proyectos de los que ellos mismos son propietarios.
+  - Suite de `jg_filmmaker` ejecutada: 254 tests pasando al 100% y Pint limpio.
+
