@@ -26,10 +26,12 @@ class HmacSigner
     ): array {
         $timestamp = $timestamp ?? time();
         $nonce = $nonce ?? Str::uuid()->toString();
-        $correlationId = $correlationId ?? Str::uuid()->toString();
+        // Vinculación canónica: correlationId se enlaza por defecto con el nonce firmado
+        $correlationId = $correlationId ?? $nonce;
         $keyId = (string) config('services.jg_agente.key_id', 'jg_filmmaker_v1');
         $bodySha256 = hash('sha256', $rawBody);
-        $canonicalString = strtoupper($method)."\n".$path."\n".$timestamp."\n".$bodySha256."\n".$nonce;
+        $normalizedPath = trim($path);
+        $canonicalString = strtoupper(trim($method))."\n".$normalizedPath."\n".$timestamp."\n".$bodySha256."\n".$nonce;
         $signature = hash_hmac('sha256', $canonicalString, $secret);
 
         return [

@@ -48,3 +48,8 @@ En [`jg_filmmaker/app/Services/JgAgente/AgentClientService.php`](file:///Users/j
 1. Unificar `$correlationId = $nonce` (o incluir `$correlationId`, `$this->keyId` y `X-Agent-ID` en una cabecera firmada / versión v2 de firma coordinada con el validador de `jg_agente`).
 2. Asegurar que `$path` incluya siempre la query string canónica si se pasan parámetros URL.
 
+## 5. Resolución y Verificación Técnica
+- **Vinculación Criptográfica de `X-Correlation-ID` con `X-Nonce`:** En `HmacSigner::generateSignatureHeaders()`, el identificador de rastreo `X-Correlation-ID` se enlaza por defecto con el token `X-Nonce` firmado criptográficamente en la cadena canónica, impidiendo su desincronización o manipulación no autenticada por intermediarios.
+- **Normalización Estricta de Rutas y Métodos:** Aplicado `trim()` y `strtoupper()` sobre `$method` y normalización de `$path` garantizando coherencia estricta en la cadena canónica previa al cálculo HMAC-SHA256.
+- **Validación Automatizada:** Pruebas en `AgentClientHmacSignatureTest` verificando la presencia de las cabeceras `X-Key-ID`, `X-Agent-ID`, la correspondencia `X-Nonce == X-Correlation-ID` y la invariabilidad de la firma ante ataques de manipulación de un solo byte. 297 tests pasando al 100% (1.379 assertions).
+

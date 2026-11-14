@@ -37,8 +37,9 @@ class AgentClientHmacSignatureTest extends TestCase
         // 2. Timestamp coincide
         $this->assertSame((string) $timestamp, $headers['X-Timestamp']);
 
-        // 3. Correlation ID es un UUID válido
+        // 3. Correlation ID es un UUID válido y está vinculado al nonce firmado por defecto (ISSUE-025)
         $this->assertTrue(Str::isUuid($headers['X-Correlation-ID']));
+        $this->assertSame($headers['X-Nonce'], $headers['X-Correlation-ID']);
 
         // 4. Verificación criptográfica exacta de la firma
         $bodyHash = hash('sha256', $rawBody);
