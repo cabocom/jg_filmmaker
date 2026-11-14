@@ -1,8 +1,9 @@
 # [ISSUE-008] Bug Crítico en Esquema Pydantic: `ScriptBlockItem(extra="ignore")` Destruye `id` y `text` en `plot_hole_detector`
 
 - **Severidad:** Crítica
+- **Estado:** Resuelto (Cerrado)
 - **Componente:** `jg_plugin_filmmaker`
-- **Ubicación:** `jg_plugin_filmmaker/jg_plugin_filmmaker/tools.py:174-194, 266-287, 469-490` vs `jg_plugin_filmmaker/jg_plugin_filmmaker/plot_holes.py:70-79, 115-124`
+- **Ubicación:** `jg_plugin_filmmaker/jg_plugin_filmmaker/schemas/context.py:131-155`, `jg_plugin_filmmaker/jg_plugin_filmmaker/schemas/tools.py:80-92`, `jg_plugin_filmmaker/jg_plugin_filmmaker/plot_holes.py:69-125`
 - **Categoría:** Calidad
 
 ## 1. Descripción
@@ -67,4 +68,16 @@ class PlotHoleBlockInput(BaseModel):
     screenplay_content: str | None = Field(default=None, description="Contenido en formato guion")
     content: str | None = Field(default=None, description="Contenido alternativo")
 ```
+
+## 5. Estado y Resolución Técnica (Noviembre 2026)
+
+- **Corrección de Esquemas Pydantic v2:**
+  - En `jg_plugin_filmmaker/schemas/context.py`, se implementó `PlotHoleBlockInput` y se dotó a `ScriptBlockItem` de todos los campos que componen el contrato de bloques (`id`, `text`, `raw_text`, `structured_text`, `screenplay_content`, `content`, `type`, `character`) configurando `model_config = ConfigDict(extra="allow")`.
+  - En `jg_plugin_filmmaker/schemas/tools.py`, se actualizó `PlotHoleDetectorArgs` para utilizar `blocks: list[PlotHoleBlockInput]`, evitando que `tool_executor` en `jg_agente` o `AgentTool.run()` eliminen los UUIDs y los contenidos textuales al deserializar el payload.
+  - En `jg_plugin_filmmaker/plot_holes.py`, se amplió la resolución de texto de cada bloque para consultar `b.get("content")` como fallback adicional y soportar la asignación resiliente de `f"block_{idx + 1}"` cuando el ID del bloque no esté presente.
+- **Suite de Pruebas y Paridad de Validación:**
+  - Se actualizó `tests/test_filmmaker_tools.py` con una prueba de integración específica (`test_plot_hole_detector_pydantic_schema_preserves_id_and_text`) que simula la validación completa de esquemas en `tool_executor` y comprueba que se detecten las inconsistencias dramáticas asociadas al `block_id` real.
+  - Suite de 63 tests pasando al 100% y linters Ruff (formato y reglas) sin incidencias.
+- **GitLab Issue:** [jg_filmmaker#13](https://gitlab.com/javiergalvez-ia/jg_filmmaker/-/work_items/13) cerrado.
+
 
