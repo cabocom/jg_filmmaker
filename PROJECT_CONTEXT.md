@@ -1,12 +1,18 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.61.0  
+**Versión del documento:** 3.62.0  
 **Fecha de consolidación:** 14 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 (Crítico, IDOR Storyboards), ISSUE-008 (Crítico, Pydantic Schema en plugin), ISSUE-002 (Alta, IDOR Escenas/Planos), ISSUE-003 (Alta, Exposición Gráfica en Disco Local Privado), ISSUE-004 (Alta, Privacidad Admin en Streaming), ISSUE-013 (Alta, Procesamiento Multimedia Asíncrono Jobs FFmpeg), ISSUE-009 (Alta, Telemetría Completa Herramientas IA), e ISSUE-014 (Alta, Eliminación N+1 LLM y Sincronización Única en ScriptPipelineService). El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 269 tests pasando al 100% (1.278 assertions) y Pint con 0 infracciones.
+**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 (Crítico, IDOR Storyboards), ISSUE-008 (Crítico, Pydantic Schema en plugin), ISSUE-002 (Alta, IDOR Escenas/Planos), ISSUE-003 (Alta, Exposición Gráfica en Disco Local Privado), ISSUE-004 (Alta, Privacidad Admin en Streaming), ISSUE-013 (Alta, Procesamiento Multimedia Asíncrono Jobs FFmpeg), ISSUE-009 (Alta, Telemetría Completa Herramientas IA), ISSUE-014 (Alta, Eliminación N+1 LLM en ScriptPipelineService), e ISSUE-015 (Alta, Despacho Exclusivo Pre-warming TTS en Colas sin Duplicación ni Bloqueo Sync). El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 271 tests pasando al 100% (1.283 assertions) y Pint con 0 infracciones.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **Eliminación de Doble Disparo y Bloqueo en Pre-warming TTS (AUDIT-20261109 / ISSUE-015 / jg_filmmaker#20):**
+  - **Despacho Exclusivo según Driver de Colas (`AudioStreamController`):**
+    - En `dispatchPrewarm()`, si el driver de cola es asíncrono (`config('queue.default') !== 'sync'`, ej. `database` o `redis`), se despacha exclusivamente `PrewarmScopeTtsJob::dispatch(...)` y se retorna inmediatamente (`return;`), suprimiendo el subproceso OS CLI duplicado (`php artisan tts:prewarm`) y la contención de bloqueos en caché.
+    - Si el driver es `sync`, se omite la ejecución del job en el hilo HTTP (eliminando el congelamiento en la respuesta JSON de `GET /projects/{project}/tts/manifest`) y se delega en el subproceso del SO en segundo plano (`Process::start`) fuera de testing.
+  - **Pruebas Automatizadas:** `tests/Feature/AudioStreamControllerTest.php` ampliado con tests comprobando el encolado exclusivo sin procesos en cola asíncrona y la omisión de jobs síncronos en driver sync. Suite ampliada a 271 tests pasando al 100% (1.283 assertions).
 
 - **Eliminación de Multiplicación N+1 de Llamadas LLM en `ScriptPipelineService` (AUDIT-20261109 / ISSUE-014 / jg_filmmaker#19):**
   - **Sincronización Única de Contexto por Lote (`BatchPipelineProcessor`):**

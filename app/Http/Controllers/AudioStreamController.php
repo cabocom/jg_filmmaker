@@ -36,7 +36,7 @@ class AudioStreamController extends Controller
         ]);
 
         // Disparar pre-warming en segundo plano si hay segmentos
-        if (! empty($manifest) && ! app()->environment('testing')) {
+        if (! empty($manifest)) {
             $this->dispatchPrewarm($project, $sceneId, $blockId);
         }
 
@@ -54,24 +54,33 @@ class AudioStreamController extends Controller
     protected function dispatchPrewarm(Project $project, ?string $sceneId, ?string $blockId): void
     {
         try {
-            PrewarmScopeTtsJob::dispatch($project, $sceneId, $blockId);
+            if (config('queue.default') !== 'sync') {
+                PrewarmScopeTtsJob::dispatch($project, $sceneId, $blockId);
 
-            $cmd = [
-                PHP_BINARY,
-                base_path('artisan'),
-                'tts:prewarm',
-                (string) $project->id,
-            ];
-            if ($sceneId) {
-                $cmd[] = '--scene_id='.$sceneId;
-            }
-            if ($blockId) {
-                $cmd[] = '--block_id='.$blockId;
+                return;
             }
 
-            Process::path(base_path())->start($cmd);
+            if (! app()->environment('testing')) {
+                $cmd = [
+                    PHP_BINARY,
+                    base_path('artisan'),
+                    'tts:prewarm',
+                    (string) $project->id,
+                ];
+                if ($sceneId) {
+                    $cmd[] = '--scene_id='.$sceneId;
+                }
+                if ($blockId) {
+                    $cmd[] = '--block_id='.$blockId;
+                }
+
+                Process::path(base_path())->timeout(600)->start($cmd);
+            }
         } catch (\Throwable $e) {
-            Log::warning('No se pudo disparar pre-warming en background para TTS: '.$e->getMessage());
+            Log::warning('[TTS Prewarm] No se pudo disparar pre-warming en background para TTS: '.$e->getMessage(), [
+                'project_id' => $project->id,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 

@@ -2,11 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\PrewarmScopeTtsJob;
 use App\Models\Project;
 use App\Models\Scene;
 use App\Models\ScriptBlock;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class AudioStreamControllerTest extends TestCase
@@ -122,5 +125,59 @@ class AudioStreamControllerTest extends TestCase
         ]));
 
         $response->assertRedirect(route('login'));
+    }
+
+    public function test_manifest_dispatches_prewarm_job_when_queue_is_async_without_starting_process(): void
+    {
+        config(['queue.default' => 'database']);
+        Queue::fake([PrewarmScopeTtsJob::class]);
+        Process::fake();
+
+        $owner = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $owner->id]);
+        $scene = Scene::factory()->create(['project_id' => $project->id, 'scene_order' => 1]);
+        $block = ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'stage' => 'raw',
+            'raw_text' => 'Texto para pre-warming asíncrono.',
+        ]);
+
+        $this->actingAs($owner);
+
+        $response = $this->getJson(route('projects.tts.manifest', [
+            'project' => $project->id,
+            'block_id' => $block->id,
+        ]));
+
+        $response->assertOk();
+        Queue::assertPushed(PrewarmScopeTtsJob::class, function ($job) use ($project, $block) {
+            return $job->project->id === $project->id && $job->blockId === $block->id;
+        });
+        Process::assertNothingRan();
+    }
+
+    public function test_manifest_does_not_dispatch_sync_job_when_queue_is_sync(): void
+    {
+        config(['queue.default' => 'sync']);
+        Queue::fake([PrewarmScopeTtsJob::class]);
+
+        $owner = User::factory()->create();
+        $project = Project::factory()->create(['user_id' => $owner->id]);
+        $scene = Scene::factory()->create(['project_id' => $project->id, 'scene_order' => 1]);
+        $block = ScriptBlock::factory()->create([
+            'scene_id' => $scene->id,
+            'stage' => 'raw',
+            'raw_text' => 'Texto para evitar bloqueo en driver sync.',
+        ]);
+
+        $this->actingAs($owner);
+
+        $response = $this->getJson(route('projects.tts.manifest', [
+            'project' => $project->id,
+            'block_id' => $block->id,
+        ]));
+
+        $response->assertOk();
+        Queue::assertNotPushed(PrewarmScopeTtsJob::class);
     }
 }

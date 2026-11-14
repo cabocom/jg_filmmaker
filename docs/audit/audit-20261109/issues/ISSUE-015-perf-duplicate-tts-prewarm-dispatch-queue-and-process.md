@@ -80,3 +80,21 @@ Utilizar `PrewarmScopeTtsJob::dispatch(...)` únicamente cuando el driver de col
     }
 ```
 
+## 5. Resolución y Verificación (2026-11-14)
+
+### Implementación Realizada
+- **`AudioStreamController::dispatchPrewarm`:**
+  - Se discriminó la estrategia de pre-warming en función de la conexión de cola activa (`config('queue.default')`).
+  - Cuando el driver es asíncrono (`config('queue.default') !== 'sync'`, ej. `database` o `redis`), se despacha exclusivamente `PrewarmScopeTtsJob::dispatch(...)` y se retorna inmediatamente (`return;`), sin invocar `Process::start(...)`. Esto previene la duplicación de procesos, la contención en el lock de caché y la saturación de memoria RAM.
+  - Cuando el driver es `sync`, se omite el `dispatch` encolado (evitando que la síntesis secuencial bloquee la entrega del manifiesto HTTP JSON) y se delega en el subproceso del SO en segundo plano (`Process::path(base_path())->timeout(600)->start(...)`) en entornos fuera de testing.
+  - Se mejoró el registro de logs de advertencia con metadatos estructurados (`project_id`, `error`).
+
+### Verificación y Cobertura
+- **Pruebas Automatizadas:** `tests/Feature/AudioStreamControllerTest.php` ampliado con:
+  - `test_manifest_dispatches_prewarm_job_when_queue_is_async_without_starting_process`: Comprueba que con driver asíncrono (`database`), se encola el job y `Process::assertNothingRan()` se cumple al 100%.
+  - `test_manifest_does_not_dispatch_sync_job_when_queue_is_sync`: Comprueba que con driver `sync`, no se encola el job síncrono para no congelar la respuesta HTTP del cliente.
+- **Validaciones CI/CD:**
+  - Pint: 0 infracciones.
+  - PHPUnit: 271 tests pasados al 100% (1.283 assertions).
+
+
