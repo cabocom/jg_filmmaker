@@ -44,11 +44,13 @@ class StoryboardService
     public function __construct(
         protected ?AgentClientService $agentClient = null,
         ?StoryboardPromptBuilder $promptBuilder = null,
-        ?StoryboardImageProcessor $imageProcessor = null
+        ?StoryboardImageProcessor $imageProcessor = null,
+        protected ?AgentTelemetryService $telemetryService = null
     ) {
         $this->agentClient = $agentClient ?? app(AgentClientService::class);
         $this->promptBuilder = $promptBuilder ?? new StoryboardPromptBuilder(self::STYLES);
         $this->imageProcessor = $imageProcessor ?? new StoryboardImageProcessor;
+        $this->telemetryService = $telemetryService ?? app(AgentTelemetryService::class);
     }
 
     /**
@@ -82,6 +84,11 @@ class StoryboardService
     ): string {
         $shot->loadMissing(['scene.project.characters', 'scene.project.locations']);
         $projectId = $shot->scene?->project_id ?? 'global';
+        $user = $shot->scene?->project?->user;
+
+        if ($user && ! $user->hasDailyTokensAvailable(350)) {
+            throw new RuntimeException('Saldo insuficiente de tokens diarios para generar la viñeta de storyboard.');
+        }
 
         $styleKey = $style ?? $shot->scene?->project?->storyboard_style ?? 'grayscale_sketch';
         if (! array_key_exists($styleKey, self::STYLES)) {
@@ -114,6 +121,24 @@ class StoryboardService
         if (empty($imageBytes)) {
             throw new RuntimeException('No se pudieron decodificar los bytes de la imagen generada.');
         }
+
+        $telemetry = $result['metadata'] ?? [];
+        if (! isset($telemetry['provider'])) {
+            $telemetry['provider'] = 'google_ai_studio';
+            $telemetry['model'] = 'gemini-2.5-flash-image';
+        }
+        $telemetry['input_tokens'] = $telemetry['input_tokens'] ?? 300;
+        $telemetry['output_tokens'] = $telemetry['output_tokens'] ?? 50;
+
+        $this->telemetryService->record(
+            projectId: $projectId,
+            scriptBlockId: $shot->script_block_id,
+            toolName: 'generate_storyboard',
+            inputPayload: ['prompt' => $prompt, 'style' => $styleKey],
+            outputPayload: ['mime_type' => $mimeType, 'storyboard' => 'generated'],
+            telemetry: $telemetry,
+            userId: $user?->id
+        );
 
         return $this->persistStoryboardImage($shot, $projectId, $imageBytes, $mimeType, $styleKey, $prompt);
     }

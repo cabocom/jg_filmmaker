@@ -7,6 +7,7 @@ namespace App\Actions\Studio;
 use App\Models\Character;
 use App\Models\Location;
 use App\Models\Project;
+use App\Services\AgentTelemetryService;
 use App\Services\JgAgente\AgentClientService;
 
 final readonly class AuditBibleEntityUsageAction
@@ -41,6 +42,17 @@ final readonly class AuditBibleEntityUsageAction
 
                 if ($found) {
                     $audit = $agentClient->auditCharacterUsage($charName, $texts);
+
+                    app(AgentTelemetryService::class)->record(
+                        projectId: $project->id,
+                        scriptBlockId: $block->id,
+                        toolName: 'audit_character_usage',
+                        inputPayload: ['character_name' => $charName, 'scene_texts' => $texts],
+                        outputPayload: $audit,
+                        telemetry: $agentClient->getLastTelemetry(),
+                        userId: $project->user_id
+                    );
+
                     if ($audit['in_use']) {
                         $usages[] = "ESC. {$scene->scene_order} · BLOQUE {$block->block_order}";
                     }

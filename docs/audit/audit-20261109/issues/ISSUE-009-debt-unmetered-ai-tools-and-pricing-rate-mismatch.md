@@ -48,3 +48,16 @@ En [`jg_filmmaker/app/Livewire/Studio/ScriptEditor.php`](file:///Users/javiergal
 1. Invocar `AgentTelemetryService::record()` en `StoryboardService::generateStoryboard()`, `ScriptPipelineService` (`extract_characters`) y `ContextBibleDrawer` (`audit_character_usage`), y añadir `$this->checkTokenQuotaOrNotify()` en `generateShotStoryboard()`.
 2. En `AgentTelemetryService::record()`, buscar primero la tarifa que coincida con `provider` y `model` (`where('provider', $provider)->where('model', $model)` con fallback a la tarifa activa por defecto), y si `$provider === 'deterministic_engine'` (o `'mock'`), fijar `cost_usd = 0` y `total_tokens = 0` para no descontar cuota de IA al usuario.
 
+## 5. Resolución Aplicada (2026-11-14)
+- **Cobertura Completa de Telemetría en Herramientas IA:**
+  - `StoryboardService::generateStoryboard()`: Invoca `AgentTelemetryService::record()` para la herramienta `generate_storyboard` registrando proveedor (`google_ai_studio`), modelo (`gemini-2.5-flash-image`) y tokens consumidos. Incorpora validación de saldo diario defensiva (`hasDailyTokensAvailable(350)`).
+  - `BibleSyncService::requestCharacterExtraction()`: Invoca `AgentTelemetryService::record()` para la herramienta `extract_characters`.
+  - `AuditBibleEntityUsageAction::auditCharacterUsages()`: Invoca `AgentTelemetryService::record()` para la herramienta `audit_character_usage`.
+- **Selección Específica de Tarifas `TokenPricingRate`:**
+  - En `AgentTelemetryService::record()`, se busca de forma jerárquica la tarifa activa que coincida con `provider` y `model`. En caso de no existir tarifa por modelo, busca por `provider`, y finalmente recurre a la tarifa activa por defecto.
+- **Protección de Cuota en Modo Fallback Determinista:**
+  - Si la operación se resuelve mediante el motor determinista local (`provider: "deterministic_engine"` o `model: "rule-based-nlp"`), se fijan `total_tokens = 0` y `estimated_cost_usd = 0.0`. Esto preserva el registro forense en `agent_request_logs` sin penalizar el saldo diario del usuario ni alterar las métricas financieras en `/admin`.
+- **Validación:**
+  - Creada suite `tests/Feature/AgentTelemetryAndPricingTest.php` con 6 tests verificando el registro de telemetría de las 3 herramientas, la validación de cuota previa, la selección jerárquica de tarifas y la no penalización de saldo en fallback determinista.
+  - Suite de `jg_filmmaker` ampliada a 265 tests pasando al 100% y Pint limpio.
+

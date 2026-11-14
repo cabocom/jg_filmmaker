@@ -6,6 +6,7 @@ namespace App\Services\Pipeline;
 
 use App\Models\Character;
 use App\Models\Project;
+use App\Services\AgentTelemetryService;
 use App\Services\JgAgente\AgentClientService;
 
 class BibleSyncService
@@ -20,8 +21,11 @@ class BibleSyncService
     ];
 
     public function __construct(
-        protected AgentClientService $agentClient
-    ) {}
+        protected AgentClientService $agentClient,
+        protected ?AgentTelemetryService $telemetryService = null
+    ) {
+        $this->telemetryService = $telemetryService ?? app(AgentTelemetryService::class);
+    }
 
     public function syncProjectCharacters(Project $project): void
     {
@@ -51,7 +55,7 @@ class BibleSyncService
         }
         $result = $existingCharacters;
 
-        $extracted = $this->requestCharacterExtraction($text, $existingCharacters);
+        $extracted = $this->requestCharacterExtraction($text, $existingCharacters, $project);
         if (empty($extracted)) {
             $extracted = $this->extractDeterministicCandidates($text, $existingCharacters);
         }
@@ -67,10 +71,28 @@ class BibleSyncService
         return $result;
     }
 
-    protected function requestCharacterExtraction(string $text, array $existingCharacters): array
+    /**
+     * @param  array<int, array<string, mixed>>  $existingCharacters
+     * @return array<int, array<string, mixed>>
+     */
+    protected function requestCharacterExtraction(string $text, array $existingCharacters, ?Project $project = null): array
     {
         try {
-            return $this->agentClient->extractCharacters($text, $existingCharacters);
+            $extracted = $this->agentClient->extractCharacters($text, $existingCharacters);
+
+            if ($project && $project->exists) {
+                $this->telemetryService->record(
+                    projectId: $project->id,
+                    scriptBlockId: null,
+                    toolName: 'extract_characters',
+                    inputPayload: ['text_length' => strlen($text), 'existing_count' => count($existingCharacters)],
+                    outputPayload: $extracted,
+                    telemetry: $this->agentClient->getLastTelemetry(),
+                    userId: $project->user_id
+                );
+            }
+
+            return $extracted;
         } catch (\Throwable) {
             return [];
         }

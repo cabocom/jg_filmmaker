@@ -1330,10 +1330,12 @@ class LivewireScriptEditorTest extends TestCase
         $this->assertDatabaseHas('agent_request_logs', [
             'project_id' => $project->id,
             'tool_name' => 'plot_hole_detector',
+            'total_tokens' => 0,
+            'estimated_cost_usd' => 0,
         ]);
 
-        // Y los tokens consumidos hoy deben haberse incrementado
-        $this->assertGreaterThan($initialTokens, $user->getTokensUsedToday());
+        // En modo fallback determinista no se descuenta cuota de IA al usuario (ISSUE-009)
+        $this->assertSame($initialTokens, $user->getTokensUsedToday());
 
         // Ahora probamos cuando el usuario no tiene tokens disponibles
         $exhaustedUser = User::factory()->create(['daily_token_limit' => 0]);

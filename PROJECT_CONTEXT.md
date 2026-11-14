@@ -1,12 +1,23 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.57.0  
+**Versión del documento:** 3.60.0  
 **Fecha de consolidación:** 14 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades IDOR cross-tenant en acondicionado de storyboards (AUDIT-20261109 / ISSUE-001 / jg_filmmaker#6) y en asociación de localizaciones a escenas y bloques a planos (AUDIT-20261109 / ISSUE-002 / jg_filmmaker#7). El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 247 tests pasando al 100% (1.208 assertions) y Pint con 0 infracciones.
+**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 (Crítico, IDOR Storyboards), ISSUE-008 (Crítico, Pydantic Schema en plugin), ISSUE-002 (Alta, IDOR Escenas/Planos), ISSUE-003 (Alta, Exposición Gráfica en Disco Local Privado), ISSUE-004 (Alta, Privacidad Admin en Streaming), ISSUE-013 (Alta, Procesamiento Multimedia Asíncrono Jobs FFmpeg), e ISSUE-009 (Alta, Telemetría Completa Herramientas IA, Selección Jerárquica TokenPricingRate y Cuota Cero en Fallback). El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 265 tests pasando al 100% (1.264 assertions) y Pint con 0 infracciones.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **Telemetría Completa en Herramientas IA, Selección Jerárquica de Tarifas y Cuota Cero en Modo Fallback (AUDIT-20261109 / ISSUE-009 / jg_filmmaker#14):**
+  - **Telemetría y Control de Cuota en las 3 Herramientas IA Faltantes:**
+    - `StoryboardService::generateStoryboard()`: Verificación preventiva de cuota diaria disponible (`hasDailyTokensAvailable(350)`) y registro de telemetría mediante `AgentTelemetryService::record()` para la herramienta `generate_storyboard` (proveedor `google_ai_studio`, modelo `gemini-2.5-flash-image`), atribuyendo el consumo al usuario autenticado.
+    - `BibleSyncService::requestCharacterExtraction()`: Registro de telemetría de `extract_characters` atribuido al propietario del proyecto (`$project->user_id`).
+    - `AuditBibleEntityUsageAction::auditCharacterUsages()`: Inyección de `AgentTelemetryService` y registro de telemetría para `audit_character_usage` por cada invocación.
+  - **Emparejamiento Jerárquico en TokenPricingRate (`AgentTelemetryService`):**
+    - Resuelve la tarifa de facturación priorizando coincidencia exacta de `provider` + `model`. Si no existe, realiza fallback a la tarifa del `provider` genérico, y finalmente a la tarifa activa por defecto, eliminando la selección arbitraria del primer registro de la tabla.
+  - **Protección del Saldo del Usuario en Fallback Determinista:**
+    - Ante caídas del backend o respuestas de motores heurísticos/deterministas (`deterministic_engine`, `rule-based-nlp`, `heuristic_fallback`), `AgentTelemetryService::record()` computa `total_tokens = 0` y `estimated_cost_usd = 0.0`, registrando el log de auditoría sin penalizar la cuota diaria del usuario por fallos del servicio IA.
+  - **Pruebas Automatizadas:** Nueva suite `tests/Feature/AgentTelemetryAndPricingTest.php` con 6 tests verificando el registro de telemetría en Storyboards, extracción de personajes, auditoría de la Biblia, tarifas jerárquicas y saldo cero en fallback. Suite global ampliada a 265 tests pasando al 100% (1.264 aserciones).
 
 - **Mitigación IDOR Cross-Tenant en Asociación de Localizaciones a Escenas y Bloques a Planos (AUDIT-20261109 / ISSUE-002 / jg_filmmaker#7):**
   - **Validación en Livewire UI (`WithEditorSceneOperations`, `WithEditorTakes`, `WithEditorShots`):**
