@@ -70,11 +70,11 @@ class ScriptPipelineService
         }
     }
 
-    public function transitionToStructured(ScriptBlock $block): ScriptBlock
+    public function transitionToStructured(ScriptBlock $block, bool $syncProjectContext = true): ScriptBlock
     {
         $block->loadMissing('scene.project.characters', 'scene.project.scenes.scriptBlocks', 'scene.location');
         $project = $block->scene?->project;
-        if ($project) {
+        if ($project && $syncProjectContext) {
             $this->syncProjectCharacters($project);
             $this->syncProjectLocations($project);
         }
@@ -88,7 +88,7 @@ class ScriptPipelineService
         $rawText = $block->raw_text ?? '';
 
         $this->assertUserQuotaAvailable($project, max(50, (int) ceil(mb_strlen((string) $rawText) / 4) + 150));
-        $characters = $this->inferCharactersFromText($rawText, $characters, $project);
+        $characters = $this->inferCharactersFromText($rawText, $characters, $project, allowLlmExtraction: false);
 
         $userLocks = $this->resolveUserLocks($block);
         $structuredText = $this->agentClient->structureTreatment($rawText, $characters, $location, $this->sanitizeUserLocksForAgent($userLocks));
@@ -104,11 +104,11 @@ class ScriptPipelineService
         return $updatedBlock->refresh();
     }
 
-    public function transitionToScreenplay(ScriptBlock $block): ScriptBlock
+    public function transitionToScreenplay(ScriptBlock $block, bool $syncProjectContext = true): ScriptBlock
     {
         $block->loadMissing('scene.project.characters', 'scene.project.scenes.scriptBlocks', 'scene.location');
         $project = $block->scene?->project;
-        if ($project) {
+        if ($project && $syncProjectContext) {
             $this->syncProjectCharacters($project);
             $this->syncProjectLocations($project);
         }
@@ -122,7 +122,7 @@ class ScriptPipelineService
         $sourceText = ! empty($block->structured_text) ? $block->structured_text : (string) $block->raw_text;
 
         $this->assertUserQuotaAvailable($project, max(50, (int) ceil(mb_strlen((string) $sourceText) / 4) + 200));
-        $characters = $this->inferCharactersFromText($sourceText, $characters, $project);
+        $characters = $this->inferCharactersFromText($sourceText, $characters, $project, allowLlmExtraction: false);
 
         $userLocks = $this->resolveUserLocks($block);
         $screenplayContent = $this->agentClient->formatScreenplay($sourceText, $characters, $this->sanitizeUserLocksForAgent($userLocks), $location);
@@ -204,9 +204,9 @@ class ScriptPipelineService
         $this->bibleSync->syncProjectCharacters($project);
     }
 
-    public function inferCharactersFromText(string $text, array $existingCharacters = [], ?Project $project = null): array
+    public function inferCharactersFromText(string $text, array $existingCharacters = [], ?Project $project = null, bool $allowLlmExtraction = true): array
     {
-        return $this->bibleSync->inferCharactersFromText($text, $existingCharacters, $project);
+        return $this->bibleSync->inferCharactersFromText($text, $existingCharacters, $project, $allowLlmExtraction);
     }
 
     public function extractDeterministicCandidates(string $text, array $existingCharacters = []): array
@@ -229,14 +229,14 @@ class ScriptPipelineService
         $this->sluglineSync->syncProjectLocations($project);
     }
 
-    public function batchStructureBlocks(iterable $blocks): array
+    public function batchStructureBlocks(iterable $blocks, bool $syncProjectContext = true): array
     {
-        return $this->batchProcessor->batchStructureBlocks($blocks, $this);
+        return $this->batchProcessor->batchStructureBlocks($blocks, $this, $syncProjectContext);
     }
 
-    public function batchFormatBlocksToScreenplay(iterable $blocks): array
+    public function batchFormatBlocksToScreenplay(iterable $blocks, bool $syncProjectContext = true): array
     {
-        return $this->batchProcessor->batchFormatBlocksToScreenplay($blocks, $this);
+        return $this->batchProcessor->batchFormatBlocksToScreenplay($blocks, $this, $syncProjectContext);
     }
 
     public function batchGenerateShots(iterable $blocks): array

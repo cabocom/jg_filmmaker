@@ -11,11 +11,29 @@ use App\Services\ScriptPipelineService;
 class BatchPipelineProcessor
 {
     /**
+     * Sincroniza personajes y localizaciones una única vez para los proyectos del lote.
+     *
+     * @param  iterable<ScriptBlock>  $blocks
+     */
+    protected function syncBatchProjectsContext(iterable $blocks, ScriptPipelineService $pipeline): void
+    {
+        $projects = collect($blocks)->map(fn ($b) => $b->scene?->project)->filter()->unique('id');
+        foreach ($projects as $project) {
+            $pipeline->syncProjectCharacters($project);
+            $pipeline->syncProjectLocations($project);
+        }
+    }
+
+    /**
      * @param  iterable<ScriptBlock>  $blocks
      * @return array{processed: int, skipped: int, errors: list<string>}
      */
-    public function batchStructureBlocks(iterable $blocks, ScriptPipelineService $pipeline): array
+    public function batchStructureBlocks(iterable $blocks, ScriptPipelineService $pipeline, bool $syncProjectContext = true): array
     {
+        if ($syncProjectContext) {
+            $this->syncBatchProjectsContext($blocks, $pipeline);
+        }
+
         $processed = 0;
         $skipped = 0;
         $errors = [];
@@ -28,7 +46,7 @@ class BatchPipelineProcessor
             }
 
             try {
-                $pipeline->transitionToStructured($block);
+                $pipeline->transitionToStructured($block, syncProjectContext: false);
                 $processed++;
             } catch (QuotaExceededException $e) {
                 $errors[] = $e->getMessage();
@@ -45,8 +63,12 @@ class BatchPipelineProcessor
      * @param  iterable<ScriptBlock>  $blocks
      * @return array{processed: int, skipped: int, errors: list<string>}
      */
-    public function batchFormatBlocksToScreenplay(iterable $blocks, ScriptPipelineService $pipeline): array
+    public function batchFormatBlocksToScreenplay(iterable $blocks, ScriptPipelineService $pipeline, bool $syncProjectContext = true): array
     {
+        if ($syncProjectContext) {
+            $this->syncBatchProjectsContext($blocks, $pipeline);
+        }
+
         $processed = 0;
         $skipped = 0;
         $errors = [];
@@ -60,7 +82,7 @@ class BatchPipelineProcessor
             }
 
             try {
-                $pipeline->transitionToScreenplay($block);
+                $pipeline->transitionToScreenplay($block, syncProjectContext: false);
                 $processed++;
             } catch (QuotaExceededException $e) {
                 $errors[] = $e->getMessage();
@@ -110,9 +132,12 @@ class BatchPipelineProcessor
      */
     public function batchRunFullPipeline(iterable $blocks, ScriptPipelineService $pipeline): array
     {
-        $resStructured = $this->batchStructureBlocks($blocks, $pipeline);
-        $freshBlocks = collect($blocks)->map(fn ($b) => $b->fresh())->filter();
-        $resScreenplay = $this->batchFormatBlocksToScreenplay($freshBlocks, $pipeline);
+        $blockList = collect($blocks);
+        $this->syncBatchProjectsContext($blockList, $pipeline);
+
+        $resStructured = $this->batchStructureBlocks($blockList, $pipeline, syncProjectContext: false);
+        $freshBlocks = $blockList->map(fn ($b) => $b->fresh())->filter();
+        $resScreenplay = $this->batchFormatBlocksToScreenplay($freshBlocks, $pipeline, syncProjectContext: false);
         $freshBlocks = $freshBlocks->map(fn ($b) => $b->fresh())->filter();
         $resShots = $this->batchGenerateShots($freshBlocks, $pipeline);
 

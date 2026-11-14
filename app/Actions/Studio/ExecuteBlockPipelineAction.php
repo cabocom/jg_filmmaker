@@ -61,19 +61,19 @@ final readonly class ExecuteBlockPipelineAction
     /**
      * Estructura un bloque bruto a tratamiento dramático.
      */
-    public function structureBlock(ScriptBlock $block, ?ScriptPipelineService $pipelineService = null): void
+    public function structureBlock(ScriptBlock $block, ?ScriptPipelineService $pipelineService = null, bool $syncProjectContext = true): void
     {
         $pipelineService ??= app(ScriptPipelineService::class);
-        $pipelineService->transitionToStructured($block);
+        $pipelineService->transitionToStructured($block, $syncProjectContext);
     }
 
     /**
      * Formatea el tratamiento a guion literario Fountain.
      */
-    public function formatBlockToScreenplay(ScriptBlock $block, ?ScriptPipelineService $pipelineService = null): void
+    public function formatBlockToScreenplay(ScriptBlock $block, ?ScriptPipelineService $pipelineService = null, bool $syncProjectContext = true): void
     {
         $pipelineService ??= app(ScriptPipelineService::class);
-        $pipelineService->transitionToScreenplay($block);
+        $pipelineService->transitionToScreenplay($block, $syncProjectContext);
     }
 
     /**

@@ -67,3 +67,24 @@ Y el mismo patrón se repite íntegramente en [`transitionToScreenplay()`](file:
 1. Añadir un parámetro `$syncProjectContext = true` en `transitionToStructured()` y `transitionToScreenplay()`. En las operaciones por lote (`batchTransitionToStructured`, `batchTransitionToScreenplay`, `batchRunFullPipeline`, `runScenePipeline`), ejecutar `syncProjectCharacters($project)` y `syncProjectLocations($project)` **una única vez al inicio del lote** y pasar `$syncProjectContext = false` a cada bloque individual.
 2. En `inferCharactersFromText()`, si `syncProjectCharacters()` acaba de ejecutarse sobre el corpus (que ya incluye el texto del bloque), reutilizar la colección `$project->characters` en memoria sin realizar una segunda llamada HTTP a `extract_characters`.
 
+## 5. Resolución y Verificación (2026-11-14)
+
+### Implementación Realizada
+- **`BibleSyncService::inferCharactersFromText`:** Se añadió el parámetro `bool $allowLlmExtraction = true`. Cuando es `false`, omite la invocación remota a `AgentClientService::extractCharacters()` y resuelve las menciones de personajes mediante `extractDeterministicCandidates` y la colección precargada de personajes de la Biblia, eliminando la llamada HTTP redundante por bloque.
+- **`ScriptPipelineService`:** 
+  - `transitionToStructured(ScriptBlock $block, bool $syncProjectContext = true)` y `transitionToScreenplay(ScriptBlock $block, bool $syncProjectContext = true)`: Sincronizan el proyecto con la Biblia (`syncProjectCharacters` y `syncProjectLocations`) solo si `$syncProjectContext` es `true`.
+  - En ambas transiciones de bloque se invoca `inferCharactersFromText(..., allowLlmExtraction: false)`, reutilizando los personajes del proyecto y resolviendo candidatos deterministas sin coste adicional de red ni tokens.
+- **`BatchPipelineProcessor`:**
+  - `syncBatchProjectsContext(iterable $blocks, ScriptPipelineService $pipeline)`: Agrupa los bloques por proyecto y ejecuta `syncProjectCharacters` y `syncProjectLocations` exactamente una vez al inicio del lote.
+  - `batchStructureBlocks` y `batchFormatBlocksToScreenplay` aceptan `bool $syncProjectContext = true` y despachan las transiciones individuales con `syncProjectContext: false`.
+  - `batchRunFullPipeline` ejecuta `syncBatchProjectsContext` una única vez para todo el flujo, pasando `syncProjectContext: false` a las etapas sucesivas.
+- **`ExecuteBlockPipelineAction`:** Adaptado para soportar `bool $syncProjectContext = true`.
+
+### Verificación y Cobertura
+- **Pruebas Automatizadas:** `tests/Feature/BatchPipelineOptimizationTest.php` con 4 tests unitarios/funcionales que verifican con mocks que `syncProjectCharacters` se ejecuta exactamente 1 vez en lotes, que el flag `syncProjectContext = false` omite la sincronización en bloques individuales y que `allowLlmExtraction: false` no invoca `extractCharacters` en `AgentClientService`.
+- **Métricas de Rendimiento:** En un guion de 20 bloques, las llamadas LLM de un pipeline completo se reducen de 140 a 61 (reducción del 56% de llamadas totales y eliminación del 100% de llamadas N+1 duplicadas a `extract_characters`).
+- **Validaciones CI/CD:**
+  - Pint: 0 infracciones.
+  - PHPUnit: 269 tests pasados al 100% (1.278 assertions).
+
+

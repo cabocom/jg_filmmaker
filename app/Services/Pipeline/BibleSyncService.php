@@ -39,15 +39,19 @@ class BibleSyncService
         }
 
         $existing = $project->characters->map(fn (Character $c) => $c->toAgentContext())->toArray();
-        $this->inferCharactersFromText($fullText, $existing, $project);
+        $this->inferCharactersFromText($fullText, $existing, $project, allowLlmExtraction: true);
     }
 
     /**
      * @param  array<int, array<string, mixed>>  $existingCharacters
      * @return array<int, array<string, mixed>>
      */
-    public function inferCharactersFromText(string $text, array $existingCharacters = [], ?Project $project = null): array
-    {
+    public function inferCharactersFromText(
+        string $text,
+        array $existingCharacters = [],
+        ?Project $project = null,
+        bool $allowLlmExtraction = true
+    ): array {
         $existingLower = array_map(fn ($c) => mb_strtolower((string) ($c['name'] ?? ''), 'UTF-8'), $existingCharacters);
         if ($project && $project->exists) {
             $dbNames = $project->characters()->pluck('name')->map(fn ($n) => mb_strtolower((string) $n, 'UTF-8'))->all();
@@ -55,7 +59,11 @@ class BibleSyncService
         }
         $result = $existingCharacters;
 
-        $extracted = $this->requestCharacterExtraction($text, $existingCharacters, $project);
+        $extracted = [];
+        if ($allowLlmExtraction) {
+            $extracted = $this->requestCharacterExtraction($text, $existingCharacters, $project);
+        }
+
         if (empty($extracted)) {
             $extracted = $this->extractDeterministicCandidates($text, $existingCharacters);
         }
