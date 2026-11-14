@@ -1,12 +1,19 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.71.0  
+**Versión del documento:** 3.72.0  
 **Fecha de consolidación:** 14 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 a ISSUE-016 completados, e ISSUE-021 e ISSUE-022 (Media, Paginación de Obras y Optimización de Consultas SQL de Telemetría en UserDetail) resueltos. El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 295 tests pasando al 100% (1.371 assertions) y Pint con 0 infracciones.
+**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 a ISSUE-016 completados, e ISSUE-021, ISSUE-022 e ISSUE-023 (Media, Resecuenciación Correlativa de Planos por Escena y Restricción UNIQUE en Tomas) resueltos. El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 297 tests pasando al 100% (1.378 assertions) y Pint con 0 infracciones.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **Resecuenciación Correlativa de Planos por Escena y Restricción UNIQUE en Tomas (AUDIT-20261109 / ISSUE-023 / jg_filmmaker#28):**
+  - **Resecuenciamiento Canónico de Planos por Escena (`resequenceSceneShots`):**
+    - Implementación del algoritmo de resecuenciación en `ShotsBreakdownService` y `ScriptPipelineService`. Al completar el desglose de planos de un bloque o eliminar planos individuales, los planos de la escena se ordenan por `script_blocks.block_order ASC` y se renumeran correlativamente `1..N`, neutralizando colisiones de planos homónimos (`Plano 1`, `Plano 2`) entre bloques de la misma escena.
+    - Sincronización posicional relativa en `syncShotEntity`, emparejando planos por índice de secuencia y preservando tomas y metadatos preexistentes.
+  - **Restricción `UNIQUE` en Tomas:**
+    - Migración `2026_11_14_210000_add_unique_to_takes_table` que eleva el índice simple a restricción `UNIQUE (shot_id, take_number)`.
 
 - **Paginación de Obras y Optimización de Consultas SQL de Telemetría (AUDIT-20261109 / ISSUE-022 / jg_filmmaker#27):**
   - **Paginación de Obras Cinematográficas en `UserDetail`:**

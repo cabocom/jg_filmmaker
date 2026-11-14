@@ -109,8 +109,8 @@ class NumberingRacesAndOrphanMediaTest extends TestCase
         Storage::disk('local')->put($filePath1, 'content 1');
         Storage::disk('local')->put($filePath2, 'content 2');
 
-        Take::factory()->create(['shot_id' => $shot->id, 'file_path' => $filePath1]);
-        Take::factory()->create(['shot_id' => $shot->id, 'file_path' => $filePath2]);
+        Take::factory()->create(['shot_id' => $shot->id, 'take_number' => 1, 'file_path' => $filePath1]);
+        Take::factory()->create(['shot_id' => $shot->id, 'take_number' => 2, 'file_path' => $filePath2]);
 
         $this->assertTrue(Storage::disk('local')->exists($filePath1));
         $this->assertTrue(Storage::disk('local')->exists($filePath2));

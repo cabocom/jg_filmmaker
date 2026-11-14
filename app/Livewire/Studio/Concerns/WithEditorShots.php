@@ -6,6 +6,7 @@ namespace App\Livewire\Studio\Concerns;
 
 use App\Models\ScriptBlock;
 use App\Models\Shot;
+use App\Services\ScriptPipelineService;
 use Illuminate\Support\Facades\DB;
 
 trait WithEditorShots
@@ -26,20 +27,14 @@ trait WithEditorShots
         $block = $shot->scriptBlock;
         $shotNumber = $shot->shot_number;
 
-        DB::transaction(function () use ($shot, $block) {
+        DB::transaction(function () use ($shot) {
+            $scene = $shot->scene;
             $shot->takes()->delete();
             $shot->delete();
 
-            if ($block) {
-                // Reindexar planos correlativamente dentro del bloque
-                $remaining = $block->shots()->orderBy('shot_number')->get();
-                $idx = 1;
-                foreach ($remaining as $s) {
-                    if ($s->shot_number !== $idx) {
-                        $s->update(['shot_number' => $idx]);
-                    }
-                    $idx++;
-                }
+            if ($scene) {
+                // Resecuenciar correlativamente a nivel de escena (ISSUE-023)
+                app(ScriptPipelineService::class)->resequenceSceneShots($scene);
             }
         });
 

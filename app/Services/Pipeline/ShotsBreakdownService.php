@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Pipeline;
 
+use App\Models\Scene;
 use App\Models\ScriptBlock;
 use App\Models\Shot;
 use App\Models\Take;
@@ -46,15 +47,21 @@ class ShotsBreakdownService
 
         $createdShots = new Collection;
         $usedShotIds = [];
+        $existingBlockShots = $block->shots()->orderBy('shot_number')->get();
 
-        foreach ($shotsList as $shotData) {
-            $shot = $this->syncShotEntity($block, $shotData);
+        foreach ($shotsList as $index => $shotData) {
+            $existingShot = $existingBlockShots->get($index);
+            $shot = $this->syncShotEntity($block, $shotData, $existingShot);
             $usedShotIds[] = $shot->id;
             $createdShots->push($shot);
         }
 
         $this->cleanupObsoleteShots($block, $usedShotIds);
         $this->updateBlockStageToShots($block, $pipeline);
+
+        if ($block->scene) {
+            $this->resequenceSceneShots($block->scene);
+        }
 
         if ($project) {
             $this->telemetryService->record(
@@ -70,25 +77,28 @@ class ShotsBreakdownService
         return $createdShots;
     }
 
-    protected function syncShotEntity(ScriptBlock $block, array $shotData): Shot
+    protected function syncShotEntity(ScriptBlock $block, array $shotData, ?Shot $existingShot = null): Shot
     {
-        $shotNumber = (int) ($shotData['shot_number'] ?? 1);
         $shotType = (string) ($shotData['shot_type'] ?? 'PM');
         $description = (string) ($shotData['description'] ?? '');
 
-        $existingShot = Shot::where('scene_id', $block->scene_id)
-            ->where('script_block_id', $block->id)
-            ->where('shot_number', $shotNumber)
-            ->first();
-
-        $hasRecordedTakes = $existingShot && $this->hasRecordedTakes($existingShot);
-        if ($hasRecordedTakes) {
+        if ($existingShot && $this->hasRecordedTakes($existingShot)) {
+            $shot = $existingShot;
+        } elseif ($existingShot) {
+            $existingShot->update([
+                'shot_type' => $shotType,
+                'description' => $description,
+            ]);
             $shot = $existingShot;
         } else {
-            $shot = Shot::updateOrCreate(
-                ['scene_id' => $block->scene_id, 'script_block_id' => $block->id, 'shot_number' => $shotNumber],
-                ['shot_type' => $shotType, 'description' => $description]
-            );
+            $maxSceneNumber = (int) (Shot::where('scene_id', $block->scene_id)->max('shot_number') ?? 0);
+            $shot = Shot::create([
+                'scene_id' => $block->scene_id,
+                'script_block_id' => $block->id,
+                'shot_number' => $maxSceneNumber + 1,
+                'shot_type' => $shotType,
+                'description' => $description,
+            ]);
         }
 
         if ($shot->wasRecentlyCreated && $shot->takes()->count() === 0) {
@@ -101,6 +111,31 @@ class ShotsBreakdownService
         }
 
         return $shot;
+    }
+
+    /**
+     * Resecuencia correlativamente todos los planos de la escena (1..N) ordenados por block_order y orden de plano.
+     */
+    public function resequenceSceneShots(Scene $scene): void
+    {
+        DB::transaction(function () use ($scene) {
+            $shots = Shot::where('shots.scene_id', $scene->id)
+                ->leftJoin('script_blocks', 'shots.script_block_id', '=', 'script_blocks.id')
+                ->select('shots.*')
+                ->orderBy('script_blocks.block_order', 'asc')
+                ->orderBy('shots.shot_number', 'asc')
+                ->orderBy('shots.created_at', 'asc')
+                ->lockForUpdate()
+                ->get();
+
+            $num = 1;
+            foreach ($shots as $shot) {
+                if ($shot->shot_number !== $num) {
+                    $shot->update(['shot_number' => $num]);
+                }
+                $num++;
+            }
+        });
     }
 
     protected function hasRecordedTakes(Shot $shot): bool

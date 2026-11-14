@@ -19,7 +19,7 @@ class TakeFactory extends Factory
     {
         return [
             'shot_id' => Shot::factory(),
-            'take_number' => 1,
+            'take_number' => fake()->numberBetween(1, 99999),
             'file_path' => 'media/projects/demo-project/scenes/demo-scene/takes/take-1.mp4',
             'is_good_take' => fake()->boolean(40),
             'editorial_notes' => 'Toma con buen encuadre, cortar inicio tras claqueta.',

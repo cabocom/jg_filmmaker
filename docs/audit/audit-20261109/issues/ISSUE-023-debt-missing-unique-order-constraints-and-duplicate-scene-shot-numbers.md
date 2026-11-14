@@ -35,3 +35,9 @@ En [`jg_filmmaker/app/Services/ScriptPipelineService.php`](file:///Users/javierg
 1. En `ScriptPipelineService::generateShotsBreakdown()`, tras actualizar los planos del bloque, ejecutar una renumeración correlativa a nivel de escena (`resequenceSceneShots(Scene $scene)`) ordenada por `block_order` del bloque padre y posición del plano, garantizando que `shot_number` sea único y continuo (`1..M`) en toda la escena.
 2. Añadir índices únicos diferibles (o sobre `(shot_id, take_number)`) una vez normalizada la secuencia.
 
+## 5. Resolución y Verificación Técnica
+- **Resecuenciamiento Correlativo de Planos por Escena (`resequenceSceneShots`):** Implementada la resecuenciación a nivel de escena en `ShotsBreakdownService::resequenceSceneShots(Scene $scene)` y expuesta en `ScriptPipelineService`. Al desglosar planos o eliminar planos individuales, los planos de la escena se ordenan por `script_blocks.block_order ASC` y se renumeran correlativamente `1..N`, eliminando duplicaciones de `shot_number = 1` entre bloques de la misma escena.
+- **Mapeo Posicional de Planos en `ShotsBreakdownService`:** El servicio empareja los planos devueltos por el pipeline con los planos preexistentes del bloque mediante su índice posicional relativo en lugar de asumir `shot_number = 1`, preservando tomas pregrabadas y evitando colisiones.
+- **Restricción `UNIQUE` en `takes`:** Creada migración `2026_11_14_210000_add_unique_to_takes_table` sustituyendo el índice simple por una restricción `UNIQUE (shot_id, take_number)`.
+- **Validación Automatizada:** Nueva suite `SceneShotsResequencingTest` validando la unicidad secuencial de planos en múltiples bloques de una escena y la restricción de tomas duplicadas. 297 tests pasando al 100% (1.378 assertions), Pint 0 infracciones.
+

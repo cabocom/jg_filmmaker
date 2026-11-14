@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Exceptions\QuotaExceededException;
 use App\Models\Character;
 use App\Models\Project;
+use App\Models\Scene;
 use App\Models\ScriptBlock;
 use App\Models\Shot;
 use App\Services\JgAgente\AgentClientService;
@@ -182,6 +183,11 @@ class ScriptPipelineService
     public function generateShotsBreakdown(ScriptBlock $block): Collection
     {
         return $this->shotsBreakdown->generateShotsBreakdown($block, $this);
+    }
+
+    public function resequenceSceneShots(Scene $scene): void
+    {
+        $this->shotsBreakdown->resequenceSceneShots($scene);
     }
 
     public function recordManualOverride(ScriptBlock $block, string $stage, string $originalText, string $overrideText): ScriptBlock
