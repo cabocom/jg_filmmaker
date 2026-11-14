@@ -1,12 +1,26 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.62.0  
+**Versión del documento:** 3.63.0  
 **Fecha de consolidación:** 14 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 (Crítico, IDOR Storyboards), ISSUE-008 (Crítico, Pydantic Schema en plugin), ISSUE-002 (Alta, IDOR Escenas/Planos), ISSUE-003 (Alta, Exposición Gráfica en Disco Local Privado), ISSUE-004 (Alta, Privacidad Admin en Streaming), ISSUE-013 (Alta, Procesamiento Multimedia Asíncrono Jobs FFmpeg), ISSUE-009 (Alta, Telemetría Completa Herramientas IA), ISSUE-014 (Alta, Eliminación N+1 LLM en ScriptPipelineService), e ISSUE-015 (Alta, Despacho Exclusivo Pre-warming TTS en Colas sin Duplicación ni Bloqueo Sync). El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 271 tests pasando al 100% (1.283 assertions) y Pint con 0 infracciones.
+**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 (Crítico, IDOR Storyboards), ISSUE-008 (Crítico, Pydantic Schema en plugin), ISSUE-002 (Alta, IDOR Escenas/Planos), ISSUE-003 (Alta, Exposición Gráfica en Disco Local Privado), ISSUE-004 (Alta, Privacidad Admin en Streaming), ISSUE-013 (Alta, Procesamiento Multimedia Asíncrono Jobs FFmpeg), ISSUE-009 (Alta, Telemetría Completa Herramientas IA), ISSUE-014 (Alta, Eliminación N+1 LLM en ScriptPipelineService), ISSUE-015 (Alta, Despacho Exclusivo Pre-warming TTS en Colas), e ISSUE-005 (Media, Acotación demoVoice, Rate-Limiting en Rutas de Audio y Control de Cuota Google AI TTS). El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 274 tests pasando al 100% (1.298 assertions) y Pint con 0 infracciones.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **Acotación de Muestras TTS, Rate-Limiting en Rutas de Audio y Control de Cuota en Google AI Studio (AUDIT-20261109 / ISSUE-005 / jg_filmmaker#10):**
+  - **Restricción de Texto Libre en `demoVoice` (`AudioStreamController`):**
+    - Saneamiento y truncamiento estricto a 100 caracteres (`mb_substr($rawText, 0, 100, 'UTF-8')`) del parámetro `text`, evitando el abuso de la plataforma como proxy TTS no acotado y ataques DoS de almacenamiento.
+    - Validación y normalización de la voz solicitada contra `getAvailableVoices()`.
+  - **Rate-Limiting Sistemático en Rutas de Audio (`routes/web.php`):**
+    - `projects.tts.manifest` protegido con `throttle:60,1`.
+    - `projects.tts.stream` protegido con `throttle:120,1`.
+    - `projects.tts.demo-voice` protegido con `throttle:30,1`.
+    - `projects.export-mp3` y `projects.export-mp3.dispatch` protegidos con `throttle:15,1`.
+  - **Control de Cuota Diaria y Telemetría en Google AI TTS (`TextToSpeechService` y `GoogleAiTtsProvider`):**
+    - Evaluación previa de `$currentUser->hasDailyTokensAvailable($estimatedTokens)` antes de invocar la API de Google AI Studio. Si la cuota está agotada, se conmuta automáticamente al motor local (`SpeachesTtsProvider`), neutralizando el consumo de crédito de Google AI.
+    - Registro de telemetría mediante `AgentTelemetryService::record(..., 'google_ai_tts')` en síntesis reales de Google AI Studio, registrando los tokens y costes devueltos por `usageMetadata`.
+  - **Pruebas Automatizadas:** Nueva suite `tests/Feature/TtsQuotaAndThrottleProtectionTest.php` con 3 tests verificando el límite de 100 caracteres en `demoVoice`, la presencia de los middlewares `throttle` y la conmutación a fallback cuando el usuario no dispone de cuota diaria. Suite ampliada a 274 tests pasando al 100% (1.298 assertions).
 
 - **Eliminación de Doble Disparo y Bloqueo en Pre-warming TTS (AUDIT-20261109 / ISSUE-015 / jg_filmmaker#20):**
   - **Despacho Exclusivo según Driver de Colas (`AudioStreamController`):**

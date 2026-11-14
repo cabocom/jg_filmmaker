@@ -56,7 +56,7 @@ class PrewarmScopeTtsJob implements ShouldQueue
                 if ($index % 10 === 0 || $status === 'failed') {
                     Log::debug("Pre-warming TTS [{$status}] segmento #{$index}: {$item['speaker']}");
                 }
-            });
+            }, $this->project);
 
             Log::info("Pre-warming TTS completado para proyecto {$this->project->id}", $stats);
         } finally {

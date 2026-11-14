@@ -51,3 +51,26 @@ En [`jg_filmmaker/routes/web.php`](file:///Users/javiergalvez/Documents/Code/jav
 1. En `AudioStreamController::demoVoice()`, eliminar la aceptación de texto libre arbitrario por query string (o acotarlo estrictamente a `mb_substr($customText, 0, 120)` sólo para el nombre del personaje) y aplicar `throttle:30,1` en `demo-voice` y `throttle:120,1` en `stream`.
 2. Registrar las invocaciones reales a Google AI TTS (cuando hay *cache miss*) en `AgentTelemetryService` para trazabilidad de costes y control de cuota diaria por usuario.
 
+## 5. Resolución y Verificación (2026-11-14)
+
+### Implementación Realizada
+- **Acotación y Sanitización en `AudioStreamController::demoVoice`:**
+  - El parámetro `text` recibido por query string se sanea y se restringe estrictamente a un máximo de 100 caracteres (`mb_substr($rawText, 0, 100, 'UTF-8')`), empleando la plantilla `"Hola, soy la voz {$shortName}."` en caso de texto vacío o ausente.
+  - Validación de la voz solicitada contra el catálogo de voces disponibles (`getAvailableVoices()`), recurriendo a `$defaultVoice` ante identificadores inválidos.
+- **Rate-Limiting en `routes/web.php`:**
+  - `projects.export-mp3` y `projects.export-mp3.dispatch`: Protegidos con `throttle:15,1`.
+  - `projects.tts.manifest`: Protegido con `throttle:60,1`.
+  - `projects.tts.stream`: Protegido con `throttle:120,1`.
+  - `projects.tts.demo-voice`: Protegido con `throttle:30,1`.
+- **Control de Cuota Diaria y Telemetría en `TextToSpeechService` y `GoogleAiTtsProvider`:**
+  - `GoogleAiTtsProvider` captura `usageMetadata` (`prompt_tokens`, `completion_tokens`, `total_tokens`) del endpoint de Google AI Studio y expone `getLastTelemetry()`.
+  - `TextToSpeechService::executeSynthesisPipeline` evalúa `$currentUser->hasDailyTokensAvailable($estimatedTokens)`. Si el usuario agotó su cupo diario de tokens, se omite Google AI Studio y se conmuta automáticamente al proveedor local (`SpeachesTtsProvider`), neutralizando el bypass de cuota y el consumo de crédito de Google AI.
+  - Ante síntesis exitosas de Google AI Studio (cache miss), se registra la telemetría con `AgentTelemetryService::record(..., toolName: 'google_ai_tts')` atribuida al usuario/proyecto.
+
+### Verificación y Cobertura
+- **Pruebas Automatizadas:** `tests/Feature/TtsQuotaAndThrottleProtectionTest.php` con 3 tests verificando el truncamiento a 100 caracteres en `demoVoice`, la presencia de los middlewares `throttle` en las rutas de audio y la omisión estricta del proveedor de Google AI cuando el usuario tiene cuota de tokens agotada.
+- **Validaciones CI/CD:**
+  - Pint: 0 infracciones.
+  - PHPUnit: 274 tests pasados al 100% (1.298 assertions).
+
+

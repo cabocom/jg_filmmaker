@@ -159,7 +159,7 @@ class TtsManifestService
         }
     }
 
-    public function prewarmManifest(array $manifest, float $speed = 1.0, ?callable $onProgress = null): array
+    public function prewarmManifest(array $manifest, float $speed = 1.0, ?callable $onProgress = null, ?Project $project = null): array
     {
         $stats = ['total' => count($manifest), 'cached' => 0, 'synthesized' => 0, 'failed' => 0];
 
@@ -180,7 +180,7 @@ class TtsManifestService
             }
 
             try {
-                $this->ttsService->synthesize($text, $voice, $speed);
+                $this->ttsService->synthesize($text, $voice, $speed, $project);
                 $stats['synthesized']++;
                 if ($onProgress) {
                     $onProgress($index, $item, 'synthesized');

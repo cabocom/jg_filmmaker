@@ -60,6 +60,20 @@ class GoogleAiTtsProvider implements TtsProviderInterface
 
     protected ?Response $lastSuccessfulResponse = null;
 
+    protected ?string $lastUsedModel = null;
+
+    protected ?array $lastTelemetry = null;
+
+    public function getLastModel(): ?string
+    {
+        return $this->lastUsedModel;
+    }
+
+    public function getLastTelemetry(): ?array
+    {
+        return $this->lastTelemetry;
+    }
+
     protected function resolveCandidateModels(): array
     {
         return array_values(array_unique([
@@ -98,6 +112,16 @@ class GoogleAiTtsProvider implements TtsProviderInterface
 
             if ($response->successful()) {
                 $this->lastSuccessfulResponse = $response;
+                $this->lastUsedModel = $model;
+                $this->lastTelemetry = [
+                    'provider' => 'google_ai_studio',
+                    'model' => $model,
+                    'usage' => [
+                        'prompt_tokens' => $response->json('usageMetadata.promptTokenCount') ?? max(1, (int) ceil(mb_strlen($cleanText) / 4)),
+                        'completion_tokens' => $response->json('usageMetadata.candidatesTokenCount') ?? 0,
+                        'total_tokens' => $response->json('usageMetadata.totalTokenCount') ?? max(1, (int) ceil(mb_strlen($cleanText) / 4)),
+                    ],
+                ];
 
                 return 'success';
             }

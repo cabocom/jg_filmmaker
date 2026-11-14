@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\Character;
 use App\Models\Project;
 use App\Models\ScriptBlock;
+use App\Models\User;
 use App\Services\Tts\Contracts\TtsProviderInterface;
 use App\Services\Tts\Providers\GoogleAiTtsProvider;
 use App\Services\Tts\Providers\SpeachesTtsProvider;
@@ -44,8 +45,11 @@ class TextToSpeechService
 
     protected TtsManifestService $manifestService;
 
-    public function __construct()
+    protected ?AgentTelemetryService $telemetryService = null;
+
+    public function __construct(?AgentTelemetryService $telemetryService = null)
     {
+        $this->telemetryService = $telemetryService ?? app(AgentTelemetryService::class);
         $this->speachesUrl = rtrim((string) config('services.speaches.url', 'http://speaches:8000'), '/');
         $this->model = (string) config('services.speaches.model', 'speaches-ai/piper-es_ES-sharvard-medium');
         $this->googleApiKey = config('services.google_ai.api_key') ?: null;
@@ -113,8 +117,13 @@ class TextToSpeechService
         return $v;
     }
 
-    public function synthesize(string $text, ?string $voice = null, float $speed = 1.0): string
-    {
+    public function synthesize(
+        string $text,
+        ?string $voice = null,
+        float $speed = 1.0,
+        ?Project $project = null,
+        ?User $user = null
+    ): string {
         $cleanText = $this->expandScreenplayAbbreviations(trim($text));
         if ($cleanText === '') {
             throw new RuntimeException('El texto a sintetizar no puede estar vacío.');
@@ -132,16 +141,42 @@ class TextToSpeechService
             return $cachedFilePath;
         }
 
-        return $this->executeSynthesisPipeline($cleanText, $activeVoice, $speed, $cachedFilePath);
+        return $this->executeSynthesisPipeline($cleanText, $activeVoice, $speed, $cachedFilePath, $project, $user);
     }
 
-    protected function executeSynthesisPipeline(string $cleanText, string $activeVoice, float $speed, string $cachedFilePath): string
-    {
+    protected function executeSynthesisPipeline(
+        string $cleanText,
+        string $activeVoice,
+        float $speed,
+        string $cachedFilePath,
+        ?Project $project = null,
+        ?User $user = null
+    ): string {
+        $currentUser = $user ?? (auth()->check() ? auth()->user() : ($project?->user ?? null));
+        $estimatedTokens = max(10, (int) ceil(mb_strlen($cleanText) / 4));
+
         if ($this->googleAiProvider->isAvailable()) {
-            try {
-                return $this->googleAiProvider->synthesize($cleanText, $activeVoice, $speed, $cachedFilePath);
-            } catch (\Throwable $e) {
-                Log::warning("Google AI TTS no pudo sintetizar [{$cleanText}]: {$e->getMessage()}. Intentando fallback...");
+            if ($currentUser && ! $currentUser->hasDailyTokensAvailable($estimatedTokens)) {
+                Log::warning("Cuota diaria de tokens agotada para usuario {$currentUser->id} en Google AI TTS. Conmutando a fallback...");
+            } else {
+                try {
+                    $path = $this->googleAiProvider->synthesize($cleanText, $activeVoice, $speed, $cachedFilePath);
+                    if ($this->telemetryService && ($project || $currentUser)) {
+                        $this->telemetryService->record(
+                            projectId: $project?->id ?? '00000000-0000-0000-0000-000000000000',
+                            scriptBlockId: null,
+                            toolName: 'google_ai_tts',
+                            inputPayload: ['text' => $cleanText, 'voice' => $activeVoice, 'speed' => $speed],
+                            outputPayload: ['cached_file' => basename($cachedFilePath), 'size_bytes' => File::size($cachedFilePath)],
+                            telemetry: method_exists($this->googleAiProvider, 'getLastTelemetry') ? $this->googleAiProvider->getLastTelemetry() : null,
+                            userId: $currentUser?->id
+                        );
+                    }
+
+                    return $path;
+                } catch (\Throwable $e) {
+                    Log::warning("Google AI TTS no pudo sintetizar [{$cleanText}]: {$e->getMessage()}. Intentando fallback...");
+                }
             }
         }
 
@@ -195,9 +230,9 @@ class TextToSpeechService
         return $this->manifestService->exportProjectToMp3($project, $speed);
     }
 
-    public function prewarmManifest(array $manifest, float $speed = 1.0, ?callable $onProgress = null): array
+    public function prewarmManifest(array $manifest, float $speed = 1.0, ?callable $onProgress = null, ?Project $project = null): array
     {
-        return $this->manifestService->prewarmManifest($manifest, $speed, $onProgress);
+        return $this->manifestService->prewarmManifest($manifest, $speed, $onProgress, $project);
     }
 
     protected function parseScreenplayText(string $text, array &$voiceMap, ?Project $project = null): array

@@ -108,7 +108,7 @@ class AudioStreamController extends Controller
         }
 
         $segment = $segments[$segmentIndex];
-        $audioPath = $tts->synthesize($segment['text'], $segment['voice'], $speed);
+        $audioPath = $tts->synthesize($segment['text'], $segment['voice'], $speed, $project);
         $elapsedMs = round((microtime(true) - $startTime) * 1000, 2);
 
         Log::info("[TTS Stream] Segmento #{$segmentIndex} ({$segment['speaker']}) servido en {$elapsedMs}ms", [
@@ -137,12 +137,17 @@ class AudioStreamController extends Controller
         $defaultVoice = $tts->getDefaultVoice();
         $voice = (string) $request->query('voice', $defaultVoice);
         $voiceInfo = collect($tts->getAvailableVoices())->firstWhere('id', $voice);
-        $shortName = $voiceInfo['id'] ?? $voice;
+        $shortName = $voiceInfo['id'] ?? $defaultVoice;
+        $resolvedVoice = $voiceInfo ? $voice : $defaultVoice;
 
-        $text = (string) $request->query('text', "Hola, soy la voz {$shortName}.");
+        $rawText = trim((string) $request->query('text', ''));
+        // Acotar texto a un máximo de 100 caracteres para mitigar abuso DoS / proxy TTS
+        $text = $rawText !== ''
+            ? mb_substr($rawText, 0, 100, 'UTF-8')
+            : "Hola, soy la voz {$shortName}.";
 
         try {
-            $audioPath = $tts->synthesize($text, $voice, 1.0);
+            $audioPath = $tts->synthesize($text, $resolvedVoice, 1.0, $project);
 
             return response()->file($audioPath, [
                 'Content-Type' => 'audio/wav',

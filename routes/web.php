@@ -42,10 +42,10 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('can:view,project')
         ->name('projects.export-pdf');
     Route::get('/projects/{project}/export-mp3', [AudioStreamController::class, 'exportMp3'])
-        ->middleware('can:view,project')
+        ->middleware(['can:view,project', 'throttle:15,1'])
         ->name('projects.export-mp3');
     Route::post('/projects/{project}/export-mp3/dispatch', [AudioStreamController::class, 'dispatchExportMp3'])
-        ->middleware('can:view,project')
+        ->middleware(['can:view,project', 'throttle:15,1'])
         ->name('projects.export-mp3.dispatch');
     Route::get('/projects/{project}/export-mp3/status', [AudioStreamController::class, 'exportMp3Status'])
         ->middleware('can:view,project')
@@ -53,13 +53,13 @@ Route::middleware(['auth'])->group(function () {
 
     // Síntesis de voz (TTS) y streaming de audio para lectura dramática
     Route::get('/projects/{project}/tts/manifest', [AudioStreamController::class, 'manifest'])
-        ->middleware('can:view,project')
+        ->middleware(['can:view,project', 'throttle:60,1'])
         ->name('projects.tts.manifest');
     Route::get('/projects/{project}/tts/stream', [AudioStreamController::class, 'streamAudio'])
-        ->middleware('can:view,project')
+        ->middleware(['can:view,project', 'throttle:120,1'])
         ->name('projects.tts.stream');
     Route::get('/projects/{project}/tts/demo-voice', [AudioStreamController::class, 'demoVoice'])
-        ->middleware('can:view,project')
+        ->middleware(['can:view,project', 'throttle:30,1'])
         ->name('projects.tts.demo-voice');
 
     // Streaming seguro de medios audiovisuales privados (ISSUE-006, ISSUE-003)
