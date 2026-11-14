@@ -97,11 +97,14 @@ class GoogleAiTtsProvider implements TtsProviderInterface
 
     protected function tryModelRequest(string $model, string $cleanText, string $voice, string $exhaustedKey): string
     {
-        $url = "{$this->baseUrl}/models/{$model}:generateContent?key={$this->apiKey}";
+        $url = "{$this->baseUrl}/models/{$model}:generateContent";
 
         try {
             $response = Http::timeout($this->timeout)
-                ->withHeaders(['Content-Type' => 'application/json'])
+                ->withHeaders([
+                    'Content-Type' => 'application/json',
+                    'x-goog-api-key' => (string) $this->apiKey,
+                ])
                 ->post($url, $this->buildPayload($cleanText, $voice));
 
             if ($response->status() === 429) {

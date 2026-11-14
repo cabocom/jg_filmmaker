@@ -10,7 +10,9 @@ use App\Models\Scene;
 use App\Models\ScriptBlock;
 use App\Models\User;
 use App\Services\TextToSpeechService;
+use App\Services\Tts\Providers\GoogleAiTtsProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
 use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
@@ -355,6 +357,47 @@ class TextToSpeechServiceTest extends TestCase
 
         if (file_exists($mp3Path)) {
             @unlink($mp3Path);
+        }
+    }
+
+    public function test_google_ai_tts_provider_sends_api_key_via_header_not_query_string(): void
+    {
+        Http::fake([
+            'https://generativelanguage.googleapis.com/*' => function (Request $request) {
+                // Verificar que la URL no contiene la clave en el query string
+                $this->assertStringNotContainsString('key=', $request->url());
+                // Verificar que se envía en la cabecera x-goog-api-key
+                $this->assertTrue($request->hasHeader('x-goog-api-key'));
+                $this->assertSame('secret_secure_key_123', $request->header('x-goog-api-key')[0]);
+
+                return Http::response([
+                    'candidates' => [
+                        [
+                            'content' => [
+                                'parts' => [
+                                    ['inlineData' => ['mimeType' => 'audio/wav', 'data' => base64_encode('SECURE_RIFF')]],
+                                ],
+                            ],
+                        ],
+                    ],
+                ]);
+            },
+        ]);
+
+        $provider = new GoogleAiTtsProvider(
+            apiKey: 'secret_secure_key_123',
+            baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+            defaultModel: 'gemini-3.8-flash-tts'
+        );
+
+        $tmpPath = storage_path('tts_cache/secure_test.wav');
+        $result = $provider->synthesize('Prueba de seguridad sin clave en URL', 'Puck', 1.0, $tmpPath);
+
+        $this->assertSame($tmpPath, $result);
+        $this->assertFileExists($tmpPath);
+
+        if (file_exists($tmpPath)) {
+            @unlink($tmpPath);
         }
     }
 }

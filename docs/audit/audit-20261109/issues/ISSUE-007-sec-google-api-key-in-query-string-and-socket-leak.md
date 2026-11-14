@@ -70,3 +70,19 @@ Y en [`jg_plugin_filmmaker/jg_plugin_filmmaker/storyboard.py`](file:///Users/jav
             http_client.close()
 ```
 
+## 5. Resolución y Verificación (2026-11-14)
+
+### Implementación Realizada
+- **Protección de Credenciales en Cabecera HTTP (`x-goog-api-key`):**
+  - En `jg_filmmaker` (`GoogleAiTtsProvider::tryModelRequest`), se eliminó `?key={$this->apiKey}` de la URL hacia Google AI Studio, enviando la credencial exclusivamente mediante la cabecera estándar `'x-goog-api-key' => (string) $this->apiKey`.
+  - En `jg_plugin_filmmaker` (`storyboard.py`), se eliminó `?key={api_key}` de la URL, inyectando la clave a través de `"x-goog-api-key": api_key`.
+- **Validación Estricta de Lista Blanca en `base_url` (`storyboard.py`):**
+  - Se incorporó la validación del esquema (`https` o `http` en entornos locales) y del nombre de host (`generativelanguage.googleapis.com`, `127.0.0.1`, `localhost`), rechazando hosts no autorizados con error `UNTRUSTED_BASE_URL` para prevenir ataques SSRF y exfiltración de credenciales.
+- **Prevención de Fuga de Descriptores de Sockets TCP (`storyboard.py`):**
+  - Se gestiona la propiedad del cliente HTTP con `owns_client = client is None` y se garantiza su cierre determinista en un bloque `finally: if owns_client: http_client.close()`.
+
+### Verificación y Cobertura
+- **`jg_filmmaker`:** Test `test_google_ai_tts_provider_sends_api_key_via_header_not_query_string` en `TextToSpeechServiceTest.php` comprobando que `request.url()` no contiene `key=` y que la cabecera `x-goog-api-key` viaja correctamente. Suite de 276 tests pasando al 100% (1.307 assertions) y Pint con 0 fallos.
+- **`jg_plugin_filmmaker`:** Tests `test_generate_storyboard_sends_api_key_in_header_not_query_string` y `test_generate_storyboard_rejects_untrusted_base_url` en `tests/test_storyboard.py`. Suite de 66 tests pasando al 100% y linters Ruff superados.
+
+

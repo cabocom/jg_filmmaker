@@ -1,12 +1,22 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.64.0  
+**Versión del documento:** 3.65.0  
 **Fecha de consolidación:** 14 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 (Crítico, IDOR Storyboards), ISSUE-008 (Crítico, Pydantic Schema en plugin), ISSUE-002 (Alta, IDOR Escenas/Planos), ISSUE-003 (Alta, Exposición Gráfica en Disco Local Privado), ISSUE-004 (Alta, Privacidad Admin en Streaming), ISSUE-013 (Alta, Procesamiento Multimedia Asíncrono Jobs FFmpeg), ISSUE-009 (Alta, Telemetría Completa Herramientas IA), ISSUE-014 (Alta, Eliminación N+1 LLM en ScriptPipelineService), ISSUE-015 (Alta, Despacho Exclusivo Pre-warming TTS en Colas), ISSUE-005 (Media, Acotación demoVoice y Rate-Limiting en Rutas de Audio), e ISSUE-006 (Media, Gate Admin y Registro Forense en AdminAuditLog al Transferir Proyectos en UserDetail). El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 275 tests pasando al 100% (1.302 assertions) y Pint con 0 infracciones.
+**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 (Crítico, IDOR Storyboards), ISSUE-008 (Crítico, Pydantic Schema en plugin), ISSUE-002 (Alta, IDOR Escenas/Planos), ISSUE-003 (Alta, Exposición Gráfica en Disco Local Privado), ISSUE-004 (Alta, Privacidad Admin en Streaming), ISSUE-013 (Alta, Procesamiento Multimedia Asíncrono Jobs FFmpeg), ISSUE-009 (Alta, Telemetría Completa Herramientas IA), ISSUE-014 (Alta, Eliminación N+1 LLM en ScriptPipelineService), ISSUE-015 (Alta, Despacho Exclusivo Pre-warming TTS en Colas), ISSUE-005 (Media, Acotación demoVoice y Rate-Limiting en Rutas de Audio), ISSUE-006 (Media, Gate Admin y Registro Forense en AdminAuditLog), e ISSUE-007 (Media, Credenciales en Cabecera HTTP x-goog-api-key, Validación base_url y Cierre de Sockets TCP). El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 276 tests pasando al 100% (1.307 assertions) y Pint con 0 infracciones.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **Credenciales en Cabecera `x-goog-api-key`, Validación de `base_url` y Cierre de Sockets TCP (AUDIT-20261109 / ISSUE-007 / jg_filmmaker#12):**
+  - **Eliminación de API Key en Query String:**
+    - `GoogleAiTtsProvider::tryModelRequest` (`jg_filmmaker`): Eliminación de `?key={$this->apiKey}` en las peticiones a Google AI Studio, enviando la credencial exclusivamente mediante la cabecera estándar `'x-goog-api-key' => (string) $this->apiKey`, impidiendo la filtración en logs de excepciones o trazas de red.
+    - `storyboard.py` (`jg_plugin_filmmaker`): Eliminación de `?key={api_key}` y transmisión mediante la cabecera `"x-goog-api-key": api_key`.
+  - **Validación Estricta de Lista Blanca en `base_url` (`storyboard.py`):**
+    - Comprobación estricta de esquema y nombre de host autorizado (`generativelanguage.googleapis.com`, `localhost`, `127.0.0.1`), rechazando hosts no autorizados con `UNTRUSTED_BASE_URL` para mitigar ataques SSRF y exfiltración de credenciales.
+  - **Cierre Determinista del Pool de Sockets HTTP (`storyboard.py`):**
+    - Gestión de ciclo de vida del cliente `httpx.Client` con `owns_client` y cierre garantizado en bloque `finally: http_client.close()`.
+  - **Pruebas Automatizadas:** `tests/Feature/TextToSpeechServiceTest.php` ampliado verificando que la URL hacia Google AI Studio no contiene `key=` y valida la cabecera `x-goog-api-key`. Suite ampliada a 276 tests pasando al 100% (1.307 assertions). En `jg_plugin_filmmaker`, suite ampliada a 66 tests pasando al 100%.
 
 - **Gate de Administración y Trazabilidad Forense en Transferencia de Proyectos (`UserDetail` / AUDIT-20261109 / ISSUE-006 / jg_filmmaker#11):**
   - **Autorización Explícita en Livewire:**
