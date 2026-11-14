@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services\JgAgente\Fallbacks;
 
 use App\Services\JgAgente\TelemetryRecorder;

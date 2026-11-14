@@ -50,3 +50,15 @@ En [`jg_filmmaker/docs/specs/03_jg_plugin_filmmaker_contract.md`](file:///Users/
 1. Añadir `declare(strict_types=1);` en todos los archivos de `jg_filmmaker/app/`, `config/`, `database/` y `tests/`, incorporando la regla `"declare_strict_types": true` en `pint.json` para garantizar su cumplimiento automático en el pipeline CI/CD.
 2. Actualizar `docs/specs/01..04` para alinearlos con los 14 modelos Eloquent reales, las 7 herramientas de `jg_plugin_filmmaker`, el protocolo HMAC con `X-Key-Id` y el delimitador `--- shot (TIPO) ---`.
 
+## 5. Implementación y Resolución (2026-11-14)
+- **Tipado Estricto Generalizado y Configuración en `pint.json`:**
+  - Creado `pint.json` con preset `laravel` y regla obligatoria `"declare_strict_types": true`.
+  - Aplicado `declare(strict_types=1);` al 100% de los ficheros de producción, controladores, modelos, migraciones, rutas y suites de prueba en `jg_filmmaker`.
+  - Verificación estricta de CI/CD: Laravel Pint ejecutado con 0 infracciones y 293 tests de PHPUnit superados al 100%.
+- **Alineación y Actualización Integral de Especificaciones (`docs/specs/`):**
+  - `01_architecture_and_models.md`: Documentados exhaustivamente los 14 modelos Eloquent del sistema, el esquema de aislamiento estricto por tenant mediante Policies, los campos multimedia (`reference_image_path`, `storyboard_image_path`, etc.) y el modelo de cuotas gobernado por `users.can_create_projects` y `users.daily_token_limit`.
+  - `02_pipeline_stages_and_locks.md`: Documentado el estándar `--- shot (TIPO) ---` con numeración incremental automática, el esquema real de `user_locks` (bloqueo por etapas y `pinned_terms`), la concurrencia optimista mediante `lock_version` y la optimización en lotes de `BatchPipelineProcessor`.
+  - `03_jg_plugin_filmmaker_contract.md`: Subsanado el bloque markdown inicial y documentadas las 7 herramientas cognitivas (`treatment_structuring`, `screenplay_formatter`, `shot_breakdown_detector`, `plot_hole_detector`, `generate_storyboard`, `extract_characters`, `audit_character_usage`), junto al protocolo HMAC-SHA256 con cabeceras `X-Key-Id` y `X-Agent-ID`.
+  - `04_shots_takes_media_management.md`: Alineadas las rutas seguras de almacenamiento particionado en disco privado (`media/projects/...` y `projects/...`), streaming protegido vía `MediaStreamController` y ensamblaje de vídeo rough cut en colas asíncronas con bloqueos atómicos.
+
+
