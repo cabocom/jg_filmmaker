@@ -21,9 +21,11 @@ class SecurityLogsViewer extends Component
     {
         $this->authorize('admin');
 
-        $totalCount = SecurityBreachLog::count();
-        if ($totalCount === 0) {
-            session()->flash('status', 'No existen registros de seguridad para purgar.');
+        $eligibleQuery = SecurityBreachLog::where('attempted_at', '<', now()->subDays(90));
+        $eligibleCount = $eligibleQuery->count();
+
+        if ($eligibleCount === 0) {
+            session()->flash('status', 'No existen registros de seguridad anteriores a 90 días para purgar (política de retención forense activa).');
 
             return;
         }
@@ -34,14 +36,14 @@ class SecurityLogsViewer extends Component
             'action' => 'purge_security_breach_logs',
             'target_type' => SecurityBreachLog::class,
             'details' => [
-                'purged_count' => $totalCount,
-                'retention_policy' => 'manual_admin_purge',
+                'purged_count' => $eligibleCount,
+                'retention_policy' => 'manual_admin_purge_over_90_days',
             ],
             'ip_address' => request()->ip(),
         ]);
 
-        SecurityBreachLog::query()->delete();
-        session()->flash('status', "Historial de registros de seguridad purgado ({$totalCount} eventos auditados).");
+        $eligibleQuery->delete();
+        session()->flash('status', "Historial de incidentes de seguridad anteriores a 90 días purgado ({$eligibleCount} eventos auditados).");
     }
 
     public function render()

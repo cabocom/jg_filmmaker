@@ -44,3 +44,9 @@ En [`jg_filmmaker/app/Livewire/Admin/SecurityLogsViewer.php`](file:///Users/javi
 1. Sustituir `SecurityBreachLog::truncate()` en `SecurityLogsViewer::clearLogs()` por una purga acotada a registros antiguos (ej. `SecurityBreachLog::where('created_at', '<', now()->subDays(90))->delete()`), prohibiendo la eliminación de incidentes de seguridad de los últimos 90 días desde la interfaz web, e implementar el trait `Prunable` en `SecurityBreachLog`.
 2. Guardar en `agent_request_logs.meta` el snapshot del `input_price_per_million` y `output_price_per_million` aplicado en el instante del cálculo.
 
+## 5. Resolución y Verificación Técnica
+- **Preservación Forense en `SecurityLogsViewer`:** Se sustituyó la eliminación indiscriminada por el filtrado acotado a incidentes con más de 90 días de antigüedad (`where('attempted_at', '<', now()->subDays(90))`), preservando intacta toda evidencia forense de los últimos 90 días e impidiendo el borrado accidental o malicioso de alertas activas desde la UI.
+- **Implementación de `Prunable` en `SecurityBreachLog`:** Incorporado el trait `Illuminate\Database\Eloquent\Prunable` con el scope canónico de 90 días, sincronizado con el scheduler diario de Laravel (`model:prune`).
+- **Snapshot Histórico de Tarifas en `AgentTelemetryService`:** Inclusión obligatoria del bloque `rate_snapshot` (`rate_id`, `provider`, `model`, `input_cost_per_million`, `output_cost_per_million`) dentro del campo `meta` de `AgentRequestLog`, garantizando trazabilidad histórica inmutable del precio aplicado a cada petición independientemente de modificaciones futuras en `token_pricing_rates`.
+- **Validación Automatizada:** Pruebas unitarias y de integración en `AdminSecurityAndDemoIsolationTest` y `AgentTelemetryAndPricingTest` verificando la preservación forense de registros recientes y el registro del snapshot de precios. Suites al 100% (294 tests, 1.369 assertions).
+

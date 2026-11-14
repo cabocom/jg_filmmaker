@@ -1,12 +1,20 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.69.0  
+**Versión del documento:** 3.70.0  
 **Fecha de consolidación:** 14 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 (Crítico, IDOR Storyboards), ISSUE-008 (Crítico, Pydantic Schema en plugin), ISSUE-002 (Alta, IDOR Escenas/Planos), ISSUE-003 (Alta, Exposición Gráfica en Disco Local Privado), ISSUE-004 (Alta, Privacidad Admin en Streaming), ISSUE-013 (Alta, Procesamiento Multimedia Asíncrono Jobs FFmpeg), ISSUE-009 (Alta, Telemetría Completa Herramientas IA), ISSUE-014 (Alta, Eliminación N+1 LLM en ScriptPipelineService), ISSUE-015 (Alta, Despacho Exclusivo Pre-warming TTS en Colas), ISSUE-005 (Media, Acotación demoVoice y Rate-Limiting en Rutas de Audio), ISSUE-006 (Media, Gate Admin y Registro Forense en AdminAuditLog), ISSUE-007 (Media, Credenciales en Cabecera HTTP x-goog-api-key, Validación base_url y Cierre de Sockets TCP), ISSUE-010 (Media, Inmutabilidad en Lecturas TTS y Tratamiento Multibyte UTF-8 de Nombres en Español), ISSUE-011 (Media, Limpieza en Cascada de Archivos Huérfanos, Corrección de Columnas de Importación y Reconciliación de Tareas Programadas), ISSUE-016 (Media, Auditoría IA de Personajes en Lote Único, Caché Reactiva de Audio Completo y Supresión de Endpoints Muertos en ScriptEditor), e ISSUE-012 (Deuda Técnica, Tipado Estricto Generalizado en PHP 8.4 y Alineación Integral de Especificaciones en docs/specs/). El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 293 tests pasando al 100% (1.358 assertions) y Pint con 0 infracciones.
+**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 a ISSUE-016 completados, e ISSUE-021 (Media, Preservación Forense en SecurityLogsViewer, Trait Prunable y Snapshot Histórico de Tarifas en AgentTelemetryService) resuelto. El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 294 tests pasando al 100% (1.369 assertions) y Pint con 0 infracciones.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **Preservación Forense de Seguridad y Snapshot Histórico de Tarifas (AUDIT-20261109 / ISSUE-021 / jg_filmmaker#26):**
+  - **Preservación Forense en `SecurityLogsViewer`:**
+    - Sustituida la purga indiscriminada de incidentes por un filtrado estricto a eventos con más de 90 días de antigüedad (`attempted_at < now()->subDays(90)`). La UI administrativa protege la evidencia forense reciente frente a eliminaciones involuntarias o maliciosas.
+    - Implementación del trait `Illuminate\Database\Eloquent\Prunable` en el modelo `SecurityBreachLog` acotado a 90 días, sincronizado con la tarea programada `model:prune` de Laravel.
+  - **Snapshot Histórico Inmutable de Tarifas en `AgentTelemetryService`:**
+    - Registro inmutable del bloque `rate_snapshot` (`rate_id`, `provider`, `model`, `input_cost_per_million`, `output_cost_per_million`) en el campo `meta` de cada `AgentRequestLog`.
+    - Garantía de trazabilidad e inviolabilidad histórica de precios frente a modificaciones posteriores en la tabla `token_pricing_rates`.
 
 - **Tipado Estricto Generalizado en PHP 8.4 y Alineación Integral de Especificaciones (AUDIT-20261109 / ISSUE-012 / jg_filmmaker#17):**
   - **Tipado Estricto Continuo en CI/CD (`pint.json`):**

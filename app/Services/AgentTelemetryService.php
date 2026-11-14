@@ -40,6 +40,14 @@ class AgentTelemetryService
             $outputTokens = 0;
             $totalTokens = 0;
             $estimatedCost = 0.0;
+            $rateSnapshot = [
+                'rate_id' => null,
+                'provider' => $provider,
+                'model' => $model,
+                'is_deterministic' => true,
+                'input_cost_per_million' => 0.0,
+                'output_cost_per_million' => 0.0,
+            ];
         } else {
             // Extraer o estimar tokens consumidos (~1 token = 4 caracteres)
             $inputTokens = 0;
@@ -92,15 +100,24 @@ class AgentTelemetryService
 
             $estimatedCost = ($inputTokens * ($inputCostPerMillion / 1000000)) + ($outputTokens * ($outputCostPerMillion / 1000000));
             $estimatedCost = round($estimatedCost, 6);
+
+            $rateSnapshot = [
+                'rate_id' => $rate?->id,
+                'provider' => $rate?->provider ?? $provider,
+                'model' => $rate?->model ?? $model,
+                'input_cost_per_million' => $inputCostPerMillion,
+                'output_cost_per_million' => $outputCostPerMillion,
+            ];
         }
 
-        $sanitizedTelemetry = null;
+        $sanitizedTelemetry = [];
         if (is_array($telemetry)) {
             $sanitizedTelemetry = $this->sanitizeUtf8Recursive($telemetry);
             if (isset($sanitizedTelemetry['user_locks']['ai_telemetry'])) {
                 unset($sanitizedTelemetry['user_locks']['ai_telemetry']);
             }
         }
+        $sanitizedTelemetry['rate_snapshot'] = $rateSnapshot;
 
         // 3. Resolver usuario asociado para imputación indeleble de cuota
         if (empty($userId)) {

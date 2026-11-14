@@ -189,25 +189,37 @@ class AdminSecurityAndDemoIsolationTest extends TestCase
         ]);
     }
 
-    public function test_admin_clearing_security_logs_records_audit_trail_before_deletion(): void
+    public function test_admin_clearing_security_logs_preserves_recent_records_and_purges_older_than_90_days(): void
     {
-        // ISSUE-021: Auditoría forense de purga de seguridad
+        // ISSUE-021: Auditoría forense de purga de seguridad - Prohibido truncate indiscriminado
         $admin = User::factory()->create(['is_admin' => true]);
 
-        SecurityBreachLog::create([
+        // Registro reciente (< 90 días) - DEBE ser preservado como evidencia forense
+        $recentLog = SecurityBreachLog::create([
             'ip_address' => '1.2.3.4',
             'user_agent' => 'Mozilla/5.0',
-            'attempted_at' => now(),
-            'reason' => 'OTP_REPLAY_ATTACK',
+            'attempted_at' => now()->subDays(2),
+            'reason' => 'OTP_REPLAY_ATTACK_RECENT',
         ]);
 
-        $this->assertEquals(1, SecurityBreachLog::count());
+        // Registro antiguo (> 90 días) - Elegible para purga
+        $oldLog = SecurityBreachLog::create([
+            'ip_address' => '5.6.7.8',
+            'user_agent' => 'Mozilla/5.0',
+            'attempted_at' => now()->subDays(95),
+            'reason' => 'BRUTE_FORCE_OLD',
+        ]);
+
+        $this->assertEquals(2, SecurityBreachLog::count());
 
         Livewire::actingAs($admin)
             ->test(SecurityLogsViewer::class)
             ->call('clearLogs');
 
-        $this->assertEquals(0, SecurityBreachLog::count());
+        // El registro reciente sobrevive intacto; el antiguo fue purgado
+        $this->assertEquals(1, SecurityBreachLog::count());
+        $this->assertTrue(SecurityBreachLog::where('id', $recentLog->id)->exists());
+        $this->assertFalse(SecurityBreachLog::where('id', $oldLog->id)->exists());
 
         $this->assertDatabaseHas('admin_audit_logs', [
             'user_id' => $admin->id,

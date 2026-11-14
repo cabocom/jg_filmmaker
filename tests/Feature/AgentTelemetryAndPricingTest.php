@@ -218,8 +218,47 @@ class AgentTelemetryAndPricingTest extends TestCase
         $this->assertNotNull($log);
         $this->assertSame(0, $log->total_tokens);
         $this->assertSame(0.0, (float) $log->estimated_cost_usd);
+        $this->assertIsArray($log->meta);
+        $this->assertTrue($log->meta['rate_snapshot']['is_deterministic']);
 
         // La cuota del usuario no se decrementa
         $this->assertSame($initialTokens, $this->user->getTokensUsedToday(true));
+    }
+
+    public function test_telemetry_records_exact_pricing_rate_snapshot_in_meta(): void
+    {
+        TokenPricingRate::create([
+            'provider' => 'anthropic',
+            'model' => 'claude-3-5-sonnet',
+            'input_cost_per_million' => 3.0,
+            'output_cost_per_million' => 15.0,
+            'is_active' => true,
+        ]);
+
+        $telemetryService = app(AgentTelemetryService::class);
+        $log = $telemetryService->record(
+            projectId: $this->project->id,
+            scriptBlockId: null,
+            toolName: 'screenplay_formatter',
+            inputPayload: 'Test input payload',
+            outputPayload: 'Test output payload',
+            telemetry: [
+                'provider' => 'anthropic',
+                'model' => 'claude-3-5-sonnet',
+                'usage' => [
+                    'prompt_tokens' => 1000,
+                    'completion_tokens' => 500,
+                ],
+            ],
+            userId: $this->user->id
+        );
+
+        $this->assertNotNull($log);
+        $this->assertIsArray($log->meta);
+        $this->assertArrayHasKey('rate_snapshot', $log->meta);
+        $this->assertSame(3.0, (float) $log->meta['rate_snapshot']['input_cost_per_million']);
+        $this->assertSame(15.0, (float) $log->meta['rate_snapshot']['output_cost_per_million']);
+        $this->assertSame('anthropic', $log->meta['rate_snapshot']['provider']);
+        $this->assertSame('claude-3-5-sonnet', $log->meta['rate_snapshot']['model']);
     }
 }
