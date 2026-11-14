@@ -36,3 +36,10 @@ En [`jg_filmmaker/app/Services/JgAgente/AgentClientService.php`](file:///Users/j
 1. Extraer las responsabilidades de `ScriptEditor` mediante Livewire Traits por dominio cohesivo (`ManagesScenes`, `ManagesScriptBlocks`, `ManagesShotsAndTakes`, `ManagesStoryboards`, `ManagesPlotHoles`, `ManagesBatchPipeline`) o subcomponentes especializados (`StoryboardComposerModal`, `BatchPipelineModal`, `ActivityHistoryModal`).
 2. Extraer de `AgentClientService` el motor heurístico offline a una clase separada `OfflineDeterministicEngine` e introducir el Enum respaldado en string `App\Enums\BlockStage: string`.
 
+## 5. Resolución y Verificación Técnica
+- **Modularización y Congelación de Monolitos (`ScriptEditor` y `AgentClientService`):**
+  - `ScriptEditor.php` descompuesto en Concerns específicos (`WithEditorBlockCrud`, `WithEditorBlockDrawer`, `WithEditorImportExportBatch`, `WithEditorNavigation`, `WithEditorPipelineExecution`, `WithEditorProperties`, `WithEditorShots`, `WithEditorStoryboard`, `WithEditorTakes`), reduciendo la clase principal a solo 107 líneas (< 300 LOC, regla 8.1).
+  - `AgentClientService.php` refactorizado con delegación a clientes dedicados (`StructuringAgentClient`, `ScreenplayAgentClient`, `StoryboardAgentClient`, `AuditingAgentClient`) y gestores de fallback modularizados (`FormattingFallbackHandler`, `StoryboardFallbackHandler`), dejando la clase en 229 líneas (< 300 LOC).
+- **Tipado Fuerte de Dominio con `BlockStage` Enum:** Creado el Enum tipado `App\Enums\BlockStage: string` (`RAW`, `STRUCTURED`, `SCREENPLAY`, `SHOTS`) con métodos de etiqueta, jerarquía de ordenación (`isAdvancedThan`) y resolución canónica en `ScriptBlock::stageEnum()`.
+- **Validación Automatizada:** Suite unitaria `BlockStageEnumTest` y suite completa de `jg_filmmaker` al 100% (299 tests, 1.389 assertions), Pint con 0 infracciones.
+

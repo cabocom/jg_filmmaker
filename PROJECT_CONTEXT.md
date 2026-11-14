@@ -1,12 +1,19 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.75.0  
+**Versión del documento:** 3.76.0  
 **Fecha de consolidación:** 14 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 a ISSUE-016 completados, e ISSUE-021 a ISSUE-026 (Media, Despliegue Inmutable en Compose, Migraciones Aisladas y Desacoplamiento de Plugin) resueltos. El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 297 tests pasando al 100% (1.379 assertions) y Pint con 0 infracciones.
+**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 a ISSUE-016 completados, e ISSUE-021 a ISSUE-027 (Deuda Técnica, Modularización de Monolitos y Enum Tipado BlockStage) resueltos. El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 299 tests pasando al 100% (1.389 assertions) y Pint con 0 infracciones.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **Modularización de Monolitos y Enum Tipado BlockStage (AUDIT-20261109 / ISSUE-027 / jg_filmmaker#32):**
+  - **Descomposición Cohesiva de Monolitos (`ScriptEditor` y `AgentClientService`):**
+    - `ScriptEditor.php` estructurado en Concerns Livewire especializados manteniendo la clase fachada en 107 líneas (< 300 LOC).
+    - `AgentClientService.php` desacoplado en clientes especializados y gestores de fallback modulares en 229 líneas (< 300 LOC).
+  - **Tipado Fuerte de Dominio con `BlockStage` Enum:**
+    - Introducción del Enum `App\Enums\BlockStage: string` (`RAW`, `STRUCTURED`, `SCREENPLAY`, `SHOTS`) con labels legibles y jerarquía estricta de avance narrativo, resuelto vía `ScriptBlock::stageEnum()`.
 
 - **Despliegue Inmutable en Compose y Desacoplamiento de Plugin (AUDIT-20261109 / ISSUE-026 / jg_filmmaker#31):**
   - **Despliegue Inmutable y Parametrización PostgreSQL en `docker-compose.yml`:**

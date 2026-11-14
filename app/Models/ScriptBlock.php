@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\BlockStage;
 use App\Services\Tts\TtsManifestService;
 use Database\Factories\ScriptBlockFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -150,6 +151,11 @@ class ScriptBlock extends Model
     public function scene(): BelongsTo
     {
         return $this->belongsTo(Scene::class);
+    }
+
+    public function stageEnum(): BlockStage
+    {
+        return BlockStage::tryFrom((string) $this->stage) ?? BlockStage::RAW;
     }
 
     /**
