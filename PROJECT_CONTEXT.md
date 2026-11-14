@@ -1,12 +1,21 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.79.0  
+**Versión del documento:** 3.80.0  
 **Fecha de consolidación:** 14 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 a ISSUE-016 completados, e ISSUE-021 a ISSUE-027, ISSUE-017, ISSUE-018 e ISSUE-019 (Arquitectura, Almacenamiento Multi-nodo S3/R2/MinIO, URLs Prefirmadas y Aceleración Nginx X-Accel-Redirect) resueltos. El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 311 tests pasando al 100% (1.442 assertions) y Pint con 0 infracciones.
+**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 a ISSUE-027 (el 100% de los 27 issues del plan de auditoría e ideas de mejora de arquitectura) completados y validados. El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 316 tests pasando al 100% (1.470 assertions) y Pint con 0 infracciones.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **Bóveda Cifrada BYOK y Caché Semántica de Transformaciones IA (AUDIT-20261109 / ISSUE-020 / jg_filmmaker#25):**
+  - **Bóveda Cifrada Autenticada BYOK (`ProjectEncryptionVaultService`):**
+    - Almacenamiento seguro de credenciales propias de usuario (`google`, `groq`, `openai`, `anthropic`) con cifrado AES-256 autenticado vía Laravel Crypt en `UserApiCredential` y máscara de huella `key_fingerprint` (`...XXXX`) para interfaces de usuario.
+    - Resolución dinámica en memoria en `TextToSpeechService` y clientes de agente sin persistencia de claves en disco ni fugas en logs de auditoría (`#[SensitiveParameter]` en PHP 8.4 y `SecretStr` en Pydantic v2).
+    - Exención automática de límites diarios de tokens de plataforma para usuarios con claves BYOK activas (`assertUserQuotaAvailable`) e imputación de coste cero a la plataforma (`is_byok = true` en `agent_request_logs`).
+  - **Caché Semántica Determinista (`SemanticPipelineCacheService`):**
+    - Motor de caché determinista por hash canónico SHA-256 sobre la carga útil normalizada (omitiendo claves efímeras como timestamp, nonce o tokens de autenticación).
+    - Respuesta en 0 ms con 0 tokens consumidos para herramientas del pipeline de guion (`treatment_structuring`, `screenplay_formatter`, `shot_breakdown_detector`).
 
 - **Almacenamiento Multi-nodo S3/R2/MinIO y URLs Prefirmadas (AUDIT-20261109 / ISSUE-019 / jg_filmmaker#24):**
   - **Servicio de Almacenamiento Agnostic Media (`MediaStorageService`):**

@@ -20,12 +20,16 @@ class AgentHttpTransport
 
     protected int $timeout;
 
+    protected SemanticPipelineCacheService $cacheService;
+
     public function __construct(
         ?string $baseUrl = null,
         ?string $secret = null,
         ?bool $mock = null,
-        ?int $timeout = null
+        ?int $timeout = null,
+        ?SemanticPipelineCacheService $cacheService = null
     ) {
+        $this->cacheService = $cacheService ?? new SemanticPipelineCacheService;
         $this->baseUrl = rtrim($baseUrl ?? (string) config('services.jg_agente.url', 'http://127.0.0.1:8001'), '/');
         $this->mock = $mock ?? (bool) config('services.jg_agente.mock', false);
         $this->timeout = $timeout ?? (int) config('services.jg_agente.timeout', 30);
@@ -75,6 +79,15 @@ class AgentHttpTransport
         callable $userLocksApplier,
         callable $shotParser
     ): array {
+        if ($this->cacheService->isCacheable($toolName)) {
+            $cached = $this->cacheService->get($toolName, $payload);
+            if ($cached !== null) {
+                $telemetry->record($toolName, $payload, $cached, 0);
+
+                return $cached;
+            }
+        }
+
         if ($this->mock) {
             return $this->resolveFallback($toolName, $payload, $fallbackEngine, $telemetry, $userLocksApplier, $shotParser);
         }
@@ -108,6 +121,10 @@ class AgentHttpTransport
                 if (is_array($data) && ($data['success'] ?? true) === true) {
                     $data['source'] = 'agent';
                     $data['degraded'] = false;
+
+                    if ($this->cacheService->isCacheable($toolName)) {
+                        $this->cacheService->put($toolName, $payload, $data);
+                    }
 
                     return $data;
                 }

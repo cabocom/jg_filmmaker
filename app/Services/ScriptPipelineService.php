@@ -59,6 +59,10 @@ class ScriptPipelineService
             return;
         }
 
+        if ($user->hasActiveByokCredential('google') || $user->hasActiveByokCredential('groq') || $user->hasActiveByokCredential('openai')) {
+            return;
+        }
+
         if (! $user->hasDailyTokensAvailable($estimatedTokens)) {
             $limit = $user->getDailyTokenLimit();
             $available = $user->getTokensAvailableToday();
@@ -99,7 +103,9 @@ class ScriptPipelineService
         $updatedBlock = $this->persistTransitionResult($block, 'structured', 'structured_text', $structuredText);
 
         if ($project) {
-            $this->telemetryService->record($project->id, $block->id, 'treatment_structuring', ['raw_text' => $rawText, 'characters' => $characters, 'location' => $location], $structuredText, $telemetry);
+            $user = $project->user ?? (auth()->check() ? auth()->user() : null);
+            $isByok = $user && ($user->hasActiveByokCredential('google') || $user->hasActiveByokCredential('groq') || $user->hasActiveByokCredential('openai'));
+            $this->telemetryService->record($project->id, $block->id, 'treatment_structuring', ['raw_text' => $rawText, 'characters' => $characters, 'location' => $location], $structuredText, $telemetry, userId: $user?->id, isByok: (bool) $isByok);
         }
 
         return $updatedBlock->refresh();
@@ -133,7 +139,9 @@ class ScriptPipelineService
         $updatedBlock = $this->persistTransitionResult($block, 'screenplay', 'screenplay_content', $screenplayContent);
 
         if ($project) {
-            $this->telemetryService->record($project->id, $block->id, 'screenplay_formatter', ['structured_text' => $sourceText, 'characters' => $characters, 'location' => $location], $screenplayContent, $telemetry);
+            $user = $project->user ?? (auth()->check() ? auth()->user() : null);
+            $isByok = $user && ($user->hasActiveByokCredential('google') || $user->hasActiveByokCredential('groq') || $user->hasActiveByokCredential('openai'));
+            $this->telemetryService->record($project->id, $block->id, 'screenplay_formatter', ['structured_text' => $sourceText, 'characters' => $characters, 'location' => $location], $screenplayContent, $telemetry, userId: $user?->id, isByok: (bool) $isByok);
         }
 
         return $updatedBlock->refresh();

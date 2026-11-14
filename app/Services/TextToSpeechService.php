@@ -13,6 +13,7 @@ use App\Services\Tts\Providers\GoogleAiTtsProvider;
 use App\Services\Tts\Providers\SpeachesTtsProvider;
 use App\Services\Tts\ScreenplaySegmenter;
 use App\Services\Tts\TtsManifestService;
+use App\Services\Tts\TtsVoiceCatalog;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
@@ -79,42 +80,12 @@ class TextToSpeechService
      */
     public function getAvailableVoices(): array
     {
-        if ($this->googleApiKey) {
-            return [
-                ['id' => 'Puck', 'name' => 'Puck (Masculino - Cálido y Narrativo)', 'gender' => 'male', 'lang' => 'es_ES'],
-                ['id' => 'Charon', 'name' => 'Charon (Masculino - Profundo y Maduro)', 'gender' => 'male', 'lang' => 'es_ES'],
-                ['id' => 'Fenrir', 'name' => 'Fenrir (Masculino - Enérgico e Intenso)', 'gender' => 'male', 'lang' => 'es_ES'],
-                ['id' => 'Zephyr', 'name' => 'Zephyr (Masculino - Joven y Dinámico)', 'gender' => 'male', 'lang' => 'es_ES'],
-                ['id' => 'Aoede', 'name' => 'Aoede (Femenino - Expresivo y Teatral)', 'gender' => 'female', 'lang' => 'es_ES'],
-                ['id' => 'Kore', 'name' => 'Kore (Femenino - Sereno y Claro)', 'gender' => 'female', 'lang' => 'es_ES'],
-                ['id' => 'Leda', 'name' => 'Leda (Femenino - Elegante y Cálido)', 'gender' => 'female', 'lang' => 'es_ES'],
-            ];
-        }
-
-        return [
-            ['id' => 'sharvard#M', 'name' => 'Castellano - Masculino (Sharvard M)', 'gender' => 'male', 'lang' => 'es_ES'],
-            ['id' => 'sharvard#F', 'name' => 'Castellano - Femenino (Sharvard F)', 'gender' => 'female', 'lang' => 'es_ES'],
-            ['id' => 'davefx', 'name' => 'Castellano - Masculino Profundo (Davefx)', 'gender' => 'male', 'lang' => 'es_ES'],
-            ['id' => 'carlfm', 'name' => 'Castellano - Masculino Joven (Carlfm)', 'gender' => 'male', 'lang' => 'es_ES'],
-            ['id' => 'mls_9972', 'name' => 'Castellano - Femenino Suave (MLS 9972)', 'gender' => 'female', 'lang' => 'es_ES'],
-            ['id' => 'mls_10246', 'name' => 'Castellano - Masculino Sereno (MLS 10246)', 'gender' => 'male', 'lang' => 'es_ES'],
-        ];
+        return TtsVoiceCatalog::getAvailableVoices($this->googleApiKey);
     }
 
     public function resolveVoice(?string $voice = null): string
     {
-        $v = $voice ?: $this->defaultVoice;
-        if ($this->googleApiKey) {
-            $legacyMap = [
-                'sharvard#M' => 'Puck', 'sharvard#F' => 'Aoede', 'davefx' => 'Charon',
-                'carlfm' => 'Zephyr', 'mls_9972' => 'Kore', 'mls_10246' => 'Fenrir',
-            ];
-            $valid = ['Puck', 'Charon', 'Fenrir', 'Zephyr', 'Aoede', 'Kore', 'Leda'];
-
-            return $legacyMap[$v] ?? (in_array($v, $valid, true) ? $v : 'Puck');
-        }
-
-        return $v;
+        return TtsVoiceCatalog::resolveVoice($voice, $this->defaultVoice, $this->googleApiKey);
     }
 
     public function synthesize(
@@ -154,13 +125,28 @@ class TextToSpeechService
     ): string {
         $currentUser = $user ?? (auth()->check() ? auth()->user() : ($project?->user ?? null));
         $estimatedTokens = max(10, (int) ceil(mb_strlen($cleanText) / 4));
+        $isByok = false;
+        $activeGoogleProvider = $this->googleAiProvider;
 
-        if ($this->googleAiProvider->isAvailable()) {
-            if ($currentUser && ! $currentUser->hasDailyTokensAvailable($estimatedTokens)) {
+        if ($currentUser && $currentUser->hasActiveByokCredential('google')) {
+            $byokCred = $currentUser->getActiveCredential('google');
+            if ($byokCred) {
+                $isByok = true;
+                $activeGoogleProvider = new GoogleAiTtsProvider(
+                    $byokCred->getDecryptedKey(),
+                    $this->googleAiBaseUrl,
+                    $this->googleAiTtsModel,
+                    $this->timeout
+                );
+            }
+        }
+
+        if ($activeGoogleProvider->isAvailable()) {
+            if (! $isByok && $currentUser && ! $currentUser->hasDailyTokensAvailable($estimatedTokens)) {
                 Log::warning("Cuota diaria de tokens agotada para usuario {$currentUser->id} en Google AI TTS. Conmutando a fallback...");
             } else {
                 try {
-                    $path = $this->googleAiProvider->synthesize($cleanText, $activeVoice, $speed, $cachedFilePath);
+                    $path = $activeGoogleProvider->synthesize($cleanText, $activeVoice, $speed, $cachedFilePath);
                     if ($this->telemetryService && ($project || $currentUser)) {
                         $this->telemetryService->record(
                             projectId: $project?->id ?? '00000000-0000-0000-0000-000000000000',
@@ -168,8 +154,9 @@ class TextToSpeechService
                             toolName: 'google_ai_tts',
                             inputPayload: ['text' => $cleanText, 'voice' => $activeVoice, 'speed' => $speed],
                             outputPayload: ['cached_file' => basename($cachedFilePath), 'size_bytes' => File::size($cachedFilePath)],
-                            telemetry: method_exists($this->googleAiProvider, 'getLastTelemetry') ? $this->googleAiProvider->getLastTelemetry() : null,
-                            userId: $currentUser?->id
+                            telemetry: method_exists($activeGoogleProvider, 'getLastTelemetry') ? $activeGoogleProvider->getLastTelemetry() : null,
+                            userId: $currentUser?->id,
+                            isByok: $isByok
                         );
                     }
 

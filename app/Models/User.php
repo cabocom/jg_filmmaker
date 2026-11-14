@@ -101,6 +101,36 @@ class User extends Authenticatable
     }
 
     /**
+     * Credenciales de API propias (BYOK - Bring Your Own Key) del usuario.
+     */
+    public function apiCredentials(): HasMany
+    {
+        return $this->hasMany(UserApiCredential::class);
+    }
+
+    /**
+     * Comprueba si el usuario tiene una credencial BYOK activa para un proveedor.
+     */
+    public function hasActiveByokCredential(string $provider): bool
+    {
+        return $this->apiCredentials()
+            ->where('provider', strtolower($provider))
+            ->where('is_active', true)
+            ->exists();
+    }
+
+    /**
+     * Obtiene la credencial BYOK activa para un proveedor específico.
+     */
+    public function getActiveCredential(string $provider): ?UserApiCredential
+    {
+        return $this->apiCredentials()
+            ->where('provider', strtolower($provider))
+            ->where('is_active', true)
+            ->first();
+    }
+
+    /**
      * Cupo diario configurado de tokens (por defecto 100.000).
      */
     public function getDailyTokenLimit(): int
@@ -128,6 +158,7 @@ class User extends Authenticatable
                                 ->where('projects.user_id', $this->id);
                         });
                 })
+                ->where('agent_request_logs.is_byok', false)
                 ->where('agent_request_logs.created_at', '>=', now()->startOfDay())
                 ->sum('agent_request_logs.total_tokens');
         });

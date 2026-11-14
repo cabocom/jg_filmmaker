@@ -25,16 +25,20 @@ class AgentTelemetryService
         array|string $inputPayload,
         array|string $outputPayload,
         ?array $telemetry = null,
-        ?string $userId = null
+        ?string $userId = null,
+        bool $isByok = false
     ): ?AgentRequestLog {
         // 1. Identificar proveedor y modelo para tarificación específica
         $provider = $telemetry['provider'] ?? ($telemetry['source'] ?? null);
         $model = $telemetry['model'] ?? null;
+        $isCached = ($telemetry['cached'] ?? false) === true || ($telemetry['source'] ?? null) === 'semantic_cache';
+        $isByok = $isByok || (($telemetry['is_byok'] ?? false) === true);
 
         $isDeterministic = in_array(strtolower((string) $provider), ['deterministic_engine'], true)
-            || str_contains(strtolower((string) $model), 'rule-based');
+            || str_contains(strtolower((string) $model), 'rule-based')
+            || $isCached;
 
-        // Si la operación se resolvió mediante motor determinista local / fallback por fallo del LLM, no se cobra cuota al usuario
+        // Si la operación se resolvió mediante motor determinista local / fallback / caché semántica, no se cobra cuota al usuario
         if ($isDeterministic) {
             $inputTokens = 0;
             $outputTokens = 0;
@@ -45,6 +49,8 @@ class AgentTelemetryService
                 'provider' => $provider,
                 'model' => $model,
                 'is_deterministic' => true,
+                'is_cached' => $isCached,
+                'is_byok' => $isByok,
                 'input_cost_per_million' => 0.0,
                 'output_cost_per_million' => 0.0,
             ];
@@ -99,12 +105,13 @@ class AgentTelemetryService
             $outputCostPerMillion = $rate ? (float) $rate->output_cost_per_million : 0.790000;
 
             $estimatedCost = ($inputTokens * ($inputCostPerMillion / 1000000)) + ($outputTokens * ($outputCostPerMillion / 1000000));
-            $estimatedCost = round($estimatedCost, 6);
+            $estimatedCost = $isByok ? 0.0 : round($estimatedCost, 6);
 
             $rateSnapshot = [
                 'rate_id' => $rate?->id,
                 'provider' => $rate?->provider ?? $provider,
                 'model' => $rate?->model ?? $model,
+                'is_byok' => $isByok,
                 'input_cost_per_million' => $inputCostPerMillion,
                 'output_cost_per_million' => $outputCostPerMillion,
             ];
@@ -134,6 +141,7 @@ class AgentTelemetryService
                 'input_tokens' => $inputTokens,
                 'output_tokens' => $outputTokens,
                 'total_tokens' => $totalTokens,
+                'is_byok' => $isByok,
                 'estimated_cost_usd' => $estimatedCost,
                 'meta' => $sanitizedTelemetry,
             ]);

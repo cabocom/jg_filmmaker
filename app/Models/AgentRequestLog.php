@@ -22,6 +22,7 @@ class AgentRequestLog extends Model
         'input_tokens',
         'output_tokens',
         'total_tokens',
+        'is_byok',
         'estimated_cost_usd',
         'meta',
     ];
@@ -32,6 +33,7 @@ class AgentRequestLog extends Model
             'input_tokens' => 'integer',
             'output_tokens' => 'integer',
             'total_tokens' => 'integer',
+            'is_byok' => 'boolean',
             'estimated_cost_usd' => 'decimal:6',
             'meta' => 'array',
         ];
