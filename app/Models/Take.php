@@ -26,6 +26,8 @@ class Take extends Model
         'shot_id',
         'take_number',
         'file_path',
+        'proxy_file_path',
+        'thumbnail_path',
         'is_good_take',
         'editorial_notes',
         'technical_meta',
@@ -46,19 +48,38 @@ class Take extends Model
     }
 
     /**
+     * Devuelve la ruta del archivo de vídeo preferente (proxy mezzanine normalizado si existe, original en su defecto).
+     */
+    public function effectiveVideoPath(): ?string
+    {
+        if ($this->proxy_file_path && Storage::disk('local')->exists($this->proxy_file_path)) {
+            return $this->proxy_file_path;
+        }
+
+        return $this->file_path;
+    }
+
+    /**
      * Boot the model and register deletion cleanup.
      */
     protected static function booted(): void
     {
         static::deleted(function (Take $take): void {
-            if ($take->file_path) {
-                $filePath = $take->file_path;
-                DB::afterCommit(function () use ($filePath) {
-                    if (Storage::disk('local')->exists($filePath)) {
-                        Storage::disk('local')->delete($filePath);
-                    }
-                    if (Storage::disk('public')->exists($filePath)) {
-                        Storage::disk('public')->delete($filePath);
+            $pathsToPurge = array_filter([
+                $take->file_path,
+                $take->proxy_file_path,
+                $take->thumbnail_path,
+            ]);
+
+            if (! empty($pathsToPurge)) {
+                DB::afterCommit(function () use ($pathsToPurge) {
+                    foreach ($pathsToPurge as $path) {
+                        if (Storage::disk('local')->exists($path)) {
+                            Storage::disk('local')->delete($path);
+                        }
+                        if (Storage::disk('public')->exists($path)) {
+                            Storage::disk('public')->delete($path);
+                        }
                     }
                 });
             }

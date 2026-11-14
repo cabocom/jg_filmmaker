@@ -66,3 +66,10 @@ Implementar un **Pipeline de Ingesta y Normalización Intermedia (Proxy Mezzanin
 
 Al estar todas las tomas normalizadas al mismo perfil de códec, resolución (1080p con *letterbox* automático), framerate constante (24 fps) y audio (48 kHz estéreo), el ensamblado posterior del *Rough Cut* funciona **siempre en modo `-c copy` en menos de 1 segundo**, sin consumir CPU ni sufrir derivas de sincronización labial.
 
+## 5. Resolución y Verificación Técnica
+- **Job de Normalización Asíncrona (`NormalizeTakeMediaJob`):** Implementado job en cola para transcodificar tomas heterogéneas (iPhone VFR, DSLR MOV, WebM) al estándar Mezzanine CFR (H.264 High@L4.1, 1080p letterbox, CFR 24 fps, GOP fijo -g 48, audio AAC-LC 48 kHz estéreo) y generar fotograma póster JPEG.
+- **Ruta y Priorización de Proxy Mezzanine en `Take`:** Migración `2026_11_14_220000_add_proxy_file_path_to_takes_table` añadiendo `proxy_file_path` y `thumbnail_path`. Método `Take::effectiveVideoPath()` que prioriza el proxy normalizado si existe en disco.
+- **Ensamblado Instantáneo en `RoughCutAssemblyService`:** Adaptado el servicio para ensamblar líneas de tiempo usando `effectiveVideoPath()`, garantizando compatibilidad de cabeceras de stream para concatenación ultrarrápida vía stream copy (`-c copy`).
+- **Limpieza en Cascada de Medios:** El hook de borrado `Take::booted()` purga automáticamente archivos originales, proxies y miniaturas al eliminar una toma.
+- **Validación Automatizada:** Suite `NormalizeTakeMediaJobTest` con 3 tests verificando la ingesta asíncrona, resolución preferente de proxies y borrado en cascada. 302 tests PHPUnit pasando al 100% (1.408 assertions).
+

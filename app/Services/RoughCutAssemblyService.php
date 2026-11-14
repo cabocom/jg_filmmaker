@@ -45,15 +45,16 @@ class RoughCutAssemblyService
         $isTestingOrMock = app()->environment('testing')
             || (bool) config('services.filmmaker.mock_ffmpeg', false);
 
-        // Obtener archivos físicos válidos acotados a la ruta del proyecto (priorizando disco local)
+        // Obtener archivos físicos válidos acotados a la ruta del proyecto (priorizando proxy mezzanine CFR normalizado)
         $validFilePaths = [];
         $allowedPrefix = "media/projects/{$project->id}/";
         foreach ($goodTakes as $take) {
-            if ($take->file_path && str_starts_with($take->file_path, $allowedPrefix) && ! str_contains($take->file_path, '..')) {
-                if ($disk->exists($take->file_path)) {
-                    $validFilePaths[] = $disk->path($take->file_path);
-                } elseif (Storage::disk('public')->exists($take->file_path)) {
-                    $validFilePaths[] = Storage::disk('public')->path($take->file_path);
+            $effectivePath = $take->effectiveVideoPath();
+            if ($effectivePath && str_starts_with($effectivePath, $allowedPrefix) && ! str_contains($effectivePath, '..')) {
+                if ($disk->exists($effectivePath)) {
+                    $validFilePaths[] = $disk->path($effectivePath);
+                } elseif (Storage::disk('public')->exists($effectivePath)) {
+                    $validFilePaths[] = Storage::disk('public')->path($effectivePath);
                 }
             }
         }

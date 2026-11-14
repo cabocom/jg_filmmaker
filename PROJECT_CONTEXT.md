@@ -1,12 +1,19 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.76.0  
+**Versión del documento:** 3.77.0  
 **Fecha de consolidación:** 14 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 a ISSUE-016 completados, e ISSUE-021 a ISSUE-027 (Deuda Técnica, Modularización de Monolitos y Enum Tipado BlockStage) resueltos. El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 299 tests pasando al 100% (1.389 assertions) y Pint con 0 infracciones.
+**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 a ISSUE-016 completados, e ISSUE-021 a ISSUE-027 e ISSUE-017 (Arquitectura, Pipeline Asíncrono de Ingesta y Transcodificación Mezzanine CFR 24fps) resueltos. El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 302 tests pasando al 100% (1.408 assertions) y Pint con 0 infracciones.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **Pipeline Asíncrono Mezzanine CFR y Ensamblado Stream Copy (AUDIT-20261109 / ISSUE-017 / jg_filmmaker#22):**
+  - **Normalización Intermedia en Segundo Plano (`NormalizeTakeMediaJob`):**
+    - Despacho automático de job en cola al recibir subidas de vídeo de tomas (`Take`). Transcodificación estandarizada con FFmpeg a perfil Mezzanine (H.264 High@L4.1, 1080p letterbox, CFR constante a 24 fps, GOP fijo de 48 fotogramas y audio AAC 48 kHz estéreo) y extracción de póster de miniatura.
+  - **Resolución Preferente de Proxies en `Take` y `RoughCutAssemblyService`:**
+    - Incorporación de `proxy_file_path` y `thumbnail_path` en tabla `takes`. Método `effectiveVideoPath()` que prioriza el proxy Mezzanine sobre el archivo fuente heterogéneo.
+    - El ensamblaje de la línea de tiempo en `RoughCutAssemblyService` utiliza los proxies normalizados, permitiendo concatenación ultrarrápida en menos de 1 segundo mediante stream copy (`-c copy`) sin re-codificación O(N).
 
 - **Modularización de Monolitos y Enum Tipado BlockStage (AUDIT-20261109 / ISSUE-027 / jg_filmmaker#32):**
   - **Descomposición Cohesiva de Monolitos (`ScriptEditor` y `AgentClientService`):**

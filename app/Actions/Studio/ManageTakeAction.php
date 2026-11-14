@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Studio;
 
+use App\Jobs\NormalizeTakeMediaJob;
 use App\Models\Shot;
 use App\Models\Take;
 use Illuminate\Http\UploadedFile;
@@ -49,6 +50,9 @@ final readonly class ManageTakeAction
             'file_path' => $storagePath,
             'technical_meta' => array_merge($take->technical_meta ?? [], $probedMeta),
         ]);
+
+        // Disparar normalización intermedia Mezzanine CFR en segundo plano (ISSUE-017)
+        NormalizeTakeMediaJob::dispatch($take->id);
 
         return [
             'file_path' => $storagePath,
