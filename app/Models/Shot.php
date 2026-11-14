@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class Shot extends Model
 {
@@ -56,6 +58,39 @@ class Shot extends Model
     public function getStoryboardImageUrlAttribute(): ?string
     {
         return $this->getStoryboardUrlAttribute();
+    }
+
+    /**
+     * Boot the model and register cascade cleanup for storyboard and props.
+     */
+    protected static function booted(): void
+    {
+        static::deleted(function (Shot $shot): void {
+            $storyboardPath = $shot->storyboard_image_path;
+            $shotId = $shot->id;
+            $projectId = $shot->scene?->project_id;
+
+            DB::afterCommit(function () use ($storyboardPath, $shotId, $projectId) {
+                if ($storyboardPath) {
+                    if (Storage::disk('local')->exists($storyboardPath)) {
+                        Storage::disk('local')->delete($storyboardPath);
+                    }
+                    if (Storage::disk('public')->exists($storyboardPath)) {
+                        Storage::disk('public')->delete($storyboardPath);
+                    }
+                }
+
+                if ($projectId) {
+                    $propsDir = "projects/{$projectId}/props/shot_{$shotId}";
+                    if (Storage::disk('local')->exists($propsDir)) {
+                        Storage::disk('local')->deleteDirectory($propsDir);
+                    }
+                    if (Storage::disk('public')->exists($propsDir)) {
+                        Storage::disk('public')->deleteDirectory($propsDir);
+                    }
+                }
+            });
+        });
     }
 
     /**

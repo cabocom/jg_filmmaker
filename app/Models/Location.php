@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class Location extends Model
 {
@@ -28,6 +30,26 @@ class Location extends Model
         'address_reference',
         'reference_image_path',
     ];
+
+    /**
+     * Boot the model and register cascade cleanup for reference images.
+     */
+    protected static function booted(): void
+    {
+        static::deleted(function (Location $location): void {
+            $refPath = $location->reference_image_path;
+            if ($refPath) {
+                DB::afterCommit(function () use ($refPath) {
+                    if (Storage::disk('local')->exists($refPath)) {
+                        Storage::disk('local')->delete($refPath);
+                    }
+                    if (Storage::disk('public')->exists($refPath)) {
+                        Storage::disk('public')->delete($refPath);
+                    }
+                });
+            }
+        });
+    }
 
     /**
      * Comprueba si la localización tiene imagen de referencia escenográfica.

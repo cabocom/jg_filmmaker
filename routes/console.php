@@ -24,8 +24,15 @@ Artisan::command('media:prune-orphans', function () {
 
         $allFiles = $disk->allFiles('media/projects');
         foreach ($allFiles as $filePath) {
-            // Ignorar renders temporales con menos de 2 horas
+            // Renders temporales: purgar si tienen más de 2 horas de antigüedad
             if (str_contains($filePath, '/renders/')) {
+                $lastModified = $disk->lastModified($filePath);
+                if (now()->subHours(2)->timestamp > $lastModified) {
+                    $disk->delete($filePath);
+                    $totalPruned++;
+                    $this->line("Render huérfano expirado eliminado [{$diskName}]: {$filePath}");
+                }
+
                 continue;
             }
 
@@ -42,6 +49,6 @@ Artisan::command('media:prune-orphans', function () {
     $this->info("Purga completada exitosamente. {$totalPruned} archivos huérfanos eliminados.");
 })->purpose('Reconcilia y elimina archivos de vídeo huérfanos que no pertenecen a ninguna toma activa');
 
-Schedule::command('tts:prune-orphans --days=7 --force')->weeklyOn(0, '03:00');
-
+Schedule::command('model:prune')->daily();
+Schedule::command('media:prune-orphans')->weeklyOn(0, '03:30');
 Schedule::command('tts:prune-orphans --days=7 --force')->weeklyOn(0, '03:00');

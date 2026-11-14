@@ -60,3 +60,20 @@ Schedule::command('tts:prune-orphans --days=7 --force')->weeklyOn(0, '03:00');
 2. En `ScriptImportService::importIntoProject()`, mapear `'art_department_notes' => $locData['description'] ?? ...` en `Location::firstOrCreate()` y eliminar el campo inexistente `'description'` de `Scene::create()`.
 3. En `routes/console.php`, eliminar la línea duplicada de `tts:prune-orphans` y añadir `Schedule::command('model:prune')->daily()` y `Schedule::command('media:prune-orphans')->weeklyOn(0, '03:30')`.
 
+## 5. Implementación y Resolución (2026-11-14)
+- **Limpieza en Cascada de Almacenamiento en Modelos:**
+  - `Project::booted()`: Eliminación tras commit (`DB::afterCommit`) tanto del directorio de tomas `media/projects/{id}` como del directorio de entidades `projects/{id}` en discos `local` y `public`.
+  - `Scene::booted()`: Purga del directorio de storyboards de la escena (`projects/{projectId}/storyboards/scene_{sceneId}`) y de tomas asociadas.
+  - `Shot::booted()`: Purga de la viñeta individual `storyboard_image_path` y del directorio de props (`projects/{projectId}/props/shot_{shotId}`).
+  - `Character::booted()` & `Location::booted()`: Purga del fichero `reference_image_path` en discos `local` y `public`.
+- **Corrección de Columnas en `ScriptImportService`:**
+  - En `syncLocations()`, mapeo a `'art_department_notes'` para no perder las notas escenográficas importadas.
+  - En `createScenesAndBlocks()`, eliminación de la columna inexistente `'description'` al crear `Scene`.
+- **Programación de Consola Reconciliada (`routes/console.php`):**
+  - Eliminación de la tarea duplicada `tts:prune-orphans`.
+  - Incorporación de `Schedule::command('model:prune')->daily()` para purga de OTPs y logs de auditoría expirados.
+  - Incorporación de `Schedule::command('media:prune-orphans')->weeklyOn(0, '03:30')`.
+  - Mejora en `media:prune-orphans` permitiendo purgar renders huérfanos con más de 2 horas de antigüedad.
+- **Batería de Pruebas:** Creado `tests/Feature/EntityDeletionCleanupAndConsoleScheduleTest.php` con 7 pruebas automatizadas cubriendo eliminación en cascada, importación y cron jobs.
+
+

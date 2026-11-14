@@ -41,11 +41,13 @@ class Project extends Model
         static::deleted(function (Project $project): void {
             $projectId = $project->id;
             DB::afterCommit(function () use ($projectId) {
-                if (Storage::disk('local')->exists("media/projects/{$projectId}")) {
-                    Storage::disk('local')->deleteDirectory("media/projects/{$projectId}");
-                }
-                if (Storage::disk('public')->exists("media/projects/{$projectId}")) {
-                    Storage::disk('public')->deleteDirectory("media/projects/{$projectId}");
+                foreach (["media/projects/{$projectId}", "projects/{$projectId}"] as $dir) {
+                    if (Storage::disk('local')->exists($dir)) {
+                        Storage::disk('local')->deleteDirectory($dir);
+                    }
+                    if (Storage::disk('public')->exists($dir)) {
+                        Storage::disk('public')->deleteDirectory($dir);
+                    }
                 }
             });
         });

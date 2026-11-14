@@ -81,7 +81,7 @@ class ScriptImportService
         foreach ($locations as $locName) {
             $location = Location::firstOrCreate(
                 ['project_id' => $project->id, 'name' => $locName],
-                ['description' => "Localización importada del guion: {$locName}", 'lighting_notes' => 'Importado automáticamente']
+                ['art_department_notes' => "Localización importada del guion: {$locName}", 'lighting_notes' => 'Importado automáticamente']
             );
             $locationMap[$locName] = $location->id;
         }
@@ -110,7 +110,6 @@ class ScriptImportService
                 'scene_order' => $baseSceneOrder + $sceneData['scene_order'],
                 'slugline' => $sceneData['slugline'],
                 'time_of_day' => $sceneData['time_of_day'],
-                'description' => "Escena {$sceneData['slugline']} importada del guion original.",
             ]);
 
             foreach ($sceneData['blocks'] as $blockData) {

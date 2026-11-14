@@ -1,12 +1,27 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.66.0  
+**Versión del documento:** 3.67.0  
 **Fecha de consolidación:** 14 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 (Crítico, IDOR Storyboards), ISSUE-008 (Crítico, Pydantic Schema en plugin), ISSUE-002 (Alta, IDOR Escenas/Planos), ISSUE-003 (Alta, Exposición Gráfica en Disco Local Privado), ISSUE-004 (Alta, Privacidad Admin en Streaming), ISSUE-013 (Alta, Procesamiento Multimedia Asíncrono Jobs FFmpeg), ISSUE-009 (Alta, Telemetría Completa Herramientas IA), ISSUE-014 (Alta, Eliminación N+1 LLM en ScriptPipelineService), ISSUE-015 (Alta, Despacho Exclusivo Pre-warming TTS en Colas), ISSUE-005 (Media, Acotación demoVoice y Rate-Limiting en Rutas de Audio), ISSUE-006 (Media, Gate Admin y Registro Forense en AdminAuditLog), ISSUE-007 (Media, Credenciales en Cabecera HTTP x-goog-api-key, Validación base_url y Cierre de Sockets TCP), e ISSUE-010 (Media, Inmutabilidad en Lecturas TTS y Tratamiento Multibyte UTF-8 de Nombres en Español). El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 281 tests pasando al 100% (1.330 assertions) y Pint con 0 infracciones.
+**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 (Crítico, IDOR Storyboards), ISSUE-008 (Crítico, Pydantic Schema en plugin), ISSUE-002 (Alta, IDOR Escenas/Planos), ISSUE-003 (Alta, Exposición Gráfica en Disco Local Privado), ISSUE-004 (Alta, Privacidad Admin en Streaming), ISSUE-013 (Alta, Procesamiento Multimedia Asíncrono Jobs FFmpeg), ISSUE-009 (Alta, Telemetría Completa Herramientas IA), ISSUE-014 (Alta, Eliminación N+1 LLM en ScriptPipelineService), ISSUE-015 (Alta, Despacho Exclusivo Pre-warming TTS en Colas), ISSUE-005 (Media, Acotación demoVoice y Rate-Limiting en Rutas de Audio), ISSUE-006 (Media, Gate Admin y Registro Forense en AdminAuditLog), ISSUE-007 (Media, Credenciales en Cabecera HTTP x-goog-api-key, Validación base_url y Cierre de Sockets TCP), ISSUE-010 (Media, Inmutabilidad en Lecturas TTS y Tratamiento Multibyte UTF-8 de Nombres en Español), e ISSUE-011 (Media, Limpieza en Cascada de Archivos Huérfanos, Corrección de Columnas de Importación y Reconciliación de Tareas Programadas). El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 288 tests pasando al 100% (1.347 assertions) y Pint con 0 infracciones.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **Limpieza en Cascada de Archivos Huérfanos, Mapeo Correcto en Importación y Reconciliación de Tareas Programadas (AUDIT-20261109 / ISSUE-011 / jg_filmmaker#16):**
+  - **Limpieza en Cascada de Almacenamiento en Modelos:**
+    - `Project::booted()`: Eliminación tras commit (`DB::afterCommit`) tanto del directorio de tomas `media/projects/{id}` como del directorio de entidades `projects/{id}` en discos `local` y `public`.
+    - `Scene::booted()`: Purga del directorio de storyboards de la escena (`projects/{projectId}/storyboards/scene_{sceneId}`) y de tomas asociadas.
+    - `Shot::booted()`: Purga de la viñeta individual `storyboard_image_path` y del directorio de props (`projects/{projectId}/props/shot_{shotId}`).
+    - `Character::booted()` y `Location::booted()`: Purga del fichero `reference_image_path` en discos `local` y `public`.
+  - **Corrección de Columnas en `ScriptImportService`:**
+    - En `syncLocations()`, mapeo a `'art_department_notes'` para persistir las notas escenográficas importadas sin descarte silencioso.
+    - En `createScenesAndBlocks()`, eliminación del campo inexistente `'description'` al crear `Scene`.
+  - **Programación de Consola Reconciliada (`routes/console.php`):**
+    - Eliminación de la tarea duplicada `tts:prune-orphans`.
+    - Incorporación de `Schedule::command('model:prune')->daily()` para purga de OTPs y logs de actividad expirados.
+    - Incorporación de `Schedule::command('media:prune-orphans')->weeklyOn(0, '03:30')` con capacidad de purga de renders temporales huérfanos (> 2 horas).
+  - **Pruebas Automatizadas:** Nueva suite `tests/Feature/EntityDeletionCleanupAndConsoleScheduleTest.php` con 7 tests verificando la eliminación de ficheros en cascada, la integridad en importación y la programación de consola. Suite ampliada a 288 tests pasando al 100% (1.347 assertions).
 
 - **Inmutabilidad en Lecturas TTS y Tratamiento Multibyte UTF-8 en Nombres en Español (AUDIT-20261109 / ISSUE-010 / jg_filmmaker#15):**
   - **Inmutabilidad en Operaciones de Lectura:**

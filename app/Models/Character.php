@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Concerns\HasVersion4Uuids as HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class Character extends Model
 {
@@ -27,6 +29,26 @@ class Character extends Model
         'reference_image_path',
         'custom_attributes',
     ];
+
+    /**
+     * Boot the model and register cascade cleanup for reference images.
+     */
+    protected static function booted(): void
+    {
+        static::deleted(function (Character $character): void {
+            $refPath = $character->reference_image_path;
+            if ($refPath) {
+                DB::afterCommit(function () use ($refPath) {
+                    if (Storage::disk('local')->exists($refPath)) {
+                        Storage::disk('local')->delete($refPath);
+                    }
+                    if (Storage::disk('public')->exists($refPath)) {
+                        Storage::disk('public')->delete($refPath);
+                    }
+                });
+            }
+        });
+    }
 
     /**
      * Get the attributes that should be cast.

@@ -52,8 +52,11 @@ class Scene extends Model
                 ->pluck('file_path')
                 ->all();
 
-            if (! empty($filePaths)) {
-                DB::afterCommit(function () use ($filePaths) {
+            $projectId = $scene->project_id;
+            $sceneId = $scene->id;
+
+            DB::afterCommit(function () use ($filePaths, $projectId, $sceneId) {
+                if (! empty($filePaths)) {
                     foreach ($filePaths as $path) {
                         if (Storage::disk('local')->exists($path)) {
                             Storage::disk('local')->delete($path);
@@ -62,8 +65,16 @@ class Scene extends Model
                             Storage::disk('public')->delete($path);
                         }
                     }
-                });
-            }
+                }
+
+                $storyboardDir = "projects/{$projectId}/storyboards/scene_{$sceneId}";
+                if (Storage::disk('local')->exists($storyboardDir)) {
+                    Storage::disk('local')->deleteDirectory($storyboardDir);
+                }
+                if (Storage::disk('public')->exists($storyboardDir)) {
+                    Storage::disk('public')->deleteDirectory($storyboardDir);
+                }
+            });
         });
     }
 
