@@ -1,12 +1,17 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.80.0  
+**Versión del documento:** 3.81.0  
 **Fecha de consolidación:** 14 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 a ISSUE-027 (el 100% de los 27 issues del plan de auditoría e ideas de mejora de arquitectura) completados y validados. El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 316 tests pasando al 100% (1.470 assertions) y Pint con 0 infracciones.
+**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 a ISSUE-027 (el 100% de los 27 issues del plan de auditoría e ideas de mejora de arquitectura) completados y validados. Plataforma certificada para producción con hoja de ruta y riesgos operacionales documentados en `docs/future-20261119.md` (GitLab #34). El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 316 tests pasando al 100% (1.470 assertions) y Pint con 0 infracciones.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **Hoja de Ruta de Producción y Evolución Futura (GitLab jg_filmmaker#34 / `docs/future-20261119.md`):**
+  - **Certificación de Producción:** Acreditación de seguridad (0 IDORs, HMAC-SHA256, storage privado), resiliencia (fallback determinista, BYOK AES-256, caché semántica SHA-256), ingesta Mezzanine CFR 24fps y exportación NLE CMX 3600 / FCPXML v1.10.
+  - **Matriz de Riesgos Operacionales:** Dependencia crítica de workers de cola, picos de CPU en ingesta 4K, mitigación de polling HTTP y persistencia de `APP_KEY`.
+  - **Plan de Evolución:** Fases de WebSockets con Laravel Reverb, cuotas duras de almacenamiento y S3 Lifecycle, salas de montaje compartidas y exportación universal OpenTimelineIO (OTIO).
 
 - **Bóveda Cifrada BYOK y Caché Semántica de Transformaciones IA (AUDIT-20261109 / ISSUE-020 / jg_filmmaker#25):**
   - **Bóveda Cifrada Autenticada BYOK (`ProjectEncryptionVaultService`):**

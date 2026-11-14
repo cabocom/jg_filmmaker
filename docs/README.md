@@ -20,10 +20,11 @@ La documentación técnica de `jg_filmmaker` está organizada por directorios de
   - [Historia y Evolución del Proyecto](es/TODO_HISTORIA_EVOLUCION.md)
   - [Walkthrough Inicial](es/walkthrough-initial.md)
 
-## 🛡️ Auditorías Técnicas y Refactorización v2.0
+## 🛡️ Auditorías Técnicas, Roadmap y Refactorización v2.0
 
-- [Auditoría Técnica integral 2026-11-09 (`audit-20261109`)](audit/audit-20261109/audit-20261109.md) — [Índice de 27 Issues (`#6` a `#32`)](audit/audit-20261109/issues/README.md)
-- [Auditoría Técnica 2026-10-18 (`audit-20261018`)](audit/audit-20261018/audit-20261018.md)
+- [Estado de Producción, Puntos Débiles y Líneas Futuras de Evolución (`future-20261119`)](future-20261119.md) — [GitLab #34](https://gitlab.com/javiergalvez-ia/jg_filmmaker/-/issues/34)
+- [Auditoría Técnica integral 2026-11-09 (`audit-20261109`)](develop/audit/audit-20261109/audit-20261109.md) — [Índice de 27 Issues (`#6` a `#32`)](develop/audit/audit-20261109/issues/README.md)
+- [Auditoría Técnica 2026-10-18 (`audit-20261018`)](develop/audit/audit-20261018/audit-20261018.md)
 - [Plan de Refactorización Estructural SOLID v2.0 (`#33`)](issues/20261109_refactor_v2_solid_architecture.md)
 
 ---
