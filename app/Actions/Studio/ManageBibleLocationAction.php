@@ -25,7 +25,7 @@ final readonly class ManageBibleLocationAction
 
         if ($referenceImage) {
             $this->deleteReferenceImage($location);
-            $updateData['reference_image_path'] = $referenceImage->store("projects/{$location->project_id}/locations", 'public');
+            $updateData['reference_image_path'] = $referenceImage->store("media/projects/{$location->project_id}/locations", 'local');
         }
 
         $location->update($updateData);
@@ -47,7 +47,7 @@ final readonly class ManageBibleLocationAction
         ]);
 
         if ($referenceImage) {
-            $path = $referenceImage->store("projects/{$project->id}/locations", 'public');
+            $path = $referenceImage->store("media/projects/{$project->id}/locations", 'local');
             $location->update(['reference_image_path' => $path]);
         }
 
@@ -55,12 +55,16 @@ final readonly class ManageBibleLocationAction
     }
 
     /**
-     * Elimina el archivo de imagen de referencia del almacenamiento público.
+     * Elimina el archivo de imagen de referencia del almacenamiento local o público legado.
      */
     public function deleteReferenceImage(Location $location): void
     {
-        if ($location->reference_image_path && Storage::disk('public')->exists($location->reference_image_path)) {
-            Storage::disk('public')->delete($location->reference_image_path);
+        if ($location->reference_image_path) {
+            if (Storage::disk('local')->exists($location->reference_image_path)) {
+                Storage::disk('local')->delete($location->reference_image_path);
+            } elseif (Storage::disk('public')->exists($location->reference_image_path)) {
+                Storage::disk('public')->delete($location->reference_image_path);
+            }
         }
 
         $location->update(['reference_image_path' => null]);

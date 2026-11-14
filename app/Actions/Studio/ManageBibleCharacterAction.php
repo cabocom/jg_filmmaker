@@ -35,7 +35,7 @@ final readonly class ManageBibleCharacterAction
 
         if ($referenceImage) {
             $this->deleteReferenceImage($character);
-            $updateData['reference_image_path'] = $referenceImage->store("projects/{$character->project_id}/characters", 'public');
+            $updateData['reference_image_path'] = $referenceImage->store("media/projects/{$character->project_id}/characters", 'local');
         }
 
         $character->update($updateData);
@@ -65,7 +65,7 @@ final readonly class ManageBibleCharacterAction
         ]);
 
         if ($referenceImage) {
-            $path = $referenceImage->store("projects/{$project->id}/characters", 'public');
+            $path = $referenceImage->store("media/projects/{$project->id}/characters", 'local');
             $character->update(['reference_image_path' => $path]);
         }
 
@@ -73,12 +73,16 @@ final readonly class ManageBibleCharacterAction
     }
 
     /**
-     * Elimina el archivo de imagen de referencia del almacenamiento público.
+     * Elimina el archivo de imagen de referencia del almacenamiento local o público legado.
      */
     public function deleteReferenceImage(Character $character): void
     {
-        if ($character->reference_image_path && Storage::disk('public')->exists($character->reference_image_path)) {
-            Storage::disk('public')->delete($character->reference_image_path);
+        if ($character->reference_image_path) {
+            if (Storage::disk('local')->exists($character->reference_image_path)) {
+                Storage::disk('local')->delete($character->reference_image_path);
+            } elseif (Storage::disk('public')->exists($character->reference_image_path)) {
+                Storage::disk('public')->delete($character->reference_image_path);
+            }
         }
 
         $character->update(['reference_image_path' => null]);

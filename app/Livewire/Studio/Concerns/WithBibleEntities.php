@@ -31,7 +31,7 @@ trait WithBibleEntities
         }
 
         $this->validate([
-            'editingCharReferenceImage' => 'nullable|mimes:jpeg,jpg,png,webp,heic,heif|max:10240',
+            'editingCharReferenceImage' => 'nullable|mimes:jpeg,jpg,png,webp|max:10240',
         ]);
 
         $char = $this->project->characters()->findOrFail($this->editingCharacterId);
@@ -68,7 +68,7 @@ trait WithBibleEntities
             'newCharPsychology' => 'nullable|string|max:5000',
             'newCharCostume' => 'nullable|string|max:5000',
             'newCharVoiceId' => 'nullable|string|max:50',
-            'newCharReferenceImage' => 'nullable|mimes:jpeg,jpg,png,webp,heic,heif|max:10240',
+            'newCharReferenceImage' => 'nullable|mimes:jpeg,jpg,png,webp|max:10240',
         ], [
             'newCharName.required' => 'Debes indicar el nombre del personaje.',
             'newCharName.unique' => 'Ya existe un personaje registrado con este nombre en la Biblia del proyecto.',
@@ -105,7 +105,7 @@ trait WithBibleEntities
         $this->validate([
             'editingLocArtNotes' => 'nullable|string|max:5000',
             'editingLocLightingNotes' => 'nullable|string|max:5000',
-            'editingLocReferenceImage' => 'nullable|mimes:jpeg,jpg,png,webp,heic,heif|max:10240',
+            'editingLocReferenceImage' => 'nullable|mimes:jpeg,jpg,png,webp|max:10240',
         ]);
 
         $loc = $this->project->locations()->findOrFail($this->editingLocationId);
@@ -140,7 +140,7 @@ trait WithBibleEntities
             'newLocArtNotes' => 'nullable|string|max:5000',
             'newLocLightingNotes' => 'nullable|string|max:5000',
             'newLocAddress' => 'nullable|string|max:255',
-            'newLocReferenceImage' => 'nullable|mimes:jpeg,jpg,png,webp,heic,heif|max:10240',
+            'newLocReferenceImage' => 'nullable|mimes:jpeg,jpg,png,webp|max:10240',
         ], [
             'newLocName.required' => 'Debes indicar el nombre de la localización.',
             'newLocName.unique' => 'Ya existe una localización registrada con este nombre en la Biblia del proyecto.',

@@ -56,9 +56,12 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('can:view,project')
         ->name('projects.tts.demo-voice');
 
-    // Streaming seguro de medios audiovisuales privados (ISSUE-006)
+    // Streaming seguro de medios audiovisuales privados (ISSUE-006, ISSUE-003)
     Route::get('/media/takes/{take}', [MediaStreamController::class, 'streamTake'])->name('media.take');
     Route::get('/media/projects/{project}/renders/{filename}', [MediaStreamController::class, 'streamRender'])->name('media.render');
+    Route::get('/media/shots/{shot}/storyboard', [MediaStreamController::class, 'streamStoryboard'])->name('media.storyboard');
+    Route::get('/media/characters/{character}/reference', [MediaStreamController::class, 'streamCharacter'])->name('media.character');
+    Route::get('/media/locations/{location}/reference', [MediaStreamController::class, 'streamLocation'])->name('media.location');
 });
 
 // Panel de Administración (Protegido por Middleware EnsureUserIsAdmin)

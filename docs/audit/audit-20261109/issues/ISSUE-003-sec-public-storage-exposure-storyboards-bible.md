@@ -58,3 +58,17 @@ Y en [`jg_plugin_filmmaker/jg_plugin_filmmaker/storyboard.py`](file:///Users/jav
 1. Migrar el almacenamiento de storyboards, personajes, localizaciones y props al disco privado (`Storage::disk('local')` bajo `media/projects/{project_id}/...`) y servirlos mediante un endpoint autenticado en `MediaStreamController` con validación estricta de `ProjectPolicy` y cabeceras `Cache-Control: private, max-age=3600`.
 2. En `storyboard.py`, respetar el `mime_type` validado en una lista blanca (`image/png`, `image/jpeg`, `image/webp`) en lugar de forzar `image/png` para cualquier formato no-JPEG.
 
+## 5. Resolución Aplicada (2026-11-14)
+- **Migración a Disco Local y Rutas Autenticadas:**
+  - `MediaStreamController.php`: Se añadieron los métodos `streamStoryboard(Shot $shot)`, `streamCharacter(Character $character)` y `streamLocation(Location $location)`. Validan tenencia por `user_id` o administrador y sirven el contenido con cabeceras `Cache-Control: private, max-age=3600`. Soporta fallback a `public` para activos legados sin interrumpir instalaciones existentes.
+  - `routes/web.php`: Rutas protegidas bajo middleware `auth`: `media.storyboard`, `media.character`, `media.location`.
+  - `Shot.php`, `Character.php`, `Location.php`: Actualizados los accessors `storyboard_url`, `reference_image_url` para generar URLs de ruta protegida en vez de `asset('storage/...')`.
+  - `StoryboardService.php`, `ManageBibleCharacterAction.php`, `ManageBibleLocationAction.php`: Almacenamiento directo en `Storage::disk('local')` bajo la estructura unificada `media/projects/{projectId}/...`.
+  - `StoryboardImageProcessor.php`: Comprueba el disco `local` preferentemente y `public` como retrocompatibilidad.
+  - `WithBibleEntities.php`: Restringida la validación a formatos universalmente compatibles con navegadores y la API de Gemini (`jpeg,jpg,png,webp`), delegando la conversión de HEIC al frontend (`heic2any`).
+- **Detección Dinámica de MIME en Plugin:**
+  - `jg_plugin_filmmaker/storyboard.py`: Se implementó la función `detect_image_mime()` basada en encabezados y magic bytes (`PNG`, `JPEG`, `WebP`) en lugar de asumir `image/png` o `image/jpeg` rígidamente.
+- **Validación:**
+  - Creada suite `tests/Feature/MediaStreamSecurityTest.php` con 5 pruebas cubriendo accesos no autenticados (302/401), multitenant no autorizado (403), permisos de administrador (200), cabeceras de caché privadas y fallback de almacenamiento legado.
+  - Suite de `jg_filmmaker` (252 tests) y `jg_plugin_filmmaker` (64 tests) al 100%.
+

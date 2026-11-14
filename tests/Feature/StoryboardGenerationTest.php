@@ -178,15 +178,16 @@ class StoryboardGenerationTest extends TestCase
         $savedPath = $service->generateStoryboard($this->shot, 'enki_bilal');
 
         $this->assertNotNull($savedPath);
-        Storage::disk('public')->assertExists($savedPath);
-        $this->assertSame('fake_jpeg_binary_image_data_from_agent', Storage::disk('public')->get($savedPath));
+        Storage::disk('local')->assertExists($savedPath);
+        Storage::disk('public')->assertMissing($savedPath);
+        $this->assertSame('fake_jpeg_binary_image_data_from_agent', Storage::disk('local')->get($savedPath));
 
         $this->shot->refresh();
         $this->assertTrue($this->shot->hasStoryboard());
         $this->assertSame($savedPath, $this->shot->storyboard_image_path);
         $this->assertSame('enki_bilal', $this->shot->storyboard_style);
         $this->assertStringContainsString('Enki Bilal', (string) $this->shot->storyboard_prompt);
-        $this->assertStringContainsString(asset('storage/'.$savedPath), $this->shot->storyboard_url);
+        $this->assertSame(route('media.storyboard', ['shot' => $this->shot->id]), $this->shot->storyboard_url);
     }
 
     public function test_script_editor_can_switch_storyboard_style_and_generate_from_livewire(): void
@@ -240,8 +241,9 @@ class StoryboardGenerationTest extends TestCase
         $character = Character::where('project_id', $this->project->id)->where('name', 'SARA')->firstOrFail();
         $this->assertTrue($character->hasReferenceImage());
         $this->assertNotNull($character->reference_image_path);
-        Storage::disk('public')->assertExists($character->reference_image_path);
-        $this->assertStringContainsString(asset('storage/'.$character->reference_image_path), $character->reference_image_url);
+        Storage::disk('local')->assertExists($character->reference_image_path);
+        Storage::disk('public')->assertMissing($character->reference_image_path);
+        $this->assertSame(route('media.character', ['character' => $character->id]), $character->reference_image_url);
 
         // Probar eliminación de la imagen de referencia
         Livewire::actingAs($this->user)
@@ -271,8 +273,9 @@ class StoryboardGenerationTest extends TestCase
         $location = Location::where('project_id', $this->project->id)->where('name', 'CASA ENTRADA/PASILLO')->firstOrFail();
         $this->assertTrue($location->hasReferenceImage());
         $this->assertNotNull($location->reference_image_path);
-        Storage::disk('public')->assertExists($location->reference_image_path);
-        $this->assertStringContainsString(asset('storage/'.$location->reference_image_path), $location->reference_image_url);
+        Storage::disk('local')->assertExists($location->reference_image_path);
+        Storage::disk('public')->assertMissing($location->reference_image_path);
+        $this->assertSame(route('media.location', ['location' => $location->id]), $location->reference_image_url);
 
         // Probar eliminación de la imagen de referencia de localización
         Livewire::actingAs($this->user)

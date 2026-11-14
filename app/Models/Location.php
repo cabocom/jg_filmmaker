@@ -38,7 +38,7 @@ class Location extends Model
     }
 
     /**
-     * Retorna la URL pública accesible para renderizar la imagen de referencia.
+     * Retorna la URL protegida y autorizada para renderizar la imagen de referencia.
      */
     public function getReferenceImageUrlAttribute(): ?string
     {
@@ -46,7 +46,7 @@ class Location extends Model
             return null;
         }
 
-        return asset('storage/'.ltrim($this->reference_image_path, '/'));
+        return route('media.location', ['location' => $this->id]);
     }
 
     /**

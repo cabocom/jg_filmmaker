@@ -164,14 +164,18 @@ class StoryboardService
         string $styleKey,
         string $prompt
     ): string {
-        if ($shot->storyboard_image_path && Storage::disk('public')->exists($shot->storyboard_image_path)) {
-            Storage::disk('public')->delete($shot->storyboard_image_path);
+        if ($shot->storyboard_image_path) {
+            if (Storage::disk('local')->exists($shot->storyboard_image_path)) {
+                Storage::disk('local')->delete($shot->storyboard_image_path);
+            } elseif (Storage::disk('public')->exists($shot->storyboard_image_path)) {
+                Storage::disk('public')->delete($shot->storyboard_image_path);
+            }
         }
 
         $sceneId = $shot->scene_id ?? 'scene_default';
         $ext = str_contains($mimeType, 'png') ? 'png' : 'jpg';
-        $filename = "projects/{$projectId}/storyboards/scene_{$sceneId}/shot_{$shot->id}_".time().".{$ext}";
-        Storage::disk('public')->put($filename, $imageBytes);
+        $filename = "media/projects/{$projectId}/storyboards/scene_{$sceneId}/shot_{$shot->id}_".time().".{$ext}";
+        Storage::disk('local')->put($filename, $imageBytes);
 
         $shot->update([
             'storyboard_image_path' => $filename,

@@ -137,7 +137,8 @@ class ContextBibleAndTimelineIsolationTest extends TestCase
         $this->assertSame('carlfm', $character->custom_attributes['voice_id'] ?? null);
         $this->assertSame('Líder legendario de la resistencia humana.', $character->bio);
         $this->assertNotNull($character->reference_image_path);
-        Storage::disk('public')->assertExists($character->reference_image_path);
+        Storage::disk('local')->assertExists($character->reference_image_path);
+        Storage::disk('public')->assertMissing($character->reference_image_path);
     }
 
     public function test_character_importance_and_costume_notes_save_and_display_correctly(): void

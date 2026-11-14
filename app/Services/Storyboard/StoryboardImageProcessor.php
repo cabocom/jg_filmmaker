@@ -14,16 +14,27 @@ class StoryboardImageProcessor
      */
     public function getStorageImageData(?string $path): ?array
     {
-        if (! $path || ! Storage::disk('public')->exists($path)) {
+        if (! $path) {
             return null;
         }
 
-        $bytes = Storage::disk('public')->get($path);
+        $disk = null;
+        if (Storage::disk('local')->exists($path)) {
+            $disk = Storage::disk('local');
+        } elseif (Storage::disk('public')->exists($path)) {
+            $disk = Storage::disk('public');
+        }
+
+        if (! $disk) {
+            return null;
+        }
+
+        $bytes = $disk->get($path);
         if (empty($bytes)) {
             return null;
         }
 
-        $mime = Storage::disk('public')->mimeType($path) ?: 'image/jpeg';
+        $mime = $disk->mimeType($path) ?: 'image/jpeg';
 
         return [
             'mime_type' => $mime,
@@ -50,7 +61,7 @@ class StoryboardImageProcessor
         }
 
         if (is_string($file)) {
-            if (Storage::disk('public')->exists($file)) {
+            if (Storage::disk('local')->exists($file) || Storage::disk('public')->exists($file)) {
                 return $this->getStorageImageData($file);
             }
             if (file_exists($file)) {

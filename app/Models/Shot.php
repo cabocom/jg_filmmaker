@@ -39,7 +39,7 @@ class Shot extends Model
     }
 
     /**
-     * Retorna la URL pública o relativa para renderizar la viñeta de storyboard.
+     * Retorna la URL protegida y firmada/autorizada para renderizar la viñeta de storyboard.
      */
     public function getStoryboardUrlAttribute(): ?string
     {
@@ -47,7 +47,15 @@ class Shot extends Model
             return null;
         }
 
-        return asset('storage/'.ltrim($this->storyboard_image_path, '/'));
+        return route('media.storyboard', ['shot' => $this->id]);
+    }
+
+    /**
+     * Alias de compatibilidad hacia atrás.
+     */
+    public function getStoryboardImageUrlAttribute(): ?string
+    {
+        return $this->getStoryboardUrlAttribute();
     }
 
     /**

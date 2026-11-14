@@ -1,8 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
+use App\Models\Character;
+use App\Models\Location;
 use App\Models\Project;
+use App\Models\Shot;
 use App\Models\Take;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
@@ -16,30 +21,9 @@ class MediaStreamController extends Controller
      */
     public function streamTake(Take $take): StreamedResponse|Response
     {
-        $project = $take->shot?->scene?->project;
+        $this->authorizeProjectAccess($take->shot?->scene?->project);
 
-        if (! $project) {
-            abort(404, 'Proyecto no encontrado para esta toma.');
-        }
-
-        $user = Auth::user();
-        if (! $user || ($project->user_id !== $user->id && ! $user->is_admin)) {
-            abort(403, 'No autorizado para acceder a este contenido audiovisual.');
-        }
-
-        if (empty($take->file_path)) {
-            abort(404, 'Toma sin archivo asociado.');
-        }
-
-        if (Storage::disk('local')->exists($take->file_path)) {
-            return Storage::disk('local')->response($take->file_path);
-        }
-
-        if (Storage::disk('public')->exists($take->file_path)) {
-            return Storage::disk('public')->response($take->file_path);
-        }
-
-        abort(404, 'Archivo audiovisual no encontrado.');
+        return $this->serveFile($take->file_path, 'Toma sin archivo asociado.');
     }
 
     /**
@@ -47,22 +31,80 @@ class MediaStreamController extends Controller
      */
     public function streamRender(Project $project, string $filename): StreamedResponse|Response
     {
-        $user = Auth::user();
-        if (! $user || ($project->user_id !== $user->id && ! $user->is_admin)) {
-            abort(403, 'No autorizado para acceder a este render.');
-        }
+        $this->authorizeProjectAccess($project);
 
         $cleanFilename = basename($filename);
         $relativePath = "media/projects/{$project->id}/renders/{$cleanFilename}";
 
-        if (Storage::disk('local')->exists($relativePath)) {
-            return Storage::disk('local')->response($relativePath);
+        return $this->serveFile($relativePath, 'Archivo de render no encontrado.');
+    }
+
+    /**
+     * Stream a shot storyboard panel image safely with tenant authorization.
+     */
+    public function streamStoryboard(Shot $shot): StreamedResponse|Response
+    {
+        $this->authorizeProjectAccess($shot->scene?->project);
+
+        return $this->serveFile($shot->storyboard_image_path, 'Viñeta de storyboard no encontrada.');
+    }
+
+    /**
+     * Stream a character reference turn-around image safely with tenant authorization.
+     */
+    public function streamCharacter(Character $character): StreamedResponse|Response
+    {
+        $this->authorizeProjectAccess($character->project);
+
+        return $this->serveFile($character->reference_image_path, 'Imagen de referencia de personaje no encontrada.');
+    }
+
+    /**
+     * Stream a location reference image safely with tenant authorization.
+     */
+    public function streamLocation(Location $location): StreamedResponse|Response
+    {
+        $this->authorizeProjectAccess($location->project);
+
+        return $this->serveFile($location->reference_image_path, 'Imagen de referencia de localización no encontrada.');
+    }
+
+    /**
+     * Valida que el usuario autenticado sea propietario del proyecto o administrador.
+     */
+    protected function authorizeProjectAccess(?Project $project): void
+    {
+        if (! $project) {
+            abort(404, 'Proyecto no encontrado.');
         }
 
-        if (Storage::disk('public')->exists($relativePath)) {
-            return Storage::disk('public')->response($relativePath);
+        $user = Auth::user();
+        if (! $user || ($project->user_id !== $user->id && ! $user->is_admin)) {
+            abort(403, 'No autorizado para acceder a este contenido audiovisual.');
+        }
+    }
+
+    /**
+     * Sirve el archivo comprobando disco local primero y público con cabeceras privadas.
+     *
+     * @param  array<string, string>  $headers
+     */
+    protected function serveFile(?string $path, string $notFoundMessage = 'Archivo no encontrado.', array $headers = []): StreamedResponse|Response
+    {
+        if (empty($path)) {
+            abort(404, $notFoundMessage);
         }
 
-        abort(404, 'Archivo de render no encontrado.');
+        $allHeaders = array_merge(['Cache-Control' => 'private, max-age=3600'], $headers);
+
+        if (Storage::disk('local')->exists($path)) {
+            return Storage::disk('local')->response($path, null, $allHeaders);
+        }
+
+        if (Storage::disk('public')->exists($path)) {
+            return Storage::disk('public')->response($path, null, $allHeaders);
+        }
+
+        abort(404, $notFoundMessage);
     }
 }
