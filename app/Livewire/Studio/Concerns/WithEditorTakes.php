@@ -6,6 +6,7 @@ use App\Actions\Studio\ManageTakeAction;
 use App\Models\Scene;
 use App\Models\Take;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 trait WithEditorTakes
 {
@@ -28,12 +29,20 @@ trait WithEditorTakes
             return;
         }
 
-        $this->validate([
-            'newShotType' => 'required',
-            'newShotDescription' => 'required|min:3',
-        ]);
-
         $scene = $this->projectScene($this->activeSceneId);
+
+        if ($this->newShotBlockId === '') {
+            $this->newShotBlockId = null;
+        }
+
+        $this->validate([
+            'newShotType' => 'required|string|max:30',
+            'newShotDescription' => 'required|string|min:3|max:2000',
+            'newShotBlockId' => [
+                'nullable',
+                Rule::exists('script_blocks', 'id')->where('scene_id', $scene->id),
+            ],
+        ]);
 
         $shot = DB::transaction(function () use ($scene) {
             Scene::whereKey($scene->id)->lockForUpdate()->first();

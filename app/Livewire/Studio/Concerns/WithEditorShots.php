@@ -152,7 +152,9 @@ trait WithEditorShots
 
     public function startNewShotForBlock(string $blockId): void
     {
-        $this->newShotBlockId = $blockId;
+        $block = ScriptBlock::whereHas('scene', fn ($q) => $q->where('project_id', $this->project->id))->findOrFail($blockId);
+        $this->activeSceneId = $block->scene_id;
+        $this->newShotBlockId = $block->id;
         $this->showNewShotModal = true;
     }
 

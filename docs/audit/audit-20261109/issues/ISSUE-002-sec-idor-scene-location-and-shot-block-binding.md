@@ -1,8 +1,9 @@
 # [ISSUE-002] IDOR Cross-Tenant en Asociación de Localizaciones a Escenas y Bloques a Planos
 
 - **Severidad:** Alta
+- **Estado:** Resuelto (Cerrado)
 - **Componente:** `jg_filmmaker`
-- **Ubicación:** `jg_filmmaker/app/Livewire/Studio/ScriptEditor.php:808-834, 895-912, 2344-2366`
+- **Ubicación:** `jg_filmmaker/app/Livewire/Studio/Concerns/WithEditorSceneOperations.php:91-185`, `jg_filmmaker/app/Livewire/Studio/Concerns/WithEditorTakes.php:25-45`, `jg_filmmaker/app/Livewire/Studio/Concerns/WithEditorShots.php:153-159`, `jg_filmmaker/app/Actions/Studio/ManageScriptStructureAction.php:118-152`
 - **Categoría:** Seguridad
 
 ## 1. Descripción
@@ -82,4 +83,18 @@ $this->validate([
     ],
 ]);
 ```
+
+## 5. Estado y Resolución Técnica (Noviembre 2026)
+
+- **Validación en Capa UI / Livewire:**
+  - En `WithEditorSceneOperations.php`, los métodos `createScene()` y `updateScene()` incorporan validación estricta de `$newSceneLocationId` y `$editingSceneLocationId` mediante `Rule::exists('locations', 'id')->where('project_id', $this->project->id)`, con normalización de cadenas vacías a `null`.
+  - En `WithEditorTakes.php`, el método `addShot()` valida `$newShotBlockId` acotado a la escena activa con `Rule::exists('script_blocks', 'id')->where('scene_id', $scene->id)`, asegurando que no se puedan vincular bloques de otros proyectos ni de escenas ajenas.
+  - En `WithEditorShots.php`, el método `startNewShotForBlock()` valida mediante `findOrFail` que el bloque suministrado pertenezca al proyecto autenticado antes de abrir el modal.
+- **Defensa en Profundidad en Capa de Dominio / Acciones:**
+  - En `ManageScriptStructureAction.php`, `createScene()` y `updateScene()` consultan `$project->locations()->where('id', $data['location_id'])->value('id')`, forzando `null` si el ID de localización no pertenece al proyecto.
+- **Suite de Pruebas Automatizadas:**
+  - Creada suite de pruebas dedicada en `tests/Feature/SceneAndShotIdorProtectionTest.php` (6 tests completos validando rechazos IDOR y persistencia correcta para localizaciones y bloques).
+  - Suite de 247 tests pasando al 100% (1.208 aserciones) y Pint con 0 infracciones.
+- **GitLab Issue:** [jg_filmmaker#7](https://gitlab.com/javiergalvez-ia/jg_filmmaker/-/work_items/7) cerrado.
+
 

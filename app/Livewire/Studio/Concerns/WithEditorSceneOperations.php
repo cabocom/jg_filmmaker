@@ -6,6 +6,7 @@ use App\Actions\Studio\ManageScriptStructureAction;
 use App\Models\Scene;
 use App\Models\ScriptBlock;
 use App\Services\ScriptPipelineService;
+use Illuminate\Validation\Rule;
 
 trait WithEditorSceneOperations
 {
@@ -16,17 +17,12 @@ trait WithEditorSceneOperations
             ->findOrFail($id);
     }
 
-    /**
-     * Obtiene una escena verificando que pertenezca a este proyecto.
-     */
+    /** Obtiene una escena verificando que pertenezca a este proyecto. */
     protected function projectScene(string $id): Scene
     {
         return $this->project->scenes()->findOrFail($id);
     }
 
-    /**
-     * Obtiene un plano técnico verificando que pertenezca a este proyecto.
-     */
     public function getScenePipelineStage(string $sceneId): string
     {
         return $this->scenePipelineStages[$sceneId] ?? 'idea';
@@ -90,9 +86,17 @@ trait WithEditorSceneOperations
 
     public function createScene(?ManageScriptStructureAction $action = null): void
     {
+        if ($this->newSceneLocationId === '') {
+            $this->newSceneLocationId = null;
+        }
+
         $this->validate([
             'newSceneSlugline' => 'required|min:3|max:120',
             'newSceneTimeOfDay' => 'required',
+            'newSceneLocationId' => [
+                'nullable',
+                Rule::exists('locations', 'id')->where('project_id', $this->project->id),
+            ],
         ]);
 
         $scene = ($action ?? app(ManageScriptStructureAction::class))->createScene($this->project, [
@@ -125,9 +129,7 @@ trait WithEditorSceneOperations
         session()->flash('success', "Escena {$scene->scene_order} creada.");
     }
 
-    /**
-     * Abre el modal de edición de la escena especificada.
-     */
+    /** Abre el modal de edición de la escena especificada. */
     public function openEditSceneModal(string $sceneId): void
     {
         $scene = $this->projectScene($sceneId);
@@ -139,26 +141,30 @@ trait WithEditorSceneOperations
         $this->showEditSceneModal = true;
     }
 
-    /**
-     * Cierra el modal de edición de escena y resetea las propiedades.
-     */
+    /** Cierra el modal de edición de escena y resetea las propiedades. */
     public function closeEditSceneModal(): void
     {
         $this->reset(['showEditSceneModal', 'editingSceneId', 'editingSceneSlugline', 'editingSceneLocationId']);
     }
 
-    /**
-     * Actualiza el encabezado canónico, momento del día y localización de la escena.
-     */
+    /** Actualiza el encabezado canónico, momento del día y localización de la escena. */
     public function updateScene(?ManageScriptStructureAction $action = null): void
     {
         if (! $this->editingSceneId) {
             return;
         }
 
+        if ($this->editingSceneLocationId === '') {
+            $this->editingSceneLocationId = null;
+        }
+
         $this->validate([
             'editingSceneSlugline' => 'required|min:3|max:120',
             'editingSceneTimeOfDay' => 'required',
+            'editingSceneLocationId' => [
+                'nullable',
+                Rule::exists('locations', 'id')->where('project_id', $this->project->id),
+            ],
         ]);
 
         $scene = $this->projectScene($this->editingSceneId);
@@ -184,9 +190,7 @@ trait WithEditorSceneOperations
         session()->flash('success', "Escena #{$scene->scene_order} actualizada correctamente.");
     }
 
-    /**
-     * Abre el modal de advertencia para eliminar un bloque de guión.
-     */
+    /** Abre el modal de advertencia para eliminar un bloque de guión. */
     public function openDeleteSceneModal(string $sceneId): void
     {
         $scene = $this->projectScene($sceneId);
@@ -197,17 +201,13 @@ trait WithEditorSceneOperations
         $this->showDeleteSceneModal = true;
     }
 
-    /**
-     * Cierra el modal de eliminación de escena.
-     */
+    /** Cierra el modal de eliminación de escena. */
     public function closeDeleteSceneModal(): void
     {
         $this->reset(['showDeleteSceneModal', 'deletingSceneId', 'deletingSceneBlockCount', 'deletingSceneOrder', 'deletingSceneSlugline']);
     }
 
-    /**
-     * Confirma la eliminación irreversible de la escena (solo si no contiene bloques).
-     */
+    /** Confirma la eliminación irreversible de la escena (solo si no contiene bloques). */
     public function confirmDeleteScene(?ManageScriptStructureAction $action = null): void
     {
         if (! $this->deletingSceneId) {
@@ -244,11 +244,7 @@ trait WithEditorSceneOperations
         session()->flash('success', 'Escena eliminada correctamente y registrada en el historial.');
     }
 
-    /**
-     * Registra una acción del usuario en el historial de trazabilidad del proyecto.
-     *
-     * @param  array<string, mixed>|null  $snapshot
-     */
+    /** Abre el modal para editar el título y sinopsis del proyecto. */
     public function openEditTitleModal(): void
     {
         $this->projectTitle = $this->project->title;

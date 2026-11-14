@@ -1,12 +1,21 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.56.0  
+**Versión del documento:** 3.57.0  
 **Fecha de consolidación:** 14 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidad crítica IDOR cross-tenant en acondicionado multimodal de Storyboards (AUDIT-20261109 / ISSUE-001 / jg_filmmaker#6). El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 241 tests pasando al 100% (1.190 assertions) y Pint con 0 infracciones.
+**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades IDOR cross-tenant en acondicionado de storyboards (AUDIT-20261109 / ISSUE-001 / jg_filmmaker#6) y en asociación de localizaciones a escenas y bloques a planos (AUDIT-20261109 / ISSUE-002 / jg_filmmaker#7). El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 247 tests pasando al 100% (1.208 assertions) y Pint con 0 infracciones.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **Mitigación IDOR Cross-Tenant en Asociación de Localizaciones a Escenas y Bloques a Planos (AUDIT-20261109 / ISSUE-002 / jg_filmmaker#7):**
+  - **Validación en Livewire UI (`WithEditorSceneOperations`, `WithEditorTakes`, `WithEditorShots`):**
+    - `WithEditorSceneOperations.php`: Validación estricta con `Rule::exists('locations', 'id')->where('project_id', $this->project->id)` para `newSceneLocationId` en `createScene()` y para `editingSceneLocationId` en `updateScene()`, impidiendo la vinculación foránea de localizaciones de otros tenants a escenas del proyecto.
+    - `WithEditorTakes.php`: Validación en `addShot()` con `Rule::exists('script_blocks', 'id')->where('scene_id', $scene->id)` para `newShotBlockId`, garantizando que solo puedan asociarse bloques pertenecientes a la escena activa del usuario.
+    - `WithEditorShots.php`: Validación mediante `findOrFail` acotado al proyecto activo en `startNewShotForBlock()`.
+  - **Defensa en Profundidad en Acciones (`ManageScriptStructureAction`):**
+    - `createScene()` y `updateScene()` comprueban la pertenencia de `location_id` mediante `$project->locations()->where('id', ...)->value('id')`, forzando `null` ante referencias de localización no autorizadas.
+  - **Pruebas Automatizadas:** Nueva suite `tests/Feature/SceneAndShotIdorProtectionTest.php` con 6 tests específicos cubriendo rechazos y persistencia legítima. Suite ampliada a 247 tests pasando al 100% (1.208 aserciones).
 
 - **Mitigación IDOR Cross-Tenant en Acondicionamiento de Storyboards (AUDIT-20261109 / ISSUE-001 / jg_filmmaker#6):**
   - **Defensa en Profundidad en 3 Capas:**

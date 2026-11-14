@@ -115,11 +115,16 @@ final readonly class ManageScriptStructureAction
                 $newOrder = $maxOrder + 1;
             }
 
+            $locationId = null;
+            if (! empty($data['location_id'])) {
+                $locationId = $project->locations()->where('id', $data['location_id'])->value('id');
+            }
+
             $newScene = $project->scenes()->create([
                 'scene_order' => $newOrder,
                 'slugline' => strtoupper(trim($data['slugline'])),
                 'time_of_day' => strtoupper(trim($data['time_of_day'])),
-                'location_id' => ! empty($data['location_id']) ? $data['location_id'] : null,
+                'location_id' => $locationId,
             ]);
 
             $newScene->scriptBlocks()->create([
@@ -140,10 +145,15 @@ final readonly class ManageScriptStructureAction
      */
     public function updateScene(Scene $scene, array $data): void
     {
+        $locationId = null;
+        if (! empty($data['location_id'])) {
+            $locationId = $scene->project->locations()->where('id', $data['location_id'])->value('id');
+        }
+
         $scene->update([
             'slugline' => strtoupper(trim($data['slugline'])),
             'time_of_day' => strtoupper(trim($data['time_of_day'])),
-            'location_id' => ! empty($data['location_id']) ? $data['location_id'] : null,
+            'location_id' => $locationId,
         ]);
     }
 
