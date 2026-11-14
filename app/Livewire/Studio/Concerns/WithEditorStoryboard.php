@@ -4,6 +4,7 @@ namespace App\Livewire\Studio\Concerns;
 
 use App\Actions\Studio\ManageStoryboardAction;
 use App\Services\StoryboardService;
+use Illuminate\Validation\Rule;
 
 trait WithEditorStoryboard
 {
@@ -78,6 +79,8 @@ trait WithEditorStoryboard
             return;
         }
 
+        $this->validateStoryboardReferences();
+
         $shot = $this->projectShot($this->storyboardShotId);
         $this->storyboardModalPrompt = ($action ?? app(ManageStoryboardAction::class))->buildPrompt(
             shot: $shot,
@@ -95,29 +98,38 @@ trait WithEditorStoryboard
         $this->storyboardPromptCustomized = true;
     }
 
-    public function updatedStoryboardModalStyle(StoryboardService $storyboardService): void
+    public function updatedStoryboardModalStyle(?string $value = null, ?StoryboardService $storyboardService = null): void
     {
+        $storyboardService ??= app(StoryboardService::class);
+
         if (! $this->storyboardPromptCustomized && $this->storyboardShotId) {
             $this->resetStoryboardModalPrompt($storyboardService);
         }
     }
 
-    public function updatedStoryboardCharacterId(StoryboardService $storyboardService): void
+    public function updatedStoryboardCharacterId(?string $value = null, ?StoryboardService $storyboardService = null): void
     {
+        $storyboardService ??= app(StoryboardService::class);
+        $this->validateStoryboardReferences();
+
         if (! $this->storyboardPromptCustomized && $this->storyboardShotId) {
             $this->resetStoryboardModalPrompt($storyboardService);
         }
     }
 
-    public function updatedStoryboardLocationId(StoryboardService $storyboardService): void
+    public function updatedStoryboardLocationId(?string $value = null, ?StoryboardService $storyboardService = null): void
     {
+        $storyboardService ??= app(StoryboardService::class);
+        $this->validateStoryboardReferences();
+
         if (! $this->storyboardPromptCustomized && $this->storyboardShotId) {
             $this->resetStoryboardModalPrompt($storyboardService);
         }
     }
 
-    public function updatedStoryboardPropUploads(StoryboardService $storyboardService): void
+    public function updatedStoryboardPropUploads(mixed $value = null, ?StoryboardService $storyboardService = null): void
     {
+        $storyboardService ??= app(StoryboardService::class);
         $this->validate([
             'storyboardPropUploads.*' => 'image|max:8192',
         ]);
@@ -146,6 +158,8 @@ trait WithEditorStoryboard
 
     public function confirmGenerateStoryboard(StoryboardService $storyboardService, ?ManageStoryboardAction $action = null): void
     {
+        $this->validateStoryboardReferences();
+
         $this->validate([
             'storyboardModalPrompt' => 'required|string|min:5',
         ]);
@@ -172,6 +186,28 @@ trait WithEditorStoryboard
         }
 
         session()->flash($result['flash_type'], $result['message']);
+    }
+
+    protected function validateStoryboardReferences(): void
+    {
+        if ($this->storyboardCharacterId === '') {
+            $this->storyboardCharacterId = null;
+        }
+
+        if ($this->storyboardLocationId === '') {
+            $this->storyboardLocationId = null;
+        }
+
+        $this->validate([
+            'storyboardCharacterId' => [
+                'nullable',
+                Rule::exists('characters', 'id')->where('project_id', $this->project->id),
+            ],
+            'storyboardLocationId' => [
+                'nullable',
+                Rule::exists('locations', 'id')->where('project_id', $this->project->id),
+            ],
+        ]);
     }
 
     public function openStoryboardPreview(string $shotId): void

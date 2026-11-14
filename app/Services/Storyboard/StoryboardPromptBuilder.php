@@ -87,8 +87,14 @@ class StoryboardPromptBuilder
             return null;
         }
 
+        $shot->loadMissing('scene.project');
+        $projectId = $shot->scene?->project_id;
+        if (! $projectId) {
+            return null;
+        }
+
         if (! empty($characterId)) {
-            return Character::find($characterId);
+            return Character::where('project_id', $projectId)->find($characterId);
         }
 
         $project = $shot->scene?->project;
@@ -96,9 +102,10 @@ class StoryboardPromptBuilder
             return null;
         }
 
+        $shot->loadMissing('scene.project.characters');
         /** @var Collection<int, Character> $characters */
         $characters = $project->characters;
-        if ($characters->isEmpty()) {
+        if (! $characters || $characters->isEmpty()) {
             return null;
         }
 
@@ -114,8 +121,14 @@ class StoryboardPromptBuilder
             return null;
         }
 
+        $shot->loadMissing(['scene.project', 'scene.location']);
+        $projectId = $shot->scene?->project_id;
+        if (! $projectId) {
+            return null;
+        }
+
         if (! empty($locationId)) {
-            return Location::find($locationId);
+            return Location::where('project_id', $projectId)->find($locationId);
         }
 
         $scene = $shot->scene;
@@ -124,11 +137,16 @@ class StoryboardPromptBuilder
         }
 
         $location = $scene->location;
+        if ($location && $location->project_id !== $projectId) {
+            return null;
+        }
+
         if (! $location && $scene->project) {
+            $shot->loadMissing('scene.project.locations');
             /** @var Collection<int, Location> $locations */
             $locations = $scene->project->locations;
 
-            return $locations->first(fn (Location $loc) => stripos((string) $scene->slugline, (string) $loc->name) !== false);
+            return $locations?->first(fn (Location $loc) => stripos((string) $scene->slugline, (string) $loc->name) !== false);
         }
 
         return $location;

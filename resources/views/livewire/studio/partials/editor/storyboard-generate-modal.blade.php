@@ -2,8 +2,8 @@
     @if($showStoryboardModal && $storyboardShotId)
         @php
             $modalShot = $this->projectShot($storyboardShotId);
-            $selectedModalChar = $storyboardCharacterId ? \App\Models\Character::find($storyboardCharacterId) : null;
-            $selectedModalLoc = $storyboardLocationId ? \App\Models\Location::find($storyboardLocationId) : null;
+            $selectedModalChar = $storyboardCharacterId ? $this->project->characters->firstWhere('id', $storyboardCharacterId) : null;
+            $selectedModalLoc = $storyboardLocationId ? $this->project->locations->firstWhere('id', $storyboardLocationId) : null;
         @endphp
         <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm transition overflow-y-auto"
              wire:click.self="closeStoryboardModal">

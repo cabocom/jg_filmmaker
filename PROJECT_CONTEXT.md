@@ -1,12 +1,19 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.55.0  
-**Fecha de consolidación:** 13 de noviembre de 2026  
+**Versión del documento:** 3.56.0  
+**Fecha de consolidación:** 14 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%: Fases 1, 2 y 3 cerradas con éxito. Se eliminaron absolutamente todos los monolitos estructurales (>300 LOC) del proyecto, tanto en clases PHP como en vistas Blade. En PHP: `ScriptEditor.php` (reducido de 2.603 a 107 LOC mediante 12 traits modulares en `app/Livewire/Studio/Concerns/` y `StudioAiTraceBuilder`), `ContextBibleDrawer.php` (reducido de 448 a 151 LOC con traits `WithBibleEntities` y `WithBibleAudits`), `Login.php` (reducido de 309 a 98 LOC vía `RequestLoginOtpAction` y `VerifyLoginOtpAction`). En Blade: modularización integral de `token-quota-modals.blade.php`, `block-detail-drawer.blade.php`, `scenes-flow.blade.php`, `characters-tab.blade.php`, `crud-modals.blade.php`, `storyboard-modals.blade.php`, `header-assets.blade.php`, `app.blade.php` y `project-list.blade.php`. El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 239 tests pasando al 100% (1.166 assertions) y Pint con 0 infracciones.
+**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidad crítica IDOR cross-tenant en acondicionado multimodal de Storyboards (AUDIT-20261109 / ISSUE-001 / jg_filmmaker#6). El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 241 tests pasando al 100% (1.190 assertions) y Pint con 0 infracciones.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **Mitigación IDOR Cross-Tenant en Acondicionamiento de Storyboards (AUDIT-20261109 / ISSUE-001 / jg_filmmaker#6):**
+  - **Defensa en Profundidad en 3 Capas:**
+    - `app/Services/Storyboard/StoryboardPromptBuilder.php`: Acotación estricta de `resolveCharacterModel` y `resolveLocationModel` al `project_id` de la escena asociada al plano (`$shot->scene->project_id`). En caso de suministrar un UUID de personaje o localización ajeno, retorna `null`, neutralizando cualquier fuga de notas privadas de la Biblia de Producción hacia el prompt o hacia las imágenes de acondicionamiento multimodal a Google AI Studio.
+    - `app/Livewire/Studio/Concerns/WithEditorStoryboard.php`: Implementación de `validateStoryboardReferences()` con `Rule::exists` acotado a `$this->project->id` para `$storyboardCharacterId` y `$storyboardLocationId` en los hooks `updated*`, `resetStoryboardModalPrompt` y `confirmGenerateStoryboard`.
+    - `resources/views/livewire/studio/partials/editor/storyboard-generate-modal.blade.php`: Scoping estricto a las colecciones del proyecto (`$this->project->characters` y `$this->project->locations`), eliminando llamadas desprotegidas a `::find()`.
+  - **Pruebas de Seguridad:** Nuevos tests automatizados en `tests/Feature/StoryboardGenerationTest.php` validando la contención de exfiltración y el rechazo en Livewire. Suite ampliada a 241 tests pasando al 100% (1.190 aserciones).
 
 - **REFACTOR-v2.0: Fase 3 - Modularización de Vistas Blade y Descomposición de Servicios Secundarios (jg_filmmaker#33):**
   - **Modularización de Vistas Blade Monolíticas:**

@@ -413,4 +413,103 @@ class StoryboardGenerationTest extends TestCase
         $this->assertCount(1, $capturedPayload['prop_images_base64']);
         $this->assertSame('Edurne en el baño sosteniendo el ambientador.', $capturedPayload['prompt']);
     }
+
+    public function test_storyboard_service_prevents_idor_cross_tenant_character_and_location_leakage(): void
+    {
+        Config::set('services.jg_agente.mock', false);
+        Config::set('services.jg_agente.secret', 'test-long-secret-key-for-storyboard-service-tests-1234');
+
+        $tenantB = User::factory()->create(['email' => 'victim@example.com']);
+        $projectB = Project::factory()->create(['user_id' => $tenantB->id, 'title' => 'Victim Project']);
+
+        $charImgPathB = 'projects/'.$projectB->id.'/characters/secret_char.png';
+        Storage::disk('public')->put($charImgPathB, 'victim_secret_character_image');
+        $characterB = Character::factory()->create([
+            'project_id' => $projectB->id,
+            'name' => 'VICTIM_HERO',
+            'costume_notes' => 'ULTRA_SECRET_VICTIM_COSTUME_NOTES',
+            'psychology' => 'ULTRA_SECRET_VICTIM_PSYCHOLOGY',
+            'reference_image_path' => $charImgPathB,
+        ]);
+
+        $locImgPathB = 'projects/'.$projectB->id.'/locations/secret_loc.jpg';
+        Storage::disk('public')->put($locImgPathB, 'victim_secret_location_image');
+        $locationB = Location::factory()->create([
+            'project_id' => $projectB->id,
+            'name' => 'SECRET_BUNKER',
+            'art_department_notes' => 'ULTRA_SECRET_ART_NOTES',
+            'lighting_notes' => 'ULTRA_SECRET_LIGHTING_NOTES',
+            'reference_image_path' => $locImgPathB,
+        ]);
+
+        $service = app(StoryboardService::class);
+
+        // 1. Verificación directa de resolución acotada a tenant
+        $this->assertNull($service->resolveCharacterModel($this->shot, $characterB->id));
+        $this->assertNull($service->resolveLocationModel($this->shot, $locationB->id));
+
+        // 2. Verificación de no exfiltración en prompt
+        $prompt = $service->buildPrompt($this->shot, 'enki_bilal', $characterB->id, $locationB->id);
+        $this->assertStringNotContainsString('ULTRA_SECRET_VICTIM_COSTUME_NOTES', $prompt);
+        $this->assertStringNotContainsString('ULTRA_SECRET_VICTIM_PSYCHOLOGY', $prompt);
+        $this->assertStringNotContainsString('ULTRA_SECRET_ART_NOTES', $prompt);
+        $this->assertStringNotContainsString('ULTRA_SECRET_LIGHTING_NOTES', $prompt);
+        $this->assertStringNotContainsString('VICTIM_HERO', $prompt);
+        $this->assertStringNotContainsString('SECRET_BUNKER', $prompt);
+
+        // 3. Verificación de no exfiltración multimodal al LLM
+        $capturedPayload = null;
+        Http::fake([
+            '*/api/v1/tools/generate_storyboard' => function ($request) use (&$capturedPayload) {
+                $capturedPayload = json_decode($request->body(), true);
+
+                return Http::response([
+                    'success' => true,
+                    'metadata' => [
+                        'image_base64' => base64_encode('rendered_image'),
+                        'mime_type' => 'image/png',
+                    ],
+                ], 200);
+            },
+        ]);
+
+        $service->generateStoryboard(
+            shot: $this->shot,
+            style: 'grayscale_sketch',
+            characterId: $characterB->id,
+            locationId: $locationB->id
+        );
+
+        $this->assertNotNull($capturedPayload);
+        $this->assertNull($capturedPayload['character_name']);
+        $this->assertNull($capturedPayload['character_image_base64']);
+        $this->assertNull($capturedPayload['location_name']);
+        $this->assertNull($capturedPayload['location_image_base64']);
+    }
+
+    public function test_livewire_script_editor_validates_and_rejects_cross_tenant_character_and_location_idor(): void
+    {
+        $tenantB = User::factory()->create(['email' => 'victim2@example.com']);
+        $projectB = Project::factory()->create(['user_id' => $tenantB->id, 'title' => 'Victim Project 2']);
+
+        $characterB = Character::factory()->create([
+            'project_id' => $projectB->id,
+            'name' => 'Victim Char',
+        ]);
+
+        $locationB = Location::factory()->create([
+            'project_id' => $projectB->id,
+            'name' => 'Victim Location',
+        ]);
+
+        Livewire::actingAs($this->user)
+            ->test(ScriptEditor::class, ['project' => $this->project])
+            ->call('openStoryboardModal', $this->shot->id)
+            ->set('storyboardCharacterId', $characterB->id)
+            ->assertHasErrors(['storyboardCharacterId'])
+            ->set('storyboardLocationId', $locationB->id)
+            ->assertHasErrors(['storyboardLocationId'])
+            ->call('confirmGenerateStoryboard')
+            ->assertHasErrors(['storyboardCharacterId', 'storyboardLocationId']);
+    }
 }
