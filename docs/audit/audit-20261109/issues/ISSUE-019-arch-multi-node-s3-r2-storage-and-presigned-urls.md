@@ -39,3 +39,11 @@ Diseñar una capa de abstracción de almacenamiento agnóstica del driver (`Medi
    - Si el disco es `local` tras Nginx, utilizar la cabecera interna `X-Accel-Redirect` para que Nginx sirva el archivo directamente desde el kernel (`sendfile on`).
 2. **Subida Directa a Object Storage:** Configurar `LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK=s3` para que las tomas de hasta 100 MB se suban directamente desde el navegador del cineasta al bucket mediante URLs pre-firmadas S3 sin pasar por la memoria del contenedor PHP.
 
+## 5. Resolución y Verificación Técnica
+- **Capa de Abstracción `MediaStorageService`:** Servicio desacoplado que abstrae el almacenamiento multimedia (disco `media`), soportando de forma transparente desarrollo local (POSIX) y almacenamiento en nube (AWS S3, Cloudflare R2, MinIO).
+- **Soporte de Presigned URLs y Aceleración Nginx `X-Accel-Redirect`:**
+  - Si el disco es remoto S3/R2, `MediaStorageService::serve()` emite automáticamente redirección `302` hacia una Presigned URL temporal (`temporaryUrl(...)`) con caducidad de 15 minutos, descargando la transferencia de vídeo de PHP-FPM hacia el Object Storage.
+  - Si opera en local con Nginx (`config('filesystems.use_x_accel') = true`), utiliza `X-Accel-Redirect` para descarga directa desde kernel.
+- **Refactorización de `MediaStreamController`:** Rutas de streaming (`media.take`, `media.render`, `media.storyboard`, `media.character`, `media.location`) delegadas en `MediaStorageService` manteniendo intacta la autorización tenant por `ProjectPolicy`.
+- **Validación Automatizada:** Suite `MediaStorageServiceTest` (5 tests) comprobando operaciones CRUD, streaming seguro con cabeceras privadas, redirección por URL pre-firmada y aceleración Nginx. 311 tests PHPUnit pasando al 100% (1.442 assertions).
+

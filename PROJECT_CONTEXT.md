@@ -1,12 +1,20 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.78.0  
+**Versión del documento:** 3.79.0  
 **Fecha de consolidación:** 14 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 a ISSUE-016 completados, e ISSUE-021 a ISSUE-027, ISSUE-017 e ISSUE-018 (Arquitectura, Exportadores Profesionales NLE CMX 3600 EDL y Final Cut Pro XML v1.10) resueltos. El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 306 tests pasando al 100% (1.426 assertions) y Pint con 0 infracciones.
+**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 a ISSUE-016 completados, e ISSUE-021 a ISSUE-027, ISSUE-017, ISSUE-018 e ISSUE-019 (Arquitectura, Almacenamiento Multi-nodo S3/R2/MinIO, URLs Prefirmadas y Aceleración Nginx X-Accel-Redirect) resueltos. El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 311 tests pasando al 100% (1.442 assertions) y Pint con 0 infracciones.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **Almacenamiento Multi-nodo S3/R2/MinIO y URLs Prefirmadas (AUDIT-20261109 / ISSUE-019 / jg_filmmaker#24):**
+  - **Servicio de Almacenamiento Agnostic Media (`MediaStorageService`):**
+    - Abstracción desacoplada del driver de almacenamiento (`media` disk en `config/filesystems.php`), permitiendo despliegues multi-nodo sin acoplamiento a sistemas de archivos locales compartidos (NFS).
+    - Generación de URLs temporales prefirmadas (15 minutos) para proveedores S3, Cloudflare R2, AWS y MinIO, redirigiendo la entrega de vídeo pesada directamente al Object Storage.
+    - Soporte para aceleración `X-Accel-Redirect` / `X-Sendfile` de Nginx en entornos locales o de almacenamiento privado, liberando workers PHP-FPM con streaming zero-copy a nivel de kernel.
+  - **Refactorización de `MediaStreamController`:**
+    - Delegación limpia de la resolución de streams y validaciones de visibilidad de proyectos en `MediaStorageService::streamMedia()`.
 
 - **Exportadores Profesionales NLE CMX 3600 EDL y FCPXML v1.10 (AUDIT-20261109 / ISSUE-018 / jg_filmmaker#23):**
   - **Servicio de Exportación NLE (`NleTimelineExportService`):**

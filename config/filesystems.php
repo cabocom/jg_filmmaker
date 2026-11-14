@@ -62,7 +62,25 @@ return [
             'report' => false,
         ],
 
+        'media' => [
+            'driver' => env('MEDIA_DISK_DRIVER', 'local'),
+            'root' => storage_path('app/private'),
+            'key' => env('MEDIA_S3_KEY', env('AWS_ACCESS_KEY_ID')),
+            'secret' => env('MEDIA_S3_SECRET', env('AWS_SECRET_ACCESS_KEY')),
+            'region' => env('MEDIA_S3_REGION', env('AWS_DEFAULT_REGION', 'auto')),
+            'bucket' => env('MEDIA_S3_BUCKET', env('AWS_BUCKET')),
+            'url' => env('MEDIA_S3_URL', env('AWS_URL')),
+            'endpoint' => env('MEDIA_S3_ENDPOINT', env('AWS_ENDPOINT')),
+            'use_path_style_endpoint' => env('MEDIA_S3_USE_PATH_STYLE', false),
+            'throw' => false,
+            'report' => false,
+        ],
+
     ],
+
+    'default_media_disk' => env('MEDIA_DISK', 'local'),
+
+    'use_x_accel' => env('FILESYSTEM_USE_X_ACCEL', false),
 
     /*
     |--------------------------------------------------------------------------
