@@ -1,14 +1,13 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.83.1  
+**Versión del documento:** 3.83.2  
 **Fecha de consolidación:** 19 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** Corrección de Compatibilidad CI/CD y Plataforma Composer (Fijación PHP 8.4.5 e `--ignore-platform-req=php+`):
-- **Sincronización de Dependencias y Plataforma PHP en Composer:**
-  - Fijada la directiva `"platform": { "php": "8.4.5" }` en `composer.json` bajo la configuración del proyecto para blindar las dependencias locked (`nette/schema`, `nette/utils`) ante imágenes Docker de CI con versiones de desarrollo/alpha de PHP (`composer:2` / PHP 8.6 dev).
-  - Sincronizado `composer.lock` (`composer update --lock`) resolviendo divergencias con `livewire/livewire` v4.4.8.
-  - Añadido `--ignore-platform-req=php+` al comando `composer install` en `.gitlab-ci.yml`.
+**Estado:** Corrección de Entorno CI/CD con Imagen Oficial PHP 8.4 (`laravelsail/php84-composer`):
+- **Sincronización de Imagen de Test en CI/CD:**
+  - Sustituida la imagen genérica flotante `composer:2` (que montaba PHP 8.6 dev sin extensiones como `mbstring` provocando fallos en Box/Pint) por la imagen oficial `laravelsail/php84-composer:latest` (PHP 8.4.1 con extensiones `mbstring`, `pdo_sqlite`, `pcntl`, `xml`, `curl` preinstaladas).
+  - Fijada la directiva `"platform": { "php": "8.4.5" }` en `composer.json` y sincronizado `composer.lock`.
   - Validación local completa: `./vendor/bin/pint --test` (0 observaciones) y `./vendor/bin/phpunit` (319 tests passed, 1.479 assertions). Cachés purgadas y contenedor reiniciado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
