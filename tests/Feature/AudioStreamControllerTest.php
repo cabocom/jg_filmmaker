@@ -10,6 +10,7 @@ use App\Models\Scene;
 use App\Models\ScriptBlock;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
@@ -17,6 +18,34 @@ use Tests\TestCase;
 class AudioStreamControllerTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $fakeWav = base64_decode('UklGRjIAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=');
+        Http::fake([
+            'http://speaches*' => Http::response($fakeWav, 200, ['Content-Type' => 'audio/wav']),
+            'http://127.0.0.1:8601*' => Http::response($fakeWav, 200, ['Content-Type' => 'audio/wav']),
+            'http://localhost:8601*' => Http::response($fakeWav, 200, ['Content-Type' => 'audio/wav']),
+            'https://generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [
+                    [
+                        'content' => [
+                            'parts' => [
+                                [
+                                    'inlineData' => [
+                                        'mimeType' => 'audio/wav',
+                                        'data' => base64_encode($fakeWav),
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ], 200),
+        ]);
+    }
 
     public function test_unauthenticated_user_cannot_access_manifest_or_stream(): void
     {

@@ -1,14 +1,14 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.83.2  
+**Versión del documento:** 3.83.3  
 **Fecha de consolidación:** 19 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** Corrección de Entorno CI/CD con Imagen Oficial PHP 8.4 (`laravelsail/php84-composer`):
-- **Sincronización de Imagen de Test en CI/CD:**
-  - Sustituida la imagen genérica flotante `composer:2` (que montaba PHP 8.6 dev sin extensiones como `mbstring` provocando fallos en Box/Pint) por la imagen oficial `laravelsail/php84-composer:latest` (PHP 8.4.1 con extensiones `mbstring`, `pdo_sqlite`, `pcntl`, `xml`, `curl` preinstaladas).
-  - Fijada la directiva `"platform": { "php": "8.4.5" }` en `composer.json` y sincronizado `composer.lock`.
-  - Validación local completa: `./vendor/bin/pint --test` (0 observaciones) y `./vendor/bin/phpunit` (319 tests passed, 1.479 assertions). Cachés purgadas y contenedor reiniciado.
+**Estado:** Erradicación de Fuga de Peticiones TTS y Aislamiento de Macros Estáticas en Testing:
+- **Mocking de TTS y Limpieza de Macros en `AudioStreamControllerTest` y `TestCase`:**
+  * En `AudioStreamControllerTest.php`, inyectado `Http::fake()` cubriendo todos los endpoints de síntesis de voz (Speaches local/host/docker y Google Generative Language), evitando llamadas a servicios reales o excepciones por peticiones no mockeadas (`Http::preventStrayRequests()`).
+  * En `TestCase.php`, añadido `Factory::flushMacros()` tanto en `setUp()` como en `tearDown()` para prevenir la fuga de macros estáticas (`Http::macro('tts_testing_real')`) entre tests dentro del mismo proceso de ejecución de PHPUnit.
+  * Verificación completa en contenedor Docker sin caché previa: 319 tests PHPUnit pasando al 100% (1.479 assertions) y Pint verificado con 0 observaciones.
 
 ## Resumen Ejecutivo de Capacidades Recientes
 
