@@ -80,11 +80,17 @@ final readonly class RequestLoginOtpAction
             Mail::to($emailClean)->send(new LoginOtpMail($code, 15));
         } catch (\Throwable $e) {
             logger()->error('Error enviando código OTP a '.$emailClean.': '.$e->getMessage());
+
+            return [
+                'success' => false,
+                'field' => 'email',
+                'error' => 'No se pudo enviar el código de acceso al correo indicado. Por favor, verifique el servicio de correo o inténtelo de nuevo más tarde.',
+            ];
         }
 
         return [
             'success' => true,
-            'code' => $code,
+            'code' => app()->environment(['local', 'testing']) ? $code : null,
         ];
     }
 }

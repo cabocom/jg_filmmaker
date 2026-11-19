@@ -1,10 +1,18 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.81.0  
-**Fecha de consolidación:** 14 de noviembre de 2026  
+**Versión del documento:** 3.82.0  
+**Fecha de consolidación:** 19 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** REFACTOR-v2.0 (jg_filmmaker#33) COMPLETADO AL 100%. Mitigación de vulnerabilidades y defectos de auditoría AUDIT-20261109 resueltos: ISSUE-001 a ISSUE-027 (el 100% de los 27 issues del plan de auditoría e ideas de mejora de arquitectura) completados y validados. Plataforma certificada para producción con hoja de ruta y riesgos operacionales documentados en `docs/future-20261119.md` (GitLab #34). El 100% de clases y vistas de producción se encuentra por debajo de 300 LOC (0 infracciones). Suite completa de 316 tests pasando al 100% (1.470 assertions) y Pint con 0 infracciones.
+**Estado:** Erradicación de Fallbacks Sintéticos, Protección TTS Anti-Caché Mudo y Endurecimiento de Seguridad (ISSUE-39 / jg_filmmaker#35) completado:
+- **Propagación Real de Fallos en `AgentHttpTransport`:** Eliminada la invocación a `DeterministicFallbackEngine` ante fallos HTTP 4xx/5xx o `ConnectionException`; el transporte reporta el error real `['success' => false, 'error' => ...]` propagando el estado auténtico del plano de ejecución `jg_agente` sin enmascaramiento sintético.
+- **Protección Anti-Cobro de Tokens por Imágenes Sintéticas 1x1 en `StoryboardService`:** Prohibido el descuento de 350 tokens y la persistencia en disco si la generación de viñeta falla o si se detecta un PNG 1x1 sintético de fallback (`iVBOR...` o `deterministic_fallback`).
+- **Saneamiento de Telemetría UI en `WithEditorActivityAndTrace` y `StudioAiTraceBuilder`:** Eliminada la sobreescritura de `$telemetry['provider']` y `$telemetry['model']` con valores hardcodeados de Groq y la invención de pasos retrospectivos. Reemplazado el uso de `env()` por `config()`.
+- **Endurecimiento de Arranque en `AppServiceProvider`:** Prohibido estrictamente `services.jg_agente.mock = true` en producción y exigida incondicionalmente la presencia de un `JG_AGENTE_SECRET` válido y seguro.
+- **Erradicación de Caché TTS Silenciosa en `TextToSpeechService`:** Eliminada la generación y persistencia del archivo WAV de 44 bytes de silencio en `$cachedFilePath` ante caídas de proveedores de síntesis de voz, evitando la contaminación permanente de la caché de audio.
+- **Activación de Inferencia Real en `ScriptPipelineService`:** Conectada la inferencia LLM real (`allowLlmExtraction: true`) en ejecuciones individuales y respetada la optimización batch cuando `$syncProjectContext = false`.
+- **Corrección de Reporte de Éxito en `RequestLoginOtpAction`:** Retorno estricto de `['success' => false, 'field' => 'email', 'error' => ...]` cuando falla el despacho SMTP del código OTP, restringiendo la exposición del código a entornos de testing y desarrollo local.
+- **Validación Automatizada:** 319 tests PHPUnit pasando al 100% (1.479 assertions) y Pint con 0 observaciones. Cachés purgadas y contenedor Docker `jg_filmmaker` reiniciado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
 

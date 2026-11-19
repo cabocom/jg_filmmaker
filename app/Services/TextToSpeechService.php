@@ -179,10 +179,8 @@ class TextToSpeechService
 
             return $result;
         } catch (\Throwable $e) {
-            Log::warning("Speaches TTS no disponible o falló: {$e->getMessage()}. Generando silencio de seguridad.");
-            File::put($cachedFilePath, base64_decode('UklGRjIAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA='));
-
-            return $cachedFilePath;
+            Log::error("Speaches TTS no disponible o falló: {$e->getMessage()}.");
+            throw new RuntimeException("Servicio de síntesis de voz (TTS) no disponible: {$e->getMessage()}", 0, $e);
         }
     }
 

@@ -129,34 +129,61 @@ class AgentHttpTransport
                     return $data;
                 }
 
+                $error = is_array($data) ? ($data['error'] ?? 'flag success es false') : 'formato no json';
                 Log::warning("Respuesta no exitosa de jg_agente para herramienta [{$toolName}]", [
                     'tool' => $toolName,
                     'correlation_id' => $correlationId,
                     'status' => $response->status(),
-                    'error' => is_array($data) ? ($data['error'] ?? 'flag success es false') : 'formato no json',
+                    'error' => $error,
                 ]);
-            } else {
-                Log::warning("Llamada HTTP fallida a jg_agente para herramienta [{$toolName}]", [
-                    'tool' => $toolName,
-                    'correlation_id' => $correlationId,
-                    'status' => $response->status(),
-                ]);
+
+                return [
+                    'success' => false,
+                    'error' => "Respuesta no exitosa de jg_agente [{$toolName}]: {$error}",
+                    'source' => 'agent',
+                    'degraded' => false,
+                ];
             }
+
+            Log::warning("Llamada HTTP fallida a jg_agente para herramienta [{$toolName}]", [
+                'tool' => $toolName,
+                'correlation_id' => $correlationId,
+                'status' => $response->status(),
+            ]);
+
+            return [
+                'success' => false,
+                'error' => "Error HTTP {$response->status()} en jg_agente para herramienta [{$toolName}]",
+                'source' => 'agent',
+                'degraded' => false,
+            ];
         } catch (ConnectionException $e) {
             Log::warning("Sin conexión con microservicio jg_agente para herramienta [{$toolName}]", [
                 'tool' => $toolName,
                 'correlation_id' => $correlationId,
                 'error' => $e->getMessage(),
             ]);
+
+            return [
+                'success' => false,
+                'error' => "Sin conexión con microservicio jg_agente para herramienta [{$toolName}]: {$e->getMessage()}",
+                'source' => 'agent',
+                'degraded' => false,
+            ];
         } catch (Exception $e) {
             Log::warning("Excepción durante la invocación a jg_agente para herramienta [{$toolName}]", [
                 'tool' => $toolName,
                 'correlation_id' => $correlationId,
                 'error' => $e->getMessage(),
             ]);
-        }
 
-        return $this->resolveFallback($toolName, $payload, $fallbackEngine, $telemetry, $userLocksApplier, $shotParser);
+            return [
+                'success' => false,
+                'error' => "Error durante invocación a jg_agente para herramienta [{$toolName}]: {$e->getMessage()}",
+                'source' => 'agent',
+                'degraded' => false,
+            ];
+        }
     }
 
     /**

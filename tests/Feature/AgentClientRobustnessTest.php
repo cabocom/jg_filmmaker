@@ -34,7 +34,7 @@ class AgentClientRobustnessTest extends TestCase
         $this->assertSame('Tratamiento estructurado por el agente.', $result['output']);
     }
 
-    public function test_call_tool_logs_warning_and_falls_back_when_jg_agente_returns_server_error(): void
+    public function test_call_tool_logs_warning_and_fails_closed_when_jg_agente_returns_server_error(): void
     {
         Config::set('services.jg_agente.mock', false);
         Config::set('services.jg_agente.secret', 'test-long-secret-key-for-robustness-check-1234');
@@ -49,12 +49,13 @@ class AgentClientRobustnessTest extends TestCase
         $service = app(AgentClientService::class);
         $result = $service->callTool('treatment_structuring', ['raw_text' => 'Notas del autor']);
 
-        $this->assertTrue($result['success']);
-        $this->assertSame('deterministic_fallback', $result['source']);
-        $this->assertTrue($result['degraded']);
+        $this->assertFalse($result['success']);
+        $this->assertSame('agent', $result['source']);
+        $this->assertFalse($result['degraded']);
+        $this->assertStringContainsString('Error HTTP 500', $result['error']);
     }
 
-    public function test_call_tool_recognizes_success_false_from_agent_and_falls_back(): void
+    public function test_call_tool_recognizes_success_false_from_agent_and_fails_closed(): void
     {
         Config::set('services.jg_agente.mock', false);
         Config::set('services.jg_agente.secret', 'test-long-secret-key-for-robustness-check-1234');
@@ -72,9 +73,10 @@ class AgentClientRobustnessTest extends TestCase
         $service = app(AgentClientService::class);
         $result = $service->callTool('treatment_structuring', ['raw_text' => 'Notas del autor']);
 
-        $this->assertTrue($result['success']);
-        $this->assertSame('deterministic_fallback', $result['source']);
-        $this->assertTrue($result['degraded']);
+        $this->assertFalse($result['success']);
+        $this->assertSame('agent', $result['source']);
+        $this->assertFalse($result['degraded']);
+        $this->assertStringContainsString('Validación de payload fallida', $result['error']);
     }
 
     public function test_direct_llm_is_strictly_disabled_in_production(): void
@@ -93,10 +95,9 @@ class AgentClientRobustnessTest extends TestCase
         $service = app(AgentClientService::class);
         $result = $service->callTool('treatment_structuring', ['raw_text' => 'Texto de prueba']);
 
-        // En producción nunca debe ir a direct_llm, sino al fallback determinista controlado
-        $this->assertNotSame('direct_llm', $result['source']);
-        $this->assertSame('deterministic_fallback', $result['source']);
-        $this->assertTrue($result['degraded']);
+        // En producción nunca debe ir a direct_llm, sino reportar el fallo del agente de forma estricta
+        $this->assertFalse($result['success']);
+        $this->assertNotSame('direct_llm', $result['source'] ?? '');
 
         Http::assertNotSent(function ($request) {
             return str_contains($request->url(), 'api.groq.com');

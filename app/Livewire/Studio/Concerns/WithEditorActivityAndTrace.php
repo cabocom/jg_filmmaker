@@ -84,20 +84,18 @@ trait WithEditorActivityAndTrace
             $telemetry = app(StudioAiTraceBuilder::class)->generateFallbackTelemetry($block, $stage);
         }
 
-        // Sincronizar dinámicamente con el proveedor y modelo activo real del entorno
-        $activeProvider = (string) config('services.llm.provider', env('LLM_PROVIDER', 'groq'));
-        $activeModel = (string) config('services.llm.model', env('LLM_MODEL', 'llama-3.3-70b-versatile'));
-        if ($activeModel === 'openai/gpt-oss-120b' || empty($activeModel)) {
-            $activeModel = 'llama-3.3-70b-versatile';
+        if (empty($telemetry['provider'])) {
+            $telemetry['provider'] = (string) config('services.llm.provider', 'groq');
         }
-        $telemetry['provider'] = $activeProvider;
-        $telemetry['model'] = $activeModel;
+        if (empty($telemetry['model'])) {
+            $telemetry['model'] = (string) config('services.llm.model', 'llama-3.3-70b-versatile');
+        }
 
         $telemetry['block_order'] = $block->block_order;
         $telemetry['scene_order'] = $block->scene?->scene_order ?? 1;
         $telemetry['scene_slugline'] = $block->scene?->slugline ?? 'ESCENA';
 
-        // Generar pasos granulares con acciones particulares exactas solicitadas por el usuario
+        // Generar pasos granulares con acciones particulares solicitadas por el usuario
         $telemetry['steps'] = $this->buildGranularSteps($block, $stage, $telemetry);
 
         $this->aiTraceData = $telemetry;

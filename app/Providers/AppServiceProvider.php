@@ -38,6 +38,23 @@ class AppServiceProvider extends ServiceProvider
 
         // Fail-fast en arranque (CWE-798): en producción no se admiten claves o secretos inseguros
         if ($this->app->isProduction()) {
+            $appKey = (string) config('app.key', '');
+            $knownInsecureKeys = [
+                'base64:fH7i9N2bV5kM8qR3tY6wP1sL4xJ7aB0cDeFgHiJkLmN=',
+            ];
+
+            if (empty($appKey) || in_array($appKey, $knownInsecureKeys, true)) {
+                throw new \RuntimeException(
+                    'Seguridad (CWE-798): APP_KEY no configurada o utiliza una clave pública conocida versionada.'
+                );
+            }
+
+            if ((bool) config('services.jg_agente.mock', false)) {
+                throw new \RuntimeException(
+                    'Seguridad: services.jg_agente.mock no puede estar activo en entorno de producción.'
+                );
+            }
+
             $secret = (string) config('services.jg_agente.secret', '');
             $knownInsecureSecrets = [
                 'test-secret-ecosystem-2026',
@@ -47,28 +64,15 @@ class AppServiceProvider extends ServiceProvider
                 'password',
             ];
 
-            if (! (bool) config('services.jg_agente.mock', false)) {
-                if (empty($secret)) {
-                    throw new \RuntimeException(
-                        'Seguridad (CWE-798): JG_AGENTE_SECRET (o PERMANENT_AGENT_SECRET) no está definido.'
-                    );
-                }
-
-                if (strlen($secret) < 16 || in_array($secret, $knownInsecureSecrets, true)) {
-                    throw new \RuntimeException(
-                        'Seguridad (CWE-798): JG_AGENTE_SECRET utiliza un valor inseguro o de ejemplo en producción.'
-                    );
-                }
+            if (empty($secret)) {
+                throw new \RuntimeException(
+                    'Seguridad (CWE-798): JG_AGENTE_SECRET (o PERMANENT_AGENT_SECRET) no está definido.'
+                );
             }
 
-            $appKey = (string) config('app.key', '');
-            $knownInsecureKeys = [
-                'base64:fH7i9N2bV5kM8qR3tY6wP1sL4xJ7aB0cDeFgHiJkLmN=',
-            ];
-
-            if (empty($appKey) || in_array($appKey, $knownInsecureKeys, true)) {
+            if (strlen($secret) < 16 || in_array($secret, $knownInsecureSecrets, true)) {
                 throw new \RuntimeException(
-                    'Seguridad (CWE-798): APP_KEY no configurada o utiliza una clave pública conocida versionada.'
+                    'Seguridad (CWE-798): JG_AGENTE_SECRET utiliza un valor inseguro o de ejemplo en producción.'
                 );
             }
         }

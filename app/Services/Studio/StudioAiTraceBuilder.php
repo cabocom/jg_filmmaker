@@ -215,8 +215,8 @@ final readonly class StudioAiTraceBuilder
      */
     public function generateFallbackTelemetry(ScriptBlock $block, string $stage): array
     {
-        $provider = (string) config('services.llm.provider', env('LLM_PROVIDER', 'groq'));
-        $model = (string) config('services.llm.model', env('LLM_MODEL', 'llama-3.3-70b-versatile'));
+        $provider = (string) config('services.llm.provider', 'groq');
+        $model = (string) config('services.llm.model', 'llama-3.3-70b-versatile');
         $executedAt = $block->updated_at?->toIso8601String() ?? now()->toIso8601String();
 
         $characters = $block->scene?->project?->characters?->map(fn ($c) => [

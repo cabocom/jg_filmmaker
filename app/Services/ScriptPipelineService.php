@@ -93,7 +93,7 @@ class ScriptPipelineService
         $rawText = $block->raw_text ?? '';
 
         $this->assertUserQuotaAvailable($project, max(50, (int) ceil(mb_strlen((string) $rawText) / 4) + 150));
-        $characters = $this->inferCharactersFromText($rawText, $characters, $project, allowLlmExtraction: false);
+        $characters = $this->inferCharactersFromText($rawText, $characters, $project, allowLlmExtraction: $syncProjectContext);
 
         $userLocks = $this->resolveUserLocks($block);
         $structuredText = $this->agentClient->structureTreatment($rawText, $characters, $location, $this->sanitizeUserLocksForAgent($userLocks));
@@ -129,7 +129,7 @@ class ScriptPipelineService
         $sourceText = ! empty($block->structured_text) ? $block->structured_text : (string) $block->raw_text;
 
         $this->assertUserQuotaAvailable($project, max(50, (int) ceil(mb_strlen((string) $sourceText) / 4) + 200));
-        $characters = $this->inferCharactersFromText($sourceText, $characters, $project, allowLlmExtraction: false);
+        $characters = $this->inferCharactersFromText($sourceText, $characters, $project, allowLlmExtraction: $syncProjectContext);
 
         $userLocks = $this->resolveUserLocks($block);
         $screenplayContent = $this->agentClient->formatScreenplay($sourceText, $characters, $this->sanitizeUserLocksForAgent($userLocks), $location);

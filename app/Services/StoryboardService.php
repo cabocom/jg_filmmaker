@@ -117,6 +117,15 @@ class StoryboardService
             throw new RuntimeException('Google AI Studio no devolvió la imagen esperada a través del agente.');
         }
 
+        if (
+            ($base64 === 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+            || ($result['source'] ?? '') === 'deterministic_fallback')
+            && (app()->isProduction() || ! config('services.jg_agente.mock', false))
+        ) {
+            Log::error('StoryboardService: Se detectó imagen 1x1 sintética de fallback. Abortando sin cobrar tokens ni persistir.');
+            throw new RuntimeException('Generación de storyboard no disponible (imagen sintética de fallback rechazada).');
+        }
+
         $imageBytes = base64_decode($base64);
         if (empty($imageBytes)) {
             throw new RuntimeException('No se pudieron decodificar los bytes de la imagen generada.');

@@ -28,5 +28,32 @@
   5. En `ScriptPipelineService.php:96, 132` y `BibleSyncService.php:63-107`, activar la extracción LLM real sin caer silenciosamente en `extractDeterministicCandidates`.
   6. En `RequestLoginOtpAction.php:79-88`, devolver `['success' => false, 'field' => 'email', 'error' => ...]` si falla el envío SMTP del código OTP.
 - **Criterios de Aceptación (Checklist verificable):**
-  - [ ] Una caída de `jg_agente` o de los proveedores TTS en `jg_filmmaker` se reporta explícitamente al usuario sin guardar imágenes 1x1, sin cobrar tokens, sin falsificar el proveedor en el modal de trazabilidad y sin contaminar la caché TTS con audio mudo.
-  - [ ] Un fallo SMTP en `RequestLoginOtpAction` devuelve `'success' => false`.
+  - [x] Una caída de `jg_agente` o de los proveedores TTS en `jg_filmmaker` se reporta explícitamente al usuario sin guardar imágenes 1x1, sin cobrar tokens, sin falsificar el proveedor en el modal de trazabilidad y sin contaminar la caché TTS con audio mudo.
+  - [x] Un fallo SMTP en `RequestLoginOtpAction` devuelve `'success' => false`.
+  - [x] Suite PHPUnit pasando al 100% (319 tests, 1.479 assertions) y Pint con 0 observaciones.
+
+---
+
+## Resolución Técnica Implementada
+
+1. **Propagación Real de Fallos en `AgentHttpTransport`:**
+   - Suprimido el bypass silencioso que derivaba en `DeterministicFallbackEngine` ante respuestas HTTP 4xx/5xx o `ConnectionException`.
+   - El transporte devuelve `['success' => false, 'error' => ...]` preservando el estado fáctico de la ejecución.
+2. **Protección Anti-Cobro 1x1 en `StoryboardService`:**
+   - Detección y bloqueo estricto de payloads con imágenes base64 de 1x1 píxel transparente o marcadas con `deterministic_fallback` en llamadas reales a `jg_agente`.
+   - Se aborta la ejecución con excepción explícita, impidiendo el cobro indebido de 350 tokens y la persistencia de imágenes vacías.
+3. **Telemetría Fidedigna en UI:**
+   - En `WithEditorActivityAndTrace` y `StudioAiTraceBuilder`, eliminada la sobreescritura de `$telemetry['provider']` y `$telemetry['model']` con cadenas fijas de Groq.
+   - Sustituidas las llamadas directas `env()` por `config()`.
+4. **Endurecimiento en `AppServiceProvider`:**
+   - Prohibido de forma incondicional `services.jg_agente.mock = true` en producción.
+   - Exigencia estricta de `JG_AGENTE_SECRET` válido y seguro al arrancar la aplicación en producción.
+5. **Erradicación de Caché Mudo en `TextToSpeechService`:**
+   - Eliminada la escritura del archivo WAV de 44 bytes silencioso en `$cachedFilePath` ante caídas de Speaches o Google AI TTS, evitando el envenenamiento de caché.
+6. **Inferencia Activa en `ScriptPipelineService`:**
+   - Habilitada la inferencia LLM (`allowLlmExtraction: true`) para bloques individuales y respetada la bandera `$syncProjectContext` en lotes batch.
+7. **Reporte de Fallo en `RequestLoginOtpAction`:**
+   - Retorno estricto de `['success' => false, 'field' => 'email', 'error' => ...]` ante fallos de conexión o envío SMTP.
+8. **Pruebas Automatizadas:**
+   - Creado `tests/Feature/AntiFallbackHardeningTest.php` con 3 tests verificando el rechazo de imágenes 1x1, fallo en TTS sin caché mudo y fallo en envío SMTP de OTP.
+   - 319 tests PHPUnit pasando al 100%. Pint aprobado. Cachés purgadas y contenedor Docker `jg_filmmaker` reiniciado.
