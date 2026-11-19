@@ -6,8 +6,8 @@ namespace App\Services;
 
 use App\Models\Character;
 use App\Models\Project;
-use App\Models\ScriptBlock;
 use App\Models\User;
+use App\Services\Tts\Concerns\WithTtsManifestDelegation;
 use App\Services\Tts\Contracts\TtsProviderInterface;
 use App\Services\Tts\Providers\GoogleAiTtsProvider;
 use App\Services\Tts\Providers\SpeachesTtsProvider;
@@ -22,6 +22,8 @@ use RuntimeException;
 
 class TextToSpeechService
 {
+    use WithTtsManifestDelegation;
+
     protected string $speachesUrl;
 
     protected string $model;
@@ -189,24 +191,6 @@ class TextToSpeechService
         return $this->segmenter->expandScreenplayAbbreviations($text);
     }
 
-    public function parseBlockToSegments(
-        ScriptBlock $block,
-        Collection|array $characters = [],
-        ?Project $project = null,
-        bool $persistBibleChanges = false
-    ): array {
-        return $this->segmenter->parseBlockToSegments($block, $characters, $project, $persistBibleChanges);
-    }
-
-    public function buildManifestForScope(
-        Project $project,
-        ?string $sceneId = null,
-        ?string $blockId = null,
-        bool $persistBibleChanges = false
-    ): array {
-        return $this->manifestService->buildManifestForScope($project, $sceneId, $blockId, $persistBibleChanges);
-    }
-
     public function getCachedAudioPath(string $text, ?string $voice = null, float $speed = 1.0): string
     {
         $cleanText = $this->expandScreenplayAbbreviations(trim($text));
@@ -215,31 +199,6 @@ class TextToSpeechService
         $hash = hash('sha256', $providerKey.'|'.$activeVoice.'|'.number_format($speed, 2, '.', '').'|'.$cleanText);
 
         return $this->cacheDir.'/'.$hash.'.wav';
-    }
-
-    public function isAudioCached(string $text, ?string $voice = null, float $speed = 1.0): bool
-    {
-        return $this->manifestService->isAudioCached($text, $voice, $speed);
-    }
-
-    public function isProjectAudioComplete(Project $project, float $speed = 1.0): bool
-    {
-        return $this->manifestService->isProjectAudioComplete($project, $speed);
-    }
-
-    public function invalidateAudioCompleteCache(Project|string $project): void
-    {
-        $this->manifestService->invalidateAudioCompleteCache($project);
-    }
-
-    public function exportProjectToMp3(Project $project, float $speed = 1.0): string
-    {
-        return $this->manifestService->exportProjectToMp3($project, $speed);
-    }
-
-    public function prewarmManifest(array $manifest, float $speed = 1.0, ?callable $onProgress = null, ?Project $project = null): array
-    {
-        return $this->manifestService->prewarmManifest($manifest, $speed, $onProgress, $project);
     }
 
     protected function parseScreenplayText(

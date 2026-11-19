@@ -229,29 +229,4 @@ class StoryboardService
     {
         return $this->promptBuilder->resolveLocationModel($shot, $locationId);
     }
-
-    public function resolveCharacterConditioning(Shot $shot, ?string $characterId = null): ?string
-    {
-        return $this->promptBuilder->resolveCharacterConditioning($shot, $characterId);
-    }
-
-    public function resolveLocationConditioning(Shot $shot, ?string $locationId = null): ?string
-    {
-        return $this->promptBuilder->resolveLocationConditioning($shot, $locationId);
-    }
-
-    public function getStorageImageData(?string $path): ?array
-    {
-        return $this->imageProcessor->getStorageImageData($path);
-    }
-
-    public function getUploadedOrImageData(mixed $file): ?array
-    {
-        return $this->imageProcessor->getUploadedOrImageData($file);
-    }
-
-    public function getDummyJpegBytes(): string
-    {
-        return $this->imageProcessor->getDummyJpegBytes();
-    }
 }

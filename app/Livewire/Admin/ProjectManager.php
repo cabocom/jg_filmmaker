@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin;
 
-use App\Models\AdminAuditLog;
+use App\Actions\Admin\TransferProjectOwnershipAction;
 use App\Models\Project;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
+use App\Queries\Admin\GetProjectAiTelemetrySummaryQuery;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -62,7 +62,7 @@ class ProjectManager extends Component
         $this->resetErrorBag();
     }
 
-    public function transferProject(): void
+    public function transferProject(?TransferProjectOwnershipAction $action = null): void
     {
         $this->authorize('admin');
 
@@ -77,36 +77,16 @@ class ProjectManager extends Component
             return;
         }
 
-        $project = Project::findOrFail($this->selectedProjectId);
-        $previousOwnerId = $project->user_id;
-        $targetUser = User::findOrFail($this->targetUserId);
+        try {
+            $action ??= app(TransferProjectOwnershipAction::class);
+            $project = $action->execute($this->selectedProjectId, $this->targetUserId);
+            $targetUser = User::findOrFail($this->targetUserId);
 
-        DB::transaction(function () use ($project, $targetUser, $previousOwnerId) {
-            $project->user_id = $targetUser->id;
-            $project->save();
-
-            AdminAuditLog::create([
-                'user_id' => auth()->id(),
-                'action' => 'transfer_project',
-                'target_type' => Project::class,
-                'target_id' => $project->id,
-                'details' => [
-                    'project_title' => $project->title,
-                    'previous_owner_id' => $previousOwnerId,
-                    'new_owner_id' => $targetUser->id,
-                    'new_owner_email' => $targetUser->email,
-                ],
-                'ip_address' => request()->ip(),
-            ]);
-        });
-
-        $projectTitle = $project->title;
-        $targetName = $targetUser->name;
-        $targetEmail = $targetUser->email;
-
-        $this->closeTransferModal();
-
-        session()->flash('status', "El proyecto '{$projectTitle}' se ha transferido exitosamente a {$targetName} ({$targetEmail}).");
+            $this->closeTransferModal();
+            session()->flash('status', "El proyecto '{$project->title}' se ha transferido exitosamente a {$targetUser->name} ({$targetUser->email}).");
+        } catch (\InvalidArgumentException $e) {
+            $this->addError('targetUserId', $e->getMessage());
+        }
     }
 
     public function render()
@@ -137,42 +117,9 @@ class ProjectManager extends Component
         $projectIds = $projects->pluck('id')->toArray();
 
         // 1. Agregación cuantitativa de bloques por etapa (exclusivamente para los proyectos de la página actual)
-        $blockCountsByProject = [];
-        if (! empty($projectIds)) {
-            $blockStageRows = DB::table('script_blocks')
-                ->join('scenes', 'script_blocks.scene_id', '=', 'scenes.id')
-                ->whereIn('scenes.project_id', $projectIds)
-                ->select('scenes.project_id', 'script_blocks.stage', DB::raw('COUNT(*) as total'))
-                ->groupBy('scenes.project_id', 'script_blocks.stage')
-                ->get();
-
-            foreach ($blockStageRows as $row) {
-                $blockCountsByProject[$row->project_id][$row->stage] = (int) $row->total;
-            }
-        }
-
-        // 2. Telemetría de IA de cada proyecto (exclusivamente para los proyectos de la página actual)
-        $aiMetricsByProject = [];
-        if (! empty($projectIds)) {
-            $aiRows = DB::table('agent_request_logs')
-                ->whereIn('project_id', $projectIds)
-                ->select(
-                    'project_id',
-                    DB::raw('COUNT(*) as total_requests'),
-                    DB::raw('SUM(total_tokens) as total_tokens'),
-                    DB::raw('SUM(estimated_cost_usd) as total_cost_usd')
-                )
-                ->groupBy('project_id')
-                ->get();
-
-            foreach ($aiRows as $row) {
-                $aiMetricsByProject[$row->project_id] = [
-                    'total_requests' => (int) $row->total_requests,
-                    'total_tokens' => (int) $row->total_tokens,
-                    'total_cost_usd' => (float) $row->total_cost_usd,
-                ];
-            }
-        }
+        $telemetryQuery = app(GetProjectAiTelemetrySummaryQuery::class);
+        $blockCountsByProject = $telemetryQuery->getBlockCountsByStage($projectIds);
+        $aiMetricsByProject = $telemetryQuery->getForProjects($projectIds);
 
         // Cargar usuarios para el selector de transferencia únicamente si el modal está abierto (ISSUE-022)
         $allUsers = $this->showTransferModal

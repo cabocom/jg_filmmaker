@@ -13,6 +13,8 @@ use App\Models\Shot;
 use App\Services\JgAgente\AgentClientService;
 use App\Services\Pipeline\BatchPipelineProcessor;
 use App\Services\Pipeline\BibleSyncService;
+use App\Services\Pipeline\Concerns\WithBatchPipelineProcessing;
+use App\Services\Pipeline\Concerns\WithBibleSyncDelegation;
 use App\Services\Pipeline\ShotsBreakdownService;
 use App\Services\Pipeline\SluglineSyncService;
 use App\Services\Pipeline\UserLockManager;
@@ -21,6 +23,9 @@ use Illuminate\Support\Facades\DB;
 
 class ScriptPipelineService
 {
+    use WithBatchPipelineProcessing;
+    use WithBibleSyncDelegation;
+
     protected BibleSyncService $bibleSync;
 
     protected SluglineSyncService $sluglineSync;
@@ -211,55 +216,5 @@ class ScriptPipelineService
     public function sanitizeUserLocksForAgent(array $userLocks): array
     {
         return $this->lockManager->sanitizeUserLocksForAgent($userLocks);
-    }
-
-    public function syncProjectCharacters(Project $project): void
-    {
-        $this->bibleSync->syncProjectCharacters($project);
-    }
-
-    public function inferCharactersFromText(string $text, array $existingCharacters = [], ?Project $project = null, bool $allowLlmExtraction = true): array
-    {
-        return $this->bibleSync->inferCharactersFromText($text, $existingCharacters, $project, $allowLlmExtraction);
-    }
-
-    public function extractDeterministicCandidates(string $text, array $existingCharacters = []): array
-    {
-        return $this->bibleSync->extractDeterministicCandidates($text, $existingCharacters);
-    }
-
-    public function capitalizeCharacterNames(string $text, array $characters, string $stage = 'structured'): string
-    {
-        return $this->bibleSync->capitalizeCharacterNames($text, $characters, $stage);
-    }
-
-    public function parseSlugline(string $slugline): array
-    {
-        return $this->sluglineSync->parseSlugline($slugline);
-    }
-
-    public function syncProjectLocations(Project $project): void
-    {
-        $this->sluglineSync->syncProjectLocations($project);
-    }
-
-    public function batchStructureBlocks(iterable $blocks, bool $syncProjectContext = true): array
-    {
-        return $this->batchProcessor->batchStructureBlocks($blocks, $this, $syncProjectContext);
-    }
-
-    public function batchFormatBlocksToScreenplay(iterable $blocks, bool $syncProjectContext = true): array
-    {
-        return $this->batchProcessor->batchFormatBlocksToScreenplay($blocks, $this, $syncProjectContext);
-    }
-
-    public function batchGenerateShots(iterable $blocks): array
-    {
-        return $this->batchProcessor->batchGenerateShots($blocks, $this);
-    }
-
-    public function batchRunFullPipeline(iterable $blocks): array
-    {
-        return $this->batchProcessor->batchRunFullPipeline($blocks, $this);
     }
 }

@@ -1,18 +1,25 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.82.0  
+**Versión del documento:** 3.83.0  
 **Fecha de consolidación:** 19 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** Erradicación de Fallbacks Sintéticos, Protección TTS Anti-Caché Mudo y Endurecimiento de Seguridad (ISSUE-39 / jg_filmmaker#35) completado:
-- **Propagación Real de Fallos en `AgentHttpTransport`:** Eliminada la invocación a `DeterministicFallbackEngine` ante fallos HTTP 4xx/5xx o `ConnectionException`; el transporte reporta el error real `['success' => false, 'error' => ...]` propagando el estado auténtico del plano de ejecución `jg_agente` sin enmascaramiento sintético.
-- **Protección Anti-Cobro de Tokens por Imágenes Sintéticas 1x1 en `StoryboardService`:** Prohibido el descuento de 350 tokens y la persistencia en disco si la generación de viñeta falla o si se detecta un PNG 1x1 sintético de fallback (`iVBOR...` o `deterministic_fallback`).
-- **Saneamiento de Telemetría UI en `WithEditorActivityAndTrace` y `StudioAiTraceBuilder`:** Eliminada la sobreescritura de `$telemetry['provider']` y `$telemetry['model']` con valores hardcodeados de Groq y la invención de pasos retrospectivos. Reemplazado el uso de `env()` por `config()`.
-- **Endurecimiento de Arranque en `AppServiceProvider`:** Prohibido estrictamente `services.jg_agente.mock = true` en producción y exigida incondicionalmente la presencia de un `JG_AGENTE_SECRET` válido y seguro.
-- **Erradicación de Caché TTS Silenciosa en `TextToSpeechService`:** Eliminada la generación y persistencia del archivo WAV de 44 bytes de silencio en `$cachedFilePath` ante caídas de proveedores de síntesis de voz, evitando la contaminación permanente de la caché de audio.
-- **Activación de Inferencia Real en `ScriptPipelineService`:** Conectada la inferencia LLM real (`allowLlmExtraction: true`) en ejecuciones individuales y respetada la optimización batch cuando `$syncProjectContext = false`.
-- **Corrección de Reporte de Éxito en `RequestLoginOtpAction`:** Retorno estricto de `['success' => false, 'field' => 'email', 'error' => ...]` cuando falla el despacho SMTP del código OTP, restringiendo la exposición del código a entornos de testing y desarrollo local.
-- **Validación Automatizada:** 319 tests PHPUnit pasando al 100% (1.479 assertions) y Pint con 0 observaciones. Cachés purgadas y contenedor Docker `jg_filmmaker` reiniciado.
+**Estado:** Refactorización SOLID, Desacoplamiento de Lógica Administrativa y Eliminación de Métodos Monolíticos (ISSUE-40 / jg_filmmaker#36) completado:
+- **Extracción de Casos de Uso Administrativos a Actions y Queries Dedicadas:**
+  - Extraída la lógica duplicada de reasignación de proyectos a `TransferProjectOwnershipAction` (`app/Actions/Admin/TransferProjectOwnershipAction.php`), gestionando transaccionalmente el cambio de propietario, la validación de usuarios y la actualización de auditoría.
+  - Extraído el cálculo y agregación de telemetría IA de proyectos a `GetProjectAiTelemetrySummaryQuery` (`app/Queries/Admin/GetProjectAiTelemetrySummaryQuery.php`), eliminando consultas SQL y bucles agregados clonados en `ProjectManager`, `UserDetail` y `UserList`.
+- **Eliminación Segura de `@shell_exec` en `ScriptFileExtractor`:** Sustituida la invocación bloqueante y desatendida de `pdftotext` por la API robusta y tipada `Process::timeout(15)->run(['pdftotext', $filePath, '-'])`, garantizando control de timeout, captura de stderr e inmunidad frente a cuelgues de procesos en ingesta de PDFs de guion.
+- **Cumplimiento Estricto de Límites SOLID ($\le 10$ métodos públicos por clase):**
+  - `ScriptPipelineService`: Reducido a 9 métodos públicos mediante la extracción de `WithBatchPipelineProcessing` (procesamiento por lotes asíncrono) y `WithBibleSyncDelegation` (sincronización y persistencia con la biblia dramática).
+  - `TextToSpeechService`: Reducido a 7 métodos públicos mediante el trait `WithTtsManifestDelegation` (generación y consulta de manifiestos y hashes de audios sintetizados).
+  - `StoryboardService`: Reducido a 6 métodos públicos eliminando métodos fachada huérfanos y concentrando la generación y auditoría visual de viñetas.
+  - `AgentClientService`: Reducido a 10 métodos públicos abstrayendo el parsing de respuestas y saneamiento tipado en `WithAgentClientTextParsing`.
+  - `WithEditorPlotHoles`: Reducido a 8 métodos públicos delegando el guardado y edición de justificaciones de agujeros en `WithEditorPlotHoleJustification`.
+  - `WithEditorStoryboard`: Reducido a 6 métodos públicos abstrayendo eventos modales de viñetas en `WithEditorStoryboardModalEvents`.
+  - `WithEditorSceneOperations`: Reducido a 9 métodos públicos abstrayendo la apertura y confirmación de modales de escena en `WithEditorSceneModals`.
+  - `User`: Reducido a 6 métodos públicos abstrayendo el cómputo y auditoría de saldo y consumo de tokens en `HasUserTokenQuota`.
+  - `ScriptBlock`: Reducido a 6 métodos públicos abstrayendo la detección y filtrado de inconsistencias narrativas en `HasScriptBlockPlotHoles`.
+- **Validación Automatizada:** 319 tests PHPUnit pasando al 100% (1.479 assertions) y Pint con 0 observaciones de estilo. Cachés purgadas y contenedor Docker `jg_filmmaker` reiniciado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
 

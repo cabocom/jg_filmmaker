@@ -6,6 +6,7 @@ namespace App\Services\Import;
 
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Process;
 use InvalidArgumentException;
 use Smalot\PdfParser\Parser as PdfParser;
 
@@ -46,10 +47,13 @@ class ScriptFileExtractor
             Log::warning('Smalot PdfParser falló al extraer texto: '.$e->getMessage());
         }
 
-        $escapedPath = escapeshellarg($filePath);
-        $output = @shell_exec("pdftotext {$escapedPath} - 2>/dev/null");
-        if ($output && ! empty(trim($output))) {
-            return $this->normalizeEncoding($output);
+        try {
+            $processResult = Process::timeout(15)->run(['pdftotext', $filePath, '-']);
+            if ($processResult->successful() && ! empty(trim($processResult->output()))) {
+                return $this->normalizeEncoding($processResult->output());
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Fallback pdftotext falló: '.$e->getMessage());
         }
 
         throw new InvalidArgumentException('No se pudo extraer texto legible del PDF. Asegúrate de que no sea un PDF escaneado como imagen o protegido con contraseña.');

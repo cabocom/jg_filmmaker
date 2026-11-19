@@ -8,10 +8,13 @@ use App\Services\JgAgente\Clients\CharacterAgentClient;
 use App\Services\JgAgente\Clients\ContinuityAgentClient;
 use App\Services\JgAgente\Clients\ScriptAgentClient;
 use App\Services\JgAgente\Clients\StoryboardAgentClient;
+use App\Services\JgAgente\Concerns\WithAgentClientTextParsing;
 use App\Services\JgAgente\Fallbacks\DeterministicFallbackEngine;
 
 class AgentClientService
 {
+    use WithAgentClientTextParsing;
+
     protected HmacSigner $signer;
 
     protected TelemetryRecorder $telemetry;
@@ -205,25 +208,5 @@ class AgentClientService
     public function auditCharacterUsage(string $characterName, array|string $sceneTexts): array
     {
         return $this->characterClient->auditCharacterUsage($characterName, $sceneTexts);
-    }
-
-    /**
-     * Parsea planos anotados con el delimitador canónico '--- shot N (tipo) ---'.
-     *
-     * @return array<int, array{shot_number: int, shot_type: string, description: string}>
-     */
-    public function parseShotsFromText(string $text): array
-    {
-        return $this->storyboardClient->parseShotsFromText($text);
-    }
-
-    /**
-     * Aplica los candados de usuario (pinned_terms y manual_diffs) a un texto.
-     *
-     * @param  array<string, mixed>  $userLocks
-     */
-    public function applyUserLocks(string $text, array $userLocks, string $stage): string
-    {
-        return $this->scriptClient->applyUserLocks($text, $userLocks, $stage);
     }
 }

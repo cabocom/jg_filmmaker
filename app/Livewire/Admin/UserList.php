@@ -6,7 +6,7 @@ namespace App\Livewire\Admin;
 
 use App\Models\AdminAuditLog;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
+use App\Queries\Admin\GetProjectAiTelemetrySummaryQuery;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -65,16 +65,7 @@ class UserList extends Component
 
         // Calcular telemetría agrupada exclusivamente para los usuarios de la página actual
         $userIds = $users->pluck('id')->filter()->all();
-        $telemetryByUser = empty($userIds) ? collect() : DB::table('agent_request_logs')
-            ->whereIn('user_id', $userIds)
-            ->select(
-                'user_id',
-                DB::raw('SUM(total_tokens) as total_tokens'),
-                DB::raw('SUM(estimated_cost_usd) as total_cost_usd')
-            )
-            ->groupBy('user_id')
-            ->get()
-            ->keyBy('user_id');
+        $telemetryByUser = app(GetProjectAiTelemetrySummaryQuery::class)->getForUsers($userIds);
 
         return view('livewire.admin.user-list', [
             'users' => $users,
