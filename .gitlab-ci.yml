@@ -24,7 +24,7 @@ test:phpunit:
     - chmod -R 777 storage bootstrap/cache
     - cp .env.example .env
     - mkdir -p public/build && echo '{}' > public/build/manifest.json
-    - composer install --no-interaction --prefer-dist
+    - composer install --no-interaction --prefer-dist --ignore-platform-req=php+
     - php artisan key:generate
   script:
     - echo "🎨 Verificando estándar de código con Laravel Pint..."

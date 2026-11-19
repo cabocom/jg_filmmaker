@@ -1,25 +1,15 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.83.0  
+**Versión del documento:** 3.83.1  
 **Fecha de consolidación:** 19 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** Refactorización SOLID, Desacoplamiento de Lógica Administrativa y Eliminación de Métodos Monolíticos (ISSUE-40 / jg_filmmaker#36) completado:
-- **Extracción de Casos de Uso Administrativos a Actions y Queries Dedicadas:**
-  - Extraída la lógica duplicada de reasignación de proyectos a `TransferProjectOwnershipAction` (`app/Actions/Admin/TransferProjectOwnershipAction.php`), gestionando transaccionalmente el cambio de propietario, la validación de usuarios y la actualización de auditoría.
-  - Extraído el cálculo y agregación de telemetría IA de proyectos a `GetProjectAiTelemetrySummaryQuery` (`app/Queries/Admin/GetProjectAiTelemetrySummaryQuery.php`), eliminando consultas SQL y bucles agregados clonados en `ProjectManager`, `UserDetail` y `UserList`.
-- **Eliminación Segura de `@shell_exec` en `ScriptFileExtractor`:** Sustituida la invocación bloqueante y desatendida de `pdftotext` por la API robusta y tipada `Process::timeout(15)->run(['pdftotext', $filePath, '-'])`, garantizando control de timeout, captura de stderr e inmunidad frente a cuelgues de procesos en ingesta de PDFs de guion.
-- **Cumplimiento Estricto de Límites SOLID ($\le 10$ métodos públicos por clase):**
-  - `ScriptPipelineService`: Reducido a 9 métodos públicos mediante la extracción de `WithBatchPipelineProcessing` (procesamiento por lotes asíncrono) y `WithBibleSyncDelegation` (sincronización y persistencia con la biblia dramática).
-  - `TextToSpeechService`: Reducido a 7 métodos públicos mediante el trait `WithTtsManifestDelegation` (generación y consulta de manifiestos y hashes de audios sintetizados).
-  - `StoryboardService`: Reducido a 6 métodos públicos eliminando métodos fachada huérfanos y concentrando la generación y auditoría visual de viñetas.
-  - `AgentClientService`: Reducido a 10 métodos públicos abstrayendo el parsing de respuestas y saneamiento tipado en `WithAgentClientTextParsing`.
-  - `WithEditorPlotHoles`: Reducido a 8 métodos públicos delegando el guardado y edición de justificaciones de agujeros en `WithEditorPlotHoleJustification`.
-  - `WithEditorStoryboard`: Reducido a 6 métodos públicos abstrayendo eventos modales de viñetas en `WithEditorStoryboardModalEvents`.
-  - `WithEditorSceneOperations`: Reducido a 9 métodos públicos abstrayendo la apertura y confirmación de modales de escena en `WithEditorSceneModals`.
-  - `User`: Reducido a 6 métodos públicos abstrayendo el cómputo y auditoría de saldo y consumo de tokens en `HasUserTokenQuota`.
-  - `ScriptBlock`: Reducido a 6 métodos públicos abstrayendo la detección y filtrado de inconsistencias narrativas en `HasScriptBlockPlotHoles`.
-- **Validación Automatizada:** 319 tests PHPUnit pasando al 100% (1.479 assertions) y Pint con 0 observaciones de estilo. Cachés purgadas y contenedor Docker `jg_filmmaker` reiniciado.
+**Estado:** Corrección de Compatibilidad CI/CD y Plataforma Composer (Fijación PHP 8.4.5 e `--ignore-platform-req=php+`):
+- **Sincronización de Dependencias y Plataforma PHP en Composer:**
+  - Fijada la directiva `"platform": { "php": "8.4.5" }` en `composer.json` bajo la configuración del proyecto para blindar las dependencias locked (`nette/schema`, `nette/utils`) ante imágenes Docker de CI con versiones de desarrollo/alpha de PHP (`composer:2` / PHP 8.6 dev).
+  - Sincronizado `composer.lock` (`composer update --lock`) resolviendo divergencias con `livewire/livewire` v4.4.8.
+  - Añadido `--ignore-platform-req=php+` al comando `composer install` en `.gitlab-ci.yml`.
+  - Validación local completa: `./vendor/bin/pint --test` (0 observaciones) y `./vendor/bin/phpunit` (319 tests passed, 1.479 assertions). Cachés purgadas y contenedor reiniciado.
 
 ## Resumen Ejecutivo de Capacidades Recientes
 
