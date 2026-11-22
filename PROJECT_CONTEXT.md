@@ -1,16 +1,46 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.83.3  
-**Fecha de consolidación:** 19 de noviembre de 2026  
+**Versión del documento:** 3.83.4  
+**Fecha de consolidación:** 22 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
-**Estado:** Erradicación de Fuga de Peticiones TTS y Aislamiento de Macros Estáticas en Testing:
-- **Mocking de TTS y Limpieza de Macros en `AudioStreamControllerTest` y `TestCase`:**
+**Estado:** Erradicación de Fuga de Peticiones TTS, Aislamiento de Macros Estáticas en Testing, Refactorización SOLID ($\le 10$ métodos públicos / ISSUE-40) y Endurecimiento Anti-Fallback Sintético (ISSUE-39):
+- **Mocking de TTS y Limpieza de Macros en `AudioStreamControllerTest` y `TestCase` (`ee0fd7d`):**
   * En `AudioStreamControllerTest.php`, inyectado `Http::fake()` cubriendo todos los endpoints de síntesis de voz (Speaches local/host/docker y Google Generative Language), evitando llamadas a servicios reales o excepciones por peticiones no mockeadas (`Http::preventStrayRequests()`).
   * En `TestCase.php`, añadido `Factory::flushMacros()` tanto en `setUp()` como en `tearDown()` para prevenir la fuga de macros estáticas (`Http::macro('tts_testing_real')`) entre tests dentro del mismo proceso de ejecución de PHPUnit.
   * Verificación completa en contenedor Docker sin caché previa: 319 tests PHPUnit pasando al 100% (1.479 assertions) y Pint verificado con 0 observaciones.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **Aislamiento de Macros HTTP Estáticas y Blindaje CI/CD con Imagen Oficial PHP 8.4 (`ee0fd7d`, `13bacda`, `b320456`):**
+  - **Mocking Hermético de TTS y Purga de Macros (`ee0fd7d`):**
+    - Inyección de `Http::fake()` en `AudioStreamControllerTest` para todos los endpoints TTS y llamada a `Factory::flushMacros()` en `TestCase::setUp()` y `tearDown()` para erradicar fugas de estado estático entre tests.
+  - **Imagen Oficial PHP 8.4 y Plataforma Fijada en CI/CD (`13bacda`, `b320456`):**
+    - Sustitución de la imagen flotante `composer:2` por `laravelsail/php84-composer:latest` en `.gitlab-ci.yml` y fijación de `"platform": { "php": "8.4.5" }` en `composer.json`.
+
+- **Refactorización SOLID, Desacoplamiento de Lógica Administrativa y Eliminación de Métodos Monolíticos (ISSUE-40 / jg_filmmaker#36 / `ba1a1fd`):**
+  - **Extracción de Casos de Uso Administrativos a Actions y Queries Dedicadas:**
+    - Extraída la lógica duplicada de reasignación de proyectos a `TransferProjectOwnershipAction` (`app/Actions/Admin/TransferProjectOwnershipAction.php`), gestionando transaccionalmente el cambio de propietario, la validación de usuarios y la actualización de auditoría.
+    - Extraído el cálculo y agregación de telemetría IA de proyectos a `GetProjectAiTelemetrySummaryQuery` (`app/Queries/Admin/GetProjectAiTelemetrySummaryQuery.php`), eliminando consultas SQL y bucles agregados clonados en `ProjectManager`, `UserDetail` y `UserList`.
+  - **Eliminación Segura de `@shell_exec` en `ScriptFileExtractor`:**
+    - Sustituida la invocación bloqueante y desatendida de `pdftotext` por la API robusta y tipada `Process::timeout(15)->run(['pdftotext', $filePath, '-'])`, garantizando control de timeout, captura de stderr e inmunidad frente a cuelgues de procesos en ingesta de PDFs de guion.
+  - **Cumplimiento Estricto de Límites SOLID ($\le 10$ métodos públicos por clase):**
+    - `ScriptPipelineService`: Reducido a 9 métodos públicos mediante la extracción de `WithBatchPipelineProcessing` y `WithBibleSyncDelegation`.
+    - `TextToSpeechService`: Reducido a 7 métodos públicos mediante el trait `WithTtsManifestDelegation`.
+    - `StoryboardService`: Reducido a 6 métodos públicos eliminando métodos fachada huérfanos.
+    - `AgentClientService`: Reducido a 10 métodos públicos abstrayendo el parsing de respuestas en `WithAgentClientTextParsing`.
+    - `WithEditorPlotHoles`, `WithEditorStoryboard`, `WithEditorSceneOperations`: Desacoplados mediante `WithEditorPlotHoleJustification`, `WithEditorStoryboardModalEvents` y `WithEditorSceneModals`.
+    - `User` y `ScriptBlock`: Reducidos a 6 métodos públicos cada uno extrayendo `HasUserTokenQuota` y `HasScriptBlockPlotHoles`.
+
+- **Erradicación de Fallbacks Sintéticos, Protección TTS Anti-Caché Mudo y Endurecimiento de Seguridad (ISSUE-39 / jg_filmmaker#35 / `7ec55d4`):**
+  - **Propagación Real de Fallos en `AgentHttpTransport`:** Eliminada la invocación a `DeterministicFallbackEngine` ante fallos HTTP 4xx/5xx o `ConnectionException`; el transporte reporta el error real `['success' => false, 'error' => ...]` propagando el estado auténtico del plano de ejecución `jg_agente` sin enmascaramiento sintético (el fallback mock solo opera cuando `services.jg_agente.mock === true` en entornos no productivos).
+  - **Protección Anti-Cobro de Tokens por Imágenes Sintéticas 1x1 en `StoryboardService`:** Prohibido el descuento de 350 tokens y la persistencia en disco si la generación de viñeta falla o si se detecta un PNG 1x1 sintético de fallback (`iVBOR...` o `deterministic_fallback`).
+  - **Saneamiento de Telemetría UI en `WithEditorActivityAndTrace` y `StudioAiTraceBuilder`:** Eliminada la sobreescritura de `$telemetry['provider']` y `$telemetry['model']` con valores hardcodeados de Groq y la invención de pasos retrospectivos. Reemplazado el uso de `env()` por `config()`.
+  - **Endurecimiento de Arranque en `AppServiceProvider`:** Prohibido estrictamente `services.jg_agente.mock = true` en producción y exigida incondicionalmente la presencia de un `JG_AGENTE_SECRET` válido y seguro.
+  - **Erradicación de Caché TTS Silenciosa en `TextToSpeechService`:** Eliminada la generación y persistencia del archivo WAV de 44 bytes de silencio en `$cachedFilePath` ante caídas de proveedores de síntesis de voz, evitando la contaminación permanente de la caché de audio.
+  - **Activación de Inferencia Real en `ScriptPipelineService`:** Conectada la inferencia LLM real (`allowLlmExtraction: true`) en ejecuciones individuales y respetada la optimización batch cuando `$syncProjectContext = false`.
+  - **Corrección de Reporte de Éxito en `RequestLoginOtpAction`:** Retorno estricto de `['success' => false, 'field' => 'email', 'error' => ...]` cuando falla el despacho SMTP del código OTP, restringiendo la exposición del código a entornos de testing y desarrollo local.
+  - **Pruebas Automatizadas:** Nueva suite `tests/Feature/AntiFallbackHardeningTest.php` elevando el total a 319 tests PHPUnit pasando al 100% (1.479 assertions).
 
 - **Hoja de Ruta de Producción y Evolución Futura (GitLab jg_filmmaker#34 / `docs/future-20261119.md`):**
   - **Certificación de Producción:** Acreditación de seguridad (0 IDORs, HMAC-SHA256, storage privado), resiliencia (fallback determinista, BYOK AES-256, caché semántica SHA-256), ingesta Mezzanine CFR 24fps y exportación NLE CMX 3600 / FCPXML v1.10.
@@ -590,7 +620,7 @@ Dentro del ecosistema `javiergalvez-ia`, `jg_filmmaker` cumple el rol de **suite
 
 El pipeline narrativo y técnico se organiza en 6 etapas progresivas:
 
-```
+```text
 [1. Bruto (Raw)] ──▶ [2. Tratamiento] ──▶ [3. Guión Literario] ──▶ [4. Planos (Shots)] ──▶ [5. Rodaje (Takes)] ──▶ [6. Montaje (Rough Cut)]
 ```
 
@@ -709,83 +739,91 @@ La coherencia narrativa del universo de la obra se gestiona mediante la Biblia d
 - Ninguna ruta web o endpoint expone identificadores secuenciales enteros.
 
 ### 5.3. Criptografía Inter-servicio (Cliente HMAC-SHA256)
-La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `AgentClientService`:
+La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `AgentClientService` (`HmacSigner` y `AgentHttpTransport`):
 - **Algoritmo de Firma:**
   ```text
-  canonical_string = METHOD + "\n" + PATH + "\n" + TIMESTAMP + "\n" + SHA256(RAW_BODY)
+  canonical_string = METHOD + "\n" + PATH + "\n" + TIMESTAMP + "\n" + NONCE + "\n" + SHA256(RAW_BODY)
   signature = HMAC_SHA256(canonical_string, AGENT_SECRET)
   ```
 - **Cabeceras HTTP Obligatorias:**
   - `X-Signature`: Firma hexadecimal calculada.
   - `X-Timestamp`: Marca de tiempo Unix en segundos (ventana de validez contra replay attacks: ±300s).
-  - `X-Correlation-ID`: UUID de trazabilidad distribuida para logs unificados.
-- **Fallback Determinista para Testing y Desconexión:** Si `jg_agente` no está accesible o se ejecuta en entorno local sin agente levantado, `AgentClientService` implementa una ejecución heurística determinista local (`executeDeterministicFallback`) que garantiza que la aplicación web funcione de forma autónoma sin bloquear al usuario.
+  - `X-Nonce` / `X-Correlation-ID`: Token criptográfico anti-replay vinculado canónicamente al identificador de correlación distribuida.
+  - `X-Key-Id` y `X-Agent-ID`: Identificador de clave para rotación de secretos y agente emisor (`jg_filmmaker`).
+- **Propagación Real de Fallos y Modo Mock Hermético (ISSUE-39):** En producción (`services.jg_agente.mock === false`), cualquier error HTTP 4xx/5xx o `ConnectionException` de `jg_agente` se propaga de forma transparente (`['success' => false, 'error' => ...]`) sin enmascarar caídas con texto sintético. El motor determinista local (`DeterministicFallbackEngine`) se emplea exclusivamente cuando `services.jg_agente.mock === true` en entornos de pruebas automatizadas (CI/CD) o desarrollo aislado.
 
 ---
 
 ## 6. Catálogo de Archivos, Rutas y Tests
 
-### 6.1. Modelos de Dominio Eloquent (`app/Models/`)
-- `User.php`: Autenticación, plan, slots (`paid_project_slots`) y rol de administrador (`is_admin`).
-- `OneTimePassword.php`: Código hash efímero OTP de acceso con validez de 15 minutos y seguimiento de un solo uso.
-- `SecurityBreachLog.php`: Registro de auditoría y detección de ataques replay y tokens reutilizados/caducados.
+### 6.1. Modelos de Dominio Eloquent y Enum (`app/Models/` & `app/Enums/`)
+- `User.php` (con concern `Concerns/HasUserTokenQuota.php`): Autenticación, plan, slots (`paid_project_slots`), permiso `can_create_projects`, cuota diaria (`daily_token_limit`) y rol de administrador (`is_admin`).
+- `UserApiCredential.php`: Credenciales BYOK del usuario cifradas con AES-256 (`google`, `groq`, `openai`, `anthropic`) y máscara `key_fingerprint`.
+- `OneTimePassword.php`: Código hash efímero OTP de acceso con validez de 15 minutos, seguimiento de un solo uso y trait `Prunable`.
+- `SecurityBreachLog.php`: Registro de auditoría y detección de ataques replay y tokens reutilizados/caducados (`Prunable` a 90 días).
+- `AdminAuditLog.php`: Trazabilidad forense inmutable de acciones administrativas (transferencias de proyectos, gestión de usuarios, tarifas y purgas).
+- `UserActivityLog.php`: Trazabilidad histórica con snapshots JSON de acciones del autor sobre escenas y bloques (`Prunable` a 90 días).
 - `TokenPricingRate.php`: Catálogo interactivo de tarifas por millón de tokens (Input / Output) de proveedores LLM.
-- `AgentRequestLog.php`: Telemetría granular de consumo de tokens y coste en USD por petición y proyecto.
-- `Project.php`: Contenedor de producción cinematográfica.
-- `Character.php`: Entidad de Biblia de personajes.
-- `Location.php`: Entidad de Biblia de localizaciones.
-- `Scene.php`: Secuencia dramática con orden y slugline.
-- `ScriptBlock.php`: Bloque de guión con etapas y `user_locks`.
-- `Shot.php`: Plano técnico de rodaje con desglose de cámara.
-- `Take.php`: Toma audiovisual con archivo físico y notas editoriales.
+- `AgentRequestLog.php`: Telemetría granular de consumo de tokens, snapshot histórico de tarifa (`meta.rate_snapshot`), flag `is_byok` y coste en USD por petición, usuario y proyecto.
+- `Project.php`: Contenedor de producción cinematográfica con limpieza física en cascada tras commit.
+- `Character.php`: Entidad de Biblia de personajes con avatar visual (`reference_image_path`), importancia narrativa y asignación de voz TTS (`custom_attributes['voice_id']`).
+- `Location.php`: Entidad de Biblia de localizaciones con imagen de referencia (`reference_image_path`) y notas de dirección de arte e iluminación.
+- `Scene.php`: Secuencia dramática con orden correlativo, slugline y localización vinculada.
+- `ScriptBlock.php` (con concern `Concerns/HasScriptBlockPlotHoles.php`): Bloque de guión con etapas tipadas mediante `App\Enums\BlockStage` (`RAW`, `STRUCTURED`, `SCREENPLAY`, `SHOTS`), control optimista `lock_version`, `plot_hole` y `user_locks`.
+- `Shot.php`: Plano técnico de rodaje con desglose de cámara y viñeta gráfica (`storyboard_image_path`, `storyboard_style`).
+- `Take.php`: Toma audiovisual con archivo fuente, proxy normalizado Mezzanine (`proxy_file_path`), miniatura (`thumbnail_path`), metadatos sondeados con `ffprobe` (`technical_meta`) y notas editoriales.
 
-### 6.2. Servicios de Negocio (`app/Services/`)
-- `ScriptPipelineService.php`: Orquesta las transiciones entre etapas narrativas y registra telemetría de costes.
-- `AgentTelemetryService.php`: Extrae/estima tokens (1 token ~ 4 caracteres) y calcula el coste en USD cruzando con la tarifa activa.
-- `UserLockResolver.php`: Resuelve candados, diffs y sustituciones de términos fijados.
-- `RoughCutAssemblyService.php`: Ensamblado y renderizado de pre-corte con FFmpeg.
-- `JgAgente/AgentClientService.php`: Cliente HTTP firmado con HMAC-SHA256 y fallback local.
+### 6.2. Acciones, Consultas, Trabajos y Servicios de Negocio (`app/Actions/`, `app/Queries/`, `app/Jobs/`, `app/Services/`)
+- **Acciones (`app/Actions/`):**
+  - `Admin/TransferProjectOwnershipAction.php`: Reasignación transaccional de propiedad de proyectos con registro forense en `AdminAuditLog`.
+  - `Auth/RequestLoginOtpAction.php` y `Auth/VerifyLoginOtpAction.php`: Solicitud y validación atómica de códigos OTP passwordless con mitigación anti-replay.
+  - `Studio/`: `AnalyzePlotHolesAction`, `AuditBibleEntityUsageAction`, `ComputeCharacterImportanceAction`, `DeleteBibleEntityAction`, `ExecuteBatchPipelineAction`, `ExecuteBlockPipelineAction`, `ExportScriptAction`, `ImportScriptAction`, `JustifyPlotHoleAction`, `ManageBibleCharacterAction`, `ManageBibleLocationAction`, `ManageScriptStructureAction`, `ManageStoryboardAction`, `ManageTakeAction`.
+- **Consultas (`app/Queries/`):**
+  - `Admin/GetProjectAiTelemetrySummaryQuery.php`: Agregación optimizada de métricas de bloques y telemetría IA por lote de proyectos visibles.
+- **Jobs Asíncronos (`app/Jobs/`) y Comandos (`app/Console/Commands/`):**
+  - `NormalizeTakeMediaJob.php`: Transcodificación asíncrona FFmpeg a perfil Mezzanine CFR 24fps (H.264 High@L4.1, 1080p, GOP 48, AAC 48 kHz) y extracción de póster.
+  - `AssembleRoughCutJob.php`: Ensamblado asíncrono de corte preliminar con bloqueo atómico en caché (`ffmpeg_render_{id}`).
+  - `ExportProjectMp3Job.php`: Concatenación y compresión asíncrona de audiolibro completo en MP3 con `libmp3lame` (`ffmpeg_mp3_{id}`).
+  - `PrewarmScopeTtsJob.php`, `PrewarmTtsCommand.php` (`tts:prewarm`) y `PruneOrphanTtsAudiosCommand.php` (`tts:prune-orphans`): Pre-síntesis en segundo plano y limpieza de audios WAV huérfanos en SSD local (`storage/tts_cache`).
+- **Servicios de Dominio (`app/Services/`):**
+  - `ScriptPipelineService.php` y `Pipeline/` (`BibleSyncService`, `SluglineSyncService`, `ShotsBreakdownService`, `BatchPipelineProcessor`, `UserLockManager`, concerns `WithBatchPipelineProcessing` y `WithBibleSyncDelegation`): Orquestación de transiciones narrativas, resecuenciación canónica de planos (`1..N`) y gobernanza de `user_locks`.
+  - `TextToSpeechService.php` y `Tts/` (`TtsManifestService`, `ScreenplaySegmenter`, `CharacterVoiceMapper`, `TtsVoiceCatalog`, concern `WithTtsManifestDelegation`, contrato `TtsProviderInterface` y proveedores `GoogleAiTtsProvider` y `SpeachesTtsProvider`): Locución dramática multivoz con expansión fonética, recorte de silencios con FFmpeg, soporte UTF-8 multibyte, caché reactiva `isProjectAudioComplete` y exportación MP3.
+  - `Export/NleTimelineExportService.php`: Exportación profesional de líneas de tiempo a formatos estándar CMX 3600 EDL (`.edl` con código SMPTE) y Apple Final Cut Pro XML v1.10 (`.fcpxml`).
+  - `RoughCutAssemblyService.php`: Ensamblado ultrarrápido de pre-corte con FFmpeg priorizando proxies Mezzanine (`effectiveVideoPath()`) mediante stream copy (`-c copy`) y fallback seguro a `libx264`, con retención de los 5 renders más recientes.
+  - `Media/MediaStorageService.php`: Abstracción de almacenamiento multi-nodo compatible con S3/R2/MinIO, URLs temporales prefirmadas (15 min) y streaming zero-copy `X-Accel-Redirect` / `X-Sendfile`.
+  - `Security/ProjectEncryptionVaultService.php`: Bóveda autenticada AES-256 para claves BYOK por usuario y proveedor.
+  - `StoryboardService.php` y `Storyboard/` (`StoryboardPromptBuilder`, `StoryboardImageProcessor`): Composición multimodal condicionada por turn-around de personaje, localización y atrezzo vía `jg_plugin_filmmaker`.
+  - `ScriptImportService.php` (`Import/ScriptFileExtractor`, `Import/ScreenplayParser`), `ScriptExportService.php` y `ScreenplayFormatterService.php`: Ingesta segura de PDFs (`Process::timeout(15)` sin `@shell_exec`), exportación PDF con DomPDF y formateo Fountain a HTML estilo Story Architect.
+  - `AgentTelemetryService.php` y `Studio/StudioAiTraceBuilder.php`: Cálculo jerárquico de tarifas, snapshot inmutable de precios, exención BYOK y construcción veraz de trazas de inferencia.
+  - `JgAgente/` (`AgentClientService`, `AgentHttpTransport`, `HmacSigner`, `TelemetryRecorder`, `SemanticPipelineCacheService`, concern `WithAgentClientTextParsing`, clientes `ScriptAgentClient`, `StoryboardAgentClient`, `ContinuityAgentClient`, `CharacterAgentClient` y motores de test/mock en `Fallbacks/`): Comunicación firmada HMAC-SHA256 y caché semántica SHA-256.
 
-### 6.3. Componentes Livewire (`app/Livewire/` & `resources/views/livewire/`)
-- `Auth/Login.php` (`login.blade.php`): Acceso passwordless seguro con OTP y banner destacado en localhost.
-- `Admin/UserList.php` (`user-list.blade.php`): Gobernanza de usuarios, slots, rol admin y gasto acumulado.
-- `Admin/UserDetail.php` (`user-detail.blade.php`): Auditoría cuantitativa de obras con estricta privacidad de guiones.
-- `Admin/PricingManager.php` (`pricing-manager.blade.php`): Catálogo interactivo de tarifas y modelo activo.
-- `Admin/SecurityLogsViewer.php` (`security-logs-viewer.blade.php`): Visor de eventos de seguridad y replay attacks.
-- `Projects/ProjectList.php` (`project-list.blade.php`): Panel de proyectos y cuotas de usuario.
-- `Studio/ScriptEditor.php` (`script-editor.blade.php`): Editor continuo StoryArchitect con Gutenberg y candados.
-- `Studio/RoughCutTimeline.php` (`rough-cut-timeline.blade.php`): Timeline NLE, reproductor y ensamble.
-- `Studio/ContextBibleDrawer.php` (`context-bible-drawer.blade.php`): Drawer lateral (`Cmd+B`) para personajes y localizaciones.
+### 6.3. Controladores HTTP y Componentes Livewire (`app/Http/Controllers/` & `app/Livewire/`)
+- **Controladores HTTP:**
+  - `AudioStreamController.php`: Manifiesto TTS, streaming de locución, demo de voz y despacho/descarga de audiolibro MP3.
+  - `MediaStreamController.php`: Streaming autenticado y autorizado (`Gate::authorize('view', $project)`) de tomas, renders, viñetas de storyboard e imágenes de referencia de personajes y localizaciones.
+  - `ScriptExportController.php`: Descarga del guion literario completo en PDF.
+- **Componentes Livewire:**
+  - `Auth/Login.php`: Acceso passwordless seguro con OTP.
+  - `Admin/UserList.php`, `Admin/UserDetail.php`, `Admin/ProjectManager.php`, `Admin/PricingManager.php`, `Admin/SecurityLogsViewer.php`: Panel administrativo con paginación, transferencia auditada de obras, catálogo de tarifas y visor forense con preservación de 90 días.
+  - `Projects/ProjectList.php`: Panel de proyectos, importación de guiones externos y cuotas de usuario.
+  - `Studio/ScriptEditor.php` (modularizado en 15 concerns bajo `app/Livewire/Studio/Concerns/WithEditor*.php`): Editor continuo StoryArchitect con Gutenberg, candados, agujeros de guion, storyboards y trazabilidad IA.
+  - `Studio/ContextBibleDrawer.php` (con concerns `WithBibleEntities` y `WithBibleAudits`): Gestión reactiva de personajes y localizaciones con demo de voz TTS, conversión HEIC y auditoría de borrado en lote único.
+  - `Studio/RoughCutTimeline.php`: Mesa de montaje NLE, reproductor de proxies, ensamblado asíncrono FFmpeg y exportación directa a JSON, CMX 3600 EDL y FCPXML v1.10.
 
 ### 6.4. Rutas Web (`routes/web.php`)
-- `GET /login`: Formulario de acceso passwordless (`Login`).
-- `POST /logout`: Cierre de sesión seguro y revocación de sesión.
-- `GET /`: Redirección a `/projects`.
-- `GET /projects`: Listado de proyectos cinematográficos (`ProjectList`).
-- `GET /projects/{project}`: Estudio principal de rodaje y guión (`ScriptEditor`).
-- `GET /admin`: Redirección al panel de administración (`admin.index` -> `admin.users`).
-- `GET /admin/users`: Listado y control global de usuarios (`UserList`).
-- `GET /admin/users/{user}`: Auditoría cuantitativa y privacidad del autor (`UserDetail`).
-- `GET /admin/pricing`: Gestión de tarifas por millón de tokens (`PricingManager`).
-- `GET /admin/security`: Visor forense de incidentes y brechas (`SecurityLogsViewer`).
+- `GET /login` y `POST /logout`: Autenticación passwordless (`Login`) y cierre de sesión.
+- `GET /` y `GET /projects`: Redirección y listado de proyectos cinematográficos (`ProjectList`).
+- `GET /projects/{project}`: Estudio principal de rodaje y guión (`ScriptEditor`, protegido con `can:view,project`).
+- `GET /projects/{project}/export-pdf`: Exportación de guion completo a PDF (`ScriptExportController@exportPdf`).
+- `GET /projects/{project}/export-mp3`, `POST /projects/{project}/export-mp3/dispatch`, `GET /projects/{project}/export-mp3/status`: Exportación y estado asíncrono de locución completa en MP3 (`AudioStreamController`).
+- `GET /projects/{project}/tts/manifest` (`throttle:60,1`), `GET /projects/{project}/tts/stream` (`throttle:120,1`), `GET /projects/{project}/tts/demo-voice` (`throttle:30,1`): Manifiesto, streaming de segmentos WAV y demostración de voces TTS (`AudioStreamController`).
+- `GET /media/takes/{take}`, `GET /media/projects/{project}/renders/{filename}`, `GET /media/shots/{shot}/storyboard`, `GET /media/characters/{character}/reference`, `GET /media/locations/{location}/reference`: Streaming privado de activos multimedia (`MediaStreamController`).
+- `GET /admin`, `GET /admin/users`, `GET /admin/users/{user}`, `GET /admin/projects`, `GET /admin/pricing`, `GET /admin/security`: Panel de administración protegido por `EnsureUserIsAdmin`.
 
-### 6.5. Pruebas Automatizadas (`tests/Feature/`)
-- `DomainModelArchitectureTest.php`: Verifica UUIDv4, integridad referencial y cascadas en BD (6 tests).
-- `ScriptEditorLivewireTest.php`: Verifica reactividad del editor y drawer de biblia (4 tests).
-- `AgentClientHmacTest.php`: Verifica firma canónica HMAC y llamadas a `jg_agente` (5 tests).
-- `TakeMediaManagementTest.php`: Verifica subida física de vídeo, validaciones y tomas válidas (5 tests).
-- `RoughCutAssemblyTest.php`: Verifica ordenación de timeline, renderizado con FFmpeg y fallbacks (4 tests).
-- `LivewirePipelineReactiveTest.php`: Verifica flujo end-to-end entre etapas y candados (4 tests).
-- `LivewireScriptEditorTest.php`: Verifica renderizado del slugline, feed de bloques, inserción Gutenberg, drawer lateral, tomas, auditoría determinista de borrado seguro de personajes y localizaciones, protocolo de 3 iteraciones de agujeros de guión, análisis multi-etapa independiente de consolidados (Idea, Tratamiento, Guion) con prioridad estricta al origen más temprano, menú desplegable con alternancia de visibilidad de avisos y justificación archivada (21 tests).
-- `PasswordlessAuthTest.php`: Verifica generación y envío de OTP, banner en localhost, un solo uso y detección de replay attacks en `security_breach_logs` (6 tests).
-- `AdminPanelAndTelemetryTest.php`: Verifica middleware `admin` 403, auditoría sin filtrar textos, persistencia de `agent_request_logs` con costes USD y actualización de tarifas (5 tests).
-- `ProjectTransferAdminTest.php`: Verifica permisos 403, privacidad sin filtrar textos y reasignación/transferencia atómica de obras entre usuarios tanto desde `UserDetail` como desde `ProjectManager` (4 tests).
-- `TokenQuotaEnforcementTest.php`: Verifica la gobernanza centralizada de cuotas diarias de tokens de IA, excepciones `QuotaExceededException` e imputación indeleble de costes (4 tests).
-- `PinnedTermsSafetyTest.php`: Verifica la sanitización estricta de backreferences `$1` y escapes octales en términos fijos (3 tests).
-- `ReDosMitigationTest.php`: Verifica la protección contra ataques ReDoS, cuantificadores acotados, fast-path de expresiones regulares y resiliencia ante diálogos residuales vacíos (4 tests).
-- `ContractParityTest.php`: Verifica la paridad contractual bidireccional contra golden fixtures compartidos entre Laravel y el plugin satélite de Python (4 tests).
-- **Blindaje Hermético de Testing (ISSUE-029):** Toda la suite de pruebas ejecuta con `Http::preventStrayRequests()` en `TestCase::setUp()`, forzando `services.jg_agente.mock = true` y `JG_AGENTE_URL=http://agent.invalid` en `phpunit.xml`, impidiendo llamadas no simuladas hacia el exterior o consumo accidental de tokens.
-- **Total:** 148 tests PHPUnit pasando al 100% (708 aserciones).
+### 6.5. Pruebas Automatizadas (`tests/Unit/` & `tests/Feature/`)
+- **59 archivos de test** (5 suites en `tests/Unit/` y 54 suites en `tests/Feature/`), cubriendo arquitectura UUIDv4, firma HMAC-SHA256 con vinculación `X-Correlation-ID`/`X-Nonce`, aislamiento multi-tenant e IDOR en escenas/planos/storyboards/medios, bóveda cifrada BYOK AES-256 (`ProjectEncryptionVaultTest`), caché semántica determinista, almacenamiento multi-nodo S3/X-Accel (`MediaStorageServiceTest`), normalización Mezzanine CFR 24fps (`NormalizeTakeMediaJobTest`), exportación NLE CMX 3600 EDL y FCPXML v1.10 (`NleTimelineExportTest`), endurecimiento anti-fallback sintético (`AntiFallbackHardeningTest`), TTS multivoz UTF-8 sin efectos secundarios en lectura (`TtsReadSideEffectsAndUtf8Test`, `AudioStreamControllerTest`, `TextToSpeechServiceTest`, `TtsQuotaAndThrottleProtectionTest`), optimización batch de pipeline (`BatchPipelineOptimizationTest`) y paridad contractual (`ContractParityTest`).
+- **Blindaje Hermético de Testing (`TestCase.php`):** Toda la suite ejecuta con `Http::preventStrayRequests()` y `Factory::flushMacros()` tanto en `setUp()` como en `tearDown()`, forzando `:memory:` en SQLite, `services.jg_agente.mock = true` y `JG_AGENTE_URL=http://agent.invalid` en `phpunit.xml`, impidiendo fugas de macros estáticas o llamadas de red no simuladas.
+- **Total:** **319 tests PHPUnit pasando al 100% (1.479 aserciones)** y Laravel Pint con 0 observaciones.
 
 ---
 
@@ -1045,16 +1083,16 @@ La comunicación con el motor cognitivo `jg_agente` se efectúa a través de `Ag
       * Variables inyectadas de forma unificada desde Vault (`APP_KEY`, `JG_AGENTE_SECRET`, `GLOBAL_GROQ_API_KEY`, `GLOBAL_GOOGLE_API_KEY`, `GLOBAL_MAIL_*`).
       * Archivo `.env` en la VM protegido con permisos `600`.
 
-### 7.2. Deudas Técnicas Conocidas
-1. **Actualización Dinámica de Tarifas de Tokens:**
-   - Actualmente las tarifas se configuran manualmente desde el panel de administración (`/admin/pricing`) o vía seeder inicial (`TokenPricingRatesSeeder`).
-   - *Mejora pendiente:* Implementar un sincronizador periódico automatizado (comando / job en segundo plano) contra las APIs de facturación o catálogos públicos de proveedores externos (Groq, OpenRouter, Google AI, OpenAI) para mantener los precios por millón de tokens actualizados en tiempo real.
-2. **Motor de Ensamblado FFmpeg:**
-   - La concatenación actual utiliza el demuxer `concat` (`-f concat -safe 0 -c copy`), asumiendo que los clips de vídeo subidos comparten códec, contenedor y resolución.
-   - *Mejora pendiente:* Diseñar un pipeline de transcodificación intermedia normalizada (e.g. H.264 1080p a 24fps unificado) para evitar inconsistencias cuando los rodajes mezclen cámaras con tasas de fotogramas o formatos heterogéneos.
-3. **Formatos de Exportación NLE:**
-   - Actualmente exporta la lista de corte secuencial en formato JSON estructurado.
-   - *Mejora pendiente:* Desarrollar exportadores a formatos estándar de la industria como FCPXML (Final Cut Pro / DaVinci Resolve) y CMX 3600 EDL para interoperabilidad con salas de etalonaje y montaje profesional.
-4. **Almacenamiento Distribuido en la Nube:**
-   - Los vídeos se almacenan en el sistema de archivos local (`storage/app/public/media/...`).
-   - *Mejora pendiente:* Desacoplar el driver de almacenamiento para soportar proveedores compatibles con S3 (AWS S3, MinIO, Cloudflare R2) para despliegues en clúster y alta concurrencia.
+### 7.2. Deudas Técnicas Resueltas y Evolución Futura (`docs/future-20261119.md`)
+1. **Motor de Ensamblado FFmpeg y Normalización Mezzanine (RESUELTO - ISSUE-017 / jg_filmmaker#22):**
+   - Implementado `NormalizeTakeMediaJob` para transcodificación asíncrona estandarizada a perfil Mezzanine (H.264 High@L4.1, 1080p letterbox, CFR 24fps, GOP 48, AAC 48 kHz) al subir tomas, permitiendo que `RoughCutAssemblyService` ensamble el máster mediante stream copy (`-c copy`) sobre `effectiveVideoPath()` con fallback seguro a `libx264`.
+2. **Formatos de Exportación NLE Profesionales (RESUELTO - ISSUE-018 / jg_filmmaker#23):**
+   - Implementado `NleTimelineExportService` con exportación directa desde `RoughCutTimeline` a estándares de la industria **CMX 3600 EDL** (`.edl` con código de tiempo SMPTE `HH:MM:SS:FF`) y **Apple Final Cut Pro XML v1.10** (`.fcpxml`) para DaVinci Resolve y Final Cut Pro, además de JSON estructurado.
+3. **Almacenamiento Distribuido Multi-nodo y Streaming Zero-Copy (RESUELTO - ISSUE-019 / jg_filmmaker#24):**
+   - Implementado `MediaStorageService` desacoplando el disco `media` con soporte nativo para proveedores compatibles con S3 (AWS S3, Cloudflare R2, MinIO) mediante URLs temporales prefirmadas (15 min) y aceleración `X-Accel-Redirect` / `X-Sendfile` en Nginx para almacenamiento local privado (`storage/app/private/media`).
+4. **Bóveda Cifrada BYOK, Caché Semántica y Snapshot de Tarifas (RESUELTO - ISSUE-020, ISSUE-021 / jg_filmmaker#25, #26):**
+   - Implementados `ProjectEncryptionVaultService` (cifrado AES-256 para claves de usuario con exención de cuota de plataforma), `SemanticPipelineCacheService` (caché determinista SHA-256 en 0 ms) y snapshot histórico inmutable `rate_snapshot` en cada `AgentRequestLog`.
+5. **Próximos Hitos de Evolución (Hoja de Ruta GitLab jg_filmmaker#34):**
+   - Sincronizador periódico automatizado de tarifas públicas de proveedores LLM.
+   - Sustitución de polling HTTP por WebSockets en tiempo real con Laravel Reverb para notificaciones de jobs multimedia y montaje colaborativo.
+   - Cuotas duras de almacenamiento por proyecto con políticas S3 Lifecycle y exportación universal OpenTimelineIO (`.otio`).
