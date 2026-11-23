@@ -1,7 +1,7 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.83.4  
-**Fecha de consolidación:** 22 de noviembre de 2026  
+**Versión del documento:** 3.84.0  
+**Fecha de consolidación:** 23 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
 **Estado:** Erradicación de Fuga de Peticiones TTS, Aislamiento de Macros Estáticas en Testing, Refactorización SOLID ($\le 10$ métodos públicos / ISSUE-40) y Endurecimiento Anti-Fallback Sintético (ISSUE-39):
@@ -11,6 +11,12 @@
   * Verificación completa en contenedor Docker sin caché previa: 319 tests PHPUnit pasando al 100% (1.479 assertions) y Pint verificado con 0 observaciones.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **Pipeline Headless de Broadcast `RAW -> Tratamiento -> Guion -> Shots` (AITV-001 / `jg_plugin_tv#2`):**
+  - **Endpoints M2M y Seguridad Criptográfica:** Endpoints `POST /api/v1/broadcast/jobs` y `GET /api/v1/broadcast/jobs/{jobId}` (`routes/api.php`) protegidos con el middleware `VerifyHmacSignature` (HMAC-SHA256 con anti-replay mediante timestamp y control de nonce único en caché).
+  - **Estructura de Datos y Persistencia:** DTO tipado e inmutable `BroadcastJobRequestDTO` (`readonly class`), enum de etapas `BroadcastJobStage` y tabla/modelo `BroadcastJob` para seguimiento desacoplado del estado del procesamiento.
+  - **Procesamiento Asíncrono e Idempotencia:** `AutoGenerateBroadcastShotsAction`, saneador `OralShotSanitizer` (texto oral limpio sin Markdown, acotado a ~40–60 palabras / 12–25s) y despacho de `RunBroadcastStageJob` en cola dedicada `--queue=broadcast` con backoff exponencial `[10, 30, 90]` y garantía de idempotencia por etapa.
+  - **Cobertura de Pruebas:** Suite exhaustiva `tests/Feature/BroadcastPipelineApiTest.php`.
 
 - **Aislamiento de Macros HTTP Estáticas y Blindaje CI/CD con Imagen Oficial PHP 8.4 (`ee0fd7d`, `13bacda`, `b320456`):**
   - **Mocking Hermético de TTS y Purga de Macros (`ee0fd7d`):**
