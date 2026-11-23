@@ -1,6 +1,6 @@
 # CONTEXTO DE PROYECTO: jg_filmmaker
 
-**Versión del documento:** 3.84.0  
+**Versión del documento:** 3.85.0  
 **Fecha de consolidación:** 23 de noviembre de 2026  
 **Componente:** Plataforma Web de Pipeline Cinematográfico Asistido por IA  
 **Stack Tecnológico:** Laravel 12 (v12.69.3), Livewire 4 (v4.4.8), Tailwind CSS v4, PHP 8.4 (v8.4.27), PostgreSQL / SQLite, FFmpeg (libmp3lame), DomPDF (barryvdh/laravel-dompdf), Google AI Studio (Gemini 3.8 Flash TTS Neural Audio), Speaches-AI (Fallback), Google AI Studio vía `jg_plugin_filmmaker` (`generate_storyboard`, `extract_characters`, `audit_character_usage`), heic2any (HEIC a JPEG en cliente), PHPUnit 12, Laravel Pint  
@@ -11,6 +11,14 @@
   * Verificación completa en contenedor Docker sin caché previa: 319 tests PHPUnit pasando al 100% (1.479 assertions) y Pint verificado con 0 observaciones.
 
 ## Resumen Ejecutivo de Capacidades Recientes
+
+- **Renderizado Shot-a-Shot a MP4 1080p, MP3 Podcast y Short 9:16 (AITV-002 / `jg_plugin_tv#3`):**
+  - **Contrato Visual Polimórfico y Resolución Estratégica:** `ShotVisualStrategyInterface` desacopla la generación visual de cada plano implementada en `StaticCardShotVisual` (fallback determinista con tipografía de estudio y metadatos), `StoryboardShotVisual` (viñetas de storyboard con zoom dinámico Ken Burns) y `GenerativeVideoShotVisual` (clips de vídeo generativo normalizados), resueltas dinámicamente vía `ShotVisualStrategyResolver`.
+  - **Subtítulos Sincronizados y Validación Estricta Mezzanine:** `ShotSubtitleGenerator` genera subtítulos sincronizados tanto en `.srt` como en `.ass` (estilos diferenciados para formatos horizontal 16:9 y vertical 9:16). Validación estricta con `ffprobe` vía `BroadcastMediaValidator` asegurando CFR 30fps, códec H.264, resolución exacta y audio AAC no mudo.
+  - **Acciones Atómicas de Renderizado y Ensamblaje Multiformato:**
+    - `RenderShotClipAction`: Renderizado atómico e idempotente por shot con persistencia de clips temporales intermedios, permitiendo reintentos aislados del Shot N sin regenerar shots previos ya completados.
+    - `AssembleBroadcastEpisodeAction`: Concatenación stream copy (`-c copy`) en `episode_1080p.mp4`, master de audio para podcast `episode_podcast.mp3` normalizado bajo estándar EBU R128 (`-16 LUFS`) y corte viral vertical `episode_short_9x16.mp4` (acotado a 35–55s) con subtítulos quemados y re-encuadre 9:16. Persistencia definitiva en `MediaStorageService` y purga garantizada de directorios temporales en bloque `finally`.
+  - **Orquestación Asíncrona, API M2M y Testing:** Jobs `RenderBroadcastShotJob` y `AssembleBroadcastEpisodeJob` despachados en `--queue=broadcast`, endpoint M2M protegido `POST /api/v1/broadcast/jobs/{jobId}/render` y suite de pruebas de integración completa en `tests/Feature/BroadcastRenderPipelineTest.php`.
 
 - **Pipeline Headless de Broadcast `RAW -> Tratamiento -> Guion -> Shots` (AITV-001 / `jg_plugin_tv#2`):**
   - **Endpoints M2M y Seguridad Criptográfica:** Endpoints `POST /api/v1/broadcast/jobs` y `GET /api/v1/broadcast/jobs/{jobId}` (`routes/api.php`) protegidos con el middleware `VerifyHmacSignature` (HMAC-SHA256 con anti-replay mediante timestamp y control de nonce único en caché).

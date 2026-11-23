@@ -7,15 +7,19 @@ namespace App\Actions\Broadcast;
 use App\DTOs\Broadcast\BroadcastJobRequestDTO;
 use App\Enums\BlockStage;
 use App\Enums\BroadcastJobStage;
+use App\Jobs\AssembleBroadcastEpisodeJob;
+use App\Jobs\RenderBroadcastShotJob;
 use App\Jobs\RunBroadcastStageJob;
 use App\Models\BroadcastJob;
 use App\Models\Project;
 use App\Models\Scene;
 use App\Models\ScriptBlock;
+use App\Models\Shot;
 use App\Models\User;
 use App\Services\Broadcast\OralShotSanitizer;
 use App\Services\ScriptPipelineService;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 final readonly class AutoGenerateBroadcastShotsAction
 {
@@ -108,6 +112,39 @@ final readonly class AutoGenerateBroadcastShotsAction
             'failed_stage' => $failedStage->value,
             'error_message' => mb_substr($reason, 0, 1000),
         ]);
+    }
+
+    /**
+     * Inicia o reanuda la etapa de renderizado plano a plano y posterior ensamblado.
+     */
+    public function startRendering(BroadcastJob $job): BroadcastJob
+    {
+        /** @var ScriptBlock $block */
+        $block = $job->scriptBlock()->firstOrFail();
+        $shots = $block->shots()->orderBy('shot_number', 'asc')->get();
+
+        if ($shots->isEmpty()) {
+            throw new RuntimeException("No shots available to render for broadcast job {$job->id}.");
+        }
+
+        $artifacts = is_array($job->artifacts) ? $job->artifacts : [];
+        $renderedShots = is_array($artifacts['rendered_shots'] ?? null) ? $artifacts['rendered_shots'] : [];
+
+        $pendingShot = $shots->first(fn (Shot $shot): bool => ! isset($renderedShots[$shot->id]));
+
+        $job->update([
+            'stage' => BroadcastJobStage::RENDERING,
+            'failed_stage' => null,
+            'error_message' => null,
+        ]);
+
+        if ($pendingShot !== null) {
+            RenderBroadcastShotJob::dispatch($job->id, (string) $pendingShot->id)->onQueue('broadcast');
+        } else {
+            AssembleBroadcastEpisodeJob::dispatch($job->id)->onQueue('broadcast');
+        }
+
+        return $job->refresh();
     }
 
     protected function processTreatmentStage(BroadcastJob $job, ScriptBlock $block, array $artifacts): void

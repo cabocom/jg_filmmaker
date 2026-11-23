@@ -31,6 +31,28 @@ class BroadcastJobController extends Controller
     }
 
     /**
+     * Trigger rendering and assembling for a broadcast job.
+     */
+    public function render(string $jobId, AutoGenerateBroadcastShotsAction $action): JsonResponse
+    {
+        $job = BroadcastJob::find($jobId);
+
+        if ($job === null) {
+            return response()->json([
+                'error' => 'Broadcast job not found',
+            ], 404);
+        }
+
+        $job = $action->startRendering($job);
+
+        return response()->json([
+            'job_id' => $job->id,
+            'stage' => $job->stage->value,
+            'status' => $job->stage->value,
+        ], 202);
+    }
+
+    /**
      * Retrieve status, stage and artifacts of an existing broadcast job.
      */
     public function show(string $jobId): JsonResponse
