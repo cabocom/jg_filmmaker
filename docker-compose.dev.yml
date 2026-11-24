@@ -9,8 +9,10 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ./app:/var/www/html/app
+      - ./bootstrap/app.php:/var/www/html/bootstrap/app.php:ro
       - ./config:/var/www/html/config
       - ./resources:/var/www/html/resources
       - ./routes:/var/www/html/routes
       - ./database/migrations:/var/www/html/database/migrations
+      - ${TV_MEDIA_HOST_PATH:-/Users/javiergalvez/Library/CloudStorage/GoogleDrive-javiergalvezmovil@gmail.com/Mi unidad/Code/javiergalvez-ia/tv}:/var/www/html/storage/tv_media
       - ./.env:/var/www/html/.env:ro
