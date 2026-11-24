@@ -14,5 +14,6 @@ services:
       - ./resources:/var/www/html/resources
       - ./routes:/var/www/html/routes
       - ./database/migrations:/var/www/html/database/migrations
+      - ./docker/supervisord.conf:/etc/supervisord.conf:ro
       - ${TV_MEDIA_HOST_PATH:-/Users/javiergalvez/Library/CloudStorage/GoogleDrive-javiergalvezmovil@gmail.com/Mi unidad/Code/javiergalvez-ia/tv}:/var/www/html/storage/tv_media
       - ./.env:/var/www/html/.env:ro
