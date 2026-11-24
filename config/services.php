@@ -61,6 +61,8 @@ return [
 
     'filmmaker' => [
         'mock_ffmpeg' => (bool) env('MOCK_FFMPEG', false),
+        'tv_media_root' => (string) env('TV_MEDIA_ROOT', storage_path('tv_media')),
+        'default_broadcast_profile' => (string) env('BROADCAST_DEFAULT_PROFILE', '720p30'),
     ],
 
     'speaches' => [

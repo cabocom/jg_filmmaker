@@ -48,7 +48,7 @@ final readonly class RenderShotClipAction
         [$srtPath, $assPath] = $this->generateSubtitles($job->id, $shot, $oralText, $durationSeconds);
 
         $clipPath = storage_path("app/private/broadcast/{$job->id}/clips/shot_{$shot->shot_number}_{$shot->id}.mp4");
-        $this->ensureClipRendered($visualPath, $strategy->visualType(), $audioPath, $assPath, $clipPath, (string) $shot->id);
+        $this->ensureClipRendered($visualPath, $strategy->visualType(), $audioPath, $assPath, $clipPath, (string) $shot->id, $job);
 
         return $this->persistRenderedArtifacts($job, $shot, [
             'oral_text' => $oralText,
@@ -87,7 +87,8 @@ final readonly class RenderShotClipAction
         string $audioPath,
         string $assPath,
         string $clipPath,
-        string $shotId
+        string $shotId,
+        ?BroadcastJob $job = null
     ): void {
         File::ensureDirectoryExists(dirname($clipPath));
 
@@ -97,7 +98,7 @@ final readonly class RenderShotClipAction
             return;
         }
 
-        $this->runFfmpeg($visualPath, $visualType, $audioPath, $assPath, $clipPath, $shotId);
+        $this->runFfmpeg($visualPath, $visualType, $audioPath, $assPath, $clipPath, $shotId, $job);
     }
 
     /**
@@ -109,10 +110,14 @@ final readonly class RenderShotClipAction
         string $audioPath,
         string $assPath,
         string $clipPath,
-        string $shotId
+        string $shotId,
+        ?BroadcastJob $job = null
     ): void {
         $inputArgs = $visualType === 'video' ? ['-i', $visualPath] : ['-loop', '1', '-i', $visualPath];
-        $vfFilter = sprintf('scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,subtitles=%s', $assPath);
+        $is720p = (($job?->artifacts['resolution_profile'] ?? '1080p30') === '720p30');
+        $w = $is720p ? 1280 : 1920;
+        $h = $is720p ? 720 : 1080;
+        $vfFilter = sprintf('scale=%d:%d:force_original_aspect_ratio=decrease,pad=%d:%d:(ow-iw)/2:(oh-ih)/2,subtitles=%s', $w, $h, $w, $h, $assPath);
 
         $ffmpegArgs = [
             'ffmpeg', '-y', ...$inputArgs, '-i', $audioPath,

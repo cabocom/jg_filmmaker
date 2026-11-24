@@ -12,6 +12,14 @@
 
 ## Resumen Ejecutivo de Capacidades Recientes
 
+- **Normalización de Medios, Publicación en Disco TV y Validación de Perfiles Broadcast (AITV-011 / `jg_plugin_tv#11`):**
+  - **Resolución de Rutas y Validación de Perfiles:** `TvMediaPathResolver` estandariza y valida las rutas del almacenamiento montado para media broadcast, asegurando el aislamiento y la coherencia del árbol de directorios de TV. `BroadcastProfileValidator` verifica el cumplimiento técnico estricto de perfiles broadcast, con soporte para perfiles `720p30` (perfil por defecto optimizado para emisión ágil) y `1080p30` (alta definición para masterización).
+  - **Acciones y Jobs de Normalización y Publicación:**
+    - `ScanTvMediaDirectoryAction`: Escaneo e inventariado atómico del directorio de medios de TV con detección de nuevos assets y validación de integridad.
+    - `NormalizeBroadcastMediaAction` y `NormalizeBroadcastMediaJob`: Transcodificación determinista y normalización de medios a los estándares del perfil objetivo; previene condiciones de carrera o ejecuciones concurrentes conflictivas mediante bloqueo HTTP `409 Conflict`.
+    - `PublishEpisodeToTvDriveAction`: Ensamblado y exportación final del episodio completo hacia la unidad de disco montada para emisión TV (`tv_drive`), preservando metadatos y verificando la firma de archivo.
+  - **Endpoints M2M Seguros:** Endpoints API M2M protegidos `/api/v1/broadcast/media/scan` y `/api/v1/broadcast/media/normalize` para automatización headless y sincronización orquestada con `jg_plugin_tv`.
+
 - **Renderizado Shot-a-Shot a MP4 1080p, MP3 Podcast y Short 9:16 (AITV-002 / `jg_plugin_tv#3`):**
   - **Contrato Visual Polimórfico y Resolución Estratégica:** `ShotVisualStrategyInterface` desacopla la generación visual de cada plano implementada en `StaticCardShotVisual` (fallback determinista con tipografía de estudio y metadatos), `StoryboardShotVisual` (viñetas de storyboard con zoom dinámico Ken Burns) y `GenerativeVideoShotVisual` (clips de vídeo generativo normalizados), resueltas dinámicamente vía `ShotVisualStrategyResolver`.
   - **Subtítulos Sincronizados y Validación Estricta Mezzanine:** `ShotSubtitleGenerator` genera subtítulos sincronizados tanto en `.srt` como en `.ass` (estilos diferenciados para formatos horizontal 16:9 y vertical 9:16). Validación estricta con `ffprobe` vía `BroadcastMediaValidator` asegurando CFR 30fps, códec H.264, resolución exacta y audio AAC no mudo.

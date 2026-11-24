@@ -18,7 +18,8 @@ final readonly class AssembleBroadcastEpisodeAction
     public function __construct(
         protected MediaStorageService $mediaStorage,
         protected BroadcastMediaValidator $mediaValidator,
-        protected ShotSubtitleGenerator $subtitleGenerator
+        protected ShotSubtitleGenerator $subtitleGenerator,
+        protected PublishEpisodeToTvDriveAction $tvDrivePublisher
     ) {}
 
     /**
@@ -28,7 +29,6 @@ final readonly class AssembleBroadcastEpisodeAction
     {
         $artifacts = is_array($job->artifacts) ? $job->artifacts : [];
         $sortedShots = $this->resolveSortedShots($artifacts, (string) $job->id);
-
         $channelId = (string) $job->channel_id;
         $jobId = (string) $job->id;
         $tempDir = storage_path("app/private/broadcast/{$jobId}/temp");
@@ -42,15 +42,12 @@ final readonly class AssembleBroadcastEpisodeAction
 
         $this->concatEpisode1080p($sortedShots, $localFiles['1080p'], $tempDir, $jobId);
         $this->exportPodcastMp3($localFiles['1080p'], $localFiles['podcast'], $artifacts, $jobId);
-
-        $highlightShots = $this->selectHighlightShots($sortedShots);
-        $this->exportShort9x16($highlightShots, $localFiles['short'], $tempDir, $jobId);
+        $this->exportShort9x16($this->selectHighlightShots($sortedShots), $localFiles['short'], $tempDir, $jobId);
 
         $probes = [
             'episode_1080p' => $this->mediaValidator->assertValidMp4($localFiles['1080p']),
             'episode_short_9x16' => $this->mediaValidator->assertValidMp4($localFiles['short']),
         ];
-
         $storagePaths = [
             'episode_1080p' => "broadcast/{$channelId}/{$jobId}/episode_1080p.mp4",
             'episode_podcast_mp3' => "broadcast/{$channelId}/{$jobId}/episode_podcast.mp3",
@@ -58,9 +55,10 @@ final readonly class AssembleBroadcastEpisodeAction
         ];
 
         $this->storeArtifacts($storagePaths, $localFiles);
+        $tvDrivePath = $this->tvDrivePublisher->publishIfConfigured($job, $localFiles['1080p']);
         $this->cleanupTemporaryFiles($jobId, $tempDir);
 
-        return $this->finalizeJob($job, $artifacts, $storagePaths, $probes);
+        return $this->finalizeJob($job, $artifacts, $storagePaths, $probes, $tvDrivePath);
     }
 
     /**
@@ -193,28 +191,26 @@ final readonly class AssembleBroadcastEpisodeAction
             return;
         }
 
-        $highlightDuration = 0.0;
-        $highlightTexts = [];
+        $duration = 0.0;
+        $texts = [];
         foreach ($highlightShots as $shot) {
-            $highlightDuration += (float) ($shot['duration'] ?? $shot['estimated_seconds'] ?? 15.0);
+            $duration += (float) ($shot['duration'] ?? $shot['estimated_seconds'] ?? 15.0);
             if (! empty($shot['oral_text'])) {
-                $highlightTexts[] = trim((string) $shot['oral_text']);
+                $texts[] = trim((string) $shot['oral_text']);
             }
         }
 
         $shortAssPath = "{$tempDir}/short_subtitles.ass";
-        $this->subtitleGenerator->generateAss(implode(' ', $highlightTexts), $highlightDuration, $shortAssPath, verticalShort: true);
+        $this->subtitleGenerator->generateAss(implode(' ', $texts), $duration, $shortAssPath, verticalShort: true);
 
-        $shortListPath = "{$tempDir}/short_concat_list.txt";
-        $lines = array_map(fn (array $shot): string => "file '".str_replace("'", "'\\''", (string) ($shot['clip_path'] ?? ''))."'", $highlightShots);
-        File::put($shortListPath, implode("\n", $lines));
+        $lines = array_map(fn (array $s): string => "file '".str_replace("'", "'\\''", (string) ($s['clip_path'] ?? ''))."'", $highlightShots);
+        File::put("{$tempDir}/short_concat_list.txt", implode("\n", $lines));
 
-        $vfFilter = sprintf('scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,subtitles=%s', $shortAssPath);
+        $vf = sprintf('scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,subtitles=%s', $shortAssPath);
         $result = Process::timeout(300)->run([
-            'ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-i', $shortListPath,
+            'ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-i', "{$tempDir}/short_concat_list.txt",
             '-r', '30', '-c:v', 'libx264', '-profile:v', 'high', '-level', '4.1',
-            '-pix_fmt', 'yuv420p', '-vf', $vfFilter, '-c:a', 'aac',
-            '-ar', '48000', '-ac', '2', $outputPath,
+            '-pix_fmt', 'yuv420p', '-vf', $vf, '-c:a', 'aac', '-ar', '48000', '-ac', '2', $outputPath,
         ]);
 
         if (! $result->successful()) {
@@ -242,12 +238,18 @@ final readonly class AssembleBroadcastEpisodeAction
      * @param  array<string, string>  $storagePaths
      * @param  array<string, mixed>  $probes
      */
-    private function finalizeJob(BroadcastJob $job, array $artifacts, array $storagePaths, array $probes): BroadcastJob
-    {
+    private function finalizeJob(
+        BroadcastJob $job,
+        array $artifacts,
+        array $storagePaths,
+        array $probes,
+        ?string $tvDrivePath = null
+    ): BroadcastJob {
         $artifacts['exports'] = [
             'episode_1080p' => $storagePaths['episode_1080p'],
             'episode_podcast_mp3' => $storagePaths['episode_podcast_mp3'],
             'episode_short_9x16' => $storagePaths['episode_short_9x16'],
+            'tv_drive_relative_path' => $tvDrivePath,
             'ffprobe' => $probes,
             'temp_clips_purged' => true,
         ];

@@ -41,8 +41,9 @@ final class StaticCardShotVisual implements ShotVisualStrategyInterface
      */
     private function renderGdImage(BroadcastJob $job, array $context, string $outputPath): void
     {
-        $width = 1920;
-        $height = 1080;
+        $is720p = (($job->artifacts['resolution_profile'] ?? '1080p30') === '720p30');
+        $width = $is720p ? 1280 : 1920;
+        $height = $is720p ? 720 : 1080;
         $image = imagecreatetruecolor($width, $height);
 
         $bgColor = imagecolorallocate($image, 15, 23, 42) ?: 0;

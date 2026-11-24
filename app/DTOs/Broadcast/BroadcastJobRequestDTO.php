@@ -18,6 +18,8 @@ final readonly class BroadcastJobRequestDTO
         public array $sources = [],
         public string $visualMode = 'storyboard',
         public ?string $callbackUrl = null,
+        public string $resolutionProfile = '1080p30',
+        public ?string $outputRelativePath = null,
     ) {}
 
     /**
@@ -34,6 +36,8 @@ final readonly class BroadcastJobRequestDTO
             sources: (array) ($data['sources'] ?? []),
             visualMode: (string) ($data['visual_mode'] ?? 'storyboard'),
             callbackUrl: isset($data['callback_url']) && is_string($data['callback_url']) ? $data['callback_url'] : null,
+            resolutionProfile: (string) ($data['resolution_profile'] ?? '1080p30'),
+            outputRelativePath: isset($data['output_relative_path']) && is_string($data['output_relative_path']) && trim($data['output_relative_path']) !== '' ? trim($data['output_relative_path']) : null,
         );
     }
 }

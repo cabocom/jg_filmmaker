@@ -70,7 +70,10 @@ final readonly class AutoGenerateBroadcastShotsAction
                 'stage' => BroadcastJobStage::RAW,
                 'project_id' => $project->id,
                 'script_block_id' => $block->id,
-                'artifacts' => [],
+                'artifacts' => array_filter([
+                    'resolution_profile' => $dto->resolutionProfile,
+                    'output_relative_path' => $dto->outputRelativePath,
+                ]),
             ]);
         });
 
