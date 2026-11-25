@@ -18,7 +18,7 @@ class AgentClientRobustnessTest extends TestCase
         Config::set('services.jg_agente.secret', 'test-long-secret-key-for-robustness-check-1234');
 
         Http::fake([
-            '*/api/v1/tools/treatment_structuring' => Http::response([
+            '*/tools/treatment_structuring/execute' => Http::response([
                 'success' => true,
                 'output' => 'Tratamiento estructurado por el agente.',
                 'metadata' => ['stage' => 'structured'],
@@ -43,7 +43,7 @@ class AgentClientRobustnessTest extends TestCase
             ->atLeast()->once();
 
         Http::fake([
-            '*/api/v1/tools/treatment_structuring' => Http::response(['error' => 'Internal agent error'], 500),
+            '*/tools/treatment_structuring/execute' => Http::response(['error' => 'Internal agent error'], 500),
         ]);
 
         $service = app(AgentClientService::class);
@@ -64,7 +64,7 @@ class AgentClientRobustnessTest extends TestCase
             ->atLeast()->once();
 
         Http::fake([
-            '*/api/v1/tools/treatment_structuring' => Http::response([
+            '*/tools/treatment_structuring/execute' => Http::response([
                 'success' => false,
                 'error' => 'Validación de payload fallida',
             ], 200),
@@ -88,7 +88,7 @@ class AgentClientRobustnessTest extends TestCase
         Config::set('services.llm.api_key', 'gsk_sample_key_for_test');
 
         Http::fake([
-            '*/api/v1/tools/*' => Http::response(['error' => 'Down'], 503),
+            '*/tools/*/execute' => Http::response(['error' => 'Down'], 503),
             'https://api.groq.com/*' => Http::response(['choices' => [['message' => ['content' => 'Bypassed LLM']]]], 200),
         ]);
 

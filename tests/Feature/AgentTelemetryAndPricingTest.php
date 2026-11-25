@@ -49,7 +49,7 @@ class AgentTelemetryAndPricingTest extends TestCase
         $fakeBase64 = base64_encode('fake_rendered_storyboard_bytes');
 
         Http::fake([
-            '*/api/v1/tools/generate_storyboard' => Http::response([
+            '*/tools/generate_storyboard/execute' => Http::response([
                 'success' => true,
                 'metadata' => [
                     'image_base64' => $fakeBase64,
@@ -91,7 +91,7 @@ class AgentTelemetryAndPricingTest extends TestCase
     public function test_extract_characters_records_telemetry(): void
     {
         Http::fake([
-            '*/api/v1/tools/extract_characters' => Http::response([
+            '*/tools/extract_characters/execute' => Http::response([
                 'success' => true,
                 'metadata' => [
                     'provider' => 'google_ai_studio',
@@ -129,7 +129,7 @@ class AgentTelemetryAndPricingTest extends TestCase
         ]);
 
         Http::fake([
-            '*/api/v1/tools/audit_character_usage' => Http::response([
+            '*/tools/audit_character_usage/execute' => Http::response([
                 'success' => true,
                 'metadata' => [
                     'in_use' => true,

@@ -81,7 +81,7 @@ class AntiFallbackHardeningTest extends TestCase
 
         // Simular que jg_agente devuelve el 1x1 sintético
         Http::fake([
-            '*/api/v1/tools/generate_storyboard' => Http::response([
+            '*/tools/generate_storyboard/execute' => Http::response([
                 'success' => true,
                 'metadata' => [
                     'image_base64' => 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',

@@ -64,7 +64,7 @@ class UserLocksPreservationTest extends TestCase
         Config::set('services.jg_agente.mock', false);
 
         Http::fake([
-            '*/api/v1/tools/*' => Http::response([
+            '*/tools/*/execute' => Http::response([
                 'success' => true,
                 'output' => 'Nuevo texto estructurado generado por IA.',
             ], 200),
@@ -154,7 +154,7 @@ class UserLocksPreservationTest extends TestCase
         Config::set('services.jg_agente.mock', false);
 
         Http::fake([
-            '*/api/v1/tools/*' => Http::response([
+            '*/tools/*/execute' => Http::response([
                 'success' => true,
                 'output' => "--- shot 1 (PP) ---\nIntento de sobreescritura IA\n\n--- shot 2 (PG) ---\nNuevo plano 2 generado por IA",
                 'metadata' => [

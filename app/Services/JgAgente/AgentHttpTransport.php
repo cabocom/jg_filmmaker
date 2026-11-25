@@ -92,11 +92,14 @@ class AgentHttpTransport
             return $this->resolveFallback($toolName, $payload, $fallbackEngine, $telemetry, $userLocksApplier, $shotParser);
         }
 
-        $path = "/api/v1/tools/{$toolName}";
+        $path = "/tools/{$toolName}/execute";
         $url = "{$this->baseUrl}{$path}";
 
         try {
-            $rawBody = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            $rawBody = json_encode([
+                'arguments' => $payload,
+                'bypass_approval' => true,
+            ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         } catch (\JsonException $e) {
             Log::error("Error de serialización JSON en payload para jg_agente [{$toolName}]", ['error' => $e->getMessage()]);
             throw new \InvalidArgumentException("Payload no serializable para {$toolName}: ".$e->getMessage(), 0, $e);
@@ -119,6 +122,9 @@ class AgentHttpTransport
             if ($response->successful()) {
                 $data = $response->json();
                 if (is_array($data) && ($data['success'] ?? true) === true) {
+                    if (isset($data['output']) && is_array($data['output'])) {
+                        $data = array_merge($data['output'], $data);
+                    }
                     $data['source'] = 'agent';
                     $data['degraded'] = false;
 

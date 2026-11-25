@@ -17,7 +17,7 @@ class HmacAgentClientConfigAndSqliteTest extends TestCase
         Config::set('services.jg_agente.mock', false);
 
         $client = new AgentClientService;
-        $headers = $client->generateSignatureHeaders('POST', '/api/v1/tools/test', '{"foo":"bar"}');
+        $headers = $client->generateSignatureHeaders('POST', '/tools/test/execute', '{"foo":"bar"}');
 
         $this->assertNotEmpty($headers['X-Signature']);
         $this->assertNotEmpty($headers['X-Timestamp']);

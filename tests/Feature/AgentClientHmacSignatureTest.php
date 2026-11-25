@@ -22,7 +22,7 @@ class AgentClientHmacSignatureTest extends TestCase
         $client = new AgentClientService;
 
         $method = 'POST';
-        $path = '/api/v1/tools/treatment_structuring';
+        $path = '/tools/treatment_structuring/execute';
         $rawBody = json_encode(['raw_text' => 'El viento sopla en la costa'], JSON_UNESCAPED_SLASHES);
         $timestamp = 1773090000;
 
@@ -44,7 +44,7 @@ class AgentClientHmacSignatureTest extends TestCase
         // 4. Verificación criptográfica exacta de la firma
         $bodyHash = hash('sha256', $rawBody);
         $this->assertTrue(Str::isUuid($headers['X-Nonce']));
-        $canonicalString = "POST\n/api/v1/tools/treatment_structuring\n1773090000\n{$bodyHash}\n{$headers['X-Nonce']}";
+        $canonicalString = "POST\n/tools/treatment_structuring/execute\n1773090000\n{$bodyHash}\n{$headers['X-Nonce']}";
         $expectedSignature = hash_hmac('sha256', $canonicalString, 'test_secret_key_abcdef123456');
 
         $this->assertSame($expectedSignature, $headers['X-Signature']);
@@ -60,8 +60,8 @@ class AgentClientHmacSignatureTest extends TestCase
         $bodyB = '{"text": "B"}';
         $timestamp = 1773090000;
 
-        $headersA = $client->generateSignatureHeaders('POST', '/api/v1/tools/foo', $bodyA, $timestamp);
-        $headersB = $client->generateSignatureHeaders('POST', '/api/v1/tools/foo', $bodyB, $timestamp);
+        $headersA = $client->generateSignatureHeaders('POST', '/tools/foo/execute', $bodyA, $timestamp);
+        $headersB = $client->generateSignatureHeaders('POST', '/tools/foo/execute', $bodyB, $timestamp);
 
         $this->assertNotSame($headersA['X-Signature'], $headersB['X-Signature']);
     }
@@ -75,7 +75,7 @@ class AgentClientHmacSignatureTest extends TestCase
         ]);
 
         Http::fake([
-            'http://jg_agente_service:8001/api/v1/tools/*' => Http::response([
+            'http://jg_agente_service:8001/tools/*/execute' => Http::response([
                 'success' => true,
                 'output' => 'INT. BAR CENTRAL - NOCHE',
                 'metadata' => ['stage' => 'screenplay'],
@@ -131,8 +131,8 @@ class AgentClientHmacSignatureTest extends TestCase
         config(['services.jg_agente.secret' => 'secret_123']);
         $client = new AgentClientService;
 
-        $a = $client->generateSignatureHeaders('POST', '/api/v1/tools/foo', '{}', 1773090000);
-        $b = $client->generateSignatureHeaders('POST', '/api/v1/tools/foo', '{}', 1773090000);
+        $a = $client->generateSignatureHeaders('POST', '/tools/foo/execute', '{}', 1773090000);
+        $b = $client->generateSignatureHeaders('POST', '/tools/foo/execute', '{}', 1773090000);
 
         $this->assertNotSame($a['X-Nonce'], $b['X-Nonce']);
         // Mismo método/ruta/timestamp/cuerpo: la firma difiere únicamente por el nonce

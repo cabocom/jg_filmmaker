@@ -167,7 +167,7 @@ class StoryboardGenerationTest extends TestCase
         $fakeBase64Image = base64_encode('fake_jpeg_binary_image_data_from_agent');
 
         Http::fake([
-            '*/api/v1/tools/*' => Http::response([
+            '*/tools/*/execute' => Http::response([
                 'success' => true,
                 'metadata' => [
                     'image_base64' => $fakeBase64Image,
@@ -197,7 +197,7 @@ class StoryboardGenerationTest extends TestCase
         $fakeBase64Image = base64_encode('test_livewire_storyboard_render');
 
         Http::fake([
-            '*/api/v1/tools/*' => Http::response([
+            '*/tools/*/execute' => Http::response([
                 'success' => true,
                 'metadata' => [
                     'image_base64' => $fakeBase64Image,
@@ -295,7 +295,7 @@ class StoryboardGenerationTest extends TestCase
         $fakeBase64Image = base64_encode('test_custom_prompt_rendered_image');
 
         Http::fake([
-            '*/api/v1/tools/*' => Http::response([
+            '*/tools/*/execute' => Http::response([
                 'success' => true,
                 'metadata' => [
                     'image_base64' => $fakeBase64Image,
@@ -328,7 +328,7 @@ class StoryboardGenerationTest extends TestCase
     public function test_script_editor_storyboard_modal_manages_props_and_limits_to_three(): void
     {
         Http::fake([
-            '*/api/v1/tools/*' => Http::response([
+            '*/tools/*/execute' => Http::response([
                 'success' => true,
                 'metadata' => [
                     'image_base64' => base64_encode('fake_img'),
@@ -384,8 +384,9 @@ class StoryboardGenerationTest extends TestCase
 
         $capturedPayload = null;
         Http::fake([
-            '*/api/v1/tools/generate_storyboard' => function ($request) use (&$capturedPayload) {
-                $capturedPayload = json_decode($request->body(), true);
+            '*/tools/generate_storyboard/execute' => function ($request) use (&$capturedPayload) {
+                $decoded = json_decode($request->body(), true);
+                $capturedPayload = $decoded['arguments'] ?? $decoded;
 
                 return Http::response([
                     'success' => true,
@@ -465,8 +466,9 @@ class StoryboardGenerationTest extends TestCase
         // 3. Verificación de no exfiltración multimodal al LLM
         $capturedPayload = null;
         Http::fake([
-            '*/api/v1/tools/generate_storyboard' => function ($request) use (&$capturedPayload) {
-                $capturedPayload = json_decode($request->body(), true);
+            '*/tools/generate_storyboard/execute' => function ($request) use (&$capturedPayload) {
+                $decoded = json_decode($request->body(), true);
+                $capturedPayload = $decoded['arguments'] ?? $decoded;
 
                 return Http::response([
                     'success' => true,
