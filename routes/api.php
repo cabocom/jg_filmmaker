@@ -13,4 +13,5 @@ Route::prefix('v1/broadcast')->middleware(['hmac.m2m', 'throttle:60,1'])->group(
     Route::post('/media/scan', [BroadcastMediaController::class, 'scan'])->name('api.v1.broadcast.media.scan');
     Route::post('/media/normalize', [BroadcastMediaController::class, 'normalize'])->name('api.v1.broadcast.media.normalize');
     Route::get('/media/normalize/{jobId}', [BroadcastMediaController::class, 'showNormalization'])->name('api.v1.broadcast.media.normalize.show');
+    Route::get('/media/stream', [BroadcastMediaController::class, 'stream'])->name('api.v1.broadcast.media.stream');
 });

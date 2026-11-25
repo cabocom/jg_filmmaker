@@ -6,12 +6,15 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\Broadcast\NormalizeBroadcastMediaAction;
 use App\Actions\Broadcast\ScanTvMediaDirectoryAction;
+use App\Actions\Broadcast\StreamTvMediaAction;
 use App\Http\Controllers\Controller;
 use App\Models\TvMediaNormalization;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class BroadcastMediaController extends Controller
 {
@@ -79,5 +82,24 @@ class BroadcastMediaController extends Controller
             'probe_before' => $norm->probe_before,
             'probe_after' => $norm->probe_after,
         ], 200);
+    }
+
+    public function stream(Request $request, StreamTvMediaAction $action): Response|StreamedResponse|JsonResponse
+    {
+        $validated = $request->validate([
+            'path' => ['required', 'string', 'max:500'],
+        ]);
+
+        try {
+            $rangeHeader = $request->header('Range');
+
+            return $action->execute((string) $validated['path'], is_string($rangeHeader) ? $rangeHeader : null);
+        } catch (InvalidArgumentException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        } catch (RuntimeException $e) {
+            $status = $e->getCode() === 404 ? 404 : 500;
+
+            return response()->json(['error' => $e->getMessage()], $status);
+        }
     }
 }
