@@ -7,6 +7,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    extra_hosts:
+      - "api.groq.com:172.64.149.20"
+      - "generativelanguage.googleapis.com:172.217.119.4"
     volumes:
       - ./app:/var/www/html/app
       - ./bootstrap/app.php:/var/www/html/bootstrap/app.php:ro
