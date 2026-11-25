@@ -8,6 +8,7 @@ use App\Contracts\Broadcast\ShotVisualStrategyInterface;
 use App\Models\BroadcastJob;
 use App\Models\Shot;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Process;
 
 final class StaticCardShotVisual implements ShotVisualStrategyInterface
 {
@@ -29,7 +30,7 @@ final class StaticCardShotVisual implements ShotVisualStrategyInterface
 
         if (function_exists('imagecreatetruecolor')) {
             $this->renderGdImage($job, $context, $outputPath);
-        } else {
+        } elseif (! $this->renderFfmpegImage($job, $outputPath)) {
             $this->renderFallbackPng($outputPath);
         }
 
@@ -75,9 +76,40 @@ final class StaticCardShotVisual implements ShotVisualStrategyInterface
         imagedestroy($image);
     }
 
+    private function renderFfmpegImage(BroadcastJob $job, string $outputPath): bool
+    {
+        $artifacts = is_array($job->artifacts) ? $job->artifacts : [];
+        $is720p = (($artifacts['resolution_profile'] ?? '1080p30') === '720p30');
+        $size = $is720p ? '1280x720' : '1920x1080';
+
+        $result = Process::timeout(15)->run([
+            'ffmpeg', '-y', '-f', 'lavfi', '-i', "color=c=0x0f172a:s={$size}:d=1", '-frames:v', '1', $outputPath,
+        ]);
+
+        return $result->successful() && file_exists($outputPath) && filesize($outputPath) > 0;
+    }
+
     private function renderFallbackPng(string $outputPath): void
     {
-        $png1x1 = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
+        if (function_exists('gzcompress')) {
+            $compressed = gzcompress("\x00\x0f\x17\x2a");
+            if ($compressed !== false) {
+                $ihdr = 'IHDR'.pack('NNCCCCC', 1, 1, 8, 2, 0, 0, 0);
+                $idat = 'IDAT'.$compressed;
+                $iend = 'IEND';
+
+                $png = "\x89PNG\r\n\x1a\n"
+                    .pack('N', 13).$ihdr.pack('N', crc32($ihdr))
+                    .pack('N', strlen($compressed)).$idat.pack('N', crc32($idat))
+                    .pack('N', 0).$iend.pack('N', crc32($iend));
+
+                file_put_contents($outputPath, $png);
+
+                return;
+            }
+        }
+
+        $png1x1 = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNgYmBgAAAABAABJzQnCgAAAABJRU5ErkJggg==');
         file_put_contents($outputPath, $png1x1);
     }
 }

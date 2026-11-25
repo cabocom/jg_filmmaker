@@ -37,7 +37,12 @@ final readonly class RenderShotClipAction
             return $existing;
         }
 
-        $oralText = (string) ($context['oral_text'] ?? $shot->description ?? $job->title);
+        $oralText = trim((string) ($context['oral_text'] ?? ''));
+        if ($oralText === '') {
+            $rawText = trim((string) ($job->raw_text ?? ''));
+            $title = trim((string) ($job->title ?? ''));
+            $oralText = $rawText !== '' ? $rawText : $title;
+        }
         $voice = isset($context['voice']) ? (string) $context['voice'] : null;
         $audioPath = $this->ttsService->synthesize($oralText, $voice, 1.0, $job->project);
 

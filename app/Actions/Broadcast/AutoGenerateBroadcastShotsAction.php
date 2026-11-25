@@ -182,6 +182,7 @@ final readonly class AutoGenerateBroadcastShotsAction
     {
         $shots = $this->pipeline->generateShotsBreakdown($block);
         $sanitized = $this->sanitizer->sanitizeAndFormatShots($shots);
+        $sanitized = $this->assignOralTextFromRawScript($sanitized, (string) $job->raw_text);
 
         $artifacts['shots'] = $sanitized;
         $artifacts['shots_count'] = count($sanitized);
@@ -189,6 +190,42 @@ final readonly class AutoGenerateBroadcastShotsAction
             'stage' => BroadcastJobStage::SHOTS,
             'artifacts' => $artifacts,
         ]);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $shots
+     * @return array<int, array<string, mixed>>
+     */
+    private function assignOralTextFromRawScript(array $shots, string $rawText): array
+    {
+        $shotCount = count($shots);
+        $cleanRaw = trim($this->sanitizer->stripMarkdown($rawText));
+        if ($shotCount === 0 || $cleanRaw === '') {
+            return $shots;
+        }
+
+        $sentences = preg_split('/(?<=[.!?])\s+/u', $cleanRaw, -1, PREG_SPLIT_NO_EMPTY) ?: [$cleanRaw];
+        $units = count($sentences) >= $shotCount
+            ? $sentences
+            : (preg_split('/\s+/u', $cleanRaw, -1, PREG_SPLIT_NO_EMPTY) ?: [$cleanRaw]);
+
+        $unitCount = count($units);
+        $chunks = array_fill(0, $shotCount, []);
+        foreach ($units as $i => $unit) {
+            $bucket = (int) floor($i * $shotCount / $unitCount);
+            $chunks[$bucket][] = $unit;
+        }
+
+        foreach ($shots as $idx => $shot) {
+            $rawChunk = ! empty($chunks[$idx]) ? implode(' ', $chunks[$idx]) : $cleanRaw;
+            $oralText = $this->sanitizer->clampOralText($rawChunk);
+            $words = count(preg_split('/\s+/u', trim($oralText), -1, PREG_SPLIT_NO_EMPTY) ?: []);
+            $shots[$idx]['oral_text'] = $oralText;
+            $shots[$idx]['word_count'] = $words;
+            $shots[$idx]['estimated_seconds'] = $this->sanitizer->estimateSeconds($oralText);
+        }
+
+        return $shots;
     }
 
     /**
