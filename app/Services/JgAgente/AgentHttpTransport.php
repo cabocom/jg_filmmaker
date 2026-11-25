@@ -96,8 +96,9 @@ class AgentHttpTransport
         $url = "{$this->baseUrl}{$path}";
 
         try {
+            $encodedArgs = $this->encodeUnsafeNarrativeFields($payload);
             $rawBody = json_encode([
-                'arguments' => $payload,
+                'arguments' => $encodedArgs,
                 'bypass_approval' => true,
             ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         } catch (\JsonException $e) {
@@ -213,5 +214,30 @@ class AgentHttpTransport
         }
 
         return $fallback;
+    }
+
+    /**
+     * Codifica recursivamente cadenas con caracteres especiales de shell en b64url.
+     */
+    private function encodeUnsafeNarrativeFields(mixed $value): mixed
+    {
+        if (is_string($value)) {
+            if (preg_match('/[;&$`\n\r><|\\\'"]/', $value) === 1) {
+                return 'b64url:'.rtrim(strtr(base64_encode($value), '+/', '-_'), '=');
+            }
+
+            return $value;
+        }
+
+        if (is_array($value)) {
+            $encoded = [];
+            foreach ($value as $k => $v) {
+                $encoded[$k] = $this->encodeUnsafeNarrativeFields($v);
+            }
+
+            return $encoded;
+        }
+
+        return $value;
     }
 }

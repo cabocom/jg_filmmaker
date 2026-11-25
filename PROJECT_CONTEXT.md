@@ -334,7 +334,7 @@
   - **Extracción de Transporte y Seguridad:**
     - `App\Services\JgAgente\HmacSigner`: Firma criptográfica HMAC-SHA256 y cabeceras canónicas (`X-Signature`, `X-Timestamp`, `X-Client-Id`).
     - `App\Services\JgAgente\TelemetryRecorder`: Registro de auditoría, trazabilidad de llamadas a IA y sanitización de bloqueos de usuario (`user_locks`).
-    - `App\Services\JgAgente\AgentHttpTransport`: Despacho HTTP seguro (`POST /tools/{toolName}/execute` con `arguments` + `bypass_approval`), timeout, reintentos y orquestación con mock fallback.
+    - `App\Services\JgAgente\AgentHttpTransport`: Despacho HTTP seguro (`POST /tools/{toolName}/execute` con `arguments` + `bypass_approval` y codificación `b64url:` para textos con metacaracteres), timeout, reintentos y orquestación con mock fallback.
   - **Clientes de Dominio Dedicados (`app/Services/JgAgente/Clients/`):**
     - `ScriptAgentClient`: Estructuración dramática de notas y tratamiento, formateo canónico Fountain y gobernanza de candados (`user_locks`).
     - `StoryboardAgentClient`: Desglose técnico de planos cinemáticos y parseo de anotaciones `--- shot N (tipo) ---`.
