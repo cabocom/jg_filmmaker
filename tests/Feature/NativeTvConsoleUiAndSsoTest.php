@@ -6,10 +6,10 @@ namespace Tests\Feature;
 
 use App\Enums\ProjectCategory;
 use App\Livewire\Tv\TvWorkspace;
+use App\Models\Project;
 use App\Models\TvRundown;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Auth;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -17,106 +17,135 @@ class NativeTvConsoleUiAndSsoTest extends TestCase
 {
     use RefreshDatabase;
 
+    private const string SSO_SECRET = 'test-iframe-sso-secret-1234567890';
+
     protected function setUp(): void
     {
         parent::setUp();
 
-        config()->set('services.jg_agente.secret', 'test-iframe-sso-secret-1234567890');
+        config()->set('services.jg_agente.secret', self::SSO_SECRET);
     }
 
-    public function test_tv_workspace_renders_and_hides_header_in_embed_mode(): void
+    public function test_tv_console_requires_admin_and_renders_embed_mode_without_header(): void
     {
-        $this->get(route('tv.index'))
-            ->assertRedirect(route('login'));
+        $standardUser = User::factory()->create(['is_admin' => false]);
+        $adminUser = User::factory()->create(['is_admin' => true]);
 
-        $user = User::factory()->create();
+        $this->actingAs($standardUser)
+            ->get('/tv')
+            ->assertForbidden();
 
-        $this->actingAs($user)
-            ->get(route('tv.index'))
+        $this->actingAs($adminUser)
+            ->get('/tv')
             ->assertOk()
-            ->assertSee('Consola de Televisión IA')
-            ->assertSee('Mis Proyectos');
+            ->assertSee('<header', false);
 
-        $this->actingAs($user)
-            ->get(route('tv.index', ['embed' => 1]))
+        $this->actingAs($adminUser)
+            ->get('/tv?embed=1')
             ->assertOk()
-            ->assertSee('Consola de Televisión IA')
-            ->assertDontSee('Mis Proyectos');
+            ->assertDontSee('<header', false);
     }
 
-    public function test_tv_workspace_creates_rundown_linked_to_ai_video_project(): void
+    public function test_tv_workspace_livewire_creates_rundown_and_links_studio_project(): void
     {
-        $user = User::factory()->create();
+        $adminUser = User::factory()->create(['is_admin' => true]);
 
-        $component = Livewire::actingAs($user)
+        $component = Livewire::actingAs($adminUser)
             ->test(TvWorkspace::class)
             ->set('newSourceKind', 'manual')
-            ->set('newTitle', 'Noticiero IA Nocturno')
-            ->set('newScriptText', 'Buenas noches, comenzamos el informativo de inteligencia artificial.')
+            ->set('newType', 'pill')
+            ->set('newTitle', 'Escaleta Test Estudio')
+            ->set('newScriptText', 'Guion de prueba para verificar enlace directo al Estudio.')
             ->call('createRundown')
             ->assertHasNoErrors();
 
-        $rundown = TvRundown::query()->where('title', 'Noticiero IA Nocturno')->first();
+        /** @var TvRundown|null $rundown */
+        $rundown = TvRundown::query()->where('title', 'Escaleta Test Estudio')->first();
 
         $this->assertNotNull($rundown);
-        $this->assertNotNull($rundown->project);
-        $this->assertSame(ProjectCategory::AI_VIDEO, $rundown->project->categoryEnum());
+        $this->assertNotNull($rundown->project_id);
 
-        $component->assertSee(route('projects.show', $rundown->project_id), false);
+        /** @var Project|null $project */
+        $project = Project::query()->find($rundown->project_id);
+
+        $this->assertNotNull($project);
+        $this->assertSame(ProjectCategory::AI_VIDEO, $project->category);
+        $this->assertSame('Escaleta Test Estudio', $project->title);
+
+        $component
+            ->assertSeeHtml(route('projects.show', $rundown->project_id))
+            ->assertSee('Abrir en Estudio');
     }
 
     public function test_iframe_sso_authenticates_admin_and_blocks_replay_tampering_and_open_redirect(): void
     {
-        $secret = 'test-iframe-sso-secret-1234567890';
-        $admin = User::factory()->create(['is_admin' => true]);
+        $adminUser = User::factory()->create([
+            'email' => 'admin-sso@example.com',
+            'is_admin' => true,
+        ]);
+        $nonAdminUser = User::factory()->create([
+            'email' => 'user-sso@example.com',
+            'is_admin' => false,
+        ]);
 
         $exp = (string) (time() + 60);
-        $nonce = 'nonce-valid-1';
+        $nonce = 'nonce-valid-001';
         $redirect = '/tv?embed=1';
-        $sig = hash_hmac('sha256', "{$admin->email}|{$exp}|{$nonce}|{$redirect}", $secret);
 
-        $validUrl = route('auth.iframe-sso', [
-            'email' => $admin->email,
+        $validUrl = $this->buildSsoUrl($adminUser->email, $exp, $nonce, $redirect);
+
+        $this->get($validUrl)
+            ->assertRedirect($redirect);
+
+        $this->assertAuthenticatedAs($adminUser);
+
+        // Replay del mismo nonce debe ser bloqueado
+        $this->post('/logout');
+        $this->assertGuest();
+
+        $this->get($validUrl)
+            ->assertForbidden();
+        $this->assertGuest();
+
+        // Firma alterada debe ser bloqueada
+        $tamperedUrl = $this->buildSsoUrl($adminUser->email, $exp, 'nonce-tampered-002', $redirect, 'tampered-signature');
+        $this->get($tamperedUrl)
+            ->assertForbidden();
+        $this->assertGuest();
+
+        // Open redirect externo debe ser bloqueado incluso con firma válida
+        $evilUrlHttps = $this->buildSsoUrl($adminUser->email, $exp, 'nonce-evil-003', 'https://evil.com');
+        $this->get($evilUrlHttps)
+            ->assertForbidden();
+        $this->assertGuest();
+
+        $evilUrlProtocolRelative = $this->buildSsoUrl($adminUser->email, $exp, 'nonce-evil-004', '//evil.com');
+        $this->get($evilUrlProtocolRelative)
+            ->assertForbidden();
+        $this->assertGuest();
+
+        // Usuario no administrador debe ser bloqueado incluso con firma válida
+        $nonAdminUrl = $this->buildSsoUrl($nonAdminUser->email, $exp, 'nonce-nonadmin-005', $redirect);
+        $this->get($nonAdminUrl)
+            ->assertForbidden();
+        $this->assertGuest();
+    }
+
+    private function buildSsoUrl(
+        string $email,
+        string $exp,
+        string $nonce,
+        string $redirect,
+        ?string $overrideSig = null,
+    ): string {
+        $sig = $overrideSig ?? hash_hmac('sha256', "{$email}|{$exp}|{$nonce}|{$redirect}", self::SSO_SECRET);
+
+        return '/auth/iframe-sso?'.http_build_query([
+            'email' => $email,
             'exp' => $exp,
             'nonce' => $nonce,
             'redirect' => $redirect,
             'sig' => $sig,
         ]);
-
-        $this->get($validUrl)
-            ->assertRedirect($redirect);
-
-        $this->assertAuthenticatedAs($admin);
-
-        Auth::logout();
-
-        // Replay of same nonce must be blocked
-        $this->get($validUrl)
-            ->assertForbidden();
-
-        // Tampered signature must be blocked
-        $tamperedUrl = route('auth.iframe-sso', [
-            'email' => $admin->email,
-            'exp' => $exp,
-            'nonce' => 'nonce-tampered-2',
-            'redirect' => $redirect,
-            'sig' => str_repeat('0', 64),
-        ]);
-
-        $this->get($tamperedUrl)
-            ->assertForbidden();
-
-        // External open redirect must be blocked even with valid HMAC
-        $evilRedirect = 'https://evil.com/phishing';
-        $evilNonce = 'nonce-evil-3';
-        $evilSig = hash_hmac('sha256', "{$admin->email}|{$exp}|{$evilNonce}|{$evilRedirect}", $secret);
-
-        $this->get(route('auth.iframe-sso', [
-            'email' => $admin->email,
-            'exp' => $exp,
-            'nonce' => $evilNonce,
-            'redirect' => $evilRedirect,
-            'sig' => $evilSig,
-        ]))->assertForbidden();
     }
 }

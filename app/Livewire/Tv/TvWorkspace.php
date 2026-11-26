@@ -58,6 +58,8 @@ class TvWorkspace extends Component
 
     public function mount(SyncTvChannelConfigAction $configAction): void
     {
+        abort_unless((bool) Auth::user()?->is_admin, 403);
+
         $config = $configAction->getOrCreateConfig();
         $this->broadcastProfile = (string) ($config->resolution_profile ?: '720p30');
         $this->newTtsVoice = (string) ($config->tts_voice ?: 'Kore');
@@ -74,6 +76,7 @@ class TvWorkspace extends Component
 
     public function createRundown(ManageTvRundownAction $action): void
     {
+        abort_unless((bool) Auth::user()?->is_admin, 403);
         $this->reset(['statusMessage', 'errorMessage']);
 
         $rules = [
@@ -109,6 +112,7 @@ class TvWorkspace extends Component
 
     public function dispatchProduction(string $rundownId, ManageTvRundownAction $action): void
     {
+        abort_unless((bool) Auth::user()?->is_admin, 403);
         $this->reset(['statusMessage', 'errorMessage']);
         $rundown = TvRundown::query()->findOrFail($rundownId);
 
@@ -122,6 +126,7 @@ class TvWorkspace extends Component
 
     public function deleteRundown(string $rundownId, ManageTvRundownAction $action): void
     {
+        abort_unless((bool) Auth::user()?->is_admin, 403);
         $this->reset(['statusMessage', 'errorMessage']);
         $rundown = TvRundown::query()->findOrFail($rundownId);
         $title = $rundown->title;
@@ -131,6 +136,7 @@ class TvWorkspace extends Component
 
     public function saveChannelConfig(SyncTvChannelConfigAction $action): void
     {
+        abort_unless((bool) Auth::user()?->is_admin, 403);
         $this->reset(['statusMessage', 'errorMessage']);
 
         $this->validate([

@@ -40,7 +40,9 @@ Route::get('/', function () {
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/projects', ProjectList::class)->name('projects.index');
-    Route::get('/tv', TvWorkspace::class)->name('tv.index');
+    Route::get('/tv', TvWorkspace::class)
+        ->middleware(EnsureUserIsAdmin::class)
+        ->name('tv.index');
     Route::get('/projects/{project}', ScriptEditor::class)
         ->middleware('can:view,project')
         ->name('projects.show');

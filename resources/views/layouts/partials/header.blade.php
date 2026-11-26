@@ -137,13 +137,13 @@
                                     <span>Mis Proyectos</span>
                                 </a>
 
-                                <a href="{{ route('tv.index') }}"
-                                   class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition font-medium">
-                                    <span>📺</span>
-                                    <span>Televisión IA</span>
-                                </a>
-
                                 @if(auth()->user()->is_admin)
+                                    <a href="{{ route('tv.index') }}"
+                                       class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition font-medium">
+                                        <span>📺</span>
+                                        <span>Televisión IA</span>
+                                    </a>
+
                                     <a href="{{ route('admin.users') }}"
                                        class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 transition font-medium font-mono">
                                         <span>🛠️</span>

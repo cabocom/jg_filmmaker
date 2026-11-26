@@ -26,7 +26,7 @@ class IframeSsoController extends Controller
         $redirect = (string) $request->query('redirect', '');
         $sig = (string) $request->query('sig', '');
 
-        if ($email === '' || $expRaw === '' || $nonce === '' || $redirect === '' || $sig === '' || ! ctype_digit($expRaw)) {
+        if ($email === '' || $expRaw === '' || $nonce === '' || strlen($nonce) > 128 || $redirect === '' || $sig === '' || ! ctype_digit($expRaw)) {
             abort(403, 'Invalid SSO parameters.');
         }
 
@@ -36,7 +36,7 @@ class IframeSsoController extends Controller
             abort(403, 'SSO ticket expired.');
         }
 
-        if (preg_match('~^/(tv|projects)(?:[/?#].*)?$~', $redirect) !== 1) {
+        if (preg_match('#^/(tv|projects)(/[A-Za-z0-9\-_]*)?(\?embed=1)?$#', $redirect) !== 1) {
             abort(403, 'Invalid SSO redirect target.');
         }
 
