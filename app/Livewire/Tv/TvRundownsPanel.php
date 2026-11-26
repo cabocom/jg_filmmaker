@@ -41,6 +41,8 @@ class TvRundownsPanel extends Component
 
     public ?string $visualStyleId = null;
 
+    public int $targetDurationSeconds = 50;
+
     public ?string $editingRundownId = null;
 
     public string $editTitle = '';
@@ -99,6 +101,7 @@ class TvRundownsPanel extends Component
                 'tts_provider' => $this->ttsProvider,
                 'tts_voice' => $this->ttsVoice,
                 'visual_style_id' => $this->visualStyleId ?: null,
+                'duration_seconds' => $this->targetDurationSeconds,
             ], Auth::user());
             $this->reset(['title', 'topicOrUrl', 'scriptText']);
             session()->flash('success', 'Escaleta creada exitosamente y vinculada a un Proyecto Videos IA en el Estudio.');
@@ -243,6 +246,7 @@ class TvRundownsPanel extends Component
             'ttsProvider' => 'required|in:gemini,kokoro,elevenlabs,edge',
             'ttsVoice' => 'required|string|max:64',
             'visualStyleId' => 'nullable|uuid|exists:tv_visual_styles,id',
+            'targetDurationSeconds' => 'required|integer|min:15|max:600',
         ]);
     }
 }

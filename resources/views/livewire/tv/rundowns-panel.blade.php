@@ -102,6 +102,12 @@
                     </select>
                     @error('visualStyleId') <span class="text-xs text-rose-400 mt-1 block">{{ $message }}</span> @enderror
                 </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Duración objetivo (seg)</label>
+                    <input type="number" min="15" max="600" step="5" wire:model="targetDurationSeconds" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-indigo-500 focus:outline-none" />
+                    <span class="text-[11px] text-slate-400 mt-1 block">Recomendado píldoras: 40 – 60 seg (~125 palabras)</span>
+                    @error('targetDurationSeconds') <span class="text-xs text-rose-400 mt-1 block">{{ $message }}</span> @enderror
+                </div>
             </div>
 
             @if ($sourceKind === 'manual')

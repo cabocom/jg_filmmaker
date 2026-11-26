@@ -51,7 +51,8 @@ class SynthesizeTvRundownJob implements ShouldQueue
 
         $topicOrUrl = (string) ($rundown->topic_or_url ?: $rundown->title);
         $language = (string) ($rundown->language ?: 'es');
-        $result = $synthesizer->synthesize($topicOrUrl, $language);
+        $targetDuration = (int) ($rundown->duration_seconds ?: 50);
+        $result = $synthesizer->synthesize($topicOrUrl, $language, $targetDuration);
 
         $rundown->update([
             'title' => $result['title'],

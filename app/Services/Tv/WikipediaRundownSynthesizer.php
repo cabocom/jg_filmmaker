@@ -62,7 +62,7 @@ final readonly class WikipediaRundownSynthesizer
      *
      * @return array{title: string, script_text: string, visual_credit: string, sources: list<string>}
      */
-    public function synthesize(string $topicOrUrl, string $language = 'es'): array
+    public function synthesize(string $topicOrUrl, string $language = 'es', ?int $targetDurationSeconds = null): array
     {
         $trimmed = trim($topicOrUrl);
         if ($trimmed === '') {
@@ -97,6 +97,18 @@ final readonly class WikipediaRundownSynthesizer
             throw new RuntimeException('Wikipedia summary response did not contain an extract.');
         }
 
+        if ($targetDurationSeconds !== null && $targetDurationSeconds > 0) {
+            $targetWords = max(25, (int) round(max(15, $targetDurationSeconds) * 2.5));
+            if (str_word_count($extract) < (int) ($targetWords * 0.8)) {
+                $expanded = $this->fetchExpandedExtract($lang, $articleTitle);
+                if ($expanded !== '' && str_word_count($expanded) > str_word_count($extract)) {
+                    $extract = $expanded;
+                }
+            }
+
+            $extract = $this->trimToTargetWords($extract, $targetWords);
+        }
+
         $resolvedTitle = trim((string) ($payload['title'] ?? str_replace('_', ' ', $articleTitle)));
         $sourceUrl = trim((string) data_get($payload, 'content_urls.desktop.page', ''));
         if ($sourceUrl === '') {
@@ -109,5 +121,66 @@ final readonly class WikipediaRundownSynthesizer
             'visual_credit' => self::VISUAL_CREDIT,
             'sources' => [$sourceUrl],
         ];
+    }
+
+    private function fetchExpandedExtract(string $lang, string $articleTitle): string
+    {
+        try {
+            $apiEndpoint = sprintf('https://%s.wikipedia.org/w/api.php', $lang);
+            $res = Http::timeout(15)
+                ->acceptJson()
+                ->withHeaders(['User-Agent' => 'JGFilmmakerTV/1.0'])
+                ->get($apiEndpoint, [
+                    'action' => 'query',
+                    'prop' => 'extracts',
+                    'explaintext' => 1,
+                    'exchars' => 4500,
+                    'redirects' => 1,
+                    'titles' => $articleTitle,
+                    'format' => 'json',
+                ]);
+        } catch (\Throwable) {
+            return '';
+        }
+
+        if (! $res->successful()) {
+            return '';
+        }
+
+        $pages = data_get($res->json(), 'query.pages', []);
+        if (! is_array($pages) || $pages === []) {
+            return '';
+        }
+
+        $firstPage = reset($pages);
+        $raw = is_array($firstPage) ? (string) ($firstPage['extract'] ?? '') : '';
+        $clean = preg_replace('/^=+[^=]+=+\s*$/m', ' ', $raw) ?? $raw;
+
+        return trim((string) preg_replace('/\s+/u', ' ', $clean));
+    }
+
+    private function trimToTargetWords(string $text, int $targetWords): string
+    {
+        if (str_word_count($text) <= (int) ceil($targetWords * 1.15)) {
+            return $text;
+        }
+
+        $sentences = preg_split('/(?<=[.!?])\s+/u', $text, -1, PREG_SPLIT_NO_EMPTY) ?: [$text];
+        $selected = [];
+        $words = 0;
+
+        foreach ($sentences as $sentence) {
+            $count = str_word_count($sentence);
+            if ($words > 0 && ($words + $count) > (int) ceil($targetWords * 1.15)) {
+                break;
+            }
+            $selected[] = $sentence;
+            $words += $count;
+            if ($words >= $targetWords) {
+                break;
+            }
+        }
+
+        return $selected !== [] ? implode(' ', $selected) : $text;
     }
 }
