@@ -1,4 +1,4 @@
-<div x-data="{ progressModal: null, showCreateForm: false }" @keydown.escape.window="progressModal = null; showCreateForm = false" class="space-y-5">
+<div x-data="{ progressModal: null, showCreateForm: false, previewUrl: null, previewTitle: '', openPreview(url, title) { this.previewUrl = url; this.previewTitle = title; }, closePreview() { if (this.$refs.previewPlayer) { this.$refs.previewPlayer.pause(); this.$refs.previewPlayer.removeAttribute('src'); this.$refs.previewPlayer.load(); } this.previewUrl = null; this.previewTitle = ''; } }" @keydown.escape.window="progressModal = null; showCreateForm = false; if (previewUrl) closePreview()" class="space-y-5">
     @if ($hasBusyRundowns)
         <div wire:poll.4s class="hidden"></div>
     @endif
@@ -260,12 +260,16 @@
                             <th class="px-4 py-3">Título / Origen</th>
                             <th class="px-4 py-3">Tipo / Idioma</th>
                             <th class="px-4 py-3">Estado</th>
-                            <th class="px-4 py-3">Opciones</th>
+                            <th class="px-4 py-3">Duración</th>
                             <th class="px-4 py-3 text-right">Acciones</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-800">
                         @foreach ($rundowns as $rundown)
+                            @php
+                                $durationSec = (int) round((float) ($rundown->tvVideo?->duration_seconds ?: data_get($rundown->broadcastJob?->artifacts, 'master_audio.total_duration_seconds') ?: $rundown->duration_seconds ?: 0));
+                                $canPreview = $rundown->tvVideo && (! empty($rundown->tvVideo->relative_media_path) || ! empty($rundown->tvVideo->file_path) || ! empty($rundown->tvVideo->mp4_url));
+                            @endphp
                             <tr class="hover:bg-slate-800/30 transition-colors {{ $rundown->isBusy() ? 'opacity-90 bg-indigo-950/20' : '' }}">
                                 <td class="px-4 py-3 max-w-xs">
                                     <div class="font-medium text-slate-100 flex items-center gap-2">
@@ -298,6 +302,15 @@
                                             <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-indigo-950 text-indigo-300 border border-indigo-700/70">
                                                 🎨 {{ $rundown->visualStyle->name }}
                                             </span>
+                                        @endif
+                                        @if ($rundown->publish_to_podcast)
+                                            <span title="Exportar a Podcast MP3">🎙️</span>
+                                        @endif
+                                        @if ($rundown->generate_short)
+                                            <span title="Generar Short 9:16">📱</span>
+                                        @endif
+                                        @if ($rundown->evergreen_fallback)
+                                            <span title="Evergreen Fallback">🌲</span>
                                         @endif
                                     </div>
                                 </td>
@@ -341,24 +354,33 @@
                                         </button>
                                     </div>
                                 </td>
-                                <td class="px-4 py-3 text-[11px] text-slate-400 whitespace-nowrap">
-                                    <div class="flex flex-col gap-0.5">
-                                        @if ($rundown->publish_to_podcast) <span>🎙️ Podcast</span> @endif
-                                        @if ($rundown->generate_short) <span>📱 Short</span> @endif
-                                        @if ($rundown->evergreen_fallback) <span>🌲 Evergreen</span> @endif
-                                    </div>
+                                <td class="px-4 py-3 whitespace-nowrap font-mono text-slate-300">
+                                    {{ $durationSec > 0 ? gmdate('H:i:s', $durationSec) : '—' }}
                                 </td>
                                 <td class="px-4 py-3 text-right whitespace-nowrap">
-                                    <div class="flex items-center justify-end gap-2">
+                                    <div class="flex items-center justify-end gap-1.5">
+                                        @if ($canPreview)
+                                            <button
+                                                type="button"
+                                                x-on:click="openPreview('{{ route('tv.videos.stream', ['video' => $rundown->tvVideo->id]) }}', @js($rundown->title ?: 'Vídeo'))"
+                                                class="rounded px-2 py-1 text-xs bg-indigo-600 hover:bg-indigo-500 text-white transition-colors cursor-pointer"
+                                                title="Ver vídeo MP4"
+                                                aria-label="Ver vídeo MP4"
+                                            >
+                                                ▶
+                                            </button>
+                                        @endif
+
                                         @if ($rundown->project_id)
                                             <a
                                                 href="{{ route('projects.show', $rundown->project_id) }}"
                                                 target="_blank"
                                                 rel="noopener"
-                                                class="rounded px-2.5 py-1 text-xs font-medium bg-amber-600 hover:bg-amber-500 text-white transition-colors"
+                                                class="rounded px-2 py-1 text-xs bg-amber-600 hover:bg-amber-500 text-white transition-colors"
                                                 title="Abrir proyecto Videos IA en el Estudio Filmmaker"
+                                                aria-label="Abrir proyecto Videos IA en el Estudio Filmmaker"
                                             >
-                                                🎬 Estudio
+                                                🎬
                                             </a>
                                         @endif
 
@@ -366,30 +388,45 @@
                                             type="button"
                                             wire:click="startEditing('{{ $rundown->id }}')"
                                             @disabled($rundown->isBusy())
-                                            class="rounded px-2.5 py-1 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                            class="rounded px-2 py-1 text-xs bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                                             title="Editar borrador"
+                                            aria-label="Editar borrador"
                                         >
-                                            Editar
+                                            ✏️
                                         </button>
 
                                         <button
                                             type="button"
                                             wire:click="triggerVideoRender('{{ $rundown->id }}')"
                                             @disabled($rundown->isBusy() || empty($rundown->script_text))
-                                            class="rounded bg-indigo-600 hover:bg-indigo-500 px-2.5 py-1 text-xs font-medium text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                            class="rounded bg-emerald-600 hover:bg-emerald-500 px-2 py-1 text-xs text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                                             title="{{ empty($rundown->script_text) ? 'Requiere guion para renderizar' : 'Generar vídeo en Filmmaker' }}"
+                                            aria-label="Generar vídeo en Filmmaker"
                                         >
-                                            Renderizar
+                                            🚀
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            wire:click="regenerateRundown('{{ $rundown->id }}')"
+                                            wire:confirm="¿Regenerar desde cero? Se borrarán el vídeo, planos y audio anteriores de esta escaleta."
+                                            @disabled($rundown->isBusy())
+                                            class="rounded bg-purple-700 hover:bg-purple-600 px-2 py-1 text-xs text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                                            title="Regenerar desde cero (machacar todo)"
+                                            aria-label="Regenerar desde cero"
+                                        >
+                                            🔁
                                         </button>
 
                                         @if ($rundown->stage === 'failed')
                                             <button
                                                 type="button"
                                                 wire:click="retryRundown('{{ $rundown->id }}')"
-                                                class="rounded bg-amber-600 hover:bg-amber-500 px-2.5 py-1 text-xs font-medium text-white transition-colors cursor-pointer"
+                                                class="rounded bg-amber-600 hover:bg-amber-500 px-2 py-1 text-xs text-white transition-colors cursor-pointer"
                                                 title="Reintentar escaleta fallida"
+                                                aria-label="Reintentar escaleta fallida"
                                             >
-                                                🔄 Reintentar
+                                                🔄
                                             </button>
                                         @endif
 
@@ -398,10 +435,11 @@
                                             wire:click="deleteRundown('{{ $rundown->id }}')"
                                             wire:confirm="¿Seguro que deseas eliminar esta escaleta?"
                                             @disabled($rundown->isBusy())
-                                            class="rounded px-2.5 py-1 text-xs font-medium bg-slate-800 hover:bg-rose-900 text-rose-300 hover:text-rose-100 border border-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                            class="rounded px-2 py-1 text-xs bg-slate-800 hover:bg-rose-900 text-rose-300 hover:text-rose-100 border border-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                                             title="Eliminar escaleta"
+                                            aria-label="Eliminar escaleta"
                                         >
-                                            Eliminar
+                                            🗑️
                                         </button>
                                     </div>
                                 </td>
@@ -573,6 +611,48 @@
                 >
                     Cerrar
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Previsualización de Vídeo -->
+    <div
+        x-show="previewUrl !== null"
+        x-cloak
+        x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
+        x-on:click.self="closePreview()"
+    >
+        <div class="relative w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden flex flex-col">
+            <div class="flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-950/50">
+                <h4 class="text-sm font-semibold text-slate-100 truncate flex items-center gap-2">
+                    <span>🎬</span>
+                    <span x-text="previewTitle || 'Previsualización de vídeo'"></span>
+                </h4>
+                <button
+                    type="button"
+                    x-on:click="closePreview()"
+                    class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+                    title="Cerrar modal"
+                >
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="p-4 bg-slate-950 flex justify-center items-center">
+                <video
+                    x-ref="previewPlayer"
+                    :src="previewUrl"
+                    controls
+                    preload="metadata"
+                    class="w-full max-h-[70vh] rounded bg-black"
+                ></video>
             </div>
         </div>
     </div>

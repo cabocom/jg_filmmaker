@@ -289,6 +289,45 @@ final readonly class ManageTvRundownAction
         return $rundown->refresh();
     }
 
+    public function regenerateFromScratch(TvRundown $rundown): TvRundown
+    {
+        if ($rundown->isBusy()) {
+            throw new RuntimeException('La escaleta tiene un proceso activo y no puede regenerarse ahora.', 409);
+        }
+
+        DB::transaction(function () use ($rundown): void {
+            $rundown->tvVideo()?->delete();
+
+            $project = $rundown->project;
+            if ($project !== null) {
+                $project->scenes()->delete();
+                $project->characters()->delete();
+                $project->locations()->delete();
+                $project->update(['status' => 'draft']);
+            }
+
+            $isWikipedia = ($rundown->source_kind === 'wikipedia' || $rundown->source_type === 'wikipedia');
+            $rundown->update([
+                'broadcast_job_id' => null,
+                'filmmaker_job_id' => null,
+                'tv_video_id' => null,
+                'error_message' => null,
+                'script_text' => $isWikipedia ? null : $rundown->script_text,
+                'stage' => $isWikipedia ? 'generating' : 'draft',
+                'status' => $isWikipedia ? 'synthesizing' : 'draft',
+            ]);
+        });
+
+        $fresh = $rundown->refresh();
+        if ($fresh->source_kind === 'wikipedia' || $fresh->source_type === 'wikipedia') {
+            SynthesizeTvRundownJob::dispatch($fresh->id)->onQueue('broadcast');
+
+            return $fresh;
+        }
+
+        return $this->dispatchBroadcastProduction($fresh);
+    }
+
     public function delete(TvRundown $rundown): void
     {
         if ($rundown->isBusy()) {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Studio;
 
+use App\Enums\ProjectCategory;
 use App\Livewire\Studio\Concerns\WithEditorActivityAndTrace;
 use App\Livewire\Studio\Concerns\WithEditorAiPipeline;
 use App\Livewire\Studio\Concerns\WithEditorBlockCrud;
@@ -17,6 +18,7 @@ use App\Livewire\Studio\Concerns\WithEditorShots;
 use App\Livewire\Studio\Concerns\WithEditorStoryboard;
 use App\Livewire\Studio\Concerns\WithEditorTakes;
 use App\Models\Project;
+use App\Models\Scene;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -54,12 +56,32 @@ class ScriptEditor extends Component
         }
 
         // Por defecto, todas las escenas expandidas para lectura continua vertical estilo StoryArchitect
-        $scenes = $this->project->scenes()->get();
+        $scenes = $this->project->scenes()->with('scriptBlocks')->withCount('shots')->get();
         $this->expandedSceneIds = $scenes->pluck('id')->toArray();
 
         foreach ($scenes as $sc) {
-            $this->scenePipelineStages[$sc->id] = 'idea';
+            $this->scenePipelineStages[$sc->id] = $this->resolveInitialSceneStage($sc);
         }
+    }
+
+    private function resolveInitialSceneStage(Scene $scene): string
+    {
+        if ($this->project->category !== ProjectCategory::AI_VIDEO) {
+            return 'idea';
+        }
+
+        $stages = $scene->scriptBlocks->pluck('stage')->map(fn (mixed $s): string => (string) $s)->all();
+        if (in_array('shots', $stages, true) || ($scene->shots_count ?? 0) > 0) {
+            return 'shots';
+        }
+        if (in_array('screenplay', $stages, true)) {
+            return 'screenplay';
+        }
+        if (in_array('structured', $stages, true)) {
+            return 'structured';
+        }
+
+        return 'idea';
     }
 
     /**

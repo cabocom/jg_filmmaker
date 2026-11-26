@@ -174,6 +174,18 @@ class TvRundownsPanel extends Component
         }
     }
 
+    public function regenerateRundown(string $rundownId, ManageTvRundownAction $action): void
+    {
+        $rundown = TvRundown::query()->where('channel_slug', 'ai-today')->findOrFail($rundownId);
+        try {
+            $action->regenerateFromScratch($rundown);
+            $this->justInitiated = true;
+            session()->flash('success', 'Escaleta reiniciada desde cero.');
+        } catch (Throwable $e) {
+            session()->flash('error', $e->getMessage());
+        }
+    }
+
     public function deleteRundown(string $rundownId, ManageTvRundownAction $action): void
     {
         $rundown = TvRundown::query()->where('channel_slug', 'ai-today')->findOrFail($rundownId);
@@ -199,12 +211,12 @@ class TvRundownsPanel extends Component
 
     public function render(ScanAndSyncTvDriveMediaAction $syncAction, ManageTvVisualStyleAction $styleAction): View
     {
-        $rundowns = TvRundown::query()->with(['project', 'visualStyle'])->where('channel_slug', 'ai-today')->latest()->get();
+        $rundowns = TvRundown::query()->with(['project', 'visualStyle', 'tvVideo', 'broadcastJob'])->where('channel_slug', 'ai-today')->latest()->get();
         $hasBusyRundowns = $rundowns->contains(fn (TvRundown $r): bool => $r->isBusy());
 
         if (! $this->justInitiated && $rundowns->contains(fn (TvRundown $r): bool => in_array((string) $r->stage, ['queued', 'rendering'], true))) {
             $syncAction->refreshActiveJobsOnly('ai-today');
-            $rundowns = TvRundown::query()->with(['project', 'visualStyle'])->where('channel_slug', 'ai-today')->latest()->get();
+            $rundowns = TvRundown::query()->with(['project', 'visualStyle', 'tvVideo', 'broadcastJob'])->where('channel_slug', 'ai-today')->latest()->get();
             $hasBusyRundowns = $rundowns->contains(fn (TvRundown $r): bool => $r->isBusy());
         }
         $this->justInitiated = false;
