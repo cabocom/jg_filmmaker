@@ -81,6 +81,23 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                             </svg>
                         </button>
+
+                        <!-- 5. Icono: Renderizar Vídeo Final (Audio-First desde Shots) -->
+                        @php
+                            $hasProjectShots = $scenes->sum(fn ($s) => $s->shots->count()) > 0;
+                        @endphp
+                        <button type="button"
+                                wire:click="renderAudioFirstVideo"
+                                wire:loading.attr="disabled"
+                                @disabled(! $hasProjectShots)
+                                class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition {{ $hasProjectShots ? 'bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer' : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-60' }}"
+                                title="{{ $hasProjectShots ? 'Renderizar vídeo final (Audio-First) usando los Shots actuales del proyecto' : 'Disponible cuando el proyecto llegue a la etapa de Shots' }}">
+                            <span wire:loading.remove wire:target="renderAudioFirstVideo" class="flex items-center gap-1">
+                                <span>🎬</span>
+                                <span class="hidden sm:inline">Render Vídeo</span>
+                            </span>
+                            <span wire:loading wire:target="renderAudioFirstVideo" class="animate-spin text-xs">⏳</span>
+                        </button>
                     </div>
                 </div>
 

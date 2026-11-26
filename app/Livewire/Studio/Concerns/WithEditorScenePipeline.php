@@ -4,12 +4,26 @@ declare(strict_types=1);
 
 namespace App\Livewire\Studio\Concerns;
 
+use App\Actions\Broadcast\RenderProjectAudioFirstVideoAction;
 use App\Actions\Studio\ExecuteBlockPipelineAction;
 use App\Exceptions\QuotaExceededException;
 use App\Services\ScriptPipelineService;
+use Throwable;
 
 trait WithEditorScenePipeline
 {
+    public function renderAudioFirstVideo(RenderProjectAudioFirstVideoAction $action): void
+    {
+        $this->authorize('update', $this->project);
+
+        try {
+            $job = $action->execute($this->project);
+            session()->flash('success', "Render de vídeo Audio-First encolado (Job {$job->id}).");
+        } catch (Throwable $e) {
+            session()->flash('error', $e->getMessage());
+        }
+    }
+
     public function promptRunScenePipeline(string $sceneId): void
     {
         $scene = $this->projectScene($sceneId);
@@ -96,7 +110,7 @@ trait WithEditorScenePipeline
             session()->flash('error', $e->getMessage());
 
             return;
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             session()->flash('error', "Error al procesar el pipeline de la Escena {$scene->scene_order}: {$e->getMessage()}");
 
             return;
