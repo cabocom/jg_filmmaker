@@ -17,6 +17,7 @@ La documentación técnica de `jg_filmmaker` está organizada por directorios de
   - [06. Gestión de Medios y Ensamble FFmpeg](es/06_media_takes_ffmpeg.md)
   - [07. Estrategia de Testing y CI/CD](es/07_testing_quality_cicd.md)
   - [08. Autenticación Passwordless, Panel de Administración y Telemetría](es/08_auth_admin_telemetry.md)
+  - [09. Guía de Puntos Dulces, Ritmo Audiovisual y Mejores Prácticas](es/09_guia_puntos_dulces_y_mejores_practicas.md)
   - [Historia y Evolución del Proyecto](es/TODO_HISTORIA_EVOLUCION.md)
   - [Walkthrough Inicial](es/walkthrough-initial.md)
 
