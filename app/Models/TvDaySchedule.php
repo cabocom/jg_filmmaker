@@ -14,58 +14,45 @@ class TvDaySchedule extends Model
 {
     use HasFactory, HasUuids;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
+    /** @var list<string> */
     protected $fillable = [
         'channel_config_id',
+        'channel_slug',
         'air_date',
+        'schedule_date',
         'title',
         'status',
         'slots',
+        'locked_by_admin',
+        'blocks_json',
         'notes',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
+    /** @return array<string, string> */
     protected function casts(): array
     {
         return [
             'air_date' => 'date',
+            'schedule_date' => 'date',
             'slots' => 'array',
+            'blocks_json' => 'array',
+            'locked_by_admin' => 'boolean',
         ];
     }
 
-    /**
-     * Channel configuration associated with this day schedule.
-     *
-     * @return BelongsTo<TvChannelConfig, $this>
-     */
+    /** @return BelongsTo<TvChannelConfig, $this> */
     public function channelConfig(): BelongsTo
     {
         return $this->belongsTo(TvChannelConfig::class, 'channel_config_id');
     }
 
-    /**
-     * Rundowns scheduled for this day.
-     *
-     * @return HasMany<TvRundown, $this>
-     */
+    /** @return HasMany<TvRundown, $this> */
     public function rundowns(): HasMany
     {
         return $this->hasMany(TvRundown::class, 'day_schedule_id');
     }
 
-    /**
-     * Ad slots scheduled for this day.
-     *
-     * @return HasMany<TvAdSlot, $this>
-     */
+    /** @return HasMany<TvAdSlot, $this> */
     public function adSlots(): HasMany
     {
         return $this->hasMany(TvAdSlot::class, 'day_schedule_id');

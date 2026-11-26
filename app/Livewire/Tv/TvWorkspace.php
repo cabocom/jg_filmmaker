@@ -4,47 +4,54 @@ declare(strict_types=1);
 
 namespace App\Livewire\Tv;
 
-use App\Actions\Tv\ManageTvRundownAction;
+use App\Actions\Tv\ManageTvVideoAction;
+use App\Actions\Tv\ScheduleAiTodayTvDayAction;
 use App\Actions\Tv\SyncTvChannelConfigAction;
 use App\Models\TvAdSlot;
-use App\Models\TvDaySchedule;
-use App\Models\TvRundown;
 use App\Models\TvVideo;
+use App\Services\Broadcast\TvMediaPathResolver;
+use DateTimeImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
+use InvalidArgumentException;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
 use Livewire\Component;
-use Throwable;
+use RuntimeException;
 
 #[Layout('layouts.app')]
 class TvWorkspace extends Component
 {
-    private const array SECTIONS = ['rundowns', 'videos', 'schedule', 'ads', 'config'];
-
-    #[Url]
-    public string $activeSection = 'rundowns';
+    #[Url(as: 'tv_section')]
+    public string $activeSection = 'schedule';
 
     #[Url]
     public bool $embed = false;
 
-    public string $newTitle = '';
+    public string $selectedDate = '';
 
-    public string $newType = 'pill';
+    /** @var array<int, array<string, mixed>> */
+    public array $scheduleBlocks = [];
 
-    public string $newSourceKind = 'wikipedia';
+    public ?string $statusMessage = null;
 
-    public string $newTopicOrUrl = '';
+    public ?string $errorMessage = null;
 
-    public string $newScriptText = '';
+    public string $videoTypeFilter = 'all';
 
-    public string $newVisualCredit = '';
+    public string $youtubeChannelId = '';
 
-    public string $newTtsVoice = 'Kore';
+    public string $youtubeStreamKey = '';
 
-    public bool $newPublishToPodcast = false;
+    public string $youtubeOauthJson = '';
 
-    public bool $newGenerateShort = false;
+    public string $voiceNarrator = 'Kore';
+
+    public string $voiceOrus = 'Orus';
+
+    public string $voicePuck = 'Puck';
+
+    public string $voiceAoede = 'Aoede';
 
     public string $broadcastProfile = '720p30';
 
@@ -52,129 +59,158 @@ class TvWorkspace extends Component
 
     public string $adsDir = 'ai-today/ads';
 
-    public ?string $statusMessage = null;
-
-    public ?string $errorMessage = null;
+    private function assertAdmin(): void
+    {
+        if (! (bool) Auth::user()?->is_admin) {
+            abort(403, 'Acceso restringido a administradores autenticados.');
+        }
+    }
 
     public function mount(SyncTvChannelConfigAction $configAction): void
     {
-        abort_unless((bool) Auth::user()?->is_admin, 403);
+        $this->assertAdmin();
 
-        $config = $configAction->getOrCreateConfig();
-        $this->broadcastProfile = (string) ($config->resolution_profile ?: '720p30');
-        $this->newTtsVoice = (string) ($config->tts_voice ?: 'Kore');
-        $this->videosDir = (string) data_get($config->metadata, 'videos_dir', 'ai-today/videos');
-        $this->adsDir = (string) data_get($config->metadata, 'ads_dir', 'ai-today/ads');
+        $validSections = ['schedule', 'rundowns', 'videos', 'ads', 'config'];
+        if ($this->activeSection === 'schedule' && request()->query('tv_section') === null && in_array(session('tv_active_section'), $validSections, true)) {
+            $this->activeSection = (string) session('tv_active_section');
+        }
+
+        if (! in_array($this->activeSection, $validSections, true)) {
+            $this->activeSection = 'schedule';
+        }
+
+        $this->selectedDate = now()->toDateString();
+        $config = $configAction->getOrCreateConfig('ai-today');
+        $this->youtubeChannelId = (string) ($config->youtube_channel_id ?? '');
+        $voices = is_array($config->voice_profiles_json) ? $config->voice_profiles_json : [];
+        $this->voiceNarrator = (string) ($voices['narrator'] ?? 'Kore');
+        $this->voiceOrus = (string) ($voices['orus'] ?? 'Orus');
+        $this->voicePuck = (string) ($voices['puck'] ?? 'Puck');
+        $this->voiceAoede = (string) ($voices['aoede'] ?? 'Aoede');
+        $this->broadcastProfile = (string) ($config->broadcast_profile ?: '720p30');
+        $this->videosDir = (string) ($config->videos_dir ?: 'ai-today/videos');
+        $this->adsDir = (string) ($config->ads_dir ?: 'ai-today/ads');
     }
 
     public function switchSection(string $section): void
     {
-        $this->activeSection = in_array($section, self::SECTIONS, true) ? $section : 'rundowns';
-        $this->statusMessage = null;
+        $this->assertAdmin();
+        if (in_array($section, ['schedule', 'rundowns', 'videos', 'ads', 'config'], true)) {
+            $this->activeSection = $section;
+            session(['tv_active_section' => $section]);
+        }
+    }
+
+    public function saveManualSchedule(ScheduleAiTodayTvDayAction $action): void
+    {
+        $this->assertAdmin();
         $this->errorMessage = null;
-    }
-
-    public function createRundown(ManageTvRundownAction $action): void
-    {
-        abort_unless((bool) Auth::user()?->is_admin, 403);
-        $this->reset(['statusMessage', 'errorMessage']);
-
-        $rules = [
-            'newTitle' => ['nullable', 'string', 'max:150'],
-            'newType' => ['required', 'string', 'in:pill,program,short'],
-            'newSourceKind' => ['required', 'string', 'in:wikipedia,manual'],
-            'newTopicOrUrl' => $this->newSourceKind === 'wikipedia'
-                ? ['required', 'string', 'max:500']
-                : ['nullable', 'string', 'max:500'],
-            'newScriptText' => $this->newSourceKind === 'manual' && trim($this->newTitle) === ''
-                ? ['required', 'string', 'max:20000']
-                : ['nullable', 'string', 'max:20000'],
-            'newVisualCredit' => ['nullable', 'string', 'max:255'],
-            'newTtsVoice' => ['required', 'string', 'max:100'],
-        ];
-
-        $this->validate($rules);
-
-        $rundown = $action->createFromPromptOrSource([
-            'title' => $this->newTitle,
-            'format' => $this->newType,
-            'source_type' => $this->newSourceKind,
-            'topic_or_url' => $this->newTopicOrUrl !== '' ? $this->newTopicOrUrl : null,
-            'script_text' => $this->newScriptText !== '' ? $this->newScriptText : null,
-            'visual_credit' => $this->newVisualCredit !== '' ? $this->newVisualCredit : null,
-            'tts_voice' => $this->newTtsVoice,
-            'resolution_profile' => $this->broadcastProfile,
-        ], Auth::user());
-
-        $this->reset(['newTitle', 'newTopicOrUrl', 'newScriptText', 'newVisualCredit']);
-        $this->statusMessage = "Escaleta «{$rundown->title}» creada y vinculada al Estudio.";
-    }
-
-    public function dispatchProduction(string $rundownId, ManageTvRundownAction $action): void
-    {
-        abort_unless((bool) Auth::user()?->is_admin, 403);
-        $this->reset(['statusMessage', 'errorMessage']);
-        $rundown = TvRundown::query()->findOrFail($rundownId);
-
         try {
-            $action->dispatchBroadcastProduction($rundown);
-            $this->statusMessage = "Producción broadcast encolada para «{$rundown->title}».";
-        } catch (Throwable $e) {
+            $this->validate(['selectedDate' => ['required', 'date_format:Y-m-d']]);
+            $date = $this->selectedDate;
+            $existing = $action->getOrPlanDay($date);
+            $blocks = ! empty($this->scheduleBlocks) ? $this->scheduleBlocks : (is_array($existing->blocks_json) ? $existing->blocks_json : []);
+            $action->saveManualBlocks($date, $blocks);
+            $this->statusMessage = 'Parrilla diaria guardada y bloqueada manualmente.';
+        } catch (InvalidArgumentException|RuntimeException $e) {
             $this->errorMessage = $e->getMessage();
         }
     }
 
-    public function deleteRundown(string $rundownId, ManageTvRundownAction $action): void
+    public function forceReplanWithAi(ScheduleAiTodayTvDayAction $action): void
     {
-        abort_unless((bool) Auth::user()?->is_admin, 403);
-        $this->reset(['statusMessage', 'errorMessage']);
-        $rundown = TvRundown::query()->findOrFail($rundownId);
-        $title = $rundown->title;
-        $action->delete($rundown);
-        $this->statusMessage = "Escaleta «{$title}» eliminada.";
+        $this->assertAdmin();
+        $this->errorMessage = null;
+        try {
+            $this->validate(['selectedDate' => ['required', 'date_format:Y-m-d']]);
+            $action->proposeAiDay($this->selectedDate, forceReplan: true);
+            $this->statusMessage = 'Parrilla replanificada con IA exitosamente.';
+        } catch (InvalidArgumentException|RuntimeException $e) {
+            $this->errorMessage = $e->getMessage();
+        }
     }
 
-    public function saveChannelConfig(SyncTvChannelConfigAction $action): void
+    public function saveChannelConfig(SyncTvChannelConfigAction $action, TvMediaPathResolver $pathResolver): void
     {
-        abort_unless((bool) Auth::user()?->is_admin, 403);
-        $this->reset(['statusMessage', 'errorMessage']);
-
+        $this->assertAdmin();
         $this->validate([
-            'broadcastProfile' => ['required', 'string', 'in:720p30,1080p30'],
-            'newTtsVoice' => ['required', 'string', 'max:100'],
+            'broadcastProfile' => ['required', 'in:720p30,1080p30'],
             'videosDir' => ['required', 'string', 'max:255'],
             'adsDir' => ['required', 'string', 'max:255'],
         ]);
 
-        $config = $action->getOrCreateConfig();
-        $metadata = is_array($config->metadata) ? $config->metadata : [];
-        $metadata['videos_dir'] = trim($this->videosDir);
-        $metadata['ads_dir'] = trim($this->adsDir);
-        $metadata['publish_to_podcast'] = $this->newPublishToPodcast;
-        $metadata['generate_short'] = $this->newGenerateShort;
+        $hasErrors = false;
+        try {
+            $pathResolver->normalizeRelativePath($this->videosDir, requireMp4Extension: false);
+        } catch (InvalidArgumentException $e) {
+            $this->addError('videosDir', $e->getMessage());
+            $hasErrors = true;
+        }
+        try {
+            $pathResolver->normalizeRelativePath($this->adsDir, requireMp4Extension: false);
+        } catch (InvalidArgumentException $e) {
+            $this->addError('adsDir', $e->getMessage());
+            $hasErrors = true;
+        }
+        if ($hasErrors) {
+            return;
+        }
 
-        $action->saveConfig([
-            'resolution_profile' => $this->broadcastProfile,
-            'tts_voice' => $this->newTtsVoice,
-            'metadata' => $metadata,
-        ], $config);
+        try {
+            $action->saveMediaStorageConfig('ai-today', $this->broadcastProfile, $this->videosDir, $this->adsDir);
+        } catch (InvalidArgumentException $e) {
+            $this->addError('broadcastProfile', $e->getMessage());
 
-        $this->statusMessage = 'Configuración del canal guardada correctamente.';
+            return;
+        }
+
+        $action->saveYoutubeCredentials('ai-today', $this->youtubeChannelId, $this->youtubeOauthJson, $this->youtubeStreamKey);
+        $action->saveVoiceProfiles('ai-today', [
+            'narrator' => $this->voiceNarrator,
+            'orus' => $this->voiceOrus,
+            'puck' => $this->voicePuck,
+            'aoede' => $this->voiceAoede,
+        ]);
+
+        $this->youtubeStreamKey = '';
+        $this->youtubeOauthJson = '';
+        $this->statusMessage = 'Configuración de YouTube y voces actualizada.';
     }
 
-    public function render(SyncTvChannelConfigAction $configAction): View
-    {
-        $channelConfig = $configAction->getOrCreateConfig();
+    public function render(
+        ScheduleAiTodayTvDayAction $scheduleAction,
+        ManageTvVideoAction $videoAction,
+        SyncTvChannelConfigAction $configAction
+    ): View {
+        $date = $this->normalizeDate($this->selectedDate);
+        $schedule = $scheduleAction->getOrPlanDay($date);
+        $query = TvVideo::query()->where('channel_slug', 'ai-today');
+        if (in_array($this->videoTypeFilter, ['pill', 'news', 'debate', 'music'], true)) {
+            $query->where('type', $this->videoTypeFilter);
+        }
 
         return view('livewire.tv.tv-workspace', [
-            'channelConfig' => $channelConfig,
-            'rundowns' => TvRundown::query()->with(['project', 'tvVideo', 'broadcastJob'])->latest()->get(),
-            'videos' => TvVideo::query()->with('rundown')->latest()->get(),
-            'schedules' => TvDaySchedule::query()->orderByDesc('air_date')->get(),
-            'adSlots' => TvAdSlot::query()->orderBy('sort_order')->get(),
+            'schedule' => $schedule,
+            'coverageReport' => $scheduleAction->computeCoverageReport($schedule),
+            'videos' => $query->latest()->get(),
+            'adSlots' => TvAdSlot::query()->where('channel_slug', 'ai-today')->latest()->get(),
+            'channelConfig' => $configAction->getOrCreateConfig('ai-today'),
+            'queueStats' => $videoAction->stageCounts('ai-today'),
+            'nonCompliantVideos' => TvVideo::query()->where('channel_slug', 'ai-today')->where('broadcast_compliant', false)->get(),
+            'nonCompliantAds' => TvAdSlot::query()->where('channel_slug', 'ai-today')->where('broadcast_compliant', false)->get(),
         ])->layoutData([
-            'title' => 'Consola de Televisión IA',
+            'title' => 'Canal TV AI Today',
             'embed' => $this->embed,
         ]);
+    }
+
+    protected function normalizeDate(?string $value): string
+    {
+        $v = trim((string) $value);
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $v) === 1 && DateTimeImmutable::createFromFormat('Y-m-d', $v)?->format('Y-m-d') === $v) {
+            return $v;
+        }
+
+        return now()->toDateString();
     }
 }

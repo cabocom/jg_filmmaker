@@ -24,9 +24,7 @@ class SynthesizeTvRundownJob implements ShouldQueue
 
     public int $timeout = 120;
 
-    /**
-     * @return list<int>
-     */
+    /** @return list<int> */
     public function backoff(): array
     {
         return [10, 30, 90];
@@ -41,13 +39,13 @@ class SynthesizeTvRundownJob implements ShouldQueue
     public function handle(WikipediaRundownSynthesizer $synthesizer): void
     {
         $rundown = TvRundown::query()->find($this->rundownId);
-
         if ($rundown === null) {
             return;
         }
 
         $rundown->update([
             'status' => 'synthesizing',
+            'stage' => 'generating',
             'error_message' => null,
         ]);
 
@@ -60,7 +58,9 @@ class SynthesizeTvRundownJob implements ShouldQueue
             'script_text' => $result['script_text'],
             'visual_credit' => $result['visual_credit'],
             'sources' => $result['sources'],
+            'sources_json' => $result['sources'],
             'status' => 'draft',
+            'stage' => 'draft',
             'error_message' => null,
         ]);
 
@@ -70,10 +70,10 @@ class SynthesizeTvRundownJob implements ShouldQueue
     public function failed(Throwable $exception): void
     {
         $rundown = TvRundown::query()->find($this->rundownId);
-
         if ($rundown !== null) {
             $rundown->update([
                 'status' => 'failed',
+                'stage' => 'failed',
                 'error_message' => mb_substr($exception->getMessage(), 0, 1000),
             ]);
         }
@@ -86,9 +86,7 @@ class SynthesizeTvRundownJob implements ShouldQueue
             return;
         }
 
-        $project->update([
-            'title' => $rundown->title,
-        ]);
+        $project->update(['title' => $rundown->title]);
 
         $scriptText = trim((string) $rundown->script_text);
         if ($scriptText === '') {
@@ -117,8 +115,6 @@ class SynthesizeTvRundownJob implements ShouldQueue
             return;
         }
 
-        $block->update([
-            'raw_text' => $scriptText,
-        ]);
+        $block->update(['raw_text' => $scriptText]);
     }
 }

@@ -6,6 +6,7 @@ use App\Http\Controllers\AudioStreamController;
 use App\Http\Controllers\Auth\IframeSsoController;
 use App\Http\Controllers\MediaStreamController;
 use App\Http\Controllers\ScriptExportController;
+use App\Http\Controllers\TvVideoStreamController;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Livewire\Admin\PricingManager;
 use App\Livewire\Admin\ProjectManager;
@@ -43,6 +44,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/tv', TvWorkspace::class)
         ->middleware(EnsureUserIsAdmin::class)
         ->name('tv.index');
+    Route::get('/tv/videos/{video}/stream', TvVideoStreamController::class)
+        ->middleware(EnsureUserIsAdmin::class)
+        ->name('tv.videos.stream');
     Route::get('/projects/{project}', ScriptEditor::class)
         ->middleware('can:view,project')
         ->name('projects.show');

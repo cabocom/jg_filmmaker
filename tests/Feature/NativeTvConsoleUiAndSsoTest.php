@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\ProjectCategory;
-use App\Livewire\Tv\TvWorkspace;
+use App\Livewire\Tv\TvAdsPanel;
+use App\Livewire\Tv\TvRundownsPanel;
+use App\Livewire\Tv\TvVideosPanel;
 use App\Models\Project;
 use App\Models\TvRundown;
 use App\Models\User;
@@ -51,11 +53,11 @@ class NativeTvConsoleUiAndSsoTest extends TestCase
         $adminUser = User::factory()->create(['is_admin' => true]);
 
         $component = Livewire::actingAs($adminUser)
-            ->test(TvWorkspace::class)
-            ->set('newSourceKind', 'manual')
-            ->set('newType', 'pill')
-            ->set('newTitle', 'Escaleta Test Estudio')
-            ->set('newScriptText', 'Guion de prueba para verificar enlace directo al Estudio.')
+            ->test(TvRundownsPanel::class)
+            ->set('sourceKind', 'manual')
+            ->set('rundownType', 'pill')
+            ->set('title', 'Escaleta Test Estudio')
+            ->set('scriptText', 'Guion de prueba para verificar enlace directo al Estudio.')
             ->call('createRundown')
             ->assertHasNoErrors();
 
@@ -74,7 +76,10 @@ class NativeTvConsoleUiAndSsoTest extends TestCase
 
         $component
             ->assertSeeHtml(route('projects.show', $rundown->project_id))
-            ->assertSee('Abrir en Estudio');
+            ->assertSee('Estudio');
+
+        Livewire::actingAs($adminUser)->test(TvVideosPanel::class)->assertOk();
+        Livewire::actingAs($adminUser)->test(TvAdsPanel::class)->assertOk();
     }
 
     public function test_iframe_sso_authenticates_admin_and_blocks_replay_tampering_and_open_redirect(): void
