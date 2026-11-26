@@ -118,15 +118,16 @@ final readonly class RenderShotClipAction
         string $shotId,
         ?BroadcastJob $job = null
     ): void {
-        $inputArgs = $visualType === 'video' ? ['-i', $visualPath] : ['-loop', '1', '-i', $visualPath];
+        $inputArgs = $visualType === 'video' ? ['-i', $visualPath] : ['-loop', '1', '-framerate', '30', '-i', $visualPath];
         $is720p = (($job?->artifacts['resolution_profile'] ?? '1080p30') === '720p30');
         $w = $is720p ? 1280 : 1920;
         $h = $is720p ? 720 : 1080;
-        $vfFilter = sprintf('scale=%d:%d:force_original_aspect_ratio=decrease,pad=%d:%d:(ow-iw)/2:(oh-ih)/2,subtitles=%s', $w, $h, $w, $h, $assPath);
+        $vfFilter = sprintf('fps=30,scale=%d:%d:force_original_aspect_ratio=decrease,pad=%d:%d:(ow-iw)/2:(oh-ih)/2,subtitles=%s', $w, $h, $w, $h, $assPath);
 
         $ffmpegArgs = [
             'ffmpeg', '-y', ...$inputArgs, '-i', $audioPath,
-            '-r', '30', '-c:v', 'libx264', '-profile:v', 'high', '-level', '4.1',
+            '-r', '30', '-fps_mode', 'cfr', '-video_track_timescale', '30000',
+            '-c:v', 'libx264', '-profile:v', 'high', '-level', '4.1',
             '-pix_fmt', 'yuv420p', '-vf', $vfFilter, '-c:a', 'aac',
             '-ar', '48000', '-ac', '2', '-shortest', $clipPath,
         ];
