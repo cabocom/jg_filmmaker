@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\DTOs\Storyboard\VisualAestheticConfigDTO;
+use App\Enums\ProjectCategory;
 use App\Models\Character;
 use App\Models\Location;
 use App\Models\Shot;
 use App\Services\JgAgente\AgentClientService;
+use App\Services\Storyboard\BroadcastFramePromptBuilder;
 use App\Services\Storyboard\StoryboardImageProcessor;
 use App\Services\Storyboard\StoryboardPromptBuilder;
 use Illuminate\Support\Facades\Log;
@@ -35,9 +38,35 @@ class StoryboardService
             'description' => 'Novela gráfica europea de ciencia ficción distópica, textura al pastel graso, tonos apagados ocres/azules y mirada melancólica.',
             'modifier' => 'Graphic novel panel in the distinct art style of Enki Bilal, European bande dessinée, textured chalk and oil pastel, gritty dystopian atmosphere, desaturated muted color palette with chalky blues and ochre, weathered look, expressive melancholy gaze, cinematic sci-fi noir, 16:9.',
         ],
+        'editorial_documentary_35mm' => [
+            'name' => 'Documental 35mm',
+            'badge' => 'Doc 35mm',
+            'description' => 'Fotografía documental cinematográfica en 35mm, iluminación natural, grano orgánico y profundidad de campo real.',
+            'modifier' => 'Cinematic 35mm documentary photography still, natural motivated lighting, subtle organic film grain, shallow depth of field, authentic editorial realism, 16:9 widescreen.',
+        ],
+        'clean_editorial_illustration' => [
+            'name' => 'Ilustración Editorial',
+            'badge' => 'Editorial',
+            'description' => 'Ilustración editorial moderna de líneas limpias, sombreado plano elegante y paleta armónica de revista.',
+            'modifier' => 'Modern clean editorial illustration, crisp confident linework, refined flat color blocking, subtle paper texture, harmonious magazine palette, sophisticated visual storytelling, 16:9 widescreen.',
+        ],
+        'cinematic_tech_minimal' => [
+            'name' => 'Tech Minimalista',
+            'badge' => 'Tech Minimal',
+            'description' => 'Estética tecnológica minimalista de alto contraste, iluminación de estudio arquitectónica y composición limpia.',
+            'modifier' => 'Minimalist high-tech architectural cinematography, clean geometric composition, crisp studio key lighting, cool slate and subtle cyan accents, sleek modern production design, 16:9 widescreen.',
+        ],
+        'scifi_painterly' => [
+            'name' => 'Sci-Fi Pictórico',
+            'badge' => 'Sci-Fi Pictórico',
+            'description' => 'Arte conceptual pictórico de ciencia ficción, pincelada atmosférica, luz volumétrica y escala épica.',
+            'modifier' => 'Painterly sci-fi concept art still, expressive atmospheric brushwork, volumetric lighting, rich tonal contrast, epic environmental scale, cinematic matte-painting finish, 16:9 widescreen.',
+        ],
     ];
 
     protected StoryboardPromptBuilder $promptBuilder;
+
+    protected BroadcastFramePromptBuilder $broadcastPromptBuilder;
 
     protected StoryboardImageProcessor $imageProcessor;
 
@@ -45,10 +74,12 @@ class StoryboardService
         protected ?AgentClientService $agentClient = null,
         ?StoryboardPromptBuilder $promptBuilder = null,
         ?StoryboardImageProcessor $imageProcessor = null,
-        protected ?AgentTelemetryService $telemetryService = null
+        protected ?AgentTelemetryService $telemetryService = null,
+        ?BroadcastFramePromptBuilder $broadcastPromptBuilder = null
     ) {
         $this->agentClient = $agentClient ?? app(AgentClientService::class);
         $this->promptBuilder = $promptBuilder ?? new StoryboardPromptBuilder(self::STYLES);
+        $this->broadcastPromptBuilder = $broadcastPromptBuilder ?? new BroadcastFramePromptBuilder($this->promptBuilder, self::STYLES);
         $this->imageProcessor = $imageProcessor ?? new StoryboardImageProcessor;
         $this->telemetryService = $telemetryService ?? app(AgentTelemetryService::class);
     }
@@ -66,8 +97,17 @@ class StoryboardService
         ?string $style = null,
         ?string $characterId = null,
         ?string $locationId = null,
-        int $propCount = 0
+        int $propCount = 0,
+        ?VisualAestheticConfigDTO $aestheticConfig = null
     ): string {
+        $config = $this->resolveAestheticConfig($shot, $aestheticConfig);
+
+        if ($config->isFullBleed()) {
+            $styleKey = $this->resolveStyleKey($shot, $style);
+
+            return $this->broadcastPromptBuilder->buildPrompt($shot, $styleKey, $config, $characterId, $locationId, $propCount);
+        }
+
         return $this->promptBuilder->buildPrompt($shot, $style, $characterId, $locationId, $propCount);
     }
 
@@ -80,7 +120,9 @@ class StoryboardService
         ?string $customPrompt = null,
         ?string $characterId = null,
         ?string $locationId = null,
-        array $propImages = []
+        array $propImages = [],
+        ?VisualAestheticConfigDTO $aestheticConfig = null,
+        ?string $styleReferenceImageBase64 = null
     ): string {
         $shot->loadMissing(['scene.project.characters', 'scene.project.locations']);
         $projectId = $shot->scene?->project_id ?? 'global';
@@ -90,17 +132,14 @@ class StoryboardService
             throw new RuntimeException('Saldo insuficiente de tokens diarios para generar la viñeta de storyboard.');
         }
 
-        $styleKey = $style ?? $shot->scene?->project?->storyboard_style ?? 'grayscale_sketch';
-        if (! array_key_exists($styleKey, self::STYLES)) {
-            $styleKey = 'grayscale_sketch';
-        }
-
+        $styleKey = $this->resolveStyleKey($shot, $style);
+        $effectiveConfig = $this->resolveAestheticConfig($shot, $aestheticConfig);
         $propImagesSlice = array_slice($propImages, 0, 3);
         $prompt = ! empty(trim((string) $customPrompt))
             ? trim($customPrompt)
-            : $this->buildPrompt($shot, $styleKey, $characterId, $locationId, count($propImagesSlice));
+            : $this->buildPrompt($shot, $styleKey, $characterId, $locationId, count($propImagesSlice), $effectiveConfig);
 
-        $payload = $this->prepareAgentPayload($shot, $prompt, $styleKey, $characterId, $locationId, $propImagesSlice);
+        $payload = $this->prepareAgentPayload($shot, $prompt, $styleKey, $characterId, $locationId, $propImagesSlice, $effectiveConfig, $styleReferenceImageBase64);
         $result = $this->agentClient->callTool('generate_storyboard', $payload);
 
         if (! ($result['success'] ?? false)) {
@@ -140,35 +179,47 @@ class StoryboardService
         $telemetry['output_tokens'] = $telemetry['output_tokens'] ?? 50;
 
         $this->telemetryService->record(
-            projectId: $projectId,
-            scriptBlockId: $shot->script_block_id,
-            toolName: 'generate_storyboard',
+            projectId: $projectId, scriptBlockId: $shot->script_block_id, toolName: 'generate_storyboard',
             inputPayload: ['prompt' => $prompt, 'style' => $styleKey],
             outputPayload: ['mime_type' => $mimeType, 'storyboard' => 'generated'],
-            telemetry: $telemetry,
-            userId: $user?->id
+            telemetry: $telemetry, userId: $user?->id
         );
 
-        return $this->persistStoryboardImage($shot, $projectId, $imageBytes, $mimeType, $styleKey, $prompt);
+        return $this->persistStoryboardImage($shot, $projectId, $imageBytes, $mimeType, $styleKey, $prompt, $effectiveConfig);
+    }
+
+    protected function resolveStyleKey(Shot $shot, ?string $style): string
+    {
+        $styleKey = $style ?? $shot->scene?->project?->storyboard_style ?? 'grayscale_sketch';
+
+        return array_key_exists($styleKey, self::STYLES) ? $styleKey : 'grayscale_sketch';
+    }
+
+    protected function resolveAestheticConfig(Shot $shot, ?VisualAestheticConfigDTO $override = null): VisualAestheticConfigDTO
+    {
+        if ($override !== null) {
+            return $override;
+        }
+        $shot->loadMissing('scene.project');
+        $project = $shot->scene?->project;
+        $defaultMode = $project?->categoryEnum() === ProjectCategory::AI_VIDEO
+            ? VisualAestheticConfigDTO::MODE_FULL_BLEED
+            : VisualAestheticConfigDTO::MODE_STORYBOARD;
+        $rawConfig = is_array($shot->visual_aesthetic_config) && $shot->visual_aesthetic_config !== []
+            ? $shot->visual_aesthetic_config
+            : (is_array($project?->visual_aesthetic_config) ? $project->visual_aesthetic_config : []);
+
+        return VisualAestheticConfigDTO::fromArray($rawConfig, $defaultMode);
     }
 
     protected function prepareAgentPayload(
-        Shot $shot,
-        string $prompt,
-        string $styleKey,
-        ?string $characterId,
-        ?string $locationId,
-        array $propImagesSlice
+        Shot $shot, string $prompt, string $styleKey, ?string $characterId, ?string $locationId,
+        array $propImagesSlice, VisualAestheticConfigDTO $effectiveConfig, ?string $styleReferenceImageBase64 = null
     ): array {
         $character = $this->resolveCharacterModel($shot, $characterId);
-        $charImgData = ($character && $character->hasReferenceImage())
-            ? $this->imageProcessor->getStorageImageData($character->reference_image_path)
-            : null;
-
+        $charImgData = ($character && $character->hasReferenceImage()) ? $this->imageProcessor->getStorageImageData($character->reference_image_path) : null;
         $location = $this->resolveLocationModel($shot, $locationId);
-        $locImgData = ($location && $location->hasReferenceImage())
-            ? $this->imageProcessor->getStorageImageData($location->reference_image_path)
-            : null;
+        $locImgData = ($location && $location->hasReferenceImage()) ? $this->imageProcessor->getStorageImageData($location->reference_image_path) : null;
 
         $propsData = [];
         foreach ($propImagesSlice as $propItem) {
@@ -179,14 +230,13 @@ class StoryboardService
         }
 
         return [
-            'prompt' => $prompt,
-            'style' => $styleKey,
-            'character_name' => $character?->name,
-            'character_image_base64' => $charImgData ? $charImgData['data'] : null,
-            'location_name' => $location?->name,
-            'location_image_base64' => $locImgData ? $locImgData['data'] : null,
-            'prop_images_base64' => $propsData,
-            'aspect_ratio' => '16:9',
+            'prompt' => $prompt, 'style' => $styleKey,
+            'character_name' => $character?->name, 'character_image_base64' => $charImgData ? $charImgData['data'] : null,
+            'location_name' => $location?->name, 'location_image_base64' => $locImgData ? $locImgData['data'] : null,
+            'prop_images_base64' => $propsData, 'aspect_ratio' => '16:9',
+            'render_mode' => $effectiveConfig->renderMode, 'color_palette' => $effectiveConfig->colorPalette,
+            'lighting_style' => $effectiveConfig->lightingStyle, 'camera_lens' => $effectiveConfig->cameraLens,
+            'negative_directives' => $effectiveConfig->negativeDirectives, 'style_reference_image_base64' => $styleReferenceImageBase64,
         ];
     }
 
@@ -196,7 +246,8 @@ class StoryboardService
         string $imageBytes,
         string $mimeType,
         string $styleKey,
-        string $prompt
+        string $prompt,
+        VisualAestheticConfigDTO $effectiveConfig
     ): string {
         if ($shot->storyboard_image_path) {
             if (Storage::disk('local')->exists($shot->storyboard_image_path)) {
@@ -215,6 +266,7 @@ class StoryboardService
             'storyboard_image_path' => $filename,
             'storyboard_style' => $styleKey,
             'storyboard_prompt' => $prompt,
+            'visual_aesthetic_config' => $effectiveConfig->toArray(),
         ]);
 
         return $filename;

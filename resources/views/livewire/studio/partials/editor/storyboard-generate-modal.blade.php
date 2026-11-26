@@ -170,6 +170,88 @@
                         </div>
                     </div>
 
+                    <!-- Modo Visual -->
+                    <div class="space-y-2">
+                        <label class="block text-[11px] font-bold text-slate-200">
+                            🖼️ Modo Visual:
+                        </label>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <button type="button"
+                                    wire:click="$set('storyboardRenderMode', 'full_bleed_frame')"
+                                    class="px-3 py-2 rounded-lg text-xs font-semibold border text-left transition cursor-pointer {{ $storyboardRenderMode === 'full_bleed_frame' ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs' : 'bg-slate-800/80 hover:bg-slate-800 text-slate-300 border-slate-700' }}">
+                                Fotograma 16:9 Limpio (Sin texto/bordes)
+                            </button>
+                            <button type="button"
+                                    wire:click="$set('storyboardRenderMode', 'storyboard_sketch')"
+                                    class="px-3 py-2 rounded-lg text-xs font-semibold border text-left transition cursor-pointer {{ $storyboardRenderMode === 'storyboard_sketch' ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs' : 'bg-slate-800/80 hover:bg-slate-800 text-slate-300 border-slate-700' }}">
+                                Boceto de Storyboard
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Dirección de Arte y Estética -->
+                    <div class="p-3.5 rounded-xl bg-slate-800/40 border border-slate-700/60 space-y-3">
+                        <div class="text-[11px] font-bold text-slate-200">
+                            🎬 Dirección de Arte y Estética
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div class="space-y-1">
+                                <label for="storyboard_color_palette" class="block text-[11px] font-semibold text-slate-300">
+                                    Paleta de Color
+                                </label>
+                                <input id="storyboard_color_palette"
+                                       type="text"
+                                       wire:model.live.debounce.300ms="storyboardColorPalette"
+                                       placeholder="Ej. Teal & amber, desaturado frío..."
+                                       class="w-full text-xs rounded-lg bg-slate-900 border border-slate-700 text-slate-200 p-2 focus:ring-1 focus:ring-amber-500 placeholder-slate-500">
+                            </div>
+                            <div class="space-y-1">
+                                <label for="storyboard_lighting_style" class="block text-[11px] font-semibold text-slate-300">
+                                    Iluminación
+                                </label>
+                                <input id="storyboard_lighting_style"
+                                       type="text"
+                                       wire:model.live.debounce.300ms="storyboardLightingStyle"
+                                       placeholder="Ej. Chiaroscuro, luz natural de ventana..."
+                                       class="w-full text-xs rounded-lg bg-slate-900 border border-slate-700 text-slate-200 p-2 focus:ring-1 focus:ring-amber-500 placeholder-slate-500">
+                            </div>
+                            <div class="space-y-1">
+                                <label for="storyboard_camera_lens" class="block text-[11px] font-semibold text-slate-300">
+                                    Óptica y Cámara
+                                </label>
+                                <input id="storyboard_camera_lens"
+                                       type="text"
+                                       wire:model.live.debounce.300ms="storyboardCameraLens"
+                                       placeholder="Ej. 35mm anamórfico, f/1.8..."
+                                       class="w-full text-xs rounded-lg bg-slate-900 border border-slate-700 text-slate-200 p-2 focus:ring-1 focus:ring-amber-500 placeholder-slate-500">
+                            </div>
+                            <div class="space-y-1">
+                                <label for="storyboard_negative_directives" class="block text-[11px] font-semibold text-slate-300">
+                                    Directivas Negativas
+                                </label>
+                                <input id="storyboard_negative_directives"
+                                       type="text"
+                                       wire:model.live.debounce.300ms="storyboardNegativeDirectives"
+                                       placeholder="Ej. Sin texto, sin marcos, sin marcas de agua..."
+                                       class="w-full text-xs rounded-lg bg-slate-900 border border-slate-700 text-slate-200 p-2 focus:ring-1 focus:ring-amber-500 placeholder-slate-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    @if($modalShot?->hasStoryboard())
+                        <div class="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2">
+                            <div class="flex items-center justify-between text-[11px] font-bold text-slate-200">
+                                <span>👁️ Previsualización Actual (16:9)</span>
+                                @if($storyboardPreviewVersion > 0)
+                                    <span class="text-[10px] font-mono text-emerald-400">Prueba v{{ $storyboardPreviewVersion }}</span>
+                                @endif
+                            </div>
+                            <img src="{{ $modalShot->storyboard_url }}?v={{ $storyboardPreviewVersion }}"
+                                 alt="Previsualización Shot #{{ $modalShot->shot_number }}"
+                                 class="w-full aspect-video object-cover rounded-lg">
+                        </div>
+                    @endif
+
                     <!-- Prompt Editable -->
                     <div class="space-y-2">
                         <div class="flex items-center justify-between">
@@ -264,22 +346,34 @@
                 </div>
 
                 <!-- Footer -->
-                <div class="px-6 py-4 bg-slate-950/90 border-t border-slate-800 flex items-center justify-between">
+                <div class="px-6 py-4 bg-slate-950/90 border-t border-slate-800 flex items-center justify-between gap-3">
                     <button type="button"
                             wire:click="closeStoryboardModal"
                             class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-800 border border-slate-700 transition cursor-pointer">
                         Cancelar
                     </button>
-                    <button type="button"
-                            wire:click="confirmGenerateStoryboard"
-                            wire:loading.attr="disabled"
-                            @if(! $hasEnoughStoryboard) disabled @endif
-                            class="px-5 py-2 rounded-xl {{ $hasEnoughStoryboard ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md' : 'bg-slate-800 text-slate-500 cursor-not-allowed' }} text-xs font-bold flex items-center gap-2 cursor-pointer transition disabled:opacity-50">
-                        <span wire:loading.remove wire:target="confirmGenerateStoryboard">✨ Generar Viñeta con IA</span>
-                        <span wire:loading wire:target="confirmGenerateStoryboard" class="flex items-center gap-1.5">
-                            ⏳ Enviando a Google AI Studio...
-                        </span>
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <button type="button"
+                                wire:click="testGenerateStoryboardInModal"
+                                wire:loading.attr="disabled"
+                                @if(! $hasEnoughStoryboard) disabled @endif
+                                class="px-4 py-2 rounded-xl {{ $hasEnoughStoryboard ? 'bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/40' : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed' }} text-xs font-bold flex items-center gap-2 cursor-pointer transition disabled:opacity-50">
+                            <span wire:loading.remove wire:target="testGenerateStoryboardInModal">🧪 Probar Imagen</span>
+                            <span wire:loading wire:target="testGenerateStoryboardInModal" class="flex items-center gap-1.5">
+                                ⏳ Probando...
+                            </span>
+                        </button>
+                        <button type="button"
+                                wire:click="confirmGenerateStoryboard"
+                                wire:loading.attr="disabled"
+                                @if(! $hasEnoughStoryboard) disabled @endif
+                                class="px-5 py-2 rounded-xl {{ $hasEnoughStoryboard ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md' : 'bg-slate-800 text-slate-500 cursor-not-allowed' }} text-xs font-bold flex items-center gap-2 cursor-pointer transition disabled:opacity-50">
+                            <span wire:loading.remove wire:target="confirmGenerateStoryboard">✨ Generar Viñeta con IA</span>
+                            <span wire:loading wire:target="confirmGenerateStoryboard" class="flex items-center gap-1.5">
+                                ⏳ Enviando a Google AI Studio...
+                            </span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

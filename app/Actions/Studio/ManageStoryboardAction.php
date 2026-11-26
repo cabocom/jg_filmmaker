@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Studio;
 
+use App\DTOs\Storyboard\VisualAestheticConfigDTO;
 use App\Models\Project;
 use App\Models\Shot;
 use App\Models\User;
@@ -36,7 +37,8 @@ final readonly class ManageStoryboardAction
         ?string $characterId = null,
         ?string $locationId = null,
         int $propCount = 0,
-        ?StoryboardService $storyboardService = null
+        ?StoryboardService $storyboardService = null,
+        ?VisualAestheticConfigDTO $aestheticConfig = null
     ): string {
         $storyboardService ??= app(StoryboardService::class);
 
@@ -45,7 +47,8 @@ final readonly class ManageStoryboardAction
             style: $style,
             characterId: $characterId,
             locationId: $locationId,
-            propCount: $propCount
+            propCount: $propCount,
+            aestheticConfig: $aestheticConfig
         );
     }
 
@@ -63,7 +66,8 @@ final readonly class ManageStoryboardAction
         ?string $locationId = null,
         array $propImages = [],
         ?User $user = null,
-        ?StoryboardService $storyboardService = null
+        ?StoryboardService $storyboardService = null,
+        ?VisualAestheticConfigDTO $aestheticConfig = null
     ): array {
         $user ??= auth()->user() ?? $shot->scene?->project?->user;
         $storyboardService ??= app(StoryboardService::class);
@@ -74,8 +78,21 @@ final readonly class ManageStoryboardAction
         }
 
         try {
-            $storyboardService->generateStoryboard($shot, $style, $prompt, $characterId, $locationId, $propImages);
-            $shot->scene?->project?->update(['storyboard_style' => $style]);
+            $storyboardService->generateStoryboard(
+                $shot,
+                $style,
+                $prompt,
+                $characterId,
+                $locationId,
+                $propImages,
+                $aestheticConfig
+            );
+
+            $projectUpdate = ['storyboard_style' => $style];
+            if ($aestheticConfig !== null) {
+                $projectUpdate['visual_aesthetic_config'] = $aestheticConfig->toArray();
+            }
+            $shot->scene?->project?->update($projectUpdate);
 
             return [
                 'success' => true,

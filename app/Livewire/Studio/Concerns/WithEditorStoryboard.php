@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Livewire\Studio\Concerns;
 
 use App\Actions\Studio\ManageStoryboardAction;
+use App\DTOs\Storyboard\VisualAestheticConfigDTO;
+use App\Enums\ProjectCategory;
 use App\Services\StoryboardService;
 use Illuminate\Validation\Rule;
 
@@ -44,7 +46,28 @@ trait WithEditorStoryboard
     {
         $shot = $this->projectShot($shotId);
         $this->storyboardShotId = $shotId;
-        $this->storyboardModalStyle = $shot->storyboard_style ?: $this->storyboardStyle;
+
+        $isAiVideo = $this->project->categoryEnum() === ProjectCategory::AI_VIDEO;
+        $defaultRenderMode = $isAiVideo
+            ? VisualAestheticConfigDTO::MODE_FULL_BLEED
+            : VisualAestheticConfigDTO::MODE_STORYBOARD;
+
+        $rawConfig = is_array($shot->visual_aesthetic_config)
+            ? $shot->visual_aesthetic_config
+            : (is_array($this->project->visual_aesthetic_config) ? $this->project->visual_aesthetic_config : []);
+
+        $aestheticConfig = VisualAestheticConfigDTO::fromArray($rawConfig, $defaultRenderMode);
+        $this->storyboardRenderMode = $aestheticConfig->renderMode;
+        $this->storyboardColorPalette = $aestheticConfig->colorPalette ?? '';
+        $this->storyboardLightingStyle = $aestheticConfig->lightingStyle ?? '';
+        $this->storyboardCameraLens = $aestheticConfig->cameraLens ?? '';
+        $this->storyboardNegativeDirectives = $aestheticConfig->negativeDirectives ?? '';
+
+        $resolvedStyle = (string) ($shot->storyboard_style ?: $this->storyboardStyle);
+        if ($isAiVideo && in_array($resolvedStyle, ['', 'storyboard'], true)) {
+            $resolvedStyle = 'editorial_documentary_35mm';
+        }
+        $this->storyboardModalStyle = $resolvedStyle;
 
         $detectedChar = $storyboardService->resolveCharacterModel($shot);
         $this->storyboardCharacterId = $detectedChar?->id;
@@ -62,7 +85,8 @@ trait WithEditorStoryboard
                 characterId: $this->storyboardCharacterId,
                 locationId: $this->storyboardLocationId,
                 propCount: 0,
-                storyboardService: $storyboardService
+                storyboardService: $storyboardService,
+                aestheticConfig: $aestheticConfig
             );
 
         $this->showStoryboardModal = true;
@@ -92,12 +116,47 @@ trait WithEditorStoryboard
             characterId: $this->storyboardCharacterId,
             locationId: $this->storyboardLocationId,
             propCount: count($this->storyboardPropUploads),
-            storyboardService: $storyboardService
+            storyboardService: $storyboardService,
+            aestheticConfig: $this->buildModalAestheticConfig()
         );
         $this->storyboardPromptCustomized = false;
     }
 
     public function confirmGenerateStoryboard(StoryboardService $storyboardService, ?ManageStoryboardAction $action = null): void
+    {
+        $result = $this->executeModalStoryboardGeneration($storyboardService, $action);
+
+        if ($result === null) {
+            return;
+        }
+
+        if ($result['success']) {
+            $this->closeStoryboardModal();
+        }
+
+        session()->flash($result['flash_type'], $result['message']);
+    }
+
+    public function testGenerateStoryboardInModal(StoryboardService $storyboardService, ?ManageStoryboardAction $action = null): void
+    {
+        $result = $this->executeModalStoryboardGeneration($storyboardService, $action);
+
+        if ($result === null) {
+            return;
+        }
+
+        if ($result['success']) {
+            $this->storyboardPreviewVersion++;
+        }
+
+        $this->showStoryboardModal = true;
+        session()->flash($result['flash_type'], $result['message']);
+    }
+
+    /**
+     * @return array{success: bool, flash_type: string, message: string}|null
+     */
+    protected function executeModalStoryboardGeneration(StoryboardService $storyboardService, ?ManageStoryboardAction $action = null): ?array
     {
         $this->validateStoryboardReferences();
 
@@ -106,10 +165,12 @@ trait WithEditorStoryboard
         ]);
 
         if (! $this->storyboardShotId) {
-            return;
+            return null;
         }
 
         $shot = $this->projectShot($this->storyboardShotId);
+        $aestheticConfig = $this->buildModalAestheticConfig();
+
         $result = ($action ?? app(ManageStoryboardAction::class))->generate(
             shot: $shot,
             style: $this->storyboardModalStyle,
@@ -118,15 +179,33 @@ trait WithEditorStoryboard
             locationId: $this->storyboardLocationId,
             propImages: $this->storyboardPropUploads,
             user: auth()->user() ?? $this->project->user,
-            storyboardService: $storyboardService
+            storyboardService: $storyboardService,
+            aestheticConfig: $aestheticConfig
         );
 
         if ($result['success']) {
-            $this->project->update(['storyboard_style' => $this->storyboardModalStyle]);
-            $this->closeStoryboardModal();
+            $this->project->update([
+                'storyboard_style' => $this->storyboardModalStyle,
+                'visual_aesthetic_config' => $aestheticConfig->toArray(),
+            ]);
         }
 
-        session()->flash($result['flash_type'], $result['message']);
+        return $result;
+    }
+
+    protected function buildModalAestheticConfig(): VisualAestheticConfigDTO
+    {
+        $defaultRenderMode = $this->project->categoryEnum() === ProjectCategory::AI_VIDEO
+            ? VisualAestheticConfigDTO::MODE_FULL_BLEED
+            : VisualAestheticConfigDTO::MODE_STORYBOARD;
+
+        return VisualAestheticConfigDTO::fromArray([
+            'render_mode' => $this->storyboardRenderMode,
+            'color_palette' => $this->storyboardColorPalette,
+            'lighting_style' => $this->storyboardLightingStyle,
+            'camera_lens' => $this->storyboardCameraLens,
+            'negative_directives' => $this->storyboardNegativeDirectives,
+        ], $defaultRenderMode);
     }
 
     protected function validateStoryboardReferences(): void

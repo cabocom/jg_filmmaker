@@ -31,6 +31,7 @@ class Project extends Model
         'synopsis',
         'status',
         'storyboard_style',
+        'visual_aesthetic_config',
         'category',
     ];
 
@@ -43,6 +44,7 @@ class Project extends Model
     {
         return [
             'category' => ProjectCategory::class,
+            'visual_aesthetic_config' => 'array',
         ];
     }
 

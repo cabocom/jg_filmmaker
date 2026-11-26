@@ -81,6 +81,18 @@ trait WithEditorProperties
 
     public bool $storyboardPromptCustomized = false;
 
+    public string $storyboardRenderMode = 'storyboard_sketch';
+
+    public string $storyboardColorPalette = '';
+
+    public string $storyboardLightingStyle = '';
+
+    public string $storyboardCameraLens = '';
+
+    public string $storyboardNegativeDirectives = '';
+
+    public int $storyboardPreviewVersion = 0;
+
     // Edición individual de un plano técnico
     public ?string $editingShotId = null;
 

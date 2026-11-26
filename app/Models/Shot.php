@@ -31,6 +31,7 @@ class Shot extends Model
         'description',
         'storyboard_image_path',
         'storyboard_style',
+        'visual_aesthetic_config',
         'storyboard_prompt',
     ];
 
@@ -104,6 +105,7 @@ class Shot extends Model
     {
         return [
             'shot_number' => 'integer',
+            'visual_aesthetic_config' => 'array',
         ];
     }
 

@@ -15,6 +15,36 @@ trait WithEditorStoryboardModalEvents
 
     public function updatedStoryboardModalStyle(?string $value = null, ?StoryboardService $storyboardService = null): void
     {
+        $this->refreshAutomaticStoryboardPrompt($storyboardService);
+    }
+
+    public function updatedStoryboardRenderMode(?string $value = null, ?StoryboardService $storyboardService = null): void
+    {
+        $this->refreshAutomaticStoryboardPrompt($storyboardService);
+    }
+
+    public function updatedStoryboardColorPalette(?string $value = null, ?StoryboardService $storyboardService = null): void
+    {
+        $this->refreshAutomaticStoryboardPrompt($storyboardService);
+    }
+
+    public function updatedStoryboardLightingStyle(?string $value = null, ?StoryboardService $storyboardService = null): void
+    {
+        $this->refreshAutomaticStoryboardPrompt($storyboardService);
+    }
+
+    public function updatedStoryboardCameraLens(?string $value = null, ?StoryboardService $storyboardService = null): void
+    {
+        $this->refreshAutomaticStoryboardPrompt($storyboardService);
+    }
+
+    public function updatedStoryboardNegativeDirectives(?string $value = null, ?StoryboardService $storyboardService = null): void
+    {
+        $this->refreshAutomaticStoryboardPrompt($storyboardService);
+    }
+
+    protected function refreshAutomaticStoryboardPrompt(?StoryboardService $storyboardService = null): void
+    {
         $storyboardService ??= app(StoryboardService::class);
 
         if (! $this->storyboardPromptCustomized && $this->storyboardShotId) {
