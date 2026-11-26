@@ -29,6 +29,7 @@ final readonly class BroadcastJobRequestDTO
         public ?string $visualCredit = null,
         public ?bool $publishToPodcast = null,
         public ?bool $generateShort = null,
+        public ?string $projectId = null,
     ) {}
 
     /**
@@ -67,6 +68,9 @@ final readonly class BroadcastJobRequestDTO
                 : null,
             generateShort: array_key_exists('generate_short', $data) && $data['generate_short'] !== null
                 ? (bool) $data['generate_short']
+                : null,
+            projectId: isset($data['project_id']) && is_string($data['project_id']) && trim($data['project_id']) !== ''
+                ? trim($data['project_id'])
                 : null,
         );
     }

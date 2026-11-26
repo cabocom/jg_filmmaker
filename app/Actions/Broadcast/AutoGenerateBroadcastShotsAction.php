@@ -85,6 +85,45 @@ final readonly class AutoGenerateBroadcastShotsAction
 
     private function createProjectAndBlock(BroadcastJobRequestDTO $dto): array
     {
+        $existingProject = $dto->projectId !== null
+            ? Project::query()->find($dto->projectId)
+            : null;
+
+        if ($existingProject instanceof Project) {
+            $existingProject->update([
+                'status' => 'in_progress',
+                'category' => ProjectCategory::AI_VIDEO->value,
+                'storyboard_style' => $dto->visualMode,
+            ]);
+
+            $scene = $existingProject->scenes()->orderBy('scene_order')->first() ?? Scene::create([
+                'project_id' => $existingProject->id,
+                'scene_order' => 1,
+                'slugline' => 'INT. ESTUDIO BROADCAST - DÍA',
+                'time_of_day' => 'DÍA',
+            ]);
+
+            $block = $scene->scriptBlocks()->orderBy('block_order')->first();
+            $rawText = $this->buildContextualizedRawText($dto);
+
+            if ($block instanceof ScriptBlock) {
+                $blockUpdates = ['raw_text' => $rawText];
+                if (! is_string($block->stage) || trim($block->stage) === '') {
+                    $blockUpdates['stage'] = BlockStage::RAW->value;
+                }
+                $block->update($blockUpdates);
+            } else {
+                $block = ScriptBlock::create([
+                    'scene_id' => $scene->id,
+                    'block_order' => 1,
+                    'stage' => BlockStage::RAW->value,
+                    'raw_text' => $rawText,
+                ]);
+            }
+
+            return [$existingProject, $block];
+        }
+
         $project = Project::create([
             'user_id' => $this->resolveBroadcastUser()->id,
             'title' => $dto->title !== '' ? $dto->title : 'Broadcast '.now()->format('Y-m-d H:i:s'),

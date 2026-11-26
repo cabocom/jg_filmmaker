@@ -9,6 +9,7 @@ use App\DTOs\Storyboard\VisualAestheticConfigDTO;
 use App\Models\BroadcastJob;
 use App\Models\Shot;
 use App\Services\StoryboardService;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
@@ -34,6 +35,8 @@ final readonly class StoryboardShotVisual implements ShotVisualStrategyInterface
             return $existingPath;
         }
 
+        $lastError = null;
+
         try {
             $rawMode = trim((string) $job->visual_mode);
             $visualMode = ($rawMode !== '' && array_key_exists($rawMode, StoryboardService::STYLES))
@@ -47,19 +50,65 @@ final readonly class StoryboardShotVisual implements ShotVisualStrategyInterface
             $aestheticConfig = VisualAestheticConfigDTO::fromArray($rawAesthetic, VisualAestheticConfigDTO::MODE_FULL_BLEED);
             $styleReferenceBase64 = $this->resolveStyleReferenceBase64($shot);
 
-            $generatedRelative = $this->storyboardService->generateStoryboard(
-                shot: $shot,
-                style: $visualMode,
-                aestheticConfig: $aestheticConfig,
-                styleReferenceImageBase64: $styleReferenceBase64,
-            );
-            $resolved = $this->resolveExistingPath($generatedRelative);
+            try {
+                $generatedRelative = $this->storyboardService->generateStoryboard(
+                    shot: $shot,
+                    style: $visualMode,
+                    aestheticConfig: $aestheticConfig,
+                    styleReferenceImageBase64: $styleReferenceBase64,
+                );
+                $resolved = $this->resolveExistingPath($generatedRelative);
 
-            if ($resolved !== null) {
-                return $resolved;
+                if ($resolved !== null) {
+                    return $resolved;
+                }
+            } catch (Throwable $e) {
+                $lastError = $e;
             }
-        } catch (Throwable) {
-            // Fallback en caso de fallo en agente, tokens o modo mock sin fichero
+
+            if ($styleReferenceBase64 !== null) {
+                Log::warning('StoryboardShotVisual: fallo generación con imagen de referencia, reintentando sin referencia.', [
+                    'shot_id' => $shot->id,
+                    'shot_number' => $shot->shot_number,
+                    'error' => $lastError?->getMessage(),
+                ]);
+
+                $lastError = null;
+
+                $generatedRelative = $this->storyboardService->generateStoryboard(
+                    shot: $shot,
+                    style: $visualMode,
+                    aestheticConfig: $aestheticConfig,
+                    styleReferenceImageBase64: null,
+                );
+                $resolved = $this->resolveExistingPath($generatedRelative);
+
+                if ($resolved !== null) {
+                    return $resolved;
+                }
+            }
+        } catch (Throwable $e) {
+            $lastError = $e;
+        }
+
+        Log::warning('StoryboardShotVisual: fallo generación de storyboard, buscando plano previo válido.', [
+            'shot_id' => $shot->id,
+            'shot_number' => $shot->shot_number,
+            'script_block_id' => $shot->script_block_id,
+            'error' => $lastError?->getMessage(),
+        ]);
+
+        if ($shot->script_block_id !== null) {
+            $previousShot = Shot::where('script_block_id', $shot->script_block_id)
+                ->where('shot_number', '<', $shot->shot_number)
+                ->whereNotNull('storyboard_image_path')
+                ->orderByDesc('shot_number')
+                ->first();
+
+            $previousPath = $this->resolveExistingPath($previousShot?->storyboard_image_path);
+            if ($previousPath !== null) {
+                return $previousPath;
+            }
         }
 
         return $this->fallbackVisual->generateVisual($job, $shot, $context);

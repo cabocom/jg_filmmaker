@@ -231,6 +231,7 @@ final readonly class ManageTvRundownAction
             publishToPodcast: (bool) $rundown->publish_to_podcast,
             generateShort: (bool) $rundown->generate_short,
             outputRelativePath: $outputRelPath,
+            projectId: $rundown->project_id,
         );
 
         $job = $this->broadcastAction->initialize($dto);
