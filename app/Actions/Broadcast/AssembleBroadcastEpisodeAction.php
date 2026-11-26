@@ -138,7 +138,9 @@ final readonly class AssembleBroadcastEpisodeAction
 
         $result = Process::timeout(300)->run([
             'ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-i', $listPath,
-            '-c', 'copy', $outputPath,
+            '-r', '30', '-fps_mode', 'cfr', '-video_track_timescale', '30000',
+            '-c:v', 'libx264', '-profile:v', 'high', '-level', '4.1', '-pix_fmt', 'yuv420p',
+            '-c:a', 'aac', '-ar', '48000', '-ac', '2', '-movflags', '+faststart', $outputPath,
         ]);
 
         if (! $result->successful()) {
