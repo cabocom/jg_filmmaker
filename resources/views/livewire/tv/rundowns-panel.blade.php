@@ -267,7 +267,9 @@
                     <tbody class="divide-y divide-slate-800">
                         @foreach ($rundowns as $rundown)
                             @php
-                                $durationSec = (int) round((float) ($rundown->tvVideo?->duration_seconds ?: data_get($rundown->broadcastJob?->artifacts, 'master_audio.total_duration_seconds') ?: $rundown->duration_seconds ?: 0));
+                                $realDurationSec = (int) round((float) ($rundown->tvVideo?->duration_seconds ?: data_get($rundown->broadcastJob?->artifacts, 'master_audio.total_duration_seconds') ?: $rundown->duration_seconds ?: 0));
+                                $wordCount = ! empty($rundown->script_text) ? str_word_count(strip_tags((string) $rundown->script_text)) : 0;
+                                $estimatedDurationSec = ($realDurationSec === 0 && $wordCount > 0) ? max(1, (int) ceil($wordCount / 2.5)) : 0;
                                 $canPreview = $rundown->tvVideo && (! empty($rundown->tvVideo->relative_media_path) || ! empty($rundown->tvVideo->file_path) || ! empty($rundown->tvVideo->mp4_url));
                             @endphp
                             <tr class="hover:bg-slate-800/30 transition-colors {{ $rundown->isBusy() ? 'opacity-90 bg-indigo-950/20' : '' }}">
@@ -355,7 +357,13 @@
                                     </div>
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap font-mono text-slate-300">
-                                    {{ $durationSec > 0 ? gmdate('H:i:s', $durationSec) : '—' }}
+                                    @if ($realDurationSec > 0)
+                                        <span title="Duración real del vídeo/audio">{{ gmdate('H:i:s', $realDurationSec) }}</span>
+                                    @elseif ($estimatedDurationSec > 0)
+                                        <span class="text-slate-400" title="Duración aproximada (~{{ $wordCount }} palabras a 150 ppm)">~{{ gmdate('H:i:s', $estimatedDurationSec) }}</span>
+                                    @else
+                                        <span class="text-slate-500">—</span>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3 text-right whitespace-nowrap">
                                     <div class="flex items-center justify-end gap-1.5">
