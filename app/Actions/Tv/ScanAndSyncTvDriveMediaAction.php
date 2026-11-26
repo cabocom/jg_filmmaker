@@ -174,8 +174,21 @@ final class ScanAndSyncTvDriveMediaAction
             ];
             $model->update($updates);
         } elseif ($stage === 'shots' && $model->stage === 'queued') {
-            $this->broadcastAction->startRendering($job);
-            $model->update(['stage' => 'rendering', 'status' => 'rendering']);
+            try {
+                $this->broadcastAction->startRendering($job);
+                $model->update(['stage' => 'rendering', 'status' => 'rendering']);
+            } catch (Throwable $e) {
+                $job->update([
+                    'stage' => BroadcastJobStage::FAILED,
+                    'failed_stage' => 'RENDER_START',
+                    'error_message' => mb_substr($e->getMessage(), 0, 1000),
+                ]);
+                $model->update([
+                    'stage' => 'failed',
+                    'status' => 'failed',
+                    'error_message' => mb_substr($e->getMessage(), 0, 1000),
+                ]);
+            }
         } elseif (in_array($stage, ['rendering', 'assembling', 'audio', 'visuals'], true) && $model->stage !== 'rendering') {
             $model->update(['stage' => 'rendering', 'status' => 'rendering']);
         }

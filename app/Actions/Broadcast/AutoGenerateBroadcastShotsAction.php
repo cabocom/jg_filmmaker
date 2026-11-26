@@ -107,11 +107,13 @@ final readonly class AutoGenerateBroadcastShotsAction
             $rawText = $this->buildContextualizedRawText($dto);
 
             if ($block instanceof ScriptBlock) {
-                $blockUpdates = ['raw_text' => $rawText];
-                if (! is_string($block->stage) || trim($block->stage) === '') {
-                    $blockUpdates['stage'] = BlockStage::RAW->value;
-                }
-                $block->update($blockUpdates);
+                $block->shots()->delete();
+                $block->update([
+                    'raw_text' => $rawText,
+                    'structured_text' => null,
+                    'screenplay_content' => null,
+                    'stage' => BlockStage::RAW->value,
+                ]);
             } else {
                 $block = ScriptBlock::create([
                     'scene_id' => $scene->id,
