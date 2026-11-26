@@ -1,4 +1,4 @@
-<div x-data="{ progressModal: null }" @keydown.escape.window="progressModal = null" class="space-y-5">
+<div x-data="{ progressModal: null, showCreateForm: false }" @keydown.escape.window="progressModal = null; showCreateForm = false" class="space-y-5">
     @if ($hasBusyRundowns)
         <div wire:poll.4s class="hidden"></div>
     @endif
@@ -16,10 +16,13 @@
         </div>
     @endif
 
-    <div class="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm text-slate-100">
-        <h3 class="text-base font-semibold text-slate-100 mb-4 flex items-center gap-2">
-            <span>Nueva Escaleta de Emisión</span>
-        </h3>
+    <div x-show="showCreateForm" x-cloak class="rounded-xl border border-slate-800 bg-slate-900 p-5 shadow-sm text-slate-100">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-base font-semibold text-slate-100 flex items-center gap-2">
+                <span>Nueva Escaleta de Emisión</span>
+            </h3>
+            <button type="button" @click="showCreateForm = false" class="text-xs text-slate-400 hover:text-slate-200 cursor-pointer">✕ Cerrar</button>
+        </div>
 
         <form wire:submit="createRundown" class="space-y-4">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -212,7 +215,17 @@
     <div class="rounded-xl border border-slate-800 bg-slate-900 overflow-hidden shadow-sm text-slate-100">
         <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
             <h3 class="text-sm font-semibold text-slate-200">Escaletas Registradas (AI Today)</h3>
-            <span class="text-xs text-slate-400">{{ count($rundowns) }} escaletas</span>
+            <div class="flex items-center gap-3">
+                <span class="text-xs text-slate-400">{{ count($rundowns) }} escaletas</span>
+                <button
+                    type="button"
+                    @click="showCreateForm = !showCreateForm"
+                    class="rounded-lg bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 text-xs font-medium text-white transition-colors cursor-pointer"
+                >
+                    <span x-show="!showCreateForm">+ Crear nuevo</span>
+                    <span x-show="showCreateForm" x-cloak>Ocultar formulario</span>
+                </button>
+            </div>
         </div>
 
         @if ($rundowns->isEmpty())

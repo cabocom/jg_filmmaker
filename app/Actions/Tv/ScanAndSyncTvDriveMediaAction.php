@@ -149,7 +149,7 @@ final class ScanAndSyncTvDriveMediaAction
 
     private function applyBroadcastJobStatus(TvVideo|TvRundown $model, BroadcastJob $job, string $pathField): void
     {
-        $stage = $job->stage instanceof BroadcastJobStage ? $job->stage->value : (string) $job->stage;
+        $stage = strtolower($job->stage instanceof BroadcastJobStage ? $job->stage->value : (string) $job->stage);
 
         if (in_array($stage, ['completed', 'ready'], true)) {
             $updates = ['stage' => 'ready', 'error_message' => null];
