@@ -55,8 +55,40 @@ final readonly class GenerateBroadcastVisualsBatchAction
             );
         }
 
+        $shotVisuals = $this->backfillFallbackVisuals($shotVisuals);
+
         $artifacts['shot_visuals'] = $shotVisuals;
         $job->update(['artifacts' => $artifacts]);
+
+        return $shotVisuals;
+    }
+
+    /**
+     * Si algún plano cayó en tarjeta de fallback (/visuals/shot_), hereda una imagen real del mismo job
+     * para evitar fotogramas oscuros o negros en el vídeo final.
+     *
+     * @param  array<string, string>  $shotVisuals
+     * @return array<string, string>
+     */
+    private function backfillFallbackVisuals(array $shotVisuals): array
+    {
+        $realPaths = array_values(array_filter(
+            $shotVisuals,
+            static fn (string $path): bool => $path !== '' && ! str_contains($path, '/visuals/shot_') && is_file($path)
+        ));
+
+        if ($realPaths === []) {
+            return $shotVisuals;
+        }
+
+        $lastValid = $realPaths[0];
+        foreach ($shotVisuals as $shotId => $path) {
+            if ($path !== '' && ! str_contains($path, '/visuals/shot_') && is_file($path)) {
+                $lastValid = $path;
+            } else {
+                $shotVisuals[$shotId] = $lastValid;
+            }
+        }
 
         return $shotVisuals;
     }
