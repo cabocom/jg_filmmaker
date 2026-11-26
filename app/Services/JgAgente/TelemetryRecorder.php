@@ -34,6 +34,25 @@ class TelemetryRecorder
     }
 
     /**
+     * Registra la telemetría de una invocación (incluyendo aciertos de caché semántica).
+     *
+     * @param  array<string, mixed>  $payload
+     * @param  array<string, mixed>  $result
+     */
+    public function record(string $toolName, array $payload, array $result, int $durationMs = 0): void
+    {
+        $rawTelemetry = is_array($result['telemetry'] ?? null) ? $result['telemetry'] : [];
+        $locks = is_array($payload['user_locks'] ?? null) ? $this->sanitizeTelemetryLocks($payload['user_locks']) : [];
+
+        $this->setLastTelemetry(array_merge($rawTelemetry, [
+            'tool' => $toolName,
+            'duration_ms' => $durationMs,
+            'cache_hit' => (bool) ($result['cache_hit'] ?? $durationMs === 0),
+            'user_locks' => $locks,
+        ]));
+    }
+
+    /**
      * Sanitiza los candados almacenados en telemetría para retener solo términos de autoría.
      *
      * @param  array<string, mixed>  $locks
