@@ -55,6 +55,11 @@ class StoreBroadcastJobRequest extends FormRequest
             'location_profile.art_department_notes' => ['nullable', 'string', 'max:1000'],
             'location_profile.lighting_notes' => ['nullable', 'string', 'max:1000'],
             'location_profile.address_reference' => ['nullable', 'string', 'max:500'],
+            'tts_voice' => ['nullable', 'string', 'max:64'],
+            'tts_provider' => ['nullable', 'string', 'max:32'],
+            'visual_credit' => ['nullable', 'string', 'max:255'],
+            'publish_to_podcast' => ['boolean'],
+            'generate_short' => ['boolean'],
         ];
     }
 

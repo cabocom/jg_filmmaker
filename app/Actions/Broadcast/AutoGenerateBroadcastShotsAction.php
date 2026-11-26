@@ -18,6 +18,7 @@ use App\Models\ScriptBlock;
 use App\Models\Shot;
 use App\Models\User;
 use App\Services\Broadcast\OralShotSanitizer;
+use App\Services\Broadcast\SentenceBasedShotDistributor;
 use App\Services\ScriptPipelineService;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -27,7 +28,9 @@ final readonly class AutoGenerateBroadcastShotsAction
     public function __construct(
         protected ScriptPipelineService $pipeline,
         protected OralShotSanitizer $sanitizer,
-        protected ?SyncBroadcastProjectBibleAction $bibleSyncAction = null
+        protected ?SyncBroadcastProjectBibleAction $bibleSyncAction = null,
+        protected ?SentenceBasedShotDistributor $sentenceDistributor = null,
+        protected ?SynthesizeBroadcastMasterAudioAction $masterAudioAction = null,
     ) {}
 
     /**
@@ -44,7 +47,12 @@ final readonly class AutoGenerateBroadcastShotsAction
                 'output_relative_path' => $dto->outputRelativePath,
                 'cast_profiles' => $dto->castProfiles !== [] ? $dto->castProfiles : null,
                 'location_profile' => $dto->locationProfile,
-            ]);
+                'tts_voice' => $dto->ttsVoice,
+                'tts_provider' => $dto->ttsProvider,
+                'visual_credit' => $dto->visualCredit,
+                'publish_to_podcast' => $dto->publishToPodcast,
+                'generate_short' => $dto->generateShort,
+            ], static fn (mixed $value): bool => $value !== null);
 
             $job = BroadcastJob::create([
                 'channel_id' => $dto->channelId,
@@ -148,6 +156,12 @@ final readonly class AutoGenerateBroadcastShotsAction
         }
 
         $artifacts = is_array($job->artifacts) ? $job->artifacts : [];
+        if (empty($artifacts['master_audio'])) {
+            ($this->masterAudioAction ?? app(SynthesizeBroadcastMasterAudioAction::class))->execute($job);
+            $job->refresh();
+            $artifacts = is_array($job->artifacts) ? $job->artifacts : [];
+        }
+
         $renderedShots = is_array($artifacts['rendered_shots'] ?? null) ? $artifacts['rendered_shots'] : [];
 
         $pendingShot = $shots->first(fn (Shot $shot): bool => ! isset($renderedShots[$shot->id]));
@@ -201,50 +215,23 @@ final readonly class AutoGenerateBroadcastShotsAction
     {
         $shots = $this->pipeline->generateShotsBreakdown($block);
         $sanitized = $this->sanitizer->sanitizeAndFormatShots($shots);
-        $sanitized = $this->assignOralTextFromRawScript($sanitized, (string) $job->raw_text);
+        $distributor = $this->sentenceDistributor ?? app(SentenceBasedShotDistributor::class);
+        $explicitCredit = isset($artifacts['visual_credit']) && is_string($artifacts['visual_credit'])
+            ? $artifacts['visual_credit']
+            : null;
+        $distributed = $distributor->distribute($sanitized, (string) $job->raw_text, $explicitCredit);
 
-        $artifacts['shots'] = $sanitized;
-        $artifacts['shots_count'] = count($sanitized);
+        $artifacts['shots'] = $distributed['shots'];
+        $artifacts['shots_count'] = count($distributed['shots']);
+        $artifacts['full_oral_text'] = $distributed['full_oral_text'];
+        if ($distributed['visual_credit'] !== null) {
+            $artifacts['visual_credit'] = $distributed['visual_credit'];
+        }
+
         $job->update([
             'stage' => BroadcastJobStage::SHOTS,
             'artifacts' => $artifacts,
         ]);
-    }
-
-    /**
-     * @param  array<int, array<string, mixed>>  $shots
-     * @return array<int, array<string, mixed>>
-     */
-    private function assignOralTextFromRawScript(array $shots, string $rawText): array
-    {
-        $shotCount = count($shots);
-        $cleanRaw = trim($this->sanitizer->stripMarkdown($rawText));
-        if ($shotCount === 0 || $cleanRaw === '') {
-            return $shots;
-        }
-
-        $sentences = preg_split('/(?<=[.!?])\s+/u', $cleanRaw, -1, PREG_SPLIT_NO_EMPTY) ?: [$cleanRaw];
-        $units = count($sentences) >= $shotCount
-            ? $sentences
-            : (preg_split('/\s+/u', $cleanRaw, -1, PREG_SPLIT_NO_EMPTY) ?: [$cleanRaw]);
-
-        $unitCount = count($units);
-        $chunks = array_fill(0, $shotCount, []);
-        foreach ($units as $i => $unit) {
-            $bucket = (int) floor($i * $shotCount / $unitCount);
-            $chunks[$bucket][] = $unit;
-        }
-
-        foreach ($shots as $idx => $shot) {
-            $rawChunk = ! empty($chunks[$idx]) ? implode(' ', $chunks[$idx]) : $cleanRaw;
-            $oralText = $this->sanitizer->clampOralText($rawChunk);
-            $words = count(preg_split('/\s+/u', trim($oralText), -1, PREG_SPLIT_NO_EMPTY) ?: []);
-            $shots[$idx]['oral_text'] = $oralText;
-            $shots[$idx]['word_count'] = $words;
-            $shots[$idx]['estimated_seconds'] = $this->sanitizer->estimateSeconds($oralText);
-        }
-
-        return $shots;
     }
 
     /**

@@ -24,6 +24,11 @@ final readonly class BroadcastJobRequestDTO
         public ?string $outputRelativePath = null,
         public array $castProfiles = [],
         public ?array $locationProfile = null,
+        public ?string $ttsVoice = null,
+        public ?string $ttsProvider = null,
+        public ?string $visualCredit = null,
+        public ?bool $publishToPodcast = null,
+        public ?bool $generateShort = null,
     ) {}
 
     /**
@@ -47,6 +52,21 @@ final readonly class BroadcastJobRequestDTO
                 : [],
             locationProfile: isset($data['location_profile']) && is_array($data['location_profile'])
                 ? $data['location_profile']
+                : null,
+            ttsVoice: isset($data['tts_voice']) && is_string($data['tts_voice']) && trim($data['tts_voice']) !== ''
+                ? trim($data['tts_voice'])
+                : null,
+            ttsProvider: isset($data['tts_provider']) && is_string($data['tts_provider']) && trim($data['tts_provider']) !== ''
+                ? trim($data['tts_provider'])
+                : null,
+            visualCredit: isset($data['visual_credit']) && is_string($data['visual_credit']) && trim($data['visual_credit']) !== ''
+                ? trim($data['visual_credit'])
+                : null,
+            publishToPodcast: array_key_exists('publish_to_podcast', $data) && $data['publish_to_podcast'] !== null
+                ? (bool) $data['publish_to_podcast']
+                : null,
+            generateShort: array_key_exists('generate_short', $data) && $data['generate_short'] !== null
+                ? (bool) $data['generate_short']
                 : null,
         );
     }

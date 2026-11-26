@@ -43,14 +43,18 @@ final readonly class RenderShotClipAction
             $title = trim((string) ($job->title ?? ''));
             $oralText = $rawText !== '' ? $rawText : $title;
         }
-        $voice = isset($context['voice']) ? (string) $context['voice'] : null;
+        $voice = $context['voice'] ?? $artifacts['tts_voice'] ?? null;
+        $voice = is_string($voice) && trim($voice) !== '' ? trim($voice) : null;
         $audioPath = $this->ttsService->synthesize($oralText, $voice, 1.0, $job->project);
 
         $strategy = $this->visualResolver->resolve((string) $job->visual_mode);
         $visualPath = $strategy->generateVisual($job, $shot, $context);
 
-        $durationSeconds = (float) ($context['estimated_seconds'] ?? 15.0);
-        [$srtPath, $assPath] = $this->generateSubtitles($job->id, $shot, $oralText, $durationSeconds);
+        $visualCredit = isset($artifacts['visual_credit']) && is_string($artifacts['visual_credit']) && trim($artifacts['visual_credit']) !== ''
+            ? trim($artifacts['visual_credit'])
+            : null;
+        $durationSeconds = (float) ($context['duration_seconds'] ?? $context['estimated_seconds'] ?? 15.0);
+        [$srtPath, $assPath] = $this->generateSubtitles($job->id, $shot, $oralText, $durationSeconds, $visualCredit);
 
         $clipPath = storage_path("app/private/broadcast/{$job->id}/clips/shot_{$shot->shot_number}_{$shot->id}.mp4");
         $this->ensureClipRendered($visualPath, $strategy->visualType(), $audioPath, $assPath, $clipPath, (string) $shot->id, $job);
@@ -70,15 +74,20 @@ final readonly class RenderShotClipAction
      *
      * @return array{0: string, 1: string}
      */
-    private function generateSubtitles(string|int $jobId, Shot $shot, string $text, float $durationSeconds): array
-    {
+    private function generateSubtitles(
+        string|int $jobId,
+        Shot $shot,
+        string $text,
+        float $durationSeconds,
+        ?string $visualCredit = null,
+    ): array {
         $subtitlesDir = storage_path("app/private/broadcast/{$jobId}/subtitles");
         File::ensureDirectoryExists($subtitlesDir);
 
         $srtPath = "{$subtitlesDir}/shot_{$shot->shot_number}_{$shot->id}.srt";
         $assPath = "{$subtitlesDir}/shot_{$shot->shot_number}_{$shot->id}.ass";
         $this->subtitleGenerator->generateSrt($text, $durationSeconds, $srtPath);
-        $this->subtitleGenerator->generateAss($text, $durationSeconds, $assPath);
+        $this->subtitleGenerator->generateAss($text, $durationSeconds, $assPath, visualCredit: $visualCredit);
 
         return [$srtPath, $assPath];
     }

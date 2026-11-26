@@ -139,4 +139,38 @@ final readonly class OralShotSanitizer
 
         return $formatted;
     }
+
+    /**
+     * Elimina atribuciones de licencia Wikipedia / CC BY-SA del texto locutado
+     * y devuelve el texto limpio junto al crédito visual normalizado.
+     *
+     * @return array{clean_text: string, extracted_credit: ?string}
+     */
+    public function stripLicenseAttribution(string $text): array
+    {
+        $patterns = [
+            '/(?:^|\s)[\(\[]?\s*(?:Fuente|Source|Texto\s+de|Basado\s+en)\s*:\s*Wikipedia\b[^\n]*?(?:CC[\s\-]*BY[\s\-]*SA(?:\s*\d+(?:\.\d+)?)?|Creative\s+Commons[^\n.!?\)\]]*)[\s\.\)\]]*/iu',
+            '/(?:^|\s)[\(\[]?\s*(?:Contenido|Texto|Artículo|Información)?\s*(?:de\s+Wikipedia\s+)?bajo\s+licencia\s+(?:CC[\s\-]*BY[\s\-]*SA(?:\s*\d+(?:\.\d+)?)?|Creative\s+Commons[^\n.!?\)\]]*)[\s\.\)\]]*/iu',
+            '/(?:^|\s)[\(\[]?\s*Wikipedia\s*[·|,;\-–:]\s*CC[\s\-]*BY[\s\-]*SA(?:\s*\d+(?:\.\d+)?)?[\s\.\)\]]*/iu',
+            '/(?:^|\s)[\(\[]?\s*(?:Fuente|Source|Texto\s+de|Basado\s+en)\s*:\s*Wikipedia\b[^.!?\n]*[\.\)\]]*/iu',
+        ];
+
+        $clean = $text;
+        $extractedCredit = null;
+
+        foreach ($patterns as $pattern) {
+            $replaced = preg_replace($pattern, ' ', $clean, -1, $count);
+            if ($replaced !== null && $count > 0) {
+                $clean = $replaced;
+                $extractedCredit = 'Fuente: Wikipedia · CC BY-SA 4.0';
+            }
+        }
+
+        $clean = trim((string) preg_replace('/\s+/u', ' ', $clean));
+
+        return [
+            'clean_text' => $clean,
+            'extracted_credit' => $extractedCredit,
+        ];
+    }
 }

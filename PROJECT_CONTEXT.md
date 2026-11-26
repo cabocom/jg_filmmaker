@@ -12,6 +12,13 @@
 
 ## Resumen Ejecutivo de Capacidades Recientes
 
+- **Arquitectura Audio-First, Distribución por Oraciones Completas y Crédito Visual `.ass` (ISSUE-41):**
+  - **Distribución por Oraciones Completas (`SentenceBasedShotDistributor`):** Distribuye el texto locutado entre los planos respetando límites estrictos de oración (`.`, `!`, `?`) sin truncamientos a mitad de frase ni planos vacíos, extrayendo automáticamente atribuciones de licencia Wikipedia/CC BY-SA vía `OralShotSanitizer::stripLicenseAttribution()`.
+  - **Audio Maestro Continuo y Ventanas Temporales (`SynthesizeBroadcastMasterAudioAction`):** Sintetiza el episodio completo en una única llamada a `TextToSpeechService::synthesize()` respetando la voz configurada (`tts_voice`), mide la duración real del audio maestro y calcula ventanas exactas `[start_seconds, duration_seconds]` por plano de forma idempotente.
+  - **Subtítulos Globales `.ass` con Capa de Crédito (`ShotSubtitleGenerator::generateGlobalAss()`):** Genera el archivo `.ass` sincronizado con todas las líneas `Dialogue` temporizadas por plano (`Style: Default`) y una capa superior `Style: Credit` (`Layer: 1` con fade-in/fade-out) para el crédito visual sin locución hablada de licencias.
+  - **Contrato API y Flags de Exportación (`BroadcastJobRequestDTO` / `StoreBroadcastJobRequest`):** Soporte opcional para `tts_voice`, `tts_provider`, `visual_credit`, `publish_to_podcast` y `generate_short` en `POST /api/v1/broadcast/jobs`.
+  - **Pruebas Automatizadas:** Suite `tests/Feature/BroadcastAudioFirstAndCreditTest.php` cubriendo distribución por oraciones, limpieza de licencias Wikipedia, síntesis maestra única con ventanas temporales, contrato API de voz/flags y generación de `.ass` global con `Style: Credit`.
+
 - **Controles Estéticos de Plano, Modo Full-Bleed Broadcast y Laboratorio Iterativo en Studio (ISSUE-40):**
   - **Configuración Estética Tipada (`VisualAestheticConfigDTO`):** DTO inmutable que encapsula `render_mode` (`storyboard_sketch` | `full_bleed_frame`), `color_palette`, `lighting_style`, `camera_lens` y `negative_directives`, persistida en `shots.visual_aesthetic_config` y `projects.visual_aesthetic_config`.
   - **Constructor de Prompts Broadcast (`BroadcastFramePromptBuilder`) y Nuevos Estilos Editoriales:** Generación de prosa limpia 16:9 edge-to-edge sin encabezados ni marcos de storyboard cuando `render_mode` es `full_bleed_frame`, incorporando los 4 nuevos estilos editoriales en `StoryboardService::STYLES` (`editorial_documentary_35mm`, `clean_editorial_illustration`, `cinematic_tech_minimal`, `scifi_painterly`).
