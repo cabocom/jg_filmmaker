@@ -12,6 +12,12 @@
 
 ## Resumen Ejecutivo de Capacidades Recientes
 
+- **Consola Nativa Livewire `/tv` (`TvWorkspace`), Modo `?embed=1` y SSO HMAC Iframe (ISSUE-43 / Parte B):**
+  - **Consola Nativa `/tv` (`TvWorkspace`):** Componente Livewire 4 en `App\Livewire\Tv\TvWorkspace` (`route('tv.index')`) con pestañas `Escaletas IA`, `Vídeos`, `Parrilla 24h`, `Publicidad` y `Configuración`, conectado a `ManageTvRundownAction` y `SyncTvChannelConfigAction`, con enlace directo **"🎬 Abrir en Estudio"** hacia `route('projects.show', $rundown->project_id)` (`target="_top"` en modo embed) y enlace en el menú de usuario (`layouts/partials/header.blade.php`).
+  - **Modo Embed Limpio (`?embed=1`):** Propiedad URL `$embed` en `TvWorkspace` propagada mediante `layoutData(['embed' => $this->embed])` hacia `layouts/app.blade.php`, ocultando `@include('layouts.partials.header')` cuando `$embed` está activo para integración limpia en iframe.
+  - **SSO HMAC de Un Solo Uso (`IframeSsoController`):** Endpoint `GET /auth/iframe-sso` (`route('auth.iframe-sso')`, `throttle:30,1`) que valida firma HMAC-SHA256 (`"{$email}|{$exp}|{$nonce}|{$redirect}"`) con `services.jg_agente.secret`, expiración (`<= 120s`), anti-replay por `nonce` en caché, lista blanca de redirección (`/tv` o `/projects`) y verificación de usuario administrador (`is_admin = true`).
+  - **Pruebas Automatizadas:** Suite `tests/Feature/NativeTvConsoleUiAndSsoTest.php` cubriendo renderizado `/tv` y `?embed=1`, creación de escaletas vinculadas a proyectos `ai_video` con enlace al Estudio, y seguridad completa de `GET /auth/iframe-sso` (login admin, anti-replay, firma alterada y bloqueo de open-redirect).
+
 - **Backend Nativo de TV, Sintetizador Wikipedia y API M2M `/api/v1/tv/rundowns` (ISSUE-43 / Parte A):**
   - **Modelos y Tablas Nativas de TV:** Incorporadas las entidades `TvChannelConfig` (`tv_channel_configs`), `TvDaySchedule` (`tv_day_schedules`), `TvRundown` (`tv_rundowns`), `TvVideo` (`tv_videos`) y `TvAdSlot` (`tv_ad_slots`) con soporte UUID, relaciones 1:1 hacia `Project` (`ai_video`) y seguimiento de trabajos `BroadcastJob`.
   - **Sintetizador Wikipedia Anti-SSRF (`WikipediaRundownSynthesizer`):** Valida estrictamente URLs `https://` sobre `es.wikipedia.org` / `en.wikipedia.org` con ruta `/wiki/` (bloqueando SSRF), normaliza el extracto para locución limpia y separa el crédito visual `Fuente: Wikipedia · CC BY-SA 4.0` (`VISUAL_CREDIT`) y las fuentes de atribución.

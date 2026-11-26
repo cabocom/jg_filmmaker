@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\AudioStreamController;
+use App\Http\Controllers\Auth\IframeSsoController;
 use App\Http\Controllers\MediaStreamController;
 use App\Http\Controllers\ScriptExportController;
 use App\Http\Middleware\EnsureUserIsAdmin;
@@ -14,11 +15,15 @@ use App\Livewire\Admin\UserList;
 use App\Livewire\Auth\Login;
 use App\Livewire\Projects\ProjectList;
 use App\Livewire\Studio\ScriptEditor;
+use App\Livewire\Tv\TvWorkspace;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 // Rutas de Autenticación Passwordless (Estilo jg_hub)
 Route::get('/login', Login::class)->name('login');
+Route::get('/auth/iframe-sso', IframeSsoController::class)
+    ->middleware('throttle:30,1')
+    ->name('auth.iframe-sso');
 
 Route::post('/logout', function () {
     Auth::logout();
@@ -35,6 +40,7 @@ Route::get('/', function () {
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/projects', ProjectList::class)->name('projects.index');
+    Route::get('/tv', TvWorkspace::class)->name('tv.index');
     Route::get('/projects/{project}', ScriptEditor::class)
         ->middleware('can:view,project')
         ->name('projects.show');

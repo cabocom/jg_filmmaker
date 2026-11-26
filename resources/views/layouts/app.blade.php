@@ -112,7 +112,9 @@
     </style>
 </head>
 <body class="h-full flex flex-col font-mono bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased selection:bg-amber-500/30 selection:text-amber-900 dark:selection:text-amber-200 transition-colors duration-150 overflow-x-hidden">
-    @include('layouts.partials.header')
+    @if(! ($embed ?? false))
+        @include('layouts.partials.header')
+    @endif
 
     <!-- Contenido Principal -->
     <main class="flex-1 overflow-y-auto">
