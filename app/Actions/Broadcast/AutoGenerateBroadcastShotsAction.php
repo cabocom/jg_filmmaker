@@ -269,6 +269,9 @@ final readonly class AutoGenerateBroadcastShotsAction
     protected function processShotsStage(BroadcastJob $job, ScriptBlock $block, array $artifacts): void
     {
         $shots = $this->pipeline->generateShotsBreakdown($block);
+        if ($shots === []) {
+            $shots = $this->createDeterministicFallbackShots($job, $block);
+        }
         $sanitized = $this->sanitizer->sanitizeAndFormatShots($shots);
         $distributor = $this->sentenceDistributor ?? app(SentenceBasedShotDistributor::class);
         $explicitCredit = isset($artifacts['visual_credit']) && is_string($artifacts['visual_credit'])
@@ -287,6 +290,43 @@ final readonly class AutoGenerateBroadcastShotsAction
             'stage' => BroadcastJobStage::SHOTS,
             'artifacts' => $artifacts,
         ]);
+    }
+
+    /**
+     * Crea planos deterministas en BD a partir de las frases del guion si el detector LLM falla.
+     *
+     * @return list<Shot>
+     */
+    private function createDeterministicFallbackShots(BroadcastJob $job, ScriptBlock $block): array
+    {
+        $distributor = $this->sentenceDistributor ?? app(SentenceBasedShotDistributor::class);
+        $seed = array_map(
+            static fn (int $i): array => ['shot_number' => $i, 'shot_type' => $i === 1 ? 'PG' : 'PM'],
+            range(1, 12)
+        );
+        $distributed = $distributor->distribute($seed, (string) $job->raw_text);
+        $created = [];
+        $framings = ['PG', 'PM', 'PP', 'PA'];
+
+        foreach ($distributed['shots'] as $index => $item) {
+            $num = $index + 1;
+            $oral = trim((string) ($item['oral_text'] ?? ''));
+            if ($oral === '') {
+                continue;
+            }
+            $created[] = Shot::create([
+                'scene_id' => $block->scene_id,
+                'script_block_id' => $block->id,
+                'shot_number' => $num,
+                'shot_type' => $framings[$index % count($framings)],
+                'description' => "Escena visual ilustrativa sobre {$job->title}: {$oral}",
+                'estimated_duration' => max(5, (int) ($item['estimated_seconds'] ?? 8)),
+            ]);
+        }
+
+        $block->update(['stage' => BlockStage::SHOTS->value]);
+
+        return $created;
     }
 
     /**

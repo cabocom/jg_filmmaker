@@ -1,6 +1,6 @@
     <!-- ================= MODAL CONFIRMAR COSTE EN TOKENS PARA ACCIÓN DE BLOQUE INDIVIDUAL ================= -->
     @if($showBlockActionConfirmModal)
-        <div class="fixed inset-0 z-50 overflow-y-auto"
+        <div class="fixed inset-0 z-[100] overflow-y-auto"
              x-data
              @keydown.escape.window="$wire.cancelBlockAction()">
             <!-- Backdrop -->
