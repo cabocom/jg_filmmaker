@@ -36,7 +36,7 @@ class IframeSsoController extends Controller
             abort(403, 'SSO ticket expired.');
         }
 
-        if (preg_match('#^/(tv|projects)(?:[/?#].*)?$#', $redirect) !== 1) {
+        if (preg_match('~^/(tv|projects)(?:[/?#].*)?$~', $redirect) !== 1) {
             abort(403, 'Invalid SSO redirect target.');
         }
 
