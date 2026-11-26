@@ -26,7 +26,8 @@ final readonly class AutoGenerateBroadcastShotsAction
 {
     public function __construct(
         protected ScriptPipelineService $pipeline,
-        protected OralShotSanitizer $sanitizer
+        protected OralShotSanitizer $sanitizer,
+        protected ?SyncBroadcastProjectBibleAction $bibleSyncAction = null
     ) {}
 
     /**
@@ -36,31 +37,16 @@ final readonly class AutoGenerateBroadcastShotsAction
     public function initialize(BroadcastJobRequestDTO $dto): BroadcastJob
     {
         $job = DB::transaction(function () use ($dto): BroadcastJob {
-            $user = $this->resolveBroadcastUser();
+            [$project, $block] = $this->createProjectAndBlock($dto);
 
-            $project = Project::create([
-                'user_id' => $user->id,
-                'title' => $dto->title !== '' ? $dto->title : 'Broadcast '.now()->format('Y-m-d H:i:s'),
-                'status' => 'in_progress',
-                'category' => ProjectCategory::AI_VIDEO->value,
-                'storyboard_style' => $dto->visualMode,
+            $artifacts = array_filter([
+                'resolution_profile' => $dto->resolutionProfile,
+                'output_relative_path' => $dto->outputRelativePath,
+                'cast_profiles' => $dto->castProfiles !== [] ? $dto->castProfiles : null,
+                'location_profile' => $dto->locationProfile,
             ]);
 
-            $scene = Scene::create([
-                'project_id' => $project->id,
-                'scene_order' => 1,
-                'slugline' => 'INT. ESTUDIO BROADCAST - DÍA',
-                'time_of_day' => 'DÍA',
-            ]);
-
-            $block = ScriptBlock::create([
-                'scene_id' => $scene->id,
-                'block_order' => 1,
-                'stage' => BlockStage::RAW->value,
-                'raw_text' => $this->buildContextualizedRawText($dto),
-            ]);
-
-            return BroadcastJob::create([
+            $job = BroadcastJob::create([
                 'channel_id' => $dto->channelId,
                 'format' => $dto->format,
                 'title' => $dto->title,
@@ -72,16 +58,45 @@ final readonly class AutoGenerateBroadcastShotsAction
                 'stage' => BroadcastJobStage::RAW,
                 'project_id' => $project->id,
                 'script_block_id' => $block->id,
-                'artifacts' => array_filter([
-                    'resolution_profile' => $dto->resolutionProfile,
-                    'output_relative_path' => $dto->outputRelativePath,
-                ]),
+                'artifacts' => $artifacts,
             ]);
+
+            if ($dto->castProfiles !== [] || $dto->locationProfile !== null) {
+                $artifacts['bible_summary'] = $this->syncBible($job, $project);
+                $job->update(['artifacts' => $artifacts]);
+            }
+
+            return $job;
         });
 
         RunBroadcastStageJob::dispatch($job->id, BroadcastJobStage::TREATMENT)->onQueue('broadcast');
 
         return $job;
+    }
+
+    private function createProjectAndBlock(BroadcastJobRequestDTO $dto): array
+    {
+        $project = Project::create([
+            'user_id' => $this->resolveBroadcastUser()->id,
+            'title' => $dto->title !== '' ? $dto->title : 'Broadcast '.now()->format('Y-m-d H:i:s'),
+            'status' => 'in_progress',
+            'category' => ProjectCategory::AI_VIDEO->value,
+            'storyboard_style' => $dto->visualMode,
+        ]);
+
+        $scene = Scene::create([
+            'project_id' => $project->id,
+            'scene_order' => 1,
+            'slugline' => 'INT. ESTUDIO BROADCAST - DÍA',
+            'time_of_day' => 'DÍA',
+        ]);
+
+        return [$project, ScriptBlock::create([
+            'scene_id' => $scene->id,
+            'block_order' => 1,
+            'stage' => BlockStage::RAW->value,
+            'raw_text' => $this->buildContextualizedRawText($dto),
+        ])];
     }
 
     /**
@@ -158,6 +173,7 @@ final readonly class AutoGenerateBroadcastShotsAction
         $block->refresh();
 
         $artifacts['treatment'] = $block->structured_text;
+        $artifacts['bible_summary'] = $this->syncBible($job, $job->project);
         $job->update([
             'stage' => BroadcastJobStage::TREATMENT,
             'artifacts' => $artifacts,
@@ -172,6 +188,7 @@ final readonly class AutoGenerateBroadcastShotsAction
         $block->refresh();
 
         $artifacts['screenplay'] = $block->screenplay_content;
+        $artifacts['bible_summary'] = $this->syncBible($job, $job->project);
         $job->update([
             'stage' => BroadcastJobStage::SCREENPLAY,
             'artifacts' => $artifacts,
@@ -257,23 +274,25 @@ final readonly class AutoGenerateBroadcastShotsAction
      */
     private function buildContextualizedRawText(BroadcastJobRequestDTO $dto): string
     {
-        $formatKey = strtolower(trim($dto->format));
-        $formatDescription = match ($formatKey) {
+        $formatDescription = match (strtolower(trim($dto->format))) {
             'pill', 'pildora' => 'Píldora informativa ágil, directa y dinámica (formato vertical / micro-cápsula)',
             'news', 'noticia' => 'Crónica periodística televisiva con tono informativo riguroso',
             'debate' => 'Mesa de debate y contraste dialéctico con dinamismo oral',
             default => 'Reportaje audiovisual ágil',
         };
 
-        $lang = strtolower(trim($dto->language));
-        $langInstruction = $lang === 'en'
+        $langInstruction = strtolower(trim($dto->language)) === 'en'
             ? 'Language: English. Natural oral phrasing for high-speed speech.'
             : 'Idioma: Español. Mantener narración natural para locución oral de broadcast.';
 
-        $header = "[FORMATO: {$formatDescription}]\n"
+        return "[FORMATO: {$formatDescription}]\n"
             ."[PAUTA: {$langInstruction}]\n"
-            ."[TÍTULO: {$dto->title}]\n\n";
+            ."[TÍTULO: {$dto->title}]\n\n"
+            .trim($dto->rawText);
+    }
 
-        return $header.trim($dto->rawText);
+    private function syncBible(BroadcastJob $job, ?Project $project = null): array
+    {
+        return ($this->bibleSyncAction ?? app(SyncBroadcastProjectBibleAction::class))->execute($job, $project);
     }
 }

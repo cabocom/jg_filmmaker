@@ -8,6 +8,8 @@ final readonly class BroadcastJobRequestDTO
 {
     /**
      * @param  list<string|array<string, mixed>>  $sources
+     * @param  list<array<string, mixed>>  $castProfiles
+     * @param  array<string, mixed>|null  $locationProfile
      */
     public function __construct(
         public string $channelId,
@@ -20,6 +22,8 @@ final readonly class BroadcastJobRequestDTO
         public ?string $callbackUrl = null,
         public string $resolutionProfile = '1080p30',
         public ?string $outputRelativePath = null,
+        public array $castProfiles = [],
+        public ?array $locationProfile = null,
     ) {}
 
     /**
@@ -38,6 +42,12 @@ final readonly class BroadcastJobRequestDTO
             callbackUrl: isset($data['callback_url']) && is_string($data['callback_url']) ? $data['callback_url'] : null,
             resolutionProfile: (string) ($data['resolution_profile'] ?? '1080p30'),
             outputRelativePath: isset($data['output_relative_path']) && is_string($data['output_relative_path']) && trim($data['output_relative_path']) !== '' ? trim($data['output_relative_path']) : null,
+            castProfiles: isset($data['cast_profiles']) && is_array($data['cast_profiles'])
+                ? array_values(array_filter($data['cast_profiles'], 'is_array'))
+                : [],
+            locationProfile: isset($data['location_profile']) && is_array($data['location_profile'])
+                ? $data['location_profile']
+                : null,
         );
     }
 }

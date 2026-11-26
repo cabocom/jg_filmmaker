@@ -44,6 +44,17 @@ class StoreBroadcastJobRequest extends FormRequest
                     }
                 }
             }],
+            'cast_profiles' => ['sometimes', 'array', 'max:10'],
+            'cast_profiles.*.name' => ['required_with:cast_profiles', 'string', 'max:120'],
+            'cast_profiles.*.bio' => ['nullable', 'string', 'max:1000'],
+            'cast_profiles.*.psychology' => ['nullable', 'string', 'max:500'],
+            'cast_profiles.*.costume_notes' => ['nullable', 'string', 'max:500'],
+            'location_profile' => ['sometimes', 'nullable', 'array'],
+            'location_profile.name' => ['nullable', 'string', 'max:120'],
+            'location_profile.type' => ['nullable', 'string', 'in:INT,EXT,INT/EXT'],
+            'location_profile.art_department_notes' => ['nullable', 'string', 'max:1000'],
+            'location_profile.lighting_notes' => ['nullable', 'string', 'max:1000'],
+            'location_profile.address_reference' => ['nullable', 'string', 'max:500'],
         ];
     }
 

@@ -12,6 +12,12 @@
 
 ## Resumen Ejecutivo de Capacidades Recientes
 
+- **Sincronización Automática de Biblia del Proyecto en Broadcast (`ai_video`) y Grounding de Storyboard (ISSUE-39):**
+  - **Acción de Sincronización (`SyncBroadcastProjectBibleAction`):** Sincroniza automáticamente personajes (`Character`) y localizaciones (`Location`) para cada `BroadcastJob`, vinculando `scene->location_id` mediante `SluglineSyncService`, sembrando `cast_profiles` y `location_profile` opcionales, ejecutando `BibleSyncService::syncProjectCharacters()` con tolerancia a errores de extracción LLM y garantizando un personaje por defecto (`Presentador`) si no se detectan hablantes.
+  - **Contrato de Entrada y Artefactos (`BroadcastJobRequestDTO` / `StoreBroadcastJobRequest`):** Soporte opcional de `cast_profiles` (`name`, `bio`, `psychology`, `costume_notes`) y `location_profile` (`name`, `type`, `art_department_notes`, `lighting_notes`, `address_reference`) en `POST /api/v1/broadcast/jobs`. `AutoGenerateBroadcastShotsAction` sincroniza la Biblia en `initialize()` (cuando hay perfiles) y tras las etapas `TREATMENT` y `SCREENPLAY`, persistiendo el resumen en `BroadcastJob::$artifacts['bible_summary']`.
+  - **Grounding Automático en `StoryboardPromptBuilder`:** Los planos de proyectos `ai_video` consumen automáticamente los personajes y localizaciones sincronizados (resolviendo `Character Consistency:` y `Location & Scenography:`) sin intervención manual.
+  - **Pruebas Automatizadas:** Añadida la suite `tests/Feature/BroadcastAutoBibleSyncTest.php` cubriendo sincronización por defecto, ingesta API con `cast_profiles`/`location_profile`, tolerancia a fallos del extractor en `TREATMENT`/`SCREENPLAY` e inyección en `StoryboardService::buildPrompt()`.
+
 - **Categorías de Proyecto (`personal` / `ai_video`), API REST M2M `/api/v1/projects` y Pestañas en UI (ISSUE-38):**
   - **Modelo y Enum de Categoría (`ProjectCategory`):** Introducido el enum `App\Enums\ProjectCategory` (`personal` = "Proyectos personales", `ai_video` = "Videos IA") con columna indexada `category` en `projects` (por defecto `personal`), cast nativo en `Project`, helper `categoryEnum()`, scope `scopeCategory()` y estado `aiVideo()` en `ProjectFactory`.
   - **Caso de Uso Desacoplado (`CreateProjectAction` y `CreateProjectDTO`):** Creación transaccional de proyectos con soporte opcional para escena inicial + `ScriptBlock` en etapa `RAW`, resolución automática de propietario (`resolveSystemOwner()`) y aplicación opcional de cuota exclusivamente sobre proyectos `personal`.
