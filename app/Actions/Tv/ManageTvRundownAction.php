@@ -15,6 +15,7 @@ use App\Models\Scene;
 use App\Models\ScriptBlock;
 use App\Models\TvRundown;
 use App\Models\TvVideo;
+use App\Models\TvVisualStyle;
 use App\Models\User;
 use App\Services\Tv\WikipediaRundownSynthesizer;
 use Illuminate\Support\Facades\DB;
@@ -40,6 +41,7 @@ final readonly class ManageTvRundownAction
         'tts_provider',
         'tts_voice',
         'visual_mode',
+        'visual_style_id',
         'resolution_profile',
         'publish_to_podcast',
         'generate_short',
@@ -86,6 +88,7 @@ final readonly class ManageTvRundownAction
         }
 
         $visualMode = (string) ($data['visual_mode'] ?? 'storyboard');
+        $visualStyle = $this->resolveVisualStyle($data['visual_style_id'] ?? null);
         $initialStage = $sourceKind === 'wikipedia' ? 'generating' : 'draft';
         $initialStatus = $sourceKind === 'wikipedia' ? 'synthesizing' : 'draft';
 
@@ -100,6 +103,7 @@ final readonly class ManageTvRundownAction
             $scriptText,
             $title,
             $visualMode,
+            $visualStyle,
             $initialStage,
             $initialStatus,
         ): TvRundown {
@@ -110,6 +114,17 @@ final readonly class ManageTvRundownAction
                 storyboardStyle: $visualMode,
                 rawText: $scriptText,
             ));
+
+            if ($visualStyle !== null) {
+                $project->update([
+                    'visual_style_id' => $visualStyle->id,
+                    'visual_aesthetic_config' => [
+                        'mode' => 'full_bleed',
+                        'style_prompt' => $visualStyle->prompt_base,
+                        'style_characteristics' => $visualStyle->characteristics,
+                    ],
+                ]);
+            }
 
             return TvRundown::create([
                 'project_id' => $project->id,
@@ -130,6 +145,7 @@ final readonly class ManageTvRundownAction
                 'tts_provider' => $this->resolveNullableString($data['tts_provider'] ?? null, $channelConfig->tts_provider ?: 'gemini'),
                 'tts_voice' => $this->resolveNullableString($data['tts_voice'] ?? null, $channelConfig->tts_voice ?: 'Kore'),
                 'visual_mode' => $visualMode,
+                'visual_style_id' => $visualStyle?->id,
                 'resolution_profile' => (string) ($data['resolution_profile'] ?? $channelConfig->broadcast_profile ?: '720p30'),
                 'status' => $initialStatus,
                 'stage' => $initialStage,
@@ -163,6 +179,9 @@ final readonly class ManageTvRundownAction
         }
         if (isset($filtered['format']) && ! isset($filtered['type'])) {
             $filtered['type'] = $filtered['format'];
+        }
+        if (array_key_exists('visual_style_id', $filtered)) {
+            $filtered['visual_style_id'] = $this->resolveVisualStyle($filtered['visual_style_id'])?->id;
         }
 
         if ($filtered === []) {
@@ -302,6 +321,18 @@ final readonly class ManageTvRundownAction
             'storyboard_style' => array_key_exists('visual_mode', $updated) ? $rundown->visual_mode : null,
         ], static fn (mixed $v): bool => $v !== null);
 
+        if (array_key_exists('visual_style_id', $updated)) {
+            $visualStyle = $this->resolveVisualStyle($rundown->visual_style_id);
+            $projectUpdates['visual_style_id'] = $visualStyle?->id;
+            if ($visualStyle !== null) {
+                $projectUpdates['visual_aesthetic_config'] = [
+                    'mode' => 'full_bleed',
+                    'style_prompt' => $visualStyle->prompt_base,
+                    'style_characteristics' => $visualStyle->characteristics,
+                ];
+            }
+        }
+
         if ($projectUpdates !== []) {
             $project->update($projectUpdates);
         }
@@ -335,6 +366,15 @@ final readonly class ManageTvRundownAction
                 'raw_text' => $scriptText,
             ]);
         }
+    }
+
+    private function resolveVisualStyle(mixed $styleId): ?TvVisualStyle
+    {
+        if (! is_string($styleId) || trim($styleId) === '') {
+            return null;
+        }
+
+        return TvVisualStyle::query()->find(trim($styleId));
     }
 
     private function resolveNullableString(mixed $value, ?string $fallback): ?string

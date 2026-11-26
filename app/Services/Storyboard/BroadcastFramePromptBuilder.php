@@ -6,6 +6,8 @@ namespace App\Services\Storyboard;
 
 use App\DTOs\Storyboard\VisualAestheticConfigDTO;
 use App\Models\Shot;
+use App\Models\TvRundown;
+use App\Models\TvVisualStyle;
 
 final readonly class BroadcastFramePromptBuilder
 {
@@ -36,7 +38,7 @@ final readonly class BroadcastFramePromptBuilder
         ?string $locationId = null,
         int $propCount = 0,
     ): string {
-        $shot->loadMissing(['scene.project.characters', 'scene.project.locations', 'scene.location', 'scriptBlock']);
+        $shot->loadMissing(['scene.project.characters', 'scene.project.locations', 'scene.project.visualStyle', 'scene.location', 'scriptBlock']);
 
         $framing = $this->resolveFraming($shot->shot_type);
         $description = $this->resolveDescription($shot, $characterId);
@@ -46,7 +48,7 @@ final readonly class BroadcastFramePromptBuilder
         ];
 
         $this->appendBibleContext($parts, $shot, $characterId, $locationId, $propCount);
-        $this->appendAestheticDirectives($parts, $styleKey, $config);
+        $this->appendAestheticDirectives($parts, $shot, $styleKey, $config);
 
         $parts[] = 'Edge-to-edge full-bleed composition filling the entire 16:9 frame with no borders, no letterbox bars, no panel outlines, no text overlays, no watermarks, and no storyboard labels.';
 
@@ -108,14 +110,11 @@ final readonly class BroadcastFramePromptBuilder
     /**
      * @param  list<string>  $parts
      */
-    private function appendAestheticDirectives(array &$parts, string $styleKey, VisualAestheticConfigDTO $config): void
+    private function appendAestheticDirectives(array &$parts, Shot $shot, string $styleKey, VisualAestheticConfigDTO $config): void
     {
-        $styleModifier = $this->styles[$styleKey]['modifier']
-            ?? $this->styles['grayscale_sketch']['modifier']
-            ?? null;
-
-        if (is_string($styleModifier) && trim($styleModifier) !== '') {
-            $parts[] = trim($styleModifier);
+        $styleDirective = $this->resolveStyleDirective($shot, $styleKey);
+        if ($styleDirective !== null) {
+            $parts[] = $styleDirective;
         }
 
         if ($config->colorPalette !== null) {
@@ -133,5 +132,47 @@ final readonly class BroadcastFramePromptBuilder
         if ($config->negativeDirectives !== null) {
             $parts[] = "Avoid: {$config->negativeDirectives}.";
         }
+    }
+
+    private function resolveStyleDirective(Shot $shot, string $styleKey): ?string
+    {
+        $project = $shot->scene?->project;
+        $visualStyle = $project?->visualStyle;
+
+        if (! $visualStyle instanceof TvVisualStyle && $project !== null) {
+            $visualStyle = TvRundown::query()
+                ->where('project_id', $project->id)
+                ->with('visualStyle')
+                ->first()
+                ?->visualStyle;
+        }
+
+        if ($visualStyle instanceof TvVisualStyle) {
+            $promptBase = trim((string) $visualStyle->prompt_base);
+            if ($promptBase !== '') {
+                $characteristics = trim((string) ($visualStyle->characteristics ?? ''));
+
+                return $characteristics !== '' ? "{$promptBase} {$characteristics}" : $promptBase;
+            }
+        }
+
+        $rawConfig = is_array($shot->visual_aesthetic_config) && $shot->visual_aesthetic_config !== []
+            ? $shot->visual_aesthetic_config
+            : (is_array($project?->visual_aesthetic_config) ? $project->visual_aesthetic_config : []);
+
+        $configPrompt = is_string($rawConfig['style_prompt'] ?? null) ? trim($rawConfig['style_prompt']) : '';
+        if ($configPrompt !== '') {
+            $configCharacteristics = is_string($rawConfig['style_characteristics'] ?? null)
+                ? trim($rawConfig['style_characteristics'])
+                : '';
+
+            return $configCharacteristics !== '' ? "{$configPrompt} {$configCharacteristics}" : $configPrompt;
+        }
+
+        $styleModifier = $this->styles[$styleKey]['modifier']
+            ?? $this->styles['grayscale_sketch']['modifier']
+            ?? null;
+
+        return is_string($styleModifier) && trim($styleModifier) !== '' ? trim($styleModifier) : null;
     }
 }

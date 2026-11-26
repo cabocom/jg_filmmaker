@@ -70,7 +70,7 @@ class TvWorkspace extends Component
     {
         $this->assertAdmin();
 
-        $validSections = ['schedule', 'rundowns', 'videos', 'ads', 'config'];
+        $validSections = ['schedule', 'rundowns', 'styles', 'videos', 'ads', 'config'];
         if ($this->activeSection === 'schedule' && request()->query('tv_section') === null && in_array(session('tv_active_section'), $validSections, true)) {
             $this->activeSection = (string) session('tv_active_section');
         }
@@ -95,7 +95,7 @@ class TvWorkspace extends Component
     public function switchSection(string $section): void
     {
         $this->assertAdmin();
-        if (in_array($section, ['schedule', 'rundowns', 'videos', 'ads', 'config'], true)) {
+        if (in_array($section, ['schedule', 'rundowns', 'styles', 'videos', 'ads', 'config'], true)) {
             $this->activeSection = $section;
             session(['tv_active_section' => $section]);
         }

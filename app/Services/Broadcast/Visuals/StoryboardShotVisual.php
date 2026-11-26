@@ -8,6 +8,8 @@ use App\Contracts\Broadcast\ShotVisualStrategyInterface;
 use App\DTOs\Storyboard\VisualAestheticConfigDTO;
 use App\Models\BroadcastJob;
 use App\Models\Shot;
+use App\Models\TvRundown;
+use App\Models\TvVisualStyle;
 use App\Services\StoryboardService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -43,7 +45,7 @@ final readonly class StoryboardShotVisual implements ShotVisualStrategyInterface
                 ? $rawMode
                 : 'editorial_documentary_35mm';
 
-            $shot->loadMissing('scene.project');
+            $shot->loadMissing('scene.project.visualStyle');
             $rawAesthetic = is_array($shot->visual_aesthetic_config) && $shot->visual_aesthetic_config !== []
                 ? $shot->visual_aesthetic_config
                 : (is_array($shot->scene?->project?->visual_aesthetic_config) ? $shot->scene->project->visual_aesthetic_config : []);
@@ -116,7 +118,11 @@ final readonly class StoryboardShotVisual implements ShotVisualStrategyInterface
 
     private function resolveStyleReferenceBase64(Shot $shot): ?string
     {
-        if ($shot->shot_number <= 1 || ($shot->scene_id === null && $shot->script_block_id === null)) {
+        if ($shot->shot_number <= 1) {
+            return $this->resolveProjectStyleReferenceBase64($shot);
+        }
+
+        if ($shot->scene_id === null && $shot->script_block_id === null) {
             return null;
         }
 
@@ -137,6 +143,34 @@ final readonly class StoryboardShotVisual implements ShotVisualStrategyInterface
         }
 
         $bytes = file_get_contents($anchorPath);
+
+        return is_string($bytes) && $bytes !== '' ? base64_encode($bytes) : null;
+    }
+
+    private function resolveProjectStyleReferenceBase64(Shot $shot): ?string
+    {
+        $shot->loadMissing('scene.project.visualStyle');
+        $project = $shot->scene?->project;
+        $visualStyle = $project?->visualStyle;
+
+        if (! $visualStyle instanceof TvVisualStyle && $project !== null) {
+            $visualStyle = TvRundown::query()
+                ->where('project_id', $project->id)
+                ->with('visualStyle')
+                ->first()
+                ?->visualStyle;
+        }
+
+        $referencePath = $visualStyle?->reference_image_path;
+        if (! is_string($referencePath) || trim($referencePath) === '') {
+            return null;
+        }
+
+        if (! Storage::disk('local')->exists($referencePath)) {
+            return null;
+        }
+
+        $bytes = Storage::disk('local')->get($referencePath);
 
         return is_string($bytes) && $bytes !== '' ? base64_encode($bytes) : null;
     }

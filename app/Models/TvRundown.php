@@ -38,6 +38,7 @@ class TvRundown extends Model
         'tts_provider',
         'tts_voice',
         'visual_mode',
+        'visual_style_id',
         'resolution_profile',
         'status',
         'stage',
@@ -95,6 +96,12 @@ class TvRundown extends Model
     public function daySchedule(): BelongsTo
     {
         return $this->belongsTo(TvDaySchedule::class, 'day_schedule_id');
+    }
+
+    /** @return BelongsTo<TvVisualStyle, $this> */
+    public function visualStyle(): BelongsTo
+    {
+        return $this->belongsTo(TvVisualStyle::class, 'visual_style_id');
     }
 
     public function isBusy(): bool

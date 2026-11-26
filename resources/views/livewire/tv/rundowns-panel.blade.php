@@ -70,7 +70,7 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <label class="block text-xs font-medium text-slate-300 mb-1">Proveedor TTS</label>
                     <select wire:model="ttsProvider" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-indigo-500 focus:outline-none">
@@ -91,6 +91,16 @@
                         <option value="Aoede">
                     </datalist>
                     @error('ttsVoice') <span class="text-xs text-rose-400 mt-1 block">{{ $message }}</span> @enderror
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Estilo Visual</label>
+                    <select wire:model="visualStyleId" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-indigo-500 focus:outline-none">
+                        <option value="">Sin estilo específico</option>
+                        @foreach ($visualStyles as $style)
+                            <option value="{{ $style->id }}">{{ $style->name }}@if ($style->is_default) (Por defecto)@endif</option>
+                        @endforeach
+                    </select>
+                    @error('visualStyleId') <span class="text-xs text-rose-400 mt-1 block">{{ $message }}</span> @enderror
                 </div>
             </div>
 
@@ -155,7 +165,7 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label class="block text-xs font-medium text-slate-300 mb-1">Proveedor TTS</label>
                         <select wire:model="editTtsProvider" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-indigo-500 focus:outline-none">
@@ -176,6 +186,16 @@
                             <option value="Aoede">
                         </datalist>
                         @error('editTtsVoice') <span class="text-xs text-rose-400 mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Estilo Visual</label>
+                        <select wire:model="editVisualStyleId" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-indigo-500 focus:outline-none">
+                            <option value="">Sin estilo específico</option>
+                            @foreach ($visualStyles as $style)
+                                <option value="{{ $style->id }}">{{ $style->name }}@if ($style->is_default) (Por defecto)@endif</option>
+                            @endforeach
+                        </select>
+                        @error('editVisualStyleId') <span class="text-xs text-rose-400 mt-1 block">{{ $message }}</span> @enderror
                     </div>
                 </div>
 
@@ -267,13 +287,18 @@
                                     @endif
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap">
-                                    <div class="flex items-center gap-1.5">
+                                    <div class="flex items-center gap-1.5 flex-wrap">
                                         <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-200 border border-slate-700">
                                             {{ $rundown->type }}
                                         </span>
                                         <span class="text-slate-400 text-[11px] uppercase">
                                             {{ $rundown->language }}
                                         </span>
+                                        @if ($rundown->visualStyle)
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-indigo-950 text-indigo-300 border border-indigo-700/70">
+                                                🎨 {{ $rundown->visualStyle->name }}
+                                            </span>
+                                        @endif
                                     </div>
                                 </td>
                                 <td class="px-4 py-3 whitespace-nowrap">

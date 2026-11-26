@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Tv;
 
 use App\Actions\Tv\ManageTvRundownAction;
+use App\Actions\Tv\ManageTvVisualStyleAction;
 use App\Actions\Tv\ScanAndSyncTvDriveMediaAction;
 use App\Models\TvRundown;
 use Illuminate\Contracts\View\View;
@@ -38,6 +39,8 @@ class TvRundownsPanel extends Component
 
     public string $ttsVoice = 'Kore';
 
+    public ?string $visualStyleId = null;
+
     public ?string $editingRundownId = null;
 
     public string $editTitle = '';
@@ -56,6 +59,8 @@ class TvRundownsPanel extends Component
 
     public string $editTtsVoice = 'Kore';
 
+    public ?string $editVisualStyleId = null;
+
     protected bool $justInitiated = false;
 
     public function boot(): void
@@ -65,11 +70,15 @@ class TvRundownsPanel extends Component
         }
     }
 
-    public function mount(): void
+    public function mount(ManageTvVisualStyleAction $styleAction): void
     {
         if (! (bool) Auth::user()?->is_admin) {
             abort(403);
         }
+
+        $styles = $styleAction->listActive();
+        $defaultStyle = $styles->firstWhere('is_default', true) ?? $styles->first();
+        $this->visualStyleId = $defaultStyle?->id;
     }
 
     public function createRundown(ManageTvRundownAction $action): void
@@ -89,6 +98,7 @@ class TvRundownsPanel extends Component
                 'evergreen_fallback' => $this->evergreenFallback,
                 'tts_provider' => $this->ttsProvider,
                 'tts_voice' => $this->ttsVoice,
+                'visual_style_id' => $this->visualStyleId ?: null,
             ], Auth::user());
             $this->reset(['title', 'topicOrUrl', 'scriptText']);
             session()->flash('success', 'Escaleta creada exitosamente y vinculada a un Proyecto Videos IA en el Estudio.');
@@ -116,6 +126,7 @@ class TvRundownsPanel extends Component
         $this->editEvergreenFallback = (bool) $rundown->evergreen_fallback;
         $this->editTtsProvider = (string) ($rundown->tts_provider ?: 'gemini');
         $this->editTtsVoice = (string) ($rundown->tts_voice ?: 'Kore');
+        $this->editVisualStyleId = $rundown->visual_style_id ? (string) $rundown->visual_style_id : null;
     }
 
     public function saveDraftEdits(ManageTvRundownAction $action): void
@@ -130,6 +141,7 @@ class TvRundownsPanel extends Component
             'editScriptText' => 'nullable|string',
             'editTtsProvider' => 'required|in:gemini,kokoro,elevenlabs,edge',
             'editTtsVoice' => 'required|string|max:64',
+            'editVisualStyleId' => 'nullable|uuid|exists:tv_visual_styles,id',
         ]);
         try {
             $action->updateDraft($rundown, [
@@ -141,6 +153,7 @@ class TvRundownsPanel extends Component
                 'evergreen_fallback' => $this->editEvergreenFallback,
                 'tts_provider' => $this->editTtsProvider,
                 'tts_voice' => $this->editTtsVoice,
+                'visual_style_id' => $this->editVisualStyleId ?: null,
             ]);
             $this->editingRundownId = null;
             session()->flash('success', 'Escaleta actualizada correctamente.');
@@ -184,14 +197,14 @@ class TvRundownsPanel extends Component
         }
     }
 
-    public function render(ScanAndSyncTvDriveMediaAction $syncAction): View
+    public function render(ScanAndSyncTvDriveMediaAction $syncAction, ManageTvVisualStyleAction $styleAction): View
     {
-        $rundowns = TvRundown::query()->with('project')->where('channel_slug', 'ai-today')->latest()->get();
+        $rundowns = TvRundown::query()->with(['project', 'visualStyle'])->where('channel_slug', 'ai-today')->latest()->get();
         $hasBusyRundowns = $rundowns->contains(fn (TvRundown $r): bool => $r->isBusy());
 
         if (! $this->justInitiated && $rundowns->contains(fn (TvRundown $r): bool => in_array((string) $r->stage, ['queued', 'rendering'], true))) {
             $syncAction->refreshActiveJobsOnly('ai-today');
-            $rundowns = TvRundown::query()->with('project')->where('channel_slug', 'ai-today')->latest()->get();
+            $rundowns = TvRundown::query()->with(['project', 'visualStyle'])->where('channel_slug', 'ai-today')->latest()->get();
             $hasBusyRundowns = $rundowns->contains(fn (TvRundown $r): bool => $r->isBusy());
         }
         $this->justInitiated = false;
@@ -199,6 +212,7 @@ class TvRundownsPanel extends Component
         return view('livewire.tv.rundowns-panel', [
             'rundowns' => $rundowns,
             'hasBusyRundowns' => $hasBusyRundowns,
+            'visualStyles' => $styleAction->listActive(),
         ]);
     }
 
@@ -216,6 +230,7 @@ class TvRundownsPanel extends Component
             'scriptText' => $this->sourceKind === 'manual' ? 'required|string' : 'nullable|string',
             'ttsProvider' => 'required|in:gemini,kokoro,elevenlabs,edge',
             'ttsVoice' => 'required|string|max:64',
+            'visualStyleId' => 'nullable|uuid|exists:tv_visual_styles,id',
         ]);
     }
 }

@@ -54,6 +54,13 @@
             </button>
             <button
                 type="button"
+                wire:click="switchSection('styles')"
+                class="px-3 py-1.5 text-xs font-medium border-b-2 cursor-pointer transition-colors flex items-center gap-1.5 {{ $activeSection === 'styles' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 font-semibold' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200' }}"
+            >
+                <span>🎨 Estilos</span>
+            </button>
+            <button
+                type="button"
                 wire:click="switchSection('videos')"
                 class="px-3 py-1.5 text-xs font-medium border-b-2 cursor-pointer transition-colors flex items-center gap-1.5 {{ $activeSection === 'videos' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 font-semibold' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200' }}"
             >
@@ -102,6 +109,8 @@
         @include('livewire.tv.partials.schedule')
     @elseif ($activeSection === 'rundowns')
         <livewire:tv.tv-rundowns-panel wire:key="tv-rundowns-panel" />
+    @elseif ($activeSection === 'styles')
+        <livewire:tv.tv-styles-panel wire:key="tv-styles-panel" />
     @elseif ($activeSection === 'videos')
         <livewire:tv.tv-videos-panel wire:key="tv-videos-panel" />
     @elseif ($activeSection === 'ads')

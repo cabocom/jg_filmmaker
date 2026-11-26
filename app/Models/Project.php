@@ -32,6 +32,7 @@ class Project extends Model
         'status',
         'storyboard_style',
         'visual_aesthetic_config',
+        'visual_style_id',
         'category',
     ];
 
@@ -98,6 +99,14 @@ class Project extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Visual style assigned to the project.
+     */
+    public function visualStyle(): BelongsTo
+    {
+        return $this->belongsTo(TvVisualStyle::class, 'visual_style_id');
     }
 
     /**

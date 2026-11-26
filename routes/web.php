@@ -17,8 +17,10 @@ use App\Livewire\Auth\Login;
 use App\Livewire\Projects\ProjectList;
 use App\Livewire\Studio\ScriptEditor;
 use App\Livewire\Tv\TvWorkspace;
+use App\Models\TvVisualStyle;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 
 // Rutas de Autenticación Passwordless (Estilo jg_hub)
 Route::get('/login', Login::class)->name('login');
@@ -47,6 +49,18 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/tv/videos/{video}/stream', TvVideoStreamController::class)
         ->middleware(EnsureUserIsAdmin::class)
         ->name('tv.videos.stream');
+    Route::get('/tv/styles/{style}/reference', function (TvVisualStyle $style) {
+        abort_unless((bool) request()->user()?->is_admin, 403);
+
+        $path = $style->reference_image_path;
+        if (! is_string($path) || $path === '' || ! Storage::disk('local')->exists($path)) {
+            abort(404, 'Imagen de referencia no encontrada.');
+        }
+
+        return Storage::disk('local')->response($path);
+    })
+        ->middleware(EnsureUserIsAdmin::class)
+        ->name('tv.styles.reference');
     Route::get('/projects/{project}', ScriptEditor::class)
         ->middleware('can:view,project')
         ->name('projects.show');
