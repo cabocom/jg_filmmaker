@@ -12,6 +12,13 @@
 
 ## Resumen Ejecutivo de Capacidades Recientes
 
+- **Backend Nativo de TV, Sintetizador Wikipedia y API M2M `/api/v1/tv/rundowns` (ISSUE-43 / Parte A):**
+  - **Modelos y Tablas Nativas de TV:** Incorporadas las entidades `TvChannelConfig` (`tv_channel_configs`), `TvDaySchedule` (`tv_day_schedules`), `TvRundown` (`tv_rundowns`), `TvVideo` (`tv_videos`) y `TvAdSlot` (`tv_ad_slots`) con soporte UUID, relaciones 1:1 hacia `Project` (`ai_video`) y seguimiento de trabajos `BroadcastJob`.
+  - **Sintetizador Wikipedia Anti-SSRF (`WikipediaRundownSynthesizer`):** Valida estrictamente URLs `https://` sobre `es.wikipedia.org` / `en.wikipedia.org` con ruta `/wiki/` (bloqueando SSRF), normaliza el extracto para locución limpia y separa el crédito visual `Fuente: Wikipedia · CC BY-SA 4.0` (`VISUAL_CREDIT`) y las fuentes de atribución.
+  - **Gestión Transaccional de Escaletas y Producción (`ManageTvRundownAction` / `SynthesizeTvRundownJob`):** Crea escaletas `TvRundown` vinculadas 1:1 a proyectos `ProjectCategory::AI_VIDEO`, sincroniza cambios de borrador (`title`, `visual_mode`, `script_text`) sobre `Project`/`Scene`/`ScriptBlock`, despacha `SynthesizeTvRundownJob` en cola `broadcast` para fuentes `wikipedia` y lanza la producción mediante `dispatchBroadcastProduction()` creando/actualizando `TvVideo`.
+  - **API REST M2M Protegida con HMAC (`/api/v1/tv/rundowns`):** Endpoints `GET /api/v1/tv/rundowns`, `POST /api/v1/tv/rundowns` y `GET /api/v1/tv/rundowns/{rundownId}` en `TvRundownController` con validación `StoreTvRundownApiRequest` y middleware `hmac.m2m`.
+  - **Pruebas Automatizadas:** Suite `tests/Feature/NativeTvBackendApiTest.php` cubriendo `WikipediaRundownSynthesizer` (separación de crédito visual y bloqueo SSRF), `ManageTvRundownAction` (vínculo 1:1 `ai_video`, despacho de síntesis y producción) y contratos HMAC de `/api/v1/tv/rundowns`.
+
 - **Renderizado Dinámico Ken Burns, Lote de Visuales y Ensamblaje Condicional Rápido (ISSUE-42):**
   - **Constructor de Filtros Dinámicos (`MotionFilterBuilder`):** Genera filtros `ffmpeg` full-bleed 16:9 (`force_original_aspect_ratio=increase,crop=...`) sin `pad=` y aplica movimiento Ken Burns mediante `zoompan=` a `fps=30` adaptado al tipo de plano (`PG`/`WIDE`, `PP`/`CLOSE_UP`, `PM`/default).
   - **Generación por Lotes de Visuales (`GenerateBroadcastVisualsBatchAction`):** Reutiliza `storyboard_image_path` ya aprobados en disco local/público y genera únicamente los visuales faltantes comenzando por el plano #1 como ancla de continuidad, persistiendo el mapa en `$job->artifacts['shot_visuals']`.

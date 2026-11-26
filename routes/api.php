@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\Api\V1\BroadcastJobController;
 use App\Http\Controllers\Api\V1\BroadcastMediaController;
 use App\Http\Controllers\Api\V1\ProjectController;
+use App\Http\Controllers\Api\V1\TvRundownController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/broadcast')->middleware(['hmac.m2m', 'throttle:60,1'])->group(function (): void {
@@ -22,4 +23,12 @@ Route::prefix('v1/projects')->middleware(['hmac.m2m', 'throttle:60,1'])->group(f
     Route::post('/', [ProjectController::class, 'store'])->name('api.v1.projects.store');
     Route::get('/{projectId}', [ProjectController::class, 'show'])->name('api.v1.projects.show');
     Route::patch('/{projectId}', [ProjectController::class, 'update'])->name('api.v1.projects.update');
+});
+
+Route::prefix('v1/tv/rundowns')->middleware(['hmac.m2m', 'throttle:60,1'])->group(function (): void {
+    Route::get('/', [TvRundownController::class, 'index'])->name('api.v1.tv.rundowns.index');
+    Route::post('/', [TvRundownController::class, 'store'])->name('api.v1.tv.rundowns.store');
+    Route::get('/{rundownId}', [TvRundownController::class, 'show'])
+        ->whereUuid('rundownId')
+        ->name('api.v1.tv.rundowns.show');
 });
