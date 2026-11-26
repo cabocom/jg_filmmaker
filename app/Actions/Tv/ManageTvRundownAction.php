@@ -303,8 +303,6 @@ final readonly class ManageTvRundownAction
             $project = $rundown->project;
             if ($project !== null) {
                 $project->scenes()->delete();
-                $project->characters()->delete();
-                $project->locations()->delete();
                 $project->update(['status' => 'draft']);
             }
 

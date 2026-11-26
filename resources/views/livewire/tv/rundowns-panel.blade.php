@@ -423,7 +423,7 @@
                                         <button
                                             type="button"
                                             wire:click="regenerateRundown('{{ $rundown->id }}')"
-                                            wire:confirm="¿Regenerar desde cero? Se borrarán el vídeo, planos y audio anteriores de esta escaleta."
+                                            wire:confirm="¿Regenerar desde cero? Se borrarán el vídeo, planos y audio anteriores (conservando la Biblia del proyecto)."
                                             @disabled($rundown->isBusy())
                                             class="rounded bg-purple-700 hover:bg-purple-600 px-2 py-1 text-xs text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                                             title="Regenerar desde cero (machacar todo)"
