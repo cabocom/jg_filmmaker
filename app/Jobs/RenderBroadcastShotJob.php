@@ -68,8 +68,14 @@ class RenderBroadcastShotJob implements ShouldQueue
 
         $renderedShots = is_array($job->artifacts['rendered_shots'] ?? null) ? $job->artifacts['rendered_shots'] : [];
         $renderedShotIds = array_keys($renderedShots);
+        $latestShots = $job->artifacts['shots'] ?? [];
+        $activeShotIds = array_values(array_filter(array_map(
+            static fn (mixed $item): ?string => is_array($item) && ! empty($item['shot_id']) ? (string) $item['shot_id'] : null,
+            is_array($latestShots) ? $latestShots : []
+        )));
 
         $nextShot = $block->shots()
+            ->when($activeShotIds !== [], static fn ($query) => $query->whereIn('id', $activeShotIds))
             ->whereNotIn('id', $renderedShotIds)
             ->orderBy('shot_number', 'asc')
             ->first();

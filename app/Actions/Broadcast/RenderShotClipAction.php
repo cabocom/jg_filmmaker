@@ -7,6 +7,7 @@ namespace App\Actions\Broadcast;
 use App\Enums\BroadcastJobStage;
 use App\Models\BroadcastJob;
 use App\Models\Shot;
+use App\Services\Broadcast\MotionFilterBuilder;
 use App\Services\Broadcast\ShotSubtitleGenerator;
 use App\Services\Broadcast\Visuals\ShotVisualStrategyResolver;
 use App\Services\TextToSpeechService;
@@ -16,11 +17,16 @@ use RuntimeException;
 
 final readonly class RenderShotClipAction
 {
+    protected MotionFilterBuilder $motionFilterBuilder;
+
     public function __construct(
         protected ShotVisualStrategyResolver $visualResolver,
         protected TextToSpeechService $ttsService,
-        protected ShotSubtitleGenerator $subtitleGenerator
-    ) {}
+        protected ShotSubtitleGenerator $subtitleGenerator,
+        ?MotionFilterBuilder $motionFilterBuilder = null,
+    ) {
+        $this->motionFilterBuilder = $motionFilterBuilder ?? new MotionFilterBuilder;
+    }
 
     /**
      * Sintetiza el audio TTS, genera el visual, subtítulos sincronizados y ensambla el clip Mezzanine CFR.
@@ -43,24 +49,42 @@ final readonly class RenderShotClipAction
             $title = trim((string) ($job->title ?? ''));
             $oralText = $rawText !== '' ? $rawText : $title;
         }
-        $voice = $context['voice'] ?? $artifacts['tts_voice'] ?? null;
-        $voice = is_string($voice) && trim($voice) !== '' ? trim($voice) : null;
-        $audioPath = $this->ttsService->synthesize($oralText, $voice, 1.0, $job->project);
+
+        $masterAudioPath = $artifacts['master_audio']['audio_path'] ?? null;
+        $isAudioFirst = is_string($masterAudioPath)
+            && $masterAudioPath !== ''
+            && file_exists($masterAudioPath)
+            && isset($context['duration_seconds']);
+
+        $audioPath = null;
+        if (! $isAudioFirst) {
+            $voice = $context['voice'] ?? $artifacts['tts_voice'] ?? null;
+            $voice = is_string($voice) && trim($voice) !== '' ? trim($voice) : null;
+            $audioPath = $this->ttsService->synthesize($oralText, $voice, 1.0, $job->project);
+        }
 
         $strategy = $this->visualResolver->resolve((string) $job->visual_mode);
-        $visualPath = $strategy->generateVisual($job, $shot, $context);
+        $pregeneratedVisual = $artifacts['shot_visuals'][$shot->id] ?? null;
+        $visualPath = is_string($pregeneratedVisual) && $pregeneratedVisual !== '' && file_exists($pregeneratedVisual)
+            ? $pregeneratedVisual
+            : $strategy->generateVisual($job, $shot, $context);
 
         $visualCredit = isset($artifacts['visual_credit']) && is_string($artifacts['visual_credit']) && trim($artifacts['visual_credit']) !== ''
             ? trim($artifacts['visual_credit'])
             : null;
         $durationSeconds = (float) ($context['duration_seconds'] ?? $context['estimated_seconds'] ?? 15.0);
-        [$srtPath, $assPath] = $this->generateSubtitles($job->id, $shot, $oralText, $durationSeconds, $visualCredit);
+        [$srtPath, $assPath] = $isAudioFirst
+            ? [null, null]
+            : $this->generateSubtitles($job->id, $shot, $oralText, $durationSeconds, $visualCredit);
 
+        $shotType = (string) ($context['shot_type'] ?? $shot->shot_type ?? 'PM');
         $clipPath = storage_path("app/private/broadcast/{$job->id}/clips/shot_{$shot->shot_number}_{$shot->id}.mp4");
-        $this->ensureClipRendered($visualPath, $strategy->visualType(), $audioPath, $assPath, $clipPath, (string) $shot->id, $job);
+        $this->ensureClipRendered($visualPath, $strategy->visualType(), $audioPath, $assPath, $clipPath, (string) $shot->id, $job, $durationSeconds, $shotType);
 
         return $this->persistRenderedArtifacts($job, $shot, [
             'oral_text' => $oralText,
+            'duration' => $durationSeconds,
+            'duration_seconds' => $durationSeconds,
             'audio_path' => $audioPath,
             'visual_path' => $visualPath,
             'srt_path' => $srtPath,
@@ -98,11 +122,13 @@ final readonly class RenderShotClipAction
     private function ensureClipRendered(
         string $visualPath,
         string $visualType,
-        string $audioPath,
-        string $assPath,
+        ?string $audioPath,
+        ?string $assPath,
         string $clipPath,
         string $shotId,
-        ?BroadcastJob $job = null
+        ?BroadcastJob $job = null,
+        float $durationSeconds = 15.0,
+        string $shotType = 'PM',
     ): void {
         File::ensureDirectoryExists(dirname($clipPath));
 
@@ -112,7 +138,7 @@ final readonly class RenderShotClipAction
             return;
         }
 
-        $this->runFfmpeg($visualPath, $visualType, $audioPath, $assPath, $clipPath, $shotId, $job);
+        $this->runFfmpeg($visualPath, $visualType, $audioPath, $assPath, $clipPath, $shotId, $job, $durationSeconds, $shotType);
     }
 
     /**
@@ -121,24 +147,33 @@ final readonly class RenderShotClipAction
     private function runFfmpeg(
         string $visualPath,
         string $visualType,
-        string $audioPath,
-        string $assPath,
+        ?string $audioPath,
+        ?string $assPath,
         string $clipPath,
         string $shotId,
-        ?BroadcastJob $job = null
+        ?BroadcastJob $job = null,
+        float $durationSeconds = 15.0,
+        string $shotType = 'PM',
     ): void {
         $inputArgs = $visualType === 'video' ? ['-i', $visualPath] : ['-loop', '1', '-framerate', '30', '-i', $visualPath];
         $is720p = (($job?->artifacts['resolution_profile'] ?? '1080p30') === '720p30');
         $w = $is720p ? 1280 : 1920;
         $h = $is720p ? 720 : 1080;
-        $vfFilter = sprintf('fps=30,scale=%d:%d:force_original_aspect_ratio=decrease,pad=%d:%d:(ow-iw)/2:(oh-ih)/2,subtitles=%s', $w, $h, $w, $h, $assPath);
+
+        $vfFilter = $visualType === 'video'
+            ? $this->motionFilterBuilder->buildVideoScaleFilter($w, $h, $assPath)
+            : $this->motionFilterBuilder->buildImageMotionFilter($shotType, $durationSeconds, $w, $h, $assPath);
+
+        $audioInputArgs = $audioPath !== null ? ['-i', $audioPath] : ['-t', (string) $durationSeconds];
+        $audioOutputArgs = $audioPath !== null ? ['-c:a', 'aac', '-ar', '48000', '-ac', '2', '-shortest'] : ['-an'];
+        $presetArgs = $is720p ? ['-preset', 'veryfast'] : [];
 
         $ffmpegArgs = [
-            'ffmpeg', '-y', ...$inputArgs, '-i', $audioPath,
+            'ffmpeg', '-y', ...$inputArgs, ...$audioInputArgs,
             '-r', '30', '-fps_mode', 'cfr', '-video_track_timescale', '30000',
             '-c:v', 'libx264', '-profile:v', 'high', '-level', '4.1',
-            '-pix_fmt', 'yuv420p', '-vf', $vfFilter, '-c:a', 'aac',
-            '-ar', '48000', '-ac', '2', '-shortest', $clipPath,
+            ...$presetArgs,
+            '-pix_fmt', 'yuv420p', '-vf', $vfFilter, ...$audioOutputArgs, $clipPath,
         ];
 
         $result = Process::timeout(120)->run($ffmpegArgs);
@@ -150,7 +185,7 @@ final readonly class RenderShotClipAction
     /**
      * Persiste el estado atómico del shot y avanza el stage a RENDERING si aplica.
      *
-     * @param  array<string, string>  $data
+     * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
     private function persistRenderedArtifacts(BroadcastJob $job, Shot $shot, array $data): array

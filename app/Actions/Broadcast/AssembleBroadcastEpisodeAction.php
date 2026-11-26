@@ -34,24 +34,25 @@ final readonly class AssembleBroadcastEpisodeAction
         $tempDir = storage_path("app/private/broadcast/{$jobId}/temp");
         File::ensureDirectoryExists($tempDir);
 
-        $localFiles = [
-            '1080p' => "{$tempDir}/episode_1080p.mp4",
-            'podcast' => "{$tempDir}/episode_podcast.mp3",
-            'short' => "{$tempDir}/episode_short_9x16.mp4",
-        ];
+        $publishPodcast = ($artifacts['publish_to_podcast'] ?? true) !== false;
+        $generateShort = ($artifacts['generate_short'] ?? true) !== false;
+        $localFiles = ['1080p' => "{$tempDir}/episode_1080p.mp4", 'podcast' => "{$tempDir}/episode_podcast.mp3", 'short' => "{$tempDir}/episode_short_9x16.mp4"];
+        $this->concatEpisode1080p($sortedShots, $localFiles['1080p'], $tempDir, $jobId, $artifacts);
+        if ($publishPodcast) {
+            $this->exportPodcastMp3($localFiles['1080p'], $localFiles['podcast'], $artifacts, $jobId);
+        }
+        if ($generateShort) {
+            $this->exportShort9x16($this->selectHighlightShots($sortedShots), $localFiles['short'], $tempDir, $jobId, $artifacts);
+        }
 
-        $this->concatEpisode1080p($sortedShots, $localFiles['1080p'], $tempDir, $jobId);
-        $this->exportPodcastMp3($localFiles['1080p'], $localFiles['podcast'], $artifacts, $jobId);
-        $this->exportShort9x16($this->selectHighlightShots($sortedShots), $localFiles['short'], $tempDir, $jobId);
-
-        $probes = [
-            'episode_1080p' => $this->mediaValidator->assertValidMp4($localFiles['1080p']),
-            'episode_short_9x16' => $this->mediaValidator->assertValidMp4($localFiles['short']),
-        ];
+        $probes = ['episode_1080p' => $this->mediaValidator->assertValidMp4($localFiles['1080p'])];
+        if ($generateShort) {
+            $probes['episode_short_9x16'] = $this->mediaValidator->assertValidMp4($localFiles['short']);
+        }
         $storagePaths = [
             'episode_1080p' => "broadcast/{$channelId}/{$jobId}/episode_1080p.mp4",
-            'episode_podcast_mp3' => "broadcast/{$channelId}/{$jobId}/episode_podcast.mp3",
-            'episode_short_9x16' => "broadcast/{$channelId}/{$jobId}/episode_short_9x16.mp4",
+            'episode_podcast_mp3' => $publishPodcast ? "broadcast/{$channelId}/{$jobId}/episode_podcast.mp3" : null,
+            'episode_short_9x16' => $generateShort ? "broadcast/{$channelId}/{$jobId}/episode_short_9x16.mp4" : null,
         ];
 
         $this->storeArtifacts($storagePaths, $localFiles);
@@ -71,21 +72,17 @@ final readonly class AssembleBroadcastEpisodeAction
     {
         $selected = [];
         $totalDuration = 0.0;
-
         foreach ($shots as $shot) {
             $duration = (float) ($shot['duration'] ?? $shot['estimated_seconds'] ?? 15.0);
             if ($totalDuration + $duration > 55.0 && ! empty($selected)) {
                 break;
             }
-
             $selected[] = $shot;
             $totalDuration += $duration;
-
             if ($totalDuration >= 35.0 && $totalDuration <= 55.0) {
                 break;
             }
         }
-
         if (empty($selected) && ! empty($shots)) {
             $selected[] = $shots[0];
         }
@@ -105,7 +102,6 @@ final readonly class AssembleBroadcastEpisodeAction
         if (! is_array($renderedShots) || empty($renderedShots)) {
             throw new RuntimeException("No rendered shots available for broadcast job {$jobId}.");
         }
-
         $sorted = array_values($renderedShots);
         usort($sorted, static fn (array $a, array $b): int => ((int) ($a['shot_number'] ?? 0)) <=> ((int) ($b['shot_number'] ?? 0)));
 
@@ -113,11 +109,12 @@ final readonly class AssembleBroadcastEpisodeAction
     }
 
     /**
-     * Concatena los clips Mezzanine en el master 1080p con stream copy.
+     * Concatena los clips Mezzanine en el master 1080p (con mux de audio maestro o stream copy).
      *
      * @param  list<array<string, mixed>>  $shots
+     * @param  array<string, mixed>  $artifacts
      */
-    private function concatEpisode1080p(array $shots, string $outputPath, string $tempDir, string $jobId): void
+    private function concatEpisode1080p(array $shots, string $outputPath, string $tempDir, string $jobId, array $artifacts = []): void
     {
         if ($this->isMockMode()) {
             File::put($outputPath, "MOCK_EPISODE_1080P_{$jobId}");
@@ -136,16 +133,36 @@ final readonly class AssembleBroadcastEpisodeAction
         }, $shots);
         File::put($listPath, implode("\n", $lines));
 
-        $result = Process::timeout(300)->run([
-            'ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-i', $listPath,
-            '-r', '30', '-fps_mode', 'cfr', '-video_track_timescale', '30000',
-            '-c:v', 'libx264', '-profile:v', 'high', '-level', '4.1', '-pix_fmt', 'yuv420p',
-            '-c:a', 'aac', '-ar', '48000', '-ac', '2', '-movflags', '+faststart', $outputPath,
-        ]);
-
+        $masterAudioPath = $artifacts['master_audio']['audio_path'] ?? null;
+        $cmd = is_string($masterAudioPath) && $masterAudioPath !== '' && File::exists($masterAudioPath)
+            ? $this->buildMasterAudioConcatCommand($listPath, $masterAudioPath, $outputPath, $artifacts)
+            : ['ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-i', $listPath, '-c', 'copy', '-movflags', '+faststart', $outputPath];
+        $result = Process::timeout(300)->run($cmd);
         if (! $result->successful()) {
             throw new RuntimeException("Fallo al concatenar episode 1080p para el job {$jobId}: ".$result->errorOutput());
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $artifacts
+     * @return list<string>
+     */
+    public function buildMasterAudioConcatCommand(string $listPath, string $masterAudioPath, string $outputPath, array $artifacts): array
+    {
+        $cmd = ['ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-i', $listPath, '-i', $masterAudioPath];
+        $globalAss = $artifacts['master_audio']['ass_path'] ?? $artifacts['master_audio']['global_ass_path'] ?? $artifacts['global_ass_path'] ?? null;
+        if (is_string($globalAss) && $globalAss !== '' && File::exists($globalAss)) {
+            $cmd = [...$cmd, '-vf', 'subtitles='.$this->escapeFilterPath($globalAss)];
+        }
+        $is720p = (($artifacts['resolution_profile'] ?? '1080p30') === '720p30');
+        $preset = $is720p ? ['-preset', 'veryfast'] : [];
+
+        return [
+            ...$cmd, '-r', '30', '-fps_mode', 'cfr', '-video_track_timescale', '30000',
+            '-c:v', 'libx264', '-profile:v', 'high', '-level', '4.1', '-pix_fmt', 'yuv420p', ...$preset,
+            '-map', '0:v:0', '-map', '1:a:0', '-c:a', 'aac', '-ar', '48000', '-ac', '2',
+            '-shortest', '-movflags', '+faststart', $outputPath,
+        ];
     }
 
     /**
@@ -184,15 +201,15 @@ final readonly class AssembleBroadcastEpisodeAction
      * Exporta el formato vertical 9:16 (YouTube Short) con subtítulos .ass quemados.
      *
      * @param  list<array<string, mixed>>  $highlightShots
+     * @param  array<string, mixed>  $artifacts
      */
-    private function exportShort9x16(array $highlightShots, string $outputPath, string $tempDir, string $jobId): void
+    private function exportShort9x16(array $highlightShots, string $outputPath, string $tempDir, string $jobId, array $artifacts = []): void
     {
         if ($this->isMockMode()) {
             File::put($outputPath, "MOCK_EPISODE_SHORT_9X16_{$jobId}");
 
             return;
         }
-
         $duration = 0.0;
         $texts = [];
         foreach ($highlightShots as $shot) {
@@ -201,52 +218,58 @@ final readonly class AssembleBroadcastEpisodeAction
                 $texts[] = trim((string) $shot['oral_text']);
             }
         }
-
         $shortAssPath = "{$tempDir}/short_subtitles.ass";
         $this->subtitleGenerator->generateAss(implode(' ', $texts), $duration, $shortAssPath, verticalShort: true);
-
+        $listPath = "{$tempDir}/short_concat_list.txt";
         $lines = array_map(fn (array $s): string => "file '".str_replace("'", "'\\''", (string) ($s['clip_path'] ?? ''))."'", $highlightShots);
-        File::put("{$tempDir}/short_concat_list.txt", implode("\n", $lines));
-
-        $vf = sprintf('scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,subtitles=%s', $shortAssPath);
-        $result = Process::timeout(300)->run([
-            'ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-i', "{$tempDir}/short_concat_list.txt",
-            '-r', '30', '-c:v', 'libx264', '-profile:v', 'high', '-level', '4.1',
-            '-pix_fmt', 'yuv420p', '-vf', $vf, '-c:a', 'aac', '-ar', '48000', '-ac', '2', $outputPath,
-        ]);
-
+        File::put($listPath, implode("\n", $lines));
+        $result = Process::timeout(300)->run($this->buildShort9x16Command($listPath, $shortAssPath, $outputPath, $artifacts));
         if (! $result->successful()) {
             throw new RuntimeException("Fallo al exportar short 9:16 para el job {$jobId}: ".$result->errorOutput());
         }
     }
 
+    /** @param array<string, mixed> $artifacts @return list<string> */
+    public function buildShort9x16Command(string $listPath, string $shortAssPath, string $outputPath, array $artifacts): array
+    {
+        $masterAudioPath = $artifacts['master_audio']['audio_path'] ?? null;
+        $hasMasterAudio = is_string($masterAudioPath) && $masterAudioPath !== '' && File::exists($masterAudioPath);
+        $vf = 'scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,subtitles='.$this->escapeFilterPath($shortAssPath);
+        $audioArgs = $hasMasterAudio
+            ? ['-i', $masterAudioPath, '-map', '0:v:0', '-map', '1:a:0', '-shortest']
+            : [];
+
+        return [
+            'ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-i', $listPath, ...$audioArgs,
+            '-r', '30', '-c:v', 'libx264', '-profile:v', 'high', '-level', '4.1',
+            '-pix_fmt', 'yuv420p', '-vf', $vf, '-c:a', 'aac', '-ar', '48000', '-ac', '2', $outputPath,
+        ];
+    }
+
     /**
-     * Almacena los 3 archivos finales en el almacenamiento multimedia agnóstico.
+     * Almacena los archivos finales generados en el almacenamiento multimedia agnóstico.
      *
-     * @param  array<string, string>  $storagePaths
+     * @param  array<string, ?string>  $storagePaths
      * @param  array<string, string>  $localFiles
      */
     private function storeArtifacts(array $storagePaths, array $localFiles): void
     {
-        $this->mediaStorage->put($storagePaths['episode_1080p'], (string) file_get_contents($localFiles['1080p']));
-        $this->mediaStorage->put($storagePaths['episode_podcast_mp3'], (string) file_get_contents($localFiles['podcast']));
-        $this->mediaStorage->put($storagePaths['episode_short_9x16'], (string) file_get_contents($localFiles['short']));
+        foreach (['episode_1080p' => '1080p', 'episode_podcast_mp3' => 'podcast', 'episode_short_9x16' => 'short'] as $key => $local) {
+            if (! empty($storagePaths[$key])) {
+                $this->mediaStorage->put($storagePaths[$key], (string) file_get_contents($localFiles[$local]));
+            }
+        }
     }
 
     /**
      * Actualiza el job a COMPLETED con la metadata de artefactos exportados.
      *
      * @param  array<string, mixed>  $artifacts
-     * @param  array<string, string>  $storagePaths
+     * @param  array<string, ?string>  $storagePaths
      * @param  array<string, mixed>  $probes
      */
-    private function finalizeJob(
-        BroadcastJob $job,
-        array $artifacts,
-        array $storagePaths,
-        array $probes,
-        ?string $tvDrivePath = null
-    ): BroadcastJob {
+    private function finalizeJob(BroadcastJob $job, array $artifacts, array $storagePaths, array $probes, ?string $tvDrivePath = null): BroadcastJob
+    {
         $artifacts['exports'] = [
             'episode_1080p' => $storagePaths['episode_1080p'],
             'episode_podcast_mp3' => $storagePaths['episode_podcast_mp3'],
@@ -267,14 +290,16 @@ final readonly class AssembleBroadcastEpisodeAction
      */
     private function cleanupTemporaryFiles(string $jobId, string $tempDir): void
     {
-        $clipsDir = storage_path("app/private/broadcast/{$jobId}/clips");
-        if (File::isDirectory($clipsDir)) {
-            File::deleteDirectory($clipsDir);
+        foreach ([storage_path("app/private/broadcast/{$jobId}/clips"), $tempDir] as $dir) {
+            if (File::isDirectory($dir)) {
+                File::deleteDirectory($dir);
+            }
         }
+    }
 
-        if (File::isDirectory($tempDir)) {
-            File::deleteDirectory($tempDir);
-        }
+    private function escapeFilterPath(string $path): string
+    {
+        return str_replace(['\\', ':', "'", ' '], ['\\\\', '\\:', "\\'", '\\ '], trim($path));
     }
 
     private function isMockMode(): bool

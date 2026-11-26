@@ -31,6 +31,7 @@ final readonly class AutoGenerateBroadcastShotsAction
         protected ?SyncBroadcastProjectBibleAction $bibleSyncAction = null,
         protected ?SentenceBasedShotDistributor $sentenceDistributor = null,
         protected ?SynthesizeBroadcastMasterAudioAction $masterAudioAction = null,
+        protected ?GenerateBroadcastVisualsBatchAction $visualsBatchAction = null,
     ) {}
 
     /**
@@ -149,15 +150,28 @@ final readonly class AutoGenerateBroadcastShotsAction
     {
         /** @var ScriptBlock $block */
         $block = $job->scriptBlock()->firstOrFail();
-        $shots = $block->shots()->orderBy('shot_number', 'asc')->get();
+        $artifacts = is_array($job->artifacts) ? $job->artifacts : [];
+        $activeIds = array_values(array_filter(array_map(
+            static fn (mixed $item): ?string => is_array($item) && ! empty($item['shot_id']) ? (string) $item['shot_id'] : null,
+            is_array($artifacts['shots'] ?? null) ? $artifacts['shots'] : []
+        )));
+        $shots = $block->shots()
+            ->when($activeIds !== [], static fn ($query) => $query->whereIn('id', $activeIds))
+            ->orderBy('shot_number', 'asc')
+            ->get();
 
         if ($shots->isEmpty()) {
             throw new RuntimeException("No shots available to render for broadcast job {$job->id}.");
         }
 
-        $artifacts = is_array($job->artifacts) ? $job->artifacts : [];
         if (empty($artifacts['master_audio'])) {
             ($this->masterAudioAction ?? app(SynthesizeBroadcastMasterAudioAction::class))->execute($job);
+            $job->refresh();
+            $artifacts = is_array($job->artifacts) ? $job->artifacts : [];
+        }
+
+        if (empty($artifacts['shot_visuals'])) {
+            ($this->visualsBatchAction ?? app(GenerateBroadcastVisualsBatchAction::class))->execute($job);
             $job->refresh();
             $artifacts = is_array($job->artifacts) ? $job->artifacts : [];
         }

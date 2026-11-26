@@ -12,6 +12,12 @@
 
 ## Resumen Ejecutivo de Capacidades Recientes
 
+- **Renderizado Dinámico Ken Burns, Lote de Visuales y Ensamblaje Condicional Rápido (ISSUE-42):**
+  - **Constructor de Filtros Dinámicos (`MotionFilterBuilder`):** Genera filtros `ffmpeg` full-bleed 16:9 (`force_original_aspect_ratio=increase,crop=...`) sin `pad=` y aplica movimiento Ken Burns mediante `zoompan=` a `fps=30` adaptado al tipo de plano (`PG`/`WIDE`, `PP`/`CLOSE_UP`, `PM`/default).
+  - **Generación por Lotes de Visuales (`GenerateBroadcastVisualsBatchAction`):** Reutiliza `storyboard_image_path` ya aprobados en disco local/público y genera únicamente los visuales faltantes comenzando por el plano #1 como ancla de continuidad, persistiendo el mapa en `$job->artifacts['shot_visuals']`.
+  - **Renderizado Shot-a-Shot Audio-First y Ensamblaje Rápido (`RenderShotClipAction` / `AssembleBroadcastEpisodeAction`):** Omite la síntesis TTS por plano cuando `master_audio` está activo, aplica `-c copy` en concatenación legacy cuando no hay mux de audio maestro y respeta los flags `publish_to_podcast` y `generate_short` para omitir la exportación de `episode_podcast.mp3` y `episode_short_9x16.mp4` cuando están desactivados.
+  - **Pruebas Automatizadas:** Suite `tests/Feature/BroadcastDynamicRenderAndFastAssemblyTest.php` cubriendo `MotionFilterBuilder`, reutilización/generación en `GenerateBroadcastVisualsBatchAction`, bypass de TTS por plano en `RenderShotClipAction` y exportación condicional en `AssembleBroadcastEpisodeAction`.
+
 - **Arquitectura Audio-First, Distribución por Oraciones Completas y Crédito Visual `.ass` (ISSUE-41):**
   - **Distribución por Oraciones Completas (`SentenceBasedShotDistributor`):** Distribuye el texto locutado entre los planos respetando límites estrictos de oración (`.`, `!`, `?`) sin truncamientos a mitad de frase ni planos vacíos, extrayendo automáticamente atribuciones de licencia Wikipedia/CC BY-SA vía `OralShotSanitizer::stripLicenseAttribution()`.
   - **Audio Maestro Continuo y Ventanas Temporales (`SynthesizeBroadcastMasterAudioAction`):** Sintetiza el episodio completo en una única llamada a `TextToSpeechService::synthesize()` respetando la voz configurada (`tts_voice`), mide la duración real del audio maestro y calcula ventanas exactas `[start_seconds, duration_seconds]` por plano de forma idempotente.
