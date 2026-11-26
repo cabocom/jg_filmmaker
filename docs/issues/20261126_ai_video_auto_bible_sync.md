@@ -4,7 +4,7 @@
 - **Proyecto:** `jg_filmmaker` (`javiergalvez-ia/jg_filmmaker`)
 - **Asignado:** Javier Gálvez (`cabocom`)
 - **Esfuerzo estimado:** 3 – 4 h (Baja-Media)
-- **Estado:** Abierto
+- **Estado:** Cerrado (Commit `4f3694d`, GitLab `jg_filmmaker#39`)
 
 ## Contexto y Motivación
 
