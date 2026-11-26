@@ -157,7 +157,7 @@ final class ScanAndSyncTvDriveMediaAction
                 $updates['status'] = 'ready';
             } else {
                 $updates['status'] = 'ready';
-                $relPath = data_get($job->exports, 'tv_drive_relative_path');
+                $relPath = data_get($job->artifacts, 'exports.tv_drive_relative_path');
                 if (is_string($relPath) && $relPath !== '') {
                     $updates[$pathField] = $relPath;
                     $updates['mp4_url'] = $relPath;
