@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Actions\Tv;
 
+use App\Actions\Broadcast\AutoGenerateBroadcastShotsAction;
 use App\Actions\Broadcast\ScanTvMediaDirectoryAction;
 use App\Enums\BroadcastJobStage;
-use App\Jobs\BroadcastProductionPipelineJob;
 use App\Models\BroadcastJob;
 use App\Models\TvAdSlot;
 use App\Models\TvMediaNormalization;
@@ -19,6 +19,7 @@ final class ScanAndSyncTvDriveMediaAction
     public function __construct(
         private readonly ScanTvMediaDirectoryAction $scanDirectoryAction,
         private readonly SyncTvChannelConfigAction $configAction,
+        private readonly AutoGenerateBroadcastShotsAction $broadcastAction,
     ) {}
 
     public function refreshActiveJobsOnly(string $channelSlug = 'ai-today'): void
@@ -173,7 +174,7 @@ final class ScanAndSyncTvDriveMediaAction
             ];
             $model->update($updates);
         } elseif ($stage === 'shots' && $model->stage === 'queued') {
-            BroadcastProductionPipelineJob::dispatch($job->id)->onQueue('broadcast');
+            $this->broadcastAction->startRendering($job);
             $model->update(['stage' => 'rendering', 'status' => 'rendering']);
         } elseif (in_array($stage, ['rendering', 'assembling', 'audio', 'visuals'], true) && $model->stage !== 'rendering') {
             $model->update(['stage' => 'rendering', 'status' => 'rendering']);
