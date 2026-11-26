@@ -155,13 +155,14 @@ class GoogleAiTtsProvider implements TtsProviderInterface
 
     protected function buildPayload(string $cleanText, string $voice): array
     {
-        $prompt = "Lee literalmente en español de España, con voz constante y sin cambiar de idioma:\n\n{$cleanText}";
-
         return [
-            'contents' => [['parts' => [['text' => $prompt]]]],
+            'contents' => [['parts' => [['text' => $cleanText]]]],
             'generationConfig' => [
                 'responseModalities' => ['AUDIO'],
-                'speechConfig' => ['voiceConfig' => ['prebuiltVoiceConfig' => ['voiceName' => $voice]]],
+                'speechConfig' => [
+                    'languageCode' => 'es-ES',
+                    'voiceConfig' => ['prebuiltVoiceConfig' => ['voiceName' => $voice]],
+                ],
             ],
         ];
     }
