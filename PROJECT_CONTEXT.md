@@ -12,6 +12,13 @@
 
 ## Resumen Ejecutivo de Capacidades Recientes
 
+- **Categorías de Proyecto (`personal` / `ai_video`), API REST M2M `/api/v1/projects` y Pestañas en UI (ISSUE-38):**
+  - **Modelo y Enum de Categoría (`ProjectCategory`):** Introducido el enum `App\Enums\ProjectCategory` (`personal` = "Proyectos personales", `ai_video` = "Videos IA") con columna indexada `category` en `projects` (por defecto `personal`), cast nativo en `Project`, helper `categoryEnum()`, scope `scopeCategory()` y estado `aiVideo()` en `ProjectFactory`.
+  - **Caso de Uso Desacoplado (`CreateProjectAction` y `CreateProjectDTO`):** Creación transaccional de proyectos con soporte opcional para escena inicial + `ScriptBlock` en etapa `RAW`, resolución automática de propietario (`resolveSystemOwner()`) y aplicación opcional de cuota exclusivamente sobre proyectos `personal`.
+  - **API REST M2M Protegida con HMAC (`/api/v1/projects`):** Endpoints `GET /api/v1/projects` (filtro `?category=`, paginación), `POST /api/v1/projects`, `GET /api/v1/projects/{projectId}` y `PATCH /api/v1/projects/{projectId}` en `ProjectController` con validación en `StoreProjectApiRequest` / `UpdateProjectApiRequest` y middleware `hmac.m2m`.
+  - **Integración Broadcast y UI (`AutoGenerateBroadcastShotsAction` y `ProjectList`):** `AutoGenerateBroadcastShotsAction::initialize()` asigna automáticamente `ProjectCategory::AI_VIDEO` a los proyectos de broadcast. En `ProjectList`, pestañas de filtro (`all`, `personal`, `ai_video`) sincronizadas por URL (`#[Url(as: 'category')]`), selector de categoría en modales de creación/edición y exclusión de proyectos `ai_video` del límite de slots personales (`paid_project_slots`).
+  - **Pruebas Automatizadas:** Añadida la suite `tests/Feature/ProjectCategoriesAndApiTest.php` (+6 tests de integración sobre los 319 previos) cubriendo enum/casts, seguridad HMAC, CRUD M2M, asignación `ai_video` en broadcast y filtrado/cuotas en `ProjectList`.
+
 - **Normalización de Medios, Publicación en Disco TV y Validación de Perfiles Broadcast (AITV-011 / `jg_plugin_tv#11`):**
   - **Resolución de Rutas y Validación de Perfiles:** `TvMediaPathResolver` estandariza y valida las rutas del almacenamiento montado para media broadcast, asegurando el aislamiento y la coherencia del árbol de directorios de TV. `BroadcastProfileValidator` verifica el cumplimiento técnico estricto de perfiles broadcast, con soporte para perfiles `720p30` (perfil por defecto optimizado para emisión ágil) y `1080p30` (alta definición para masterización).
   - **Acciones y Jobs de Normalización y Publicación:**

@@ -7,6 +7,7 @@ namespace App\Actions\Broadcast;
 use App\DTOs\Broadcast\BroadcastJobRequestDTO;
 use App\Enums\BlockStage;
 use App\Enums\BroadcastJobStage;
+use App\Enums\ProjectCategory;
 use App\Jobs\AssembleBroadcastEpisodeJob;
 use App\Jobs\RenderBroadcastShotJob;
 use App\Jobs\RunBroadcastStageJob;
@@ -41,6 +42,7 @@ final readonly class AutoGenerateBroadcastShotsAction
                 'user_id' => $user->id,
                 'title' => $dto->title !== '' ? $dto->title : 'Broadcast '.now()->format('Y-m-d H:i:s'),
                 'status' => 'in_progress',
+                'category' => ProjectCategory::AI_VIDEO->value,
                 'storyboard_style' => $dto->visualMode,
             ]);
 

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\ProjectCategory;
 use Database\Factories\ProjectFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasVersion4Uuids as HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -29,7 +31,40 @@ class Project extends Model
         'synopsis',
         'status',
         'storyboard_style',
+        'category',
     ];
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'category' => ProjectCategory::class,
+        ];
+    }
+
+    /**
+     * Resolve the project category as an enum instance.
+     */
+    public function categoryEnum(): ProjectCategory
+    {
+        return $this->category instanceof ProjectCategory
+            ? $this->category
+            : ProjectCategory::fromNullable(is_string($this->category) ? $this->category : null);
+    }
+
+    /**
+     * Scope projects by category.
+     */
+    public function scopeCategory(Builder $query, ProjectCategory|string $category): Builder
+    {
+        $value = $category instanceof ProjectCategory ? $category->value : $category;
+
+        return $query->where('category', $value);
+    }
 
     /**
      * Boot the model and register cascade directory cleanup.

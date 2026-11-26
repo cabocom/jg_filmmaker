@@ -5,7 +5,7 @@
             <h1 class="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-white flex flex-wrap items-center gap-2 sm:gap-3">
                 <span>Proyectos Cinematográficos</span>
                 <span class="text-xs font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400 border border-slate-200 dark:border-slate-700 shrink-0">
-                    {{ $projects->count() }} de {{ $user->paid_project_slots ?? 5 }} slots
+                    {{ $personalUsedSlots ?? $projects->count() }} de {{ $user->paid_project_slots ?? 5 }} slots personales
                 </span>
             </h1>
             <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
@@ -28,6 +28,28 @@
                 <span>Nuevo Proyecto</span>
             </button>
         </div>
+    </div>
+
+    <!-- Tabs de Filtro por Categoría -->
+    <div class="mt-5 flex flex-wrap items-center gap-2">
+        @php
+            $activeCategoryFilter = $categoryFilter ?? 'all';
+        @endphp
+        <button wire:click="setCategoryFilter('all')"
+                type="button"
+                class="px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold border transition cursor-pointer {{ $activeCategoryFilter === 'all' ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm' : 'bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700' }}">
+            Todos ({{ $categoryCounts['all'] ?? $projects->count() }})
+        </button>
+        <button wire:click="setCategoryFilter('personal')"
+                type="button"
+                class="px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold border transition cursor-pointer {{ $activeCategoryFilter === 'personal' ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm' : 'bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700' }}">
+            Proyectos personales ({{ $categoryCounts['personal'] ?? 0 }})
+        </button>
+        <button wire:click="setCategoryFilter('ai_video')"
+                type="button"
+                class="px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold border transition cursor-pointer {{ $activeCategoryFilter === 'ai_video' ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm' : 'bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700' }}">
+            Videos IA ({{ $categoryCounts['ai_video'] ?? 0 }})
+        </button>
     </div>
 
     <!-- Mensajes Flash -->
@@ -75,10 +97,17 @@
                                     'completed' => 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-300',
                                     'archived' => 'bg-rose-500/10 text-rose-700 border-rose-500/30 dark:text-rose-300',
                                 ];
+                                $projectCategory = $project->categoryEnum();
+                                $isAiVideo = $projectCategory === \App\Enums\ProjectCategory::AI_VIDEO;
                             @endphp
-                            <span class="text-[11px] font-mono uppercase px-2 py-0.5 rounded-full border {{ $statusColors[$project->status] ?? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300' }}">
-                                {{ $project->status === 'in_progress' ? 'En Rodaje / Edición' : ($project->status === 'draft' ? 'Borrador' : ($project->status === 'completed' ? 'Completado' : 'Archivado')) }}
-                            </span>
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="text-[11px] font-mono uppercase px-2 py-0.5 rounded-full border {{ $statusColors[$project->status] ?? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300' }}">
+                                    {{ $project->status === 'in_progress' ? 'En Rodaje / Edición' : ($project->status === 'draft' ? 'Borrador' : ($project->status === 'completed' ? 'Completado' : 'Archivado')) }}
+                                </span>
+                                <span class="text-[11px] font-mono uppercase px-2 py-0.5 rounded-full border {{ $isAiVideo ? 'bg-indigo-500/10 text-indigo-700 border-indigo-500/30 dark:text-indigo-300' : 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700' }}">
+                                    {{ $projectCategory->shortLabel() }}
+                                </span>
+                            </div>
                             <span class="text-[10px] font-mono text-slate-400 dark:text-slate-500 truncate max-w-[120px]" title="{{ $project->id }}">
                                 {{ substr($project->id, 0, 8) }}...
                             </span>

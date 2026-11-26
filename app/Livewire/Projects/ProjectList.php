@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Livewire\Projects;
 
+use App\Enums\ProjectCategory;
 use App\Services\ScriptImportService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Rule;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
@@ -15,6 +17,9 @@ use Livewire\WithFileUploads;
 class ProjectList extends Component
 {
     use WithFileUploads;
+
+    #[Url(as: 'category', history: true)]
+    public string $categoryFilter = 'all';
 
     public bool $showCreateModal = false;
 
@@ -26,6 +31,9 @@ class ProjectList extends Component
 
     #[Rule('required|in:draft,in_progress,completed,archived')]
     public string $status = 'draft';
+
+    #[Rule('required|in:personal,ai_video')]
+    public string $category = 'personal';
 
     // Modal para Editar Proyecto Existente
     public bool $showEditModal = false;
@@ -40,6 +48,9 @@ class ProjectList extends Component
 
     #[Rule('required|in:draft,in_progress,completed,archived')]
     public string $editStatus = 'draft';
+
+    #[Rule('required|in:personal,ai_video')]
+    public string $editCategory = 'personal';
 
     // Modal para Importar Guión y Crear Proyecto
     public bool $showImportModal = false;
@@ -57,31 +68,44 @@ class ProjectList extends Component
     /** @var array<string, mixed> */
     public array $parsedImportData = [];
 
+    public function setCategoryFilter(string $category): void
+    {
+        $this->categoryFilter = in_array($category, ['all', ProjectCategory::PERSONAL->value, ProjectCategory::AI_VIDEO->value], true)
+            ? $category
+            : 'all';
+    }
+
     public function createProject(): void
     {
         $this->validateOnly('title');
         $this->validateOnly('synopsis');
         $this->validateOnly('status');
+        $this->validateOnly('category');
 
         $user = Auth::user();
 
-        // Validar límite de cuota
-        $currentCount = $user->projects()->count();
-        $allowedSlots = $user->paid_project_slots ?? 5;
+        if ($this->category === ProjectCategory::PERSONAL->value) {
+            // Validar límite de cuota solo para proyectos personales
+            $currentCount = $user->projects()
+                ->where('category', ProjectCategory::PERSONAL->value)
+                ->count();
+            $allowedSlots = $user->paid_project_slots ?? 5;
 
-        if ($currentCount >= $allowedSlots) {
-            $this->addError('quota', "Has alcanzado el límite de proyectos permitidos ({$allowedSlots} slots en tu plan).");
+            if ($currentCount >= $allowedSlots) {
+                $this->addError('quota', "Has alcanzado el límite de proyectos permitidos ({$allowedSlots} slots en tu plan).");
 
-            return;
+                return;
+            }
         }
 
         $project = $user->projects()->create([
             'title' => $this->title,
             'synopsis' => $this->synopsis,
             'status' => $this->status,
+            'category' => $this->category,
         ]);
 
-        $this->reset(['title', 'synopsis', 'status', 'showCreateModal']);
+        $this->reset(['title', 'synopsis', 'status', 'category', 'showCreateModal']);
 
         session()->flash('success', "Proyecto \"{$project->title}\" creado con éxito.");
 
@@ -96,6 +120,7 @@ class ProjectList extends Component
         $this->editTitle = $project->title;
         $this->editSynopsis = (string) ($project->synopsis ?? '');
         $this->editStatus = $project->status;
+        $this->editCategory = $project->categoryEnum()->value;
         $this->showEditModal = true;
     }
 
@@ -104,6 +129,7 @@ class ProjectList extends Component
         $this->validateOnly('editTitle');
         $this->validateOnly('editSynopsis');
         $this->validateOnly('editStatus');
+        $this->validateOnly('editCategory');
 
         if (! $this->editingProjectId) {
             return;
@@ -115,9 +141,10 @@ class ProjectList extends Component
             'title' => $this->editTitle,
             'synopsis' => $this->editSynopsis,
             'status' => $this->editStatus,
+            'category' => $this->editCategory,
         ]);
 
-        $this->reset(['showEditModal', 'editingProjectId', 'editTitle', 'editSynopsis', 'editStatus']);
+        $this->reset(['showEditModal', 'editingProjectId', 'editTitle', 'editSynopsis', 'editStatus', 'editCategory']);
 
         session()->flash('success', "Proyecto \"{$project->title}\" actualizado con éxito.");
     }
@@ -170,8 +197,10 @@ class ProjectList extends Component
 
         $user = Auth::user();
 
-        // Validar límite de cuota
-        $currentCount = $user->projects()->count();
+        // Validar límite de cuota solo para proyectos personales
+        $currentCount = $user->projects()
+            ->where('category', ProjectCategory::PERSONAL->value)
+            ->count();
         $allowedSlots = $user->paid_project_slots ?? 5;
 
         if ($currentCount >= $allowedSlots) {
@@ -190,6 +219,7 @@ class ProjectList extends Component
             'title' => $this->importProjectTitle,
             'synopsis' => $this->importProjectSynopsis ?: 'Guion importado automáticamente.',
             'status' => 'draft',
+            'category' => ProjectCategory::PERSONAL->value,
         ]);
 
         $importService->importIntoProject($project, $this->parsedImportData, false);
@@ -205,7 +235,19 @@ class ProjectList extends Component
     {
         $user = Auth::user();
 
+        $personalCount = $user
+            ? $user->projects()->where('category', ProjectCategory::PERSONAL->value)->count()
+            : 0;
+        $aiVideoCount = $user
+            ? $user->projects()->where('category', ProjectCategory::AI_VIDEO->value)->count()
+            : 0;
+        $allCount = $user ? $user->projects()->count() : 0;
+
         $projects = $user ? $user->projects()
+            ->when(
+                in_array($this->categoryFilter, [ProjectCategory::PERSONAL->value, ProjectCategory::AI_VIDEO->value], true),
+                fn ($query) => $query->where('category', $this->categoryFilter)
+            )
             ->withCount(['scenes', 'characters', 'locations'])
             ->latest()
             ->get() : collect();
@@ -213,6 +255,12 @@ class ProjectList extends Component
         return view('livewire.projects.project-list', [
             'projects' => $projects,
             'user' => $user,
+            'categoryCounts' => [
+                'all' => $allCount,
+                'personal' => $personalCount,
+                'ai_video' => $aiVideoCount,
+            ],
+            'personalUsedSlots' => $personalCount,
         ]);
     }
 }

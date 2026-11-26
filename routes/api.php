@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Api\V1\BroadcastJobController;
 use App\Http\Controllers\Api\V1\BroadcastMediaController;
+use App\Http\Controllers\Api\V1\ProjectController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1/broadcast')->middleware(['hmac.m2m', 'throttle:60,1'])->group(function (): void {
@@ -14,4 +15,11 @@ Route::prefix('v1/broadcast')->middleware(['hmac.m2m', 'throttle:60,1'])->group(
     Route::post('/media/normalize', [BroadcastMediaController::class, 'normalize'])->name('api.v1.broadcast.media.normalize');
     Route::get('/media/normalize/{jobId}', [BroadcastMediaController::class, 'showNormalization'])->name('api.v1.broadcast.media.normalize.show');
     Route::get('/media/stream', [BroadcastMediaController::class, 'stream'])->name('api.v1.broadcast.media.stream');
+});
+
+Route::prefix('v1/projects')->middleware(['hmac.m2m', 'throttle:60,1'])->group(function (): void {
+    Route::get('/', [ProjectController::class, 'index'])->name('api.v1.projects.index');
+    Route::post('/', [ProjectController::class, 'store'])->name('api.v1.projects.store');
+    Route::get('/{projectId}', [ProjectController::class, 'show'])->name('api.v1.projects.show');
+    Route::patch('/{projectId}', [ProjectController::class, 'update'])->name('api.v1.projects.update');
 });

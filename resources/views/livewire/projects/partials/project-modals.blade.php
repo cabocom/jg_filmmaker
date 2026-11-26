@@ -36,6 +36,15 @@
                     </div>
 
                     <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Categoría</label>
+                        <select wire:model="category" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 focus:border-amber-500 text-slate-900 dark:text-white text-sm">
+                            <option value="personal">Proyectos personales</option>
+                            <option value="ai_video">Videos IA</option>
+                        </select>
+                        @error('category') <span class="text-rose-500 dark:text-rose-400 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div>
                         <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Estado Inicial</label>
                         <select wire:model="status" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 focus:border-amber-500 text-slate-900 dark:text-white text-sm">
                             <option value="draft">Borrador (Desarrollo Temprano)</option>
@@ -90,6 +99,15 @@
                                   placeholder="Sinopsis o notas generales..."
                                   class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 text-slate-900 dark:text-white text-sm"></textarea>
                         @error('editSynopsis') <span class="text-rose-500 dark:text-rose-400 text-xs mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Categoría</label>
+                        <select wire:model="editCategory" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 focus:border-amber-500 text-slate-900 dark:text-white text-sm">
+                            <option value="personal">Proyectos personales</option>
+                            <option value="ai_video">Videos IA</option>
+                        </select>
+                        @error('editCategory') <span class="text-rose-500 dark:text-rose-400 text-xs mt-1 block">{{ $message }}</span> @enderror
                     </div>
 
                     <div>
