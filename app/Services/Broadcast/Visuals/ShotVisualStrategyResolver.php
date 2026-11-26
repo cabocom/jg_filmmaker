@@ -18,7 +18,7 @@ final readonly class ShotVisualStrategyResolver
     {
         return match ($visualMode) {
             'generative_video', 'ai_video' => $this->generativeVideoVisual,
-            'storyboard', 'grayscale_sketch', 'kids_2d_animation', 'enki_bilal' => $this->storyboardVisual,
+            'storyboard', 'full_bleed', 'custom_style', 'grayscale_sketch', 'kids_2d_animation', 'enki_bilal', 'editorial_documentary_35mm', 'clean_editorial_illustration', 'cinematic_tech_minimal', 'scifi_painterly' => $this->storyboardVisual,
             default => $this->staticCardVisual,
         };
     }
