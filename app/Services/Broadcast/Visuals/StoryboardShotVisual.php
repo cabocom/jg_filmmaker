@@ -40,12 +40,17 @@ final readonly class StoryboardShotVisual implements ShotVisualStrategyInterface
         $lastError = null;
 
         try {
-            $rawMode = trim((string) $job->visual_mode);
-            $visualMode = ($rawMode !== '' && array_key_exists($rawMode, StoryboardService::STYLES))
-                ? $rawMode
-                : 'editorial_documentary_35mm';
-
             $shot->loadMissing('scene.project.visualStyle');
+            $hasCustomStyle = $shot->scene?->project?->visualStyle instanceof TvVisualStyle
+                || (is_string($shot->scene?->project?->visual_aesthetic_config['style_prompt'] ?? null)
+                    && trim((string) $shot->scene->project->visual_aesthetic_config['style_prompt']) !== '');
+
+            $rawMode = trim((string) $job->visual_mode);
+            $visualMode = $hasCustomStyle
+                ? 'custom_style'
+                : (($rawMode !== '' && array_key_exists($rawMode, StoryboardService::STYLES))
+                    ? $rawMode
+                    : 'editorial_documentary_35mm');
             $rawAesthetic = is_array($shot->visual_aesthetic_config) && $shot->visual_aesthetic_config !== []
                 ? $shot->visual_aesthetic_config
                 : (is_array($shot->scene?->project?->visual_aesthetic_config) ? $shot->scene->project->visual_aesthetic_config : []);

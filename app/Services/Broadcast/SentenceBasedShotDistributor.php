@@ -70,8 +70,60 @@ final readonly class SentenceBasedShotDistributor
         }
 
         $parts = preg_split('/(?<=[.!?])\s+/u', $cleanText, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $result = [];
 
-        return array_values(array_filter($parts, static fn (string $s): bool => trim($s) !== ''));
+        foreach ($parts as $sentence) {
+            $trimmed = trim($sentence);
+            if ($trimmed === '') {
+                continue;
+            }
+            foreach ($this->splitLongSentenceIntoClauses($trimmed) as $clause) {
+                $result[] = $clause;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Subdivide oraciones largas (>22 palabras) en pausas sintácticas naturales (~12-20 palabras)
+     * para mantener un ritmo visual dinámico de 6-8 segundos por plano sin cortar frases en fragmentos mínimos.
+     *
+     * @return list<string>
+     */
+    private function splitLongSentenceIntoClauses(string $sentence): array
+    {
+        $words = preg_split('/\s+/u', $sentence, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        if (count($words) <= 22) {
+            return [$sentence];
+        }
+
+        $segments = preg_split('/(?<=[,;:])\s+/u', $sentence, -1, PREG_SPLIT_NO_EMPTY) ?: [$sentence];
+        $clauses = [];
+        $current = '';
+
+        foreach ($segments as $segment) {
+            $candidate = $current === '' ? $segment : "{$current} {$segment}";
+            $candidateWords = count(preg_split('/\s+/u', $candidate, -1, PREG_SPLIT_NO_EMPTY) ?: []);
+            $currentWords = $current === '' ? 0 : count(preg_split('/\s+/u', $current, -1, PREG_SPLIT_NO_EMPTY) ?: []);
+
+            if ($current !== '' && $candidateWords > 20 && $currentWords >= 8) {
+                $clauses[] = $current;
+                $current = $segment;
+            } else {
+                $current = $candidate;
+            }
+        }
+
+        if ($current !== '') {
+            if ($clauses !== [] && count(preg_split('/\s+/u', $current, -1, PREG_SPLIT_NO_EMPTY) ?: []) < 7) {
+                $clauses[count($clauses) - 1] .= ' '.$current;
+            } else {
+                $clauses[] = $current;
+            }
+        }
+
+        return $clauses !== [] ? $clauses : [$sentence];
     }
 
     /**

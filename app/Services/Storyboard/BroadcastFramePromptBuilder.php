@@ -42,13 +42,16 @@ final readonly class BroadcastFramePromptBuilder
 
         $framing = $this->resolveFraming($shot->shot_type);
         $description = $this->resolveDescription($shot, $characterId);
+        $styleDirective = $this->resolveStyleDirective($shot, $styleKey);
 
-        $parts = [
-            "Full-bleed 16:9 widescreen broadcast frame. {$framing} showing {$description}",
-        ];
+        $parts = [];
+        if ($styleDirective !== null) {
+            $parts[] = "MANDATORY VISUAL STYLE: {$styleDirective}.";
+        }
+        $parts[] = "Full-bleed 16:9 widescreen broadcast frame. {$framing} showing {$description}";
 
         $this->appendBibleContext($parts, $shot, $characterId, $locationId, $propCount);
-        $this->appendAestheticDirectives($parts, $shot, $styleKey, $config);
+        $this->appendAestheticDirectives($parts, $config);
 
         $parts[] = 'Edge-to-edge full-bleed composition filling the entire 16:9 frame with no borders, no letterbox bars, no panel outlines, no text overlays, no watermarks, and no storyboard labels.';
 
@@ -110,13 +113,8 @@ final readonly class BroadcastFramePromptBuilder
     /**
      * @param  list<string>  $parts
      */
-    private function appendAestheticDirectives(array &$parts, Shot $shot, string $styleKey, VisualAestheticConfigDTO $config): void
+    private function appendAestheticDirectives(array &$parts, VisualAestheticConfigDTO $config): void
     {
-        $styleDirective = $this->resolveStyleDirective($shot, $styleKey);
-        if ($styleDirective !== null) {
-            $parts[] = $styleDirective;
-        }
-
         if ($config->colorPalette !== null) {
             $parts[] = "Color palette: {$config->colorPalette}.";
         }

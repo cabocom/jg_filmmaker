@@ -191,6 +191,9 @@ class StoryboardService
     protected function resolveStyleKey(Shot $shot, ?string $style): string
     {
         $styleKey = $style ?? $shot->scene?->project?->storyboard_style ?? 'grayscale_sketch';
+        if ($styleKey === 'custom_style') {
+            return 'custom_style';
+        }
 
         return array_key_exists($styleKey, self::STYLES) ? $styleKey : 'grayscale_sketch';
     }
