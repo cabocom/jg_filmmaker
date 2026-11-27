@@ -44,8 +44,10 @@ final readonly class AssembleBroadcastEpisodeAction
         } else {
             $bodyPath = "{$tempDir}/body_1080p.mp4";
             $this->concatEpisode1080p($sortedShots, $bodyPath, $tempDir, $jobId, $artifacts);
-            $introPath = ($this->introCardGenerator ?? app(IntroCardGenerator::class))->generate($job, $artifacts, $tempDir);
-            $this->prependIntroCard($introPath, $bodyPath, $localFiles['1080p'], $tempDir, $jobId);
+            $introGenerator = $this->introCardGenerator ?? app(IntroCardGenerator::class);
+            $introPath = $introGenerator->generate($job, $artifacts, $tempDir);
+            $outroPath = $introGenerator->generateOutro($job, $artifacts, $tempDir);
+            $this->concatVideoSegments([$introPath, $bodyPath, $outroPath], $localFiles['1080p'], $tempDir, $jobId);
         }
         if ($publishPodcast) {
             $this->exportPodcastMp3($localFiles['1080p'], $localFiles['podcast'], $artifacts, $jobId);
@@ -152,20 +154,23 @@ final readonly class AssembleBroadcastEpisodeAction
         }
     }
 
-    private function prependIntroCard(string $introPath, string $bodyPath, string $outputPath, string $tempDir, string $jobId): void
+    /**
+     * @param  list<string>  $segments
+     */
+    private function concatVideoSegments(array $segments, string $outputPath, string $tempDir, string $jobId): void
     {
         $listPath = "{$tempDir}/intro_body_concat.txt";
-        $lines = [
-            "file '".str_replace("'", "'\\''", $introPath)."'",
-            "file '".str_replace("'", "'\\''", $bodyPath)."'",
-        ];
+        $lines = array_map(
+            static fn (string $path): string => "file '".str_replace("'", "'\\''", $path)."'",
+            $segments
+        );
         File::put($listPath, implode("\n", $lines));
 
         $result = Process::timeout(300)->run([
             'ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-i', $listPath, '-c', 'copy', '-movflags', '+faststart', $outputPath,
         ]);
         if (! $result->successful()) {
-            throw new RuntimeException("Fallo al unir intro card con episodio para el job {$jobId}: ".$result->errorOutput());
+            throw new RuntimeException("Fallo al unir intro/cuerpo/outro para el job {$jobId}: ".$result->errorOutput());
         }
     }
 

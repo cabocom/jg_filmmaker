@@ -61,8 +61,8 @@ class BroadcastSeriesHelperAndSubtitlesTest extends TestCase
             $content = file_get_contents($assPath);
 
             $this->assertIsString($content);
-            $this->assertStringContainsString('Style: Default,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,3,1,2,20,20,95,1', $content);
-            $this->assertStringContainsString('Style: Credit,Arial,22,&H00FFFFFF,&H000000FF,&H80000000,&H80000000,0,0,0,0,100,100,0,0,3,2,0,1,36,36,24,1', $content);
+            $this->assertStringContainsString('Style: Default,DejaVu Sans,48,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,3,1,2,20,20,95,1', $content);
+            $this->assertStringContainsString('Style: Credit,DejaVu Sans,22,&H00FFFFFF,&H000000FF,&H80000000,&H80000000,0,0,0,0,100,100,0,0,3,2,0,1,36,36,24,1', $content);
             $this->assertStringContainsString('Breves Biografías IA · Alan Turing\Nhttps://es.wikipedia.org/wiki/Alan_Turing · Public Domain', $content);
         } finally {
             @unlink($assPath);
@@ -79,7 +79,7 @@ class BroadcastSeriesHelperAndSubtitlesTest extends TestCase
             $content = file_get_contents($assPath);
 
             $this->assertIsString($content);
-            $this->assertStringContainsString('Style: Credit,Arial,26,', $content);
+            $this->assertStringContainsString('Style: Credit,DejaVu Sans,26,', $content);
         } finally {
             @unlink($assPath);
         }
@@ -103,5 +103,11 @@ class BroadcastSeriesHelperAndSubtitlesTest extends TestCase
         $this->assertStringContainsString('BREVES BIOGRAFÍAS IA', $ass);
         $this->assertStringContainsString('Matemática Pionera: Sofía Kovalévskaya y Ñandú', $ass);
         $this->assertStringContainsString('https://es.wikipedia.org/wiki/Sofia_Kovalevskaya · Fuente: Wikipedia · CC BY-SA 4.0', $ass);
+        $this->assertStringContainsString('&H00000000', $ass);
+        $this->assertStringContainsString('DejaVu Sans', $ass);
+        $this->assertSame(
+            'Esta ha sido una breve biografía escogida por Javier Gálvez y elaborada con Inteligencia Artificial.',
+            (new IntroCardGenerator)->resolveClosingText('bio')
+        );
     }
 }

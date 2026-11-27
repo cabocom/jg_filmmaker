@@ -51,7 +51,9 @@ RUN apk add --no-cache \
     zip \
     unzip \
     curl \
-    ffmpeg
+    ffmpeg \
+    fontconfig \
+    font-dejavu
 
 # Compilar extensiones PHP necesarias (SQLite + PostgreSQL + Rendimiento)
 RUN docker-php-ext-configure pgsql -with-pgsql=/usr/include/postgresql/ \
