@@ -16,6 +16,7 @@ use App\Models\Project;
 use App\Models\Scene;
 use App\Models\ScriptBlock;
 use App\Models\Shot;
+use App\Models\TvRundown;
 use App\Models\User;
 use App\Services\Broadcast\OralShotSanitizer;
 use App\Services\Broadcast\SentenceBasedShotDistributor;
@@ -294,6 +295,12 @@ final readonly class AutoGenerateBroadcastShotsAction
             'stage' => BroadcastJobStage::SHOTS,
             'artifacts' => $artifacts,
         ]);
+
+        $rundown = TvRundown::query()->where('broadcast_job_id', $job->id)->first();
+        if ($rundown !== null && (string) $rundown->stage === 'queued') {
+            $this->startRendering($job);
+            $rundown->update(['stage' => 'rendering', 'status' => 'rendering']);
+        }
     }
 
     /**

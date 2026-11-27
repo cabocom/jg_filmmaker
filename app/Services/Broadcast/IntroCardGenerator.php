@@ -14,7 +14,8 @@ final class IntroCardGenerator
     private const int INTRO_DURATION_SECONDS = 3;
 
     /**
-     * Genera una pantalla de inicio de 3 segundos (30fps CFR, audio silencio AAC 48kHz stereo).
+     * Genera una pantalla de inicio de 3 segundos (30fps CFR, audio silencio AAC 48kHz stereo)
+     * mediante FFmpeg + libass UTF-8 (sin dependencia de extensión PHP GD).
      *
      * @param  array<string, mixed>  $artifacts
      */
@@ -26,16 +27,19 @@ final class IntroCardGenerator
         $width = $is720p ? 1280 : 1920;
         $height = $is720p ? 720 : 1080;
 
-        $pngPath = "{$tempDir}/intro_card.png";
+        $assPath = "{$tempDir}/intro_card.ass";
         $videoPath = "{$tempDir}/intro_card.mp4";
 
-        $this->renderCardPng($job, $artifacts, $pngPath, $width, $height);
+        File::put($assPath, $this->buildIntroAssContent($job, $artifacts, $width, $height));
 
+        $escapedAss = str_replace(['\\', ':', "'"], ['/', '\\:', "\\'"], $assPath);
         $preset = $is720p ? ['-preset', 'veryfast'] : [];
+
         $cmd = [
             'ffmpeg', '-y',
-            '-loop', '1', '-t', (string) self::INTRO_DURATION_SECONDS, '-i', $pngPath,
+            '-f', 'lavfi', '-i', "color=c=0x0b1120:s={$width}x{$height}:d=".self::INTRO_DURATION_SECONDS.':r=30',
             '-f', 'lavfi', '-t', (string) self::INTRO_DURATION_SECONDS, '-i', 'anullsrc=channel_layout=stereo:sample_rate=48000',
+            '-vf', "subtitles={$escapedAss}",
             '-r', '30', '-fps_mode', 'cfr', '-video_track_timescale', '30000',
             '-c:v', 'libx264', '-profile:v', 'high', '-level', '4.1', '-pix_fmt', 'yuv420p', ...$preset,
             '-c:a', 'aac', '-ar', '48000', '-ac', '2',
@@ -51,86 +55,59 @@ final class IntroCardGenerator
     }
 
     /**
+     * Construye un guion ASS UTF-8 con soporte nativo para tildes y caracteres latinos.
+     *
      * @param  array<string, mixed>  $artifacts
      */
-    private function renderCardPng(BroadcastJob $job, array $artifacts, string $pngPath, int $width, int $height): void
+    public function buildIntroAssContent(BroadcastJob $job, array $artifacts, int $width = 1920, int $height = 1080): string
     {
-        $image = imagecreatetruecolor($width, $height);
-        if ($image === false) {
-            throw new RuntimeException('No se pudo inicializar el lienzo GD para la intro card.');
-        }
-
-        $bg = imagecolorallocate($image, 11, 17, 32);
-        $accent = imagecolorallocate($image, 56, 189, 248);
-        $white = imagecolorallocate($image, 248, 250, 252);
-        $muted = imagecolorallocate($image, 148, 163, 184);
-
-        imagefill($image, 0, 0, $bg);
-        $marginX = (int) round($width * 0.08);
-        imagefilledrectangle($image, $marginX, (int) round($height * 0.28), $marginX + (int) round($width * 0.06), (int) round($height * 0.28) + 6, $accent);
-
-        $series = BroadcastSeriesHelper::seriesNameForFormat($job->format);
+        $series = mb_strtoupper(BroadcastSeriesHelper::seriesNameForFormat($job->format), 'UTF-8');
         $title = trim((string) ($job->title ?? ''));
         $sources = is_array($job->sources) ? $job->sources : [];
         $sourceUrl = trim((string) ($sources[0] ?? ''));
         $visualCredit = trim((string) ($artifacts['visual_credit'] ?? ''));
         $footer = implode(' · ', array_filter([$sourceUrl, $visualCredit], static fn (string $v): bool => $v !== ''));
 
-        $font = $this->resolveFontPath();
         $scale = $width / 1920;
+        $seriesSize = (int) round(34 * $scale);
+        $titleSize = (int) round(64 * $scale);
+        $footerSize = (int) round(26 * $scale);
+        $marginX = (int) round(140 * $scale);
 
-        if ($font !== null) {
-            imagettftext($image, (int) round(30 * $scale), 0, $marginX, (int) round($height * 0.25), $accent, $font, mb_strtoupper($series));
-            $y = (int) round($height * 0.40);
-            foreach ($this->wrapText($title, 38) as $line) {
-                imagettftext($image, (int) round(54 * $scale), 0, $marginX, $y, $white, $font, $line);
-                $y += (int) round(76 * $scale);
-            }
-            if ($footer !== '') {
-                imagettftext($image, (int) round(22 * $scale), 0, $marginX, (int) round($height * 0.86), $muted, $font, $footer);
-            }
-        } else {
-            imagestring($image, 5, $marginX, (int) round($height * 0.23), $series, $accent);
-            imagestring($image, 5, $marginX, (int) round($height * 0.42), $title, $white);
-            if ($footer !== '') {
-                imagestring($image, 4, $marginX, (int) round($height * 0.85), $footer, $muted);
-            }
-        }
-
-        imagepng($image, $pngPath);
-        imagedestroy($image);
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function wrapText(string $text, int $maxChars): array
-    {
-        if ($text === '') {
-            return [];
-        }
-
-        $wrapped = wordwrap($text, $maxChars, "\n", true);
-
-        return array_slice(explode("\n", $wrapped), 0, 3);
-    }
-
-    private function resolveFontPath(): ?string
-    {
-        $candidates = [
-            '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
-            '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
-            '/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf',
-            '/System/Library/Fonts/Supplemental/Arial Bold.ttf',
-            '/System/Library/Fonts/Supplemental/Arial.ttf',
+        $end = sprintf('0:00:%02d.00', self::INTRO_DURATION_SECONDS);
+        $lines = [
+            '[Script Info]',
+            'Title: Broadcast Intro Card',
+            'ScriptType: v4.00+',
+            'WrapStyle: 0',
+            'ScaledBorderAndShadow: yes',
+            'YCbCr Matrix: TV.709',
+            "PlayResX: {$width}",
+            "PlayResY: {$height}",
+            '',
+            '[V4+ Styles]',
+            'Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding',
+            "Style: Series,Arial,{$seriesSize},&H00F8BD38,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,2,0,1,0,0,7,{$marginX},{$marginX},".(int) round($height * 0.22).',1',
+            "Style: Title,Arial,{$titleSize},&H00F8FAFC,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,0,0,4,{$marginX},{$marginX},0,1",
+            "Style: Footer,Arial,{$footerSize},&H00B8A394,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,0,0,1,{$marginX},{$marginX},".(int) round($height * 0.10).',1',
+            '',
+            '[Events]',
+            'Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text',
+            'Dialogue: 0,0:00:00.00,'.$end.',Series,,0,0,0,,{\fad(250,250)}'.$this->escapeAssText($series),
+            'Dialogue: 0,0:00:00.00,'.$end.',Title,,0,0,0,,{\fad(300,250)}'.$this->escapeAssText($title),
         ];
 
-        foreach ($candidates as $path) {
-            if (is_file($path)) {
-                return $path;
-            }
+        if ($footer !== '') {
+            $lines[] = 'Dialogue: 0,0:00:00.00,'.$end.',Footer,,0,0,0,,{\fad(350,250)}'.$this->escapeAssText($footer);
         }
 
-        return null;
+        return implode("\n", $lines)."\n";
+    }
+
+    private function escapeAssText(string $text): string
+    {
+        $clean = str_replace(["\r\n", "\r", "\n"], ' ', trim($text));
+
+        return str_replace(['\\', '{', '}'], ['\\\\', '\{', '\}'], $clean);
     }
 }

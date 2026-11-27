@@ -1,6 +1,6 @@
 <div x-data="{ progressModal: null, showCreateForm: false, previewUrl: null, previewTitle: '', openPreview(url, title) { this.previewUrl = url; this.previewTitle = title; }, closePreview() { if (this.$refs.previewPlayer) { this.$refs.previewPlayer.pause(); this.$refs.previewPlayer.removeAttribute('src'); this.$refs.previewPlayer.load(); } this.previewUrl = null; this.previewTitle = ''; } }" @keydown.escape.window="progressModal = null; showCreateForm = false; if (previewUrl) closePreview()" x-on:rundown-reassembly-started.window="$wire.$refresh()" class="space-y-5">
     @if ($hasBusyRundowns)
-        <div wire:poll.4s class="hidden"></div>
+        <div wire:poll.1500ms class="hidden"></div>
     @endif
     @if (session()->has('success'))
         <div class="rounded-lg bg-emerald-900 border border-emerald-500 p-4 text-emerald-50 text-sm flex items-center justify-between">

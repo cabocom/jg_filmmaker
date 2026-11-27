@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services\Broadcast;
 
+use App\Models\BroadcastJob;
 use App\Services\Broadcast\BroadcastSeriesHelper;
+use App\Services\Broadcast\IntroCardGenerator;
 use App\Services\Broadcast\ShotSubtitleGenerator;
 use PHPUnit\Framework\TestCase;
 
@@ -81,5 +83,25 @@ class BroadcastSeriesHelperAndSubtitlesTest extends TestCase
         } finally {
             @unlink($assPath);
         }
+    }
+
+    public function test_intro_card_generator_builds_utf8_ass_without_gd_preserving_accents(): void
+    {
+        $job = new BroadcastJob([
+            'format' => 'bio',
+            'title' => 'Matemática Pionera: Sofía Kovalévskaya y Ñandú',
+            'sources' => ['https://es.wikipedia.org/wiki/Sofia_Kovalevskaya'],
+        ]);
+
+        $ass = (new IntroCardGenerator)->buildIntroAssContent(
+            $job,
+            ['visual_credit' => 'Fuente: Wikipedia · CC BY-SA 4.0'],
+            1280,
+            720
+        );
+
+        $this->assertStringContainsString('BREVES BIOGRAFÍAS IA', $ass);
+        $this->assertStringContainsString('Matemática Pionera: Sofía Kovalévskaya y Ñandú', $ass);
+        $this->assertStringContainsString('https://es.wikipedia.org/wiki/Sofia_Kovalevskaya · Fuente: Wikipedia · CC BY-SA 4.0', $ass);
     }
 }
