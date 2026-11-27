@@ -148,7 +148,7 @@ final class IntroCardGenerator
         $audioPath = $this->synthesizeCardAudio($job, $artifacts, $spokenText);
         $speechDuration = $audioPath !== null ? $this->probeAudioDuration($audioPath) : 0.0;
         $totalDuration = $audioPath !== null
-            ? max(2.0, round($speechDuration + $padSeconds, 2))
+            ? max(2.0, ceil(($speechDuration + $padSeconds) * 30) / 30)
             : (float) self::FALLBACK_DURATION_SECONDS;
 
         $assPath = "{$tempDir}/{$baseName}.ass";

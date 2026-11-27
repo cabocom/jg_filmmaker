@@ -47,7 +47,7 @@ final readonly class AssembleBroadcastEpisodeAction
             $introGenerator = $this->introCardGenerator ?? app(IntroCardGenerator::class);
             $introPath = $introGenerator->generate($job, $artifacts, $tempDir);
             $outroPath = $introGenerator->generateOutro($job, $artifacts, $tempDir);
-            $this->concatVideoSegments([$introPath, $bodyPath, $outroPath], $localFiles['1080p'], $tempDir, $jobId);
+            $this->concatVideoSegments([$introPath, $bodyPath, $outroPath], $localFiles['1080p'], $jobId, $artifacts);
         }
         if ($publishPodcast) {
             $this->exportPodcastMp3($localFiles['1080p'], $localFiles['podcast'], $artifacts, $jobId);
@@ -156,19 +156,34 @@ final readonly class AssembleBroadcastEpisodeAction
 
     /**
      * @param  list<string>  $segments
+     * @param  array<string, mixed>  $artifacts
      */
-    private function concatVideoSegments(array $segments, string $outputPath, string $tempDir, string $jobId): void
+    private function concatVideoSegments(array $segments, string $outputPath, string $jobId, array $artifacts = []): void
     {
-        $listPath = "{$tempDir}/intro_body_concat.txt";
-        $lines = array_map(
-            static fn (string $path): string => "file '".str_replace("'", "'\\''", $path)."'",
-            $segments
-        );
-        File::put($listPath, implode("\n", $lines));
+        $inputs = [];
+        $filterParts = [];
+        foreach (array_values($segments) as $index => $path) {
+            $inputs[] = '-i';
+            $inputs[] = $path;
+            $filterParts[] = "[{$index}:v:0][{$index}:a:0]";
+        }
 
-        $result = Process::timeout(300)->run([
-            'ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-i', $listPath, '-c', 'copy', '-movflags', '+faststart', $outputPath,
-        ]);
+        $n = count($segments);
+        $filterComplex = implode('', $filterParts)."concat=n={$n}:v=1:a=1[v][a]";
+        $is720p = (($artifacts['resolution_profile'] ?? '1080p30') === '720p30');
+        $preset = $is720p ? ['-preset', 'veryfast'] : [];
+
+        $cmd = [
+            'ffmpeg', '-y', ...$inputs,
+            '-filter_complex', $filterComplex,
+            '-map', '[v]', '-map', '[a]',
+            '-r', '30', '-fps_mode', 'cfr', '-video_track_timescale', '30000',
+            '-c:v', 'libx264', '-profile:v', 'high', '-level', '4.1', '-pix_fmt', 'yuv420p', ...$preset,
+            '-c:a', 'aac', '-ar', '48000', '-ac', '2',
+            '-movflags', '+faststart', $outputPath,
+        ];
+
+        $result = Process::timeout(300)->run($cmd);
         if (! $result->successful()) {
             throw new RuntimeException("Fallo al unir intro/cuerpo/outro para el job {$jobId}: ".$result->errorOutput());
         }
