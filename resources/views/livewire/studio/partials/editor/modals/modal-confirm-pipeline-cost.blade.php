@@ -1,7 +1,8 @@
     <!-- ================= MODAL CONFIRMAR COSTE EN TOKENS ANTES DE EJECUTAR PIPELINE COMPLETO DE ESCENA ================= -->
     @if($showScenePipelineConfirmModal)
+        <template x-teleport="body">
         <div class="fixed inset-0 overflow-y-auto"
-             style="z-index: 9999;"
+             style="z-index: 99999;"
              x-data
              @keydown.escape.window="$wire.cancelRunScenePipeline()">
             <!-- Backdrop -->
@@ -90,5 +91,6 @@
                 </div>
             </div>
         </div>
+        </template>
     @endif
 

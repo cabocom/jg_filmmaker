@@ -1,7 +1,8 @@
     <!-- ================= MODAL CONFIRMAR COSTE EN TOKENS ANTES DE AUDITAR AGUJEROS DE GUIÓN ================= -->
     @if($showPlotHoleConfirmModal)
+        <template x-teleport="body">
         <div class="fixed inset-0 overflow-y-auto"
-             style="z-index: 9999;"
+             style="z-index: 99999;"
              x-data
              @keydown.escape.window="$wire.cancelAnalyzePlotHoles()">
             <!-- Backdrop -->
@@ -90,5 +91,6 @@
                 </div>
             </div>
         </div>
+        </template>
     @endif
 
