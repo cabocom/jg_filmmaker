@@ -45,7 +45,8 @@ final readonly class SyncBroadcastProjectBibleAction
             ]);
         }
 
-        if ($project->characters()->count() === 0) {
+        $formatLower = strtolower(trim((string) $job->format));
+        if ($project->characters()->count() === 0 && ! in_array($formatLower, ['pill', 'pildora'], true)) {
             $this->seedDefaultPresenter($project, (string) $job->format);
         }
 
@@ -120,9 +121,14 @@ final readonly class SyncBroadcastProjectBibleAction
                 $targetLocation->update($attributes);
             }
         } else {
+            $primarySlugline = strtoupper(trim((string) ($primaryScene?->slugline ?? '')));
+            $defaultLocationName = (str_contains($primarySlugline, 'DOCUMENTAL') || str_contains($primarySlugline, 'EXT.'))
+                ? 'DOCUMENTAL TEMÁTICO'
+                : 'ESTUDIO BROADCAST';
+
             $targetLocation = $project->locations()->create(array_merge([
-                'name' => $name !== '' ? $name : 'ESTUDIO BROADCAST',
-                'type' => 'INT',
+                'name' => $name !== '' ? $name : $defaultLocationName,
+                'type' => str_contains($primarySlugline, 'EXT.') ? 'EXT' : 'INT',
             ], $attributes));
         }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Storyboard;
 
 use App\DTOs\Storyboard\VisualAestheticConfigDTO;
+use App\Models\BroadcastJob;
 use App\Models\Shot;
 use App\Models\TvRundown;
 use App\Models\TvVisualStyle;
@@ -41,7 +42,8 @@ final readonly class BroadcastFramePromptBuilder
         $shot->loadMissing(['scene.project.characters', 'scene.project.locations', 'scene.project.visualStyle', 'scene.location', 'scriptBlock']);
 
         $framing = $this->resolveFraming($shot->shot_type);
-        $description = $this->resolveDescription($shot, $characterId);
+        $effectiveCharacterId = $this->resolveEffectiveCharacterId($shot, $characterId);
+        $description = $this->resolveDescription($shot, $effectiveCharacterId);
         $styleDirective = $this->resolveStyleDirective($shot, $styleKey);
 
         $parts = [];
@@ -50,7 +52,7 @@ final readonly class BroadcastFramePromptBuilder
         }
         $parts[] = "Full-bleed 16:9 widescreen broadcast frame. {$framing} showing {$description}";
 
-        $this->appendBibleContext($parts, $shot, $characterId, $locationId, $propCount);
+        $this->appendBibleContext($parts, $shot, $effectiveCharacterId, $locationId, $propCount);
         $this->appendAestheticDirectives($parts, $config);
 
         $parts[] = 'Edge-to-edge full-bleed composition filling the entire 16:9 frame with no borders, no letterbox bars, no panel outlines, no text overlays, no watermarks, and no storyboard labels.';
@@ -73,7 +75,10 @@ final readonly class BroadcastFramePromptBuilder
 
     private function resolveDescription(Shot $shot, ?string $characterId): string
     {
-        $description = trim((string) $shot->description) ?: 'a compelling visual scene in motion.';
+        $description = $this->stripSpeakerPrefix((string) $shot->description);
+        if ($description === '') {
+            $description = 'a compelling visual scene in motion.';
+        }
         $character = $this->baseBuilder->resolveCharacterModel($shot, $characterId);
 
         if ($character && $character->name) {
@@ -82,6 +87,63 @@ final readonly class BroadcastFramePromptBuilder
         }
 
         return rtrim($description, '.').'.';
+    }
+
+    private function stripSpeakerPrefix(string $description): string
+    {
+        $cleaned = preg_replace(
+            '/^\s*(?:HOST|LOCUTOR|PRESENTADOR|NARRADOR)(?:\s*\((?:V\.O\.|VO|OFF|CONT\.?)\))?\s*:\s*/imu',
+            '',
+            $description
+        );
+        $normalized = preg_replace('/\s+/', ' ', (string) $cleaned);
+
+        return trim((string) $normalized);
+    }
+
+    private function resolveEffectiveCharacterId(Shot $shot, ?string $characterId): ?string
+    {
+        if ($characterId !== null || ! $this->isPillFormat($shot)) {
+            return $characterId;
+        }
+
+        $character = $this->baseBuilder->resolveCharacterModel($shot, null);
+        if ($character === null) {
+            return 'none';
+        }
+
+        $name = trim((string) $character->name);
+        if (in_array(strtolower($name), ['presentador', 'host', 'locutor'], true)) {
+            return 'none';
+        }
+
+        if ($name === '' || stripos((string) $shot->description, $name) === false) {
+            return 'none';
+        }
+
+        return null;
+    }
+
+    private function isPillFormat(Shot $shot): bool
+    {
+        $projectId = $shot->scene?->project_id;
+        if ($projectId === null) {
+            return false;
+        }
+
+        $rundownFormat = TvRundown::query()
+            ->where('project_id', $projectId)
+            ->value('format');
+
+        if (in_array(strtolower(trim((string) $rundownFormat)), ['pill', 'pildora'], true)) {
+            return true;
+        }
+
+        $jobFormat = BroadcastJob::query()
+            ->where('project_id', $projectId)
+            ->value('format');
+
+        return in_array(strtolower(trim((string) $jobFormat)), ['pill', 'pildora'], true);
     }
 
     /**

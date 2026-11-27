@@ -12,6 +12,11 @@
 
 ## Resumen Ejecutivo de Capacidades Recientes
 
+- **Píldoras (`pill`) sin Personaje `Presentador` ni Plató de Estudio por Defecto (ISSUE-46):**
+  - **Biblia y Escena Inicial por Formato (`SyncBroadcastProjectBibleAction` / `AutoGenerateBroadcastShotsAction`):** En formato `pill` (`pildora`), se omite el sembrado automático del personaje `Presentador` y la escena inicial utiliza el slugline temático `EXT. DOCUMENTAL TEMÁTICO - DÍA` en lugar de `INT. ESTUDIO BROADCAST - DÍA`, manteniendo el comportamiento original para `news`.
+  - **Sanitización de Prefijos y Omisión de `Presentador` (`BroadcastFramePromptBuilder`):** Elimina prefijos de locución (`HOST:`, `HOST (V.O.):`, `LOCUTOR:`, `PRESENTADOR:`, `NARRADOR:`) en la descripción del plano y omite la inyección de `Character Consistency` para `Presentador`/`host`/`locutor` en formato `pill`.
+  - **Pruebas Automatizadas:** Suite `tests/Feature/BroadcastPillVisualNoPresenterTest.php` verificando la ausencia de `Presentador` y plató de estudio en `pill`, la sanitización de prefijos en `BroadcastFramePromptBuilder` y la preservación del comportamiento en `news`.
+
 - **Consola Nativa Livewire `/tv` (`TvWorkspace`), Modo `?embed=1` y SSO HMAC Iframe (ISSUE-43 / Parte B):**
   - **Consola Nativa `/tv` (`TvWorkspace`):** Componente Livewire 4 en `App\Livewire\Tv\TvWorkspace` (`route('tv.index')`, protegido por `EnsureUserIsAdmin` exclusivamente para administradores) con pestañas `Escaletas IA`, `Vídeos`, `Parrilla 24h`, `Publicidad` y `Configuración`, conectado a `ManageTvRundownAction` y `SyncTvChannelConfigAction`, con enlace directo **"🎬 Abrir en Estudio"** hacia `route('projects.show', $rundown->project_id)` (`target="_top"` en modo embed) y enlace en el menú de usuario (`layouts/partials/header.blade.php`).
   - **Modo Embed Limpio (`?embed=1`):** Propiedad URL `$embed` en `TvWorkspace` propagada mediante `layoutData(['embed' => $this->embed])` hacia `layouts/app.blade.php`, ocultando `@include('layouts.partials.header')` cuando `$embed` está activo para integración limpia en iframe.

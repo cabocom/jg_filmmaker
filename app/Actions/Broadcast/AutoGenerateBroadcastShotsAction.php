@@ -85,6 +85,10 @@ final readonly class AutoGenerateBroadcastShotsAction
 
     private function createProjectAndBlock(BroadcastJobRequestDTO $dto): array
     {
+        $defaultSlugline = in_array(strtolower(trim($dto->format)), ['pill', 'pildora'], true)
+            ? 'EXT. DOCUMENTAL TEMÁTICO - DÍA'
+            : 'INT. ESTUDIO BROADCAST - DÍA';
+
         $existingProject = $dto->projectId !== null
             ? Project::query()->find($dto->projectId)
             : null;
@@ -99,7 +103,7 @@ final readonly class AutoGenerateBroadcastShotsAction
             $scene = $existingProject->scenes()->orderBy('scene_order')->first() ?? Scene::create([
                 'project_id' => $existingProject->id,
                 'scene_order' => 1,
-                'slugline' => 'INT. ESTUDIO BROADCAST - DÍA',
+                'slugline' => $defaultSlugline,
                 'time_of_day' => 'DÍA',
             ]);
 
@@ -137,7 +141,7 @@ final readonly class AutoGenerateBroadcastShotsAction
         $scene = Scene::create([
             'project_id' => $project->id,
             'scene_order' => 1,
-            'slugline' => 'INT. ESTUDIO BROADCAST - DÍA',
+            'slugline' => $defaultSlugline,
             'time_of_day' => 'DÍA',
         ]);
 
@@ -357,7 +361,7 @@ final readonly class AutoGenerateBroadcastShotsAction
     private function buildContextualizedRawText(BroadcastJobRequestDTO $dto): string
     {
         $formatDescription = match (strtolower(trim($dto->format))) {
-            'pill', 'pildora' => 'Píldora informativa ágil, directa y dinámica (formato vertical / micro-cápsula)',
+            'pill', 'pildora' => 'Píldora informativa ágil en voz en off (formato documental visual, SIN presentador en cámara, SIN prefijos HOST/LOCUTOR; cada plano describe una escena visual ilustrativa del tema)',
             'news', 'noticia' => 'Crónica periodística televisiva con tono informativo riguroso',
             'debate' => 'Mesa de debate y contraste dialéctico con dinamismo oral',
             default => 'Reportaje audiovisual ágil',

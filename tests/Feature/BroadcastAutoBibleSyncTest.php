@@ -152,7 +152,7 @@ class BroadcastAutoBibleSyncTest extends TestCase
         $action = app(AutoGenerateBroadcastShotsAction::class);
         $dto = BroadcastJobRequestDTO::fromArray([
             'channel_id' => 'ch-resilient-bible',
-            'format' => 'pill',
+            'format' => 'news',
             'title' => 'Avance Cuántico',
             'raw_text' => 'Resumen de investigación sobre computación cuántica tolerante a fallos.',
         ]);
