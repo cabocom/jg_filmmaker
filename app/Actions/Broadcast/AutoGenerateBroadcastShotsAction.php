@@ -80,7 +80,11 @@ final readonly class AutoGenerateBroadcastShotsAction
             return $job;
         });
 
-        RunBroadcastStageJob::dispatch($job->id, BroadcastJobStage::TREATMENT)->onQueue('broadcast');
+        $initialStage = in_array(strtolower(trim($dto->format)), ['bio', 'pill', 'pildora'], true)
+            ? BroadcastJobStage::SHOTS
+            : BroadcastJobStage::TREATMENT;
+
+        RunBroadcastStageJob::dispatch($job->id, $initialStage)->onQueue('broadcast');
 
         return $job;
     }
