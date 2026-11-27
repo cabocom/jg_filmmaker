@@ -185,7 +185,7 @@ class TvWorkspace extends Component
         $date = $this->normalizeDate($this->selectedDate);
         $schedule = $scheduleAction->getOrPlanDay($date);
         $query = TvVideo::query()->where('channel_slug', 'ai-today');
-        if (in_array($this->videoTypeFilter, ['pill', 'news', 'debate', 'music'], true)) {
+        if (in_array($this->videoTypeFilter, ['bio', 'pill', 'news', 'debate', 'music'], true)) {
             $query->where('type', $this->videoTypeFilter);
         }
 

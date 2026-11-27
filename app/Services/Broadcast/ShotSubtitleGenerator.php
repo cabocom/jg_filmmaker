@@ -175,7 +175,7 @@ final class ShotSubtitleGenerator
         $resX = $verticalShort ? 1080 : 1920;
         $resY = $verticalShort ? 1920 : 1080;
         $fontSize = $verticalShort ? 72 : 48;
-        $marginV = $verticalShort ? 240 : 60;
+        $marginV = $verticalShort ? 240 : 95;
 
         return [
             $this->buildAssHeader($resX, $resY, $fontSize, $marginV),
@@ -209,7 +209,7 @@ final class ShotSubtitleGenerator
 
     private function buildAssHeader(int $resX, int $resY, int $fontSize, int $marginV): string
     {
-        $creditFontSize = $resY > $resX ? 30 : 24;
+        $creditFontSize = $resY > $resX ? 26 : 22;
 
         return implode("\n", [
             '[Script Info]',
@@ -224,7 +224,7 @@ final class ShotSubtitleGenerator
             '[V4+ Styles]',
             'Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding',
             "Style: Default,Arial,{$fontSize},&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,3,1,2,20,20,{$marginV},1",
-            "Style: Credit,Arial,{$creditFontSize},&H20FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,2,1,9,24,24,24,1",
+            "Style: Credit,Arial,{$creditFontSize},&H00FFFFFF,&H000000FF,&H80000000,&H80000000,0,0,0,0,100,100,0,0,3,2,0,1,36,36,24,1",
             '',
         ]);
     }

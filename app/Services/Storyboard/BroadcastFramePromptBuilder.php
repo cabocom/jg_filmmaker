@@ -24,6 +24,11 @@ final readonly class BroadcastFramePromptBuilder
     ];
 
     /**
+     * @var list<string>
+     */
+    private const array DOCUMENTARY_FORMATS = ['pill', 'pildora', 'bio'];
+
+    /**
      * @param  array<string, array{name: string, badge: string, description: string, modifier: string}>  $styles
      */
     public function __construct(
@@ -55,7 +60,7 @@ final readonly class BroadcastFramePromptBuilder
         $this->appendBibleContext($parts, $shot, $effectiveCharacterId, $locationId, $propCount);
         $this->appendAestheticDirectives($parts, $config);
 
-        $parts[] = 'Edge-to-edge full-bleed composition filling the entire 16:9 frame with no borders, no letterbox bars, no panel outlines, no text overlays, no watermarks, and no storyboard labels.';
+        $parts[] = 'Edge-to-edge full-bleed composition filling the entire 16:9 frame. STRICTLY NO text, NO words, NO letters, NO numbers, NO typography, NO signs, NO captions, NO subtitles, NO borders, NO letterbox bars, NO panel outlines, NO watermarks, and NO storyboard labels anywhere in the image.';
 
         return implode(' ', $parts);
     }
@@ -135,7 +140,7 @@ final readonly class BroadcastFramePromptBuilder
             ->where('project_id', $projectId)
             ->value('format');
 
-        if (in_array(strtolower(trim((string) $rundownFormat)), ['pill', 'pildora'], true)) {
+        if (in_array(strtolower(trim((string) $rundownFormat)), self::DOCUMENTARY_FORMATS, true)) {
             return true;
         }
 
@@ -143,7 +148,7 @@ final readonly class BroadcastFramePromptBuilder
             ->where('project_id', $projectId)
             ->value('format');
 
-        return in_array(strtolower(trim((string) $jobFormat)), ['pill', 'pildora'], true);
+        return in_array(strtolower(trim((string) $jobFormat)), self::DOCUMENTARY_FORMATS, true);
     }
 
     /**
@@ -189,7 +194,14 @@ final readonly class BroadcastFramePromptBuilder
             $parts[] = "Optical look: {$config->cameraLens}.";
         }
 
-        if ($config->negativeDirectives !== null) {
+        $antiTextDirective = 'any embedded text, letters, words, logos, captions, signs, or watermarks in the image';
+        $negative = trim((string) ($config->negativeDirectives ?? ''));
+
+        if ($negative === '') {
+            $parts[] = "Avoid: {$antiTextDirective}.";
+        } elseif (preg_match('/\b(?:text|texto|letters|letras|words|palabras|typography|tipograf[ií]a|watermarks?|captions?|subtitles?|subt[ií]tulos)\b/iu', $negative) !== 1) {
+            $parts[] = 'Avoid: '.rtrim($negative, '. ').", {$antiTextDirective}.";
+        } else {
             $parts[] = "Avoid: {$config->negativeDirectives}.";
         }
     }

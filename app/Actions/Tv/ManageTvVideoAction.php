@@ -22,8 +22,8 @@ final class ManageTvVideoAction
     public function create(array $data): TvVideo
     {
         $type = (string) ($data['type'] ?? '');
-        if (! in_array($type, ['pill', 'news', 'debate', 'music'], true)) {
-            throw new InvalidArgumentException("Tipo de vídeo inválido: [{$type}]. Permitidos: pill, news, debate, music.");
+        if (! in_array($type, ['bio', 'pill', 'news', 'debate', 'music'], true)) {
+            throw new InvalidArgumentException("Tipo de vídeo inválido: [{$type}]. Permitidos: bio, pill, news, debate, music.");
         }
 
         return TvVideo::create([
@@ -54,8 +54,8 @@ final class ManageTvVideoAction
     {
         $this->assertNotBusy($video);
 
-        if (array_key_exists('type', $data) && ! in_array($data['type'], ['pill', 'news', 'debate', 'music'], true)) {
-            throw new InvalidArgumentException("Tipo de vídeo inválido: [{$data['type']}]. Permitidos: pill, news, debate, music.");
+        if (array_key_exists('type', $data) && ! in_array($data['type'], ['bio', 'pill', 'news', 'debate', 'music'], true)) {
+            throw new InvalidArgumentException("Tipo de vídeo inválido: [{$data['type']}]. Permitidos: bio, pill, news, debate, music.");
         }
 
         $allowed = ['type', 'title', 'source_ref', 'raw_text', 'publish_to_podcast', 'generate_short', 'evergreen_fallback'];

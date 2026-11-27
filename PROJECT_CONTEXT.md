@@ -12,6 +12,13 @@
 
 ## Resumen Ejecutivo de Capacidades Recientes
 
+- **Formato `bio` (`Breves Biografías IA`), Tarjeta de Intro, Faldón Inferior Izquierdo y Refuerzo Anti-Texto:**
+  - **Formato `bio` y Deshabilitación de `music` en Escaletas IA (`TvRundownsPanel` / `AutoGenerateBroadcastShotsAction` / `SyncBroadcastProjectBibleAction`):** Incorporado el formato `bio` (`Breves Biografías IA`) con pipeline documental (`EXT. DOCUMENTAL TEMÁTICO - DÍA`, sin personaje `Presentador`), migración de registros previos `pill` a `bio` en `tv_rundowns`, `tv_videos` y `broadcast_jobs`, y deshabilitación de `music` en validación de escaletas IA.
+  - **Serie y Faldón Inferior Izquierdo (`BroadcastSeriesHelper` / `ShotSubtitleGenerator`):** `BroadcastSeriesHelper::seriesNameForFormat('bio')` devuelve `'Breves Biografías IA'` y `buildLowerThirdText()` compone el crédito de 2 líneas (`\N`) con serie, título, URL fuente y atribución de licencia renderizado en `ShotSubtitleGenerator::generateGlobalAss()` bajo `Style: Credit` alineado abajo a la izquierda (`Alignment=1`, `,1,36,36,24,1`).
+  - **Tarjeta de Inicio (`IntroCardGenerator`):** Generación de pantalla inicial de 3 segundos a 30fps CFR con serie, título y pie de fuente/crédito mediante GD y FFmpeg.
+  - **Refuerzo Anti-Texto (`BroadcastFramePromptBuilder`):** Inclusión explícita de `STRICTLY NO text, NO words, NO letters...` y cláusula `Avoid:` anti-texto embebido en prompts `full_bleed_frame`.
+  - **Pruebas Automatizadas:** Suite `tests/Feature/BroadcastBioIntroAndLowerThirdTest.php`.
+
 - **Síntesis Narrativa de Píldoras Centrada en Legado e Impacto (`PillNarrativeRewriter`):**
   - `App\Services\Tv\PillNarrativeRewriter` integrado en `WikipediaRundownSynthesizer::synthesize()` (cuando se especifica `targetDurationSeconds`) reescribe los extractos de Wikipedia mediante LLM enfocando el guion locutado exclusivamente en logros, aportaciones e impacto real, omitiendo fechas/lugares de nacimiento o muerte, nombres de pila completos y datos genealógicos, con respaldo determinista (`stripBiographicalNoise()`).
   - `SynthesizeTvRundownJob` alinea además el slugline inicial de píldoras (`pill`/`pildora`) a `EXT. DOCUMENTAL TEMÁTICO - DÍA`.

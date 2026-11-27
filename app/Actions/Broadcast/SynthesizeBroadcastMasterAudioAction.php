@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Broadcast;
 
 use App\Models\BroadcastJob;
+use App\Services\Broadcast\BroadcastSeriesHelper;
 use App\Services\Broadcast\OralShotSanitizer;
 use App\Services\Broadcast\ShotSubtitleGenerator;
 use App\Services\TextToSpeechService;
@@ -49,8 +50,16 @@ final readonly class SynthesizeBroadcastMasterAudioAction
         $timedShots = $this->distributeShotTimings($shots, $totalDuration);
 
         $assPath = storage_path("app/private/broadcast/{$job->id}/subtitles/master_subtitles.ass");
+        $sources = is_array($job->sources) ? $job->sources : [];
+        $sourceUrl = $this->resolveOptionalString($sources[0] ?? null);
         $visualCredit = $this->resolveOptionalString($artifacts['visual_credit'] ?? null);
-        $this->subtitleGenerator->generateGlobalAss($timedShots, $assPath, $visualCredit);
+        $lowerThird = BroadcastSeriesHelper::buildLowerThirdText(
+            $job->format,
+            (string) ($job->title ?? ''),
+            $sourceUrl,
+            $visualCredit,
+        );
+        $this->subtitleGenerator->generateGlobalAss($timedShots, $assPath, $lowerThird);
 
         $masterAudio = [
             'audio_path' => $audioPath,

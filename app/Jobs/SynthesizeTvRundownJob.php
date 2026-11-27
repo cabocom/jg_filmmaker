@@ -96,8 +96,8 @@ class SynthesizeTvRundownJob implements ShouldQueue
 
         $scene = $project->scenes()->orderBy('scene_order')->first();
         if ($scene === null) {
-            $formatLower = strtolower(trim((string) ($rundown->type ?: $rundown->format ?: 'pill')));
-            $slugline = in_array($formatLower, ['pill', 'pildora'], true)
+            $formatLower = strtolower(trim((string) ($rundown->type ?: $rundown->format ?: 'bio')));
+            $slugline = in_array($formatLower, ['bio', 'pill', 'pildora'], true)
                 ? 'EXT. DOCUMENTAL TEMÁTICO - DÍA'
                 : 'INT. ESTUDIO BROADCAST - DÍA';
 

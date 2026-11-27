@@ -62,7 +62,7 @@
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
         <div class="flex items-center gap-2 flex-wrap">
             <span class="text-xs font-medium text-slate-400 mr-1">Filtro:</span>
-            @foreach (['all' => 'Todos', 'pill' => 'Píldoras', 'news' => 'Noticias', 'debate' => 'Debates', 'music' => 'Música', 'non_compliant' => 'No conformes'] as $key => $label)
+            @foreach (['all' => 'Todos', 'bio' => 'Biografías', 'pill' => 'Píldoras', 'news' => 'Noticias', 'debate' => 'Debates', 'music' => 'Música', 'non_compliant' => 'No conformes'] as $key => $label)
                 <button
                     type="button"
                     wire:click="$set('filter', '{{ $key }}')"
@@ -143,6 +143,7 @@
                             <tr wire:key="tv-video-{{ $video->id }}" class="{{ $isBusy ? 'bg-slate-800/40' : 'hover:bg-slate-800/20' }}">
                                 <td class="py-3 px-3 align-top whitespace-nowrap">
                                     <select wire:change="updateVideoType('{{ $video->id }}', $event.target.value)" @disabled($isBusy) class="bg-slate-800 border border-slate-700 text-slate-100 rounded px-2 py-1 text-[11px] font-medium cursor-pointer disabled:opacity-50">
+                                        <option value="bio" @selected($video->type === 'bio')>Biografía</option>
                                         <option value="pill" @selected($video->type === 'pill')>Píldora</option>
                                         <option value="news" @selected($video->type === 'news')>Noticia</option>
                                         <option value="debate" @selected($video->type === 'debate')>Debate</option>

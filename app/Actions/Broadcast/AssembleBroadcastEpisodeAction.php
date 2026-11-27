@@ -7,6 +7,7 @@ namespace App\Actions\Broadcast;
 use App\Enums\BroadcastJobStage;
 use App\Models\BroadcastJob;
 use App\Services\Broadcast\BroadcastMediaValidator;
+use App\Services\Broadcast\IntroCardGenerator;
 use App\Services\Broadcast\ShotSubtitleGenerator;
 use App\Services\Media\MediaStorageService;
 use Illuminate\Support\Facades\File;
@@ -19,7 +20,8 @@ final readonly class AssembleBroadcastEpisodeAction
         protected MediaStorageService $mediaStorage,
         protected BroadcastMediaValidator $mediaValidator,
         protected ShotSubtitleGenerator $subtitleGenerator,
-        protected PublishEpisodeToTvDriveAction $tvDrivePublisher
+        protected PublishEpisodeToTvDriveAction $tvDrivePublisher,
+        protected ?IntroCardGenerator $introCardGenerator = null,
     ) {}
 
     /**
@@ -37,7 +39,14 @@ final readonly class AssembleBroadcastEpisodeAction
         $publishPodcast = ($artifacts['publish_to_podcast'] ?? true) !== false;
         $generateShort = ($artifacts['generate_short'] ?? true) !== false;
         $localFiles = ['1080p' => "{$tempDir}/episode_1080p.mp4", 'podcast' => "{$tempDir}/episode_podcast.mp3", 'short' => "{$tempDir}/episode_short_9x16.mp4"];
-        $this->concatEpisode1080p($sortedShots, $localFiles['1080p'], $tempDir, $jobId, $artifacts);
+        if ($this->isMockMode()) {
+            $this->concatEpisode1080p($sortedShots, $localFiles['1080p'], $tempDir, $jobId, $artifacts);
+        } else {
+            $bodyPath = "{$tempDir}/body_1080p.mp4";
+            $this->concatEpisode1080p($sortedShots, $bodyPath, $tempDir, $jobId, $artifacts);
+            $introPath = ($this->introCardGenerator ?? app(IntroCardGenerator::class))->generate($job, $artifacts, $tempDir);
+            $this->prependIntroCard($introPath, $bodyPath, $localFiles['1080p'], $tempDir, $jobId);
+        }
         if ($publishPodcast) {
             $this->exportPodcastMp3($localFiles['1080p'], $localFiles['podcast'], $artifacts, $jobId);
         }
@@ -140,6 +149,23 @@ final readonly class AssembleBroadcastEpisodeAction
         $result = Process::timeout(300)->run($cmd);
         if (! $result->successful()) {
             throw new RuntimeException("Fallo al concatenar episode 1080p para el job {$jobId}: ".$result->errorOutput());
+        }
+    }
+
+    private function prependIntroCard(string $introPath, string $bodyPath, string $outputPath, string $tempDir, string $jobId): void
+    {
+        $listPath = "{$tempDir}/intro_body_concat.txt";
+        $lines = [
+            "file '".str_replace("'", "'\\''", $introPath)."'",
+            "file '".str_replace("'", "'\\''", $bodyPath)."'",
+        ];
+        File::put($listPath, implode("\n", $lines));
+
+        $result = Process::timeout(300)->run([
+            'ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-i', $listPath, '-c', 'copy', '-movflags', '+faststart', $outputPath,
+        ]);
+        if (! $result->successful()) {
+            throw new RuntimeException("Fallo al unir intro card con episodio para el job {$jobId}: ".$result->errorOutput());
         }
     }
 

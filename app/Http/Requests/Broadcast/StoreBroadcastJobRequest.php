@@ -27,7 +27,7 @@ class StoreBroadcastJobRequest extends FormRequest
     {
         return [
             'channel_id' => ['required', 'string', 'max:120'],
-            'format' => ['required', 'string', 'in:pill,news,debate'],
+            'format' => ['required', 'string', 'in:bio,pill,news,debate'],
             'title' => ['required', 'string', 'max:255'],
             'raw_text' => ['required', 'string', 'min:10'],
             'language' => ['sometimes', 'string', 'max:16'],

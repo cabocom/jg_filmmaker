@@ -25,7 +25,7 @@ class TvRundownsPanel extends Component
 
     public string $language = 'es';
 
-    public string $rundownType = 'pill';
+    public string $rundownType = 'bio';
 
     public string $scriptText = '';
 
@@ -47,7 +47,7 @@ class TvRundownsPanel extends Component
 
     public string $editTitle = '';
 
-    public string $editType = 'pill';
+    public string $editType = 'bio';
 
     public string $editScriptText = '';
 
@@ -122,7 +122,7 @@ class TvRundownsPanel extends Component
         }
         $this->editingRundownId = $rundown->id;
         $this->editTitle = (string) $rundown->title;
-        $this->editType = (string) ($rundown->type ?: $rundown->format ?: 'pill');
+        $this->editType = (string) ($rundown->type ?: $rundown->format ?: 'bio');
         $this->editScriptText = (string) ($rundown->script_text ?? '');
         $this->editPublishToPodcast = (bool) $rundown->publish_to_podcast;
         $this->editGenerateShort = (bool) $rundown->generate_short;
@@ -140,7 +140,7 @@ class TvRundownsPanel extends Component
         $rundown = TvRundown::query()->where('channel_slug', 'ai-today')->findOrFail($this->editingRundownId);
         $this->validate([
             'editTitle' => 'required|string|max:255',
-            'editType' => 'required|in:pill,news,debate,music',
+            'editType' => 'required|in:bio,pill,news,debate',
             'editScriptText' => 'nullable|string',
             'editTtsProvider' => 'required|in:gemini,kokoro,elevenlabs,edge',
             'editTtsVoice' => 'required|string|max:64',
@@ -241,7 +241,7 @@ class TvRundownsPanel extends Component
             'topicOrUrl' => $this->sourceKind === 'wikipedia' ? 'required|string|max:500' : 'nullable|string|max:500',
             'title' => $this->sourceKind === 'manual' ? 'required|string|max:255' : 'nullable|string|max:255',
             'language' => 'required|in:es,en',
-            'rundownType' => 'required|in:pill,news,debate,music',
+            'rundownType' => 'required|in:bio,pill,news,debate',
             'scriptText' => $this->sourceKind === 'manual' ? 'required|string' : 'nullable|string',
             'ttsProvider' => 'required|in:gemini,kokoro,elevenlabs,edge',
             'ttsVoice' => 'required|string|max:64',

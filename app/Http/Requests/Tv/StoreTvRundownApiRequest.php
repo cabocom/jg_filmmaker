@@ -27,7 +27,7 @@ class StoreTvRundownApiRequest extends FormRequest
             'title' => ['nullable', 'string', 'max:255', 'required_without:topic_or_url'],
             'topic_or_url' => ['nullable', 'string', 'max:1000', 'required_if:source_type,wikipedia'],
             'source_type' => ['sometimes', 'string', 'in:prompt,wikipedia,manual'],
-            'format' => ['sometimes', 'string', 'in:pill,news,debate'],
+            'format' => ['sometimes', 'string', 'in:bio,pill,news,debate'],
             'language' => ['sometimes', 'string', 'max:16'],
             'script_text' => ['nullable', 'string', 'max:50000'],
             'visual_credit' => ['nullable', 'string', 'max:255'],

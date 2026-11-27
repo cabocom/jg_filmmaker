@@ -85,7 +85,7 @@ final readonly class AutoGenerateBroadcastShotsAction
 
     private function createProjectAndBlock(BroadcastJobRequestDTO $dto): array
     {
-        $defaultSlugline = in_array(strtolower(trim($dto->format)), ['pill', 'pildora'], true)
+        $defaultSlugline = in_array(strtolower(trim($dto->format)), ['bio', 'pill', 'pildora'], true)
             ? 'EXT. DOCUMENTAL TEMÁTICO - DÍA'
             : 'INT. ESTUDIO BROADCAST - DÍA';
 
@@ -361,7 +361,7 @@ final readonly class AutoGenerateBroadcastShotsAction
     private function buildContextualizedRawText(BroadcastJobRequestDTO $dto): string
     {
         $formatDescription = match (strtolower(trim($dto->format))) {
-            'pill', 'pildora' => 'Píldora informativa ágil en voz en off (formato documental visual, SIN presentador en cámara, SIN prefijos HOST/LOCUTOR; cada plano describe una escena visual ilustrativa del tema)',
+            'bio', 'pill', 'pildora' => 'Píldora informativa ágil en voz en off (formato documental visual, SIN presentador en cámara, SIN prefijos HOST/LOCUTOR; cada plano describe una escena visual ilustrativa del tema)',
             'news', 'noticia' => 'Crónica periodística televisiva con tono informativo riguroso',
             'debate' => 'Mesa de debate y contraste dialéctico con dinamismo oral',
             default => 'Reportaje audiovisual ágil',

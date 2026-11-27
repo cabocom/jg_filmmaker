@@ -178,7 +178,7 @@ class TvVideosPanel extends Component
         $this->justInitiated = false;
 
         $query = TvVideo::query()->where('channel_slug', 'ai-today');
-        if (in_array($this->filter, ['pill', 'news', 'debate', 'music'], true)) {
+        if (in_array($this->filter, ['bio', 'pill', 'news', 'debate', 'music'], true)) {
             $query->where('type', $this->filter);
         } elseif ($this->filter === 'non_compliant') {
             $query->where('broadcast_compliant', false);

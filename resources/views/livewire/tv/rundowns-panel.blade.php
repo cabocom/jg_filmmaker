@@ -36,10 +36,10 @@
                 <div>
                     <label class="block text-xs font-medium text-slate-300 mb-1">Tipo de Escaleta</label>
                     <select wire:model="rundownType" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-indigo-500 focus:outline-none">
-                        <option value="pill">Píldora (pill)</option>
+                        <option value="bio">Biografía (bio)</option>
+                        <option value="pill">Píldora Tech (pill)</option>
                         <option value="news">Noticia (news)</option>
                         <option value="debate">Debate (debate)</option>
-                        <option value="music">Música (music)</option>
                     </select>
                 </div>
                 <div>
@@ -162,10 +162,10 @@
                     <div>
                         <label class="block text-xs font-medium text-slate-300 mb-1">Tipo</label>
                         <select wire:model="editType" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-indigo-500 focus:outline-none">
-                            <option value="pill">Píldora (pill)</option>
+                            <option value="bio">Biografía (bio)</option>
+                            <option value="pill">Píldora Tech (pill)</option>
                             <option value="news">Noticia (news)</option>
                             <option value="debate">Debate (debate)</option>
-                            <option value="music">Música (music)</option>
                         </select>
                         @error('editType') <span class="text-xs text-rose-400 mt-1 block">{{ $message }}</span> @enderror
                     </div>

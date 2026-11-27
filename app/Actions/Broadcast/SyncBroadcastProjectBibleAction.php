@@ -46,7 +46,7 @@ final readonly class SyncBroadcastProjectBibleAction
         }
 
         $formatLower = strtolower(trim((string) $job->format));
-        if ($project->characters()->count() === 0 && ! in_array($formatLower, ['pill', 'pildora'], true)) {
+        if ($project->characters()->count() === 0 && ! in_array($formatLower, ['bio', 'pill', 'pildora'], true)) {
             $this->seedDefaultPresenter($project, (string) $job->format);
         }
 
