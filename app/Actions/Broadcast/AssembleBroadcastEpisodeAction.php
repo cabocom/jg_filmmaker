@@ -196,10 +196,12 @@ final readonly class AssembleBroadcastEpisodeAction
     public function buildMasterAudioConcatCommand(string $listPath, string $masterAudioPath, string $outputPath, array $artifacts): array
     {
         $cmd = ['ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-i', $listPath, '-i', $masterAudioPath];
+        $vfParts = ['tpad=stop_mode=clone:stop_duration=5'];
         $globalAss = $artifacts['master_audio']['ass_path'] ?? $artifacts['master_audio']['global_ass_path'] ?? $artifacts['global_ass_path'] ?? null;
         if (is_string($globalAss) && $globalAss !== '' && File::exists($globalAss)) {
-            $cmd = [...$cmd, '-vf', 'subtitles='.$this->escapeFilterPath($globalAss)];
+            $vfParts[] = 'subtitles='.$this->escapeFilterPath($globalAss);
         }
+        $cmd = [...$cmd, '-vf', implode(',', $vfParts), '-af', 'apad=pad_dur=0.5'];
         $is720p = (($artifacts['resolution_profile'] ?? '1080p30') === '720p30');
         $preset = $is720p ? ['-preset', 'veryfast'] : [];
 
