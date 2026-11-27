@@ -7,12 +7,12 @@
 
     @if($detailBlock)
         <!-- Contenedor general del Drawer -->
-        <div class="fixed inset-0 z-50 overflow-hidden" x-data>
+        <div class="fixed inset-0 z-40 overflow-hidden" x-data>
             <!-- Backdrop suave exterior: NO muy oscurecido -->
             <div class="fixed inset-0 bg-slate-950/25 backdrop-blur-[2px] transition-opacity"></div>
 
             <!-- Panel lateral deslizante alineado a la derecha -->
-            <div class="fixed inset-y-0 right-0 z-50 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col h-full w-full sm:w-[540px] md:w-[620px] lg:w-[60vw] max-w-full">
+            <div class="fixed inset-y-0 right-0 z-40 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col h-full w-full sm:w-[540px] md:w-[620px] lg:w-[60vw] max-w-full">
                 @include('livewire.studio.partials.editor.drawer.drawer-header', ['detailBlock' => $detailBlock])
 
                 <!-- Cuerpo scrolleable del Drawer -->
