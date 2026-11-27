@@ -1,6 +1,8 @@
     <!-- ================= MODAL CONFIRMAR COSTE EN TOKENS PARA ACCIÓN DE BLOQUE INDIVIDUAL ================= -->
     @if($showBlockActionConfirmModal)
-        <div class="fixed inset-0 z-[100] overflow-y-auto"
+        @teleport('body')
+        <div class="fixed inset-0 overflow-y-auto"
+             style="z-index: 9999;"
              x-data
              @keydown.escape.window="$wire.cancelBlockAction()">
             <!-- Backdrop -->
@@ -8,7 +10,7 @@
                  wire:click="cancelBlockAction"></div>
 
             <!-- Modal Dialog -->
-            <div class="flex min-h-full items-center justify-center p-3 sm:p-4">
+            <div class="relative z-10 flex min-h-full items-center justify-center p-3 sm:p-4">
                 <div class="relative w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-4 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto"
                      @click.stop>
                     <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
@@ -102,4 +104,5 @@
                 </div>
             </div>
         </div>
+        @endteleport
     @endif
