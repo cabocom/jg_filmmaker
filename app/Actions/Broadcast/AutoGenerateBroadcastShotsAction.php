@@ -21,6 +21,7 @@ use App\Models\User;
 use App\Services\Broadcast\OralShotSanitizer;
 use App\Services\Broadcast\SentenceBasedShotDistributor;
 use App\Services\ScriptPipelineService;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -274,7 +275,7 @@ final readonly class AutoGenerateBroadcastShotsAction
     protected function processShotsStage(BroadcastJob $job, ScriptBlock $block, array $artifacts): void
     {
         $shots = $this->pipeline->generateShotsBreakdown($block);
-        if ($shots === []) {
+        if ($shots->isEmpty()) {
             $shots = $this->createDeterministicFallbackShots($job, $block);
         }
         $sanitized = $this->sanitizer->sanitizeAndFormatShots($shots);
@@ -306,9 +307,9 @@ final readonly class AutoGenerateBroadcastShotsAction
     /**
      * Crea planos deterministas en BD a partir de las frases del guion si el detector LLM falla.
      *
-     * @return list<Shot>
+     * @return EloquentCollection<int, Shot>
      */
-    private function createDeterministicFallbackShots(BroadcastJob $job, ScriptBlock $block): array
+    private function createDeterministicFallbackShots(BroadcastJob $job, ScriptBlock $block): EloquentCollection
     {
         $distributor = $this->sentenceDistributor ?? app(SentenceBasedShotDistributor::class);
         $seed = array_map(
@@ -337,7 +338,7 @@ final readonly class AutoGenerateBroadcastShotsAction
 
         $block->update(['stage' => BlockStage::SHOTS->value]);
 
-        return $created;
+        return new EloquentCollection($created);
     }
 
     /**
