@@ -96,10 +96,15 @@ class SynthesizeTvRundownJob implements ShouldQueue
 
         $scene = $project->scenes()->orderBy('scene_order')->first();
         if ($scene === null) {
+            $formatLower = strtolower(trim((string) ($rundown->type ?: $rundown->format ?: 'pill')));
+            $slugline = in_array($formatLower, ['pill', 'pildora'], true)
+                ? 'EXT. DOCUMENTAL TEMÁTICO - DÍA'
+                : 'INT. ESTUDIO BROADCAST - DÍA';
+
             $scene = Scene::create([
                 'project_id' => $project->id,
                 'scene_order' => 1,
-                'slugline' => 'INT. ESTUDIO BROADCAST - DÍA',
+                'slugline' => $slugline,
                 'time_of_day' => 'DÍA',
             ]);
         }

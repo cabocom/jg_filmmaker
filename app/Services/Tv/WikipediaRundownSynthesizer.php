@@ -12,6 +12,10 @@ final readonly class WikipediaRundownSynthesizer
 {
     public const string VISUAL_CREDIT = 'Fuente: Wikipedia · CC BY-SA 4.0';
 
+    public function __construct(
+        private ?PillNarrativeRewriter $narrativeRewriter = null,
+    ) {}
+
     private const array ALLOWED_HOSTS = [
         'es.wikipedia.org' => 'es',
         'en.wikipedia.org' => 'en',
@@ -99,13 +103,14 @@ final readonly class WikipediaRundownSynthesizer
 
         if ($targetDurationSeconds !== null && $targetDurationSeconds > 0) {
             $targetWords = max(25, (int) round(max(15, $targetDurationSeconds) * 2.5));
-            if (str_word_count($extract) < (int) ($targetWords * 0.8)) {
-                $expanded = $this->fetchExpandedExtract($lang, $articleTitle);
-                if ($expanded !== '' && str_word_count($expanded) > str_word_count($extract)) {
-                    $extract = $expanded;
-                }
+            $expanded = $this->fetchExpandedExtract($lang, $articleTitle);
+            if ($expanded !== '' && str_word_count($expanded) > str_word_count($extract)) {
+                $extract = $expanded;
             }
 
+            $rewriter = $this->narrativeRewriter ?? app(PillNarrativeRewriter::class);
+            $resolvedTitleForRewrite = trim((string) ($payload['title'] ?? str_replace('_', ' ', $articleTitle)));
+            $extract = $rewriter->rewrite($resolvedTitleForRewrite, $extract, $lang, $targetWords);
             $extract = $this->trimToTargetWords($extract, $targetWords);
         }
 

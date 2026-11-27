@@ -12,6 +12,11 @@
 
 ## Resumen Ejecutivo de Capacidades Recientes
 
+- **Síntesis Narrativa de Píldoras Centrada en Legado e Impacto (`PillNarrativeRewriter`):**
+  - `App\Services\Tv\PillNarrativeRewriter` integrado en `WikipediaRundownSynthesizer::synthesize()` (cuando se especifica `targetDurationSeconds`) reescribe los extractos de Wikipedia mediante LLM enfocando el guion locutado exclusivamente en logros, aportaciones e impacto real, omitiendo fechas/lugares de nacimiento o muerte, nombres de pila completos y datos genealógicos, con respaldo determinista (`stripBiographicalNoise()`).
+  - `SynthesizeTvRundownJob` alinea además el slugline inicial de píldoras (`pill`/`pildora`) a `EXT. DOCUMENTAL TEMÁTICO - DÍA`.
+  - Cobertura automatizada en `tests/Feature/PillNarrativeRewriterTest.php`.
+
 - **Edición Selectiva Post-Render de Viñetas y Textos en Escaletas TV (`UpdateRundownShotsAction` / `TvRundownShotsModal`):**
   - **Edición Incremental e Invalidación Selectiva (`UpdateRundownShotsAction`):** Permite regenerar una única viñeta (`regenerateSingleShotVisual()`) resolviendo paridad de estilo (`storyboard` -> `editorial_documentary_35mm`, `styleReferenceImageBase64` de `TvVisualStyle` o plano ancla #1), actualizando `$artifacts['shot_visuals'][$shotId]` e invalidando únicamente `rendered_shots[$shotId]` sin tocar `master_audio` ni el resto de clips; editar locuciones (`updateOralTextsAndInvalidateAudio()`) con validación de longitud y contenido mínimo no vacío invalidando `master_audio` y `rendered_shots` mientras preserva `shot_visuals`; y reensamblar (`reassembleAfterEdits()`) depurando clips purgados de disco (`! is_file($clipPath)`) antes de invocar `AutoGenerateBroadcastShotsAction::startRendering()`.
   - **Modal Livewire de Shots y Endpoint de Miniaturas TV (`TvRundownShotsModal` / `TvRundownShotStoryboardController`):** Componente Livewire restringido a administradores con aviso ante ediciones visuales no regeneradas y endpoint dedicado `tv.rundowns.shot-storyboard` protegido por `EnsureUserIsAdmin` con *cache-buster* `?v=` para servir miniaturas de escaletas compartidas sin vulnerar `ProjectPolicy`.
