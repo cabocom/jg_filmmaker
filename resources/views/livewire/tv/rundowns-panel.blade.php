@@ -1,4 +1,4 @@
-<div x-data="{ progressModal: null, showCreateForm: false, previewUrl: null, previewTitle: '', openPreview(url, title) { this.previewUrl = url; this.previewTitle = title; }, closePreview() { if (this.$refs.previewPlayer) { this.$refs.previewPlayer.pause(); this.$refs.previewPlayer.removeAttribute('src'); this.$refs.previewPlayer.load(); } this.previewUrl = null; this.previewTitle = ''; } }" @keydown.escape.window="progressModal = null; showCreateForm = false; if (previewUrl) closePreview()" class="space-y-5">
+<div x-data="{ progressModal: null, showCreateForm: false, previewUrl: null, previewTitle: '', openPreview(url, title) { this.previewUrl = url; this.previewTitle = title; }, closePreview() { if (this.$refs.previewPlayer) { this.$refs.previewPlayer.pause(); this.$refs.previewPlayer.removeAttribute('src'); this.$refs.previewPlayer.load(); } this.previewUrl = null; this.previewTitle = ''; } }" @keydown.escape.window="progressModal = null; showCreateForm = false; if (previewUrl) closePreview()" x-on:rundown-reassembly-started.window="$wire.$refresh()" class="space-y-5">
     @if ($hasBusyRundowns)
         <div wire:poll.4s class="hidden"></div>
     @endif
@@ -398,6 +398,18 @@
                                             </a>
                                         @endif
 
+                                        @if ($rundown->broadcast_job_id && ! $rundown->isBusy())
+                                            <button
+                                                type="button"
+                                                @click="$dispatch('open-rundown-shots', { rundownId: '{{ $rundown->id }}' })"
+                                                class="rounded px-2 py-1 text-xs bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 transition-colors cursor-pointer"
+                                                title="Editar viñetas y textos por shot"
+                                                aria-label="Editar viñetas y textos por shot"
+                                            >
+                                                🎞️
+                                            </button>
+                                        @endif
+
                                         <button
                                             type="button"
                                             wire:click="startEditing('{{ $rundown->id }}')"
@@ -670,4 +682,6 @@
             </div>
         </div>
     </div>
+
+    <livewire:tv.tv-rundown-shots-modal />
 </div>

@@ -6,6 +6,7 @@ use App\Http\Controllers\AudioStreamController;
 use App\Http\Controllers\Auth\IframeSsoController;
 use App\Http\Controllers\MediaStreamController;
 use App\Http\Controllers\ScriptExportController;
+use App\Http\Controllers\TvRundownShotStoryboardController;
 use App\Http\Controllers\TvVideoStreamController;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Livewire\Admin\PricingManager;
@@ -49,6 +50,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/tv/videos/{video}/stream', TvVideoStreamController::class)
         ->middleware(EnsureUserIsAdmin::class)
         ->name('tv.videos.stream');
+    Route::get('/tv/rundowns/{rundown}/shots/{shot}/storyboard', TvRundownShotStoryboardController::class)
+        ->middleware(EnsureUserIsAdmin::class)
+        ->name('tv.rundowns.shot-storyboard');
     Route::get('/tv/styles/{style}/reference', function (TvVisualStyle $style) {
         abort_unless((bool) request()->user()?->is_admin, 403);
 
