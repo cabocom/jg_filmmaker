@@ -106,13 +106,17 @@ class TvRundown extends Model
 
     public function isBusy(): bool
     {
+        if (in_array((string) $this->status, ['failed', 'ready'], true) || in_array((string) $this->stage, ['failed', 'ready'], true)) {
+            return false;
+        }
+
         $busyStates = ['queued', 'synthesizing', 'generating', 'rendering', 'processing'];
         if (in_array((string) $this->status, $busyStates, true) || in_array((string) $this->stage, $busyStates, true)) {
             return true;
         }
 
         $job = $this->broadcastJob;
-        if ($job === null) {
+        if ($job === null || $job->failed_stage !== null) {
             return false;
         }
 

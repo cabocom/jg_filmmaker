@@ -298,8 +298,8 @@ final readonly class AutoGenerateBroadcastShotsAction
 
         $rundown = TvRundown::query()->where('broadcast_job_id', $job->id)->first();
         if ($rundown !== null && (string) $rundown->stage === 'queued') {
-            $this->startRendering($job);
             $rundown->update(['stage' => 'rendering', 'status' => 'rendering']);
+            $this->startRendering($job);
         }
     }
 

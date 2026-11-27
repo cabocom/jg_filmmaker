@@ -99,6 +99,10 @@ class TvModelsAndWikipediaSynthesizerTest extends TestCase
         $job->update(['stage' => BroadcastJobStage::COMPLETED]);
         $rundown->refresh();
         $this->assertFalse($rundown->isBusy());
+
+        $job->update(['stage' => BroadcastJobStage::SHOTS, 'failed_stage' => 'RENDER_START']);
+        $rundown->update(['stage' => 'failed', 'status' => 'failed']);
+        $this->assertFalse($rundown->refresh()->isBusy());
     }
 
     public function test_wikipedia_synthesizer_validates_urls_and_separates_visual_credit(): void
