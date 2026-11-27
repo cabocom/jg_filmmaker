@@ -119,13 +119,16 @@ class ShotsBreakdownService
     public function resequenceSceneShots(Scene $scene): void
     {
         DB::transaction(function () use ($scene) {
+            Shot::where('scene_id', $scene->id)
+                ->lockForUpdate()
+                ->pluck('id');
+
             $shots = Shot::where('shots.scene_id', $scene->id)
                 ->leftJoin('script_blocks', 'shots.script_block_id', '=', 'script_blocks.id')
                 ->select('shots.*')
                 ->orderBy('script_blocks.block_order', 'asc')
                 ->orderBy('shots.shot_number', 'asc')
                 ->orderBy('shots.created_at', 'asc')
-                ->lockForUpdate()
                 ->get();
 
             $num = 1;
