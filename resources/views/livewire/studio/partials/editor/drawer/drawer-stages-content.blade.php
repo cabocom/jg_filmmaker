@@ -181,6 +181,58 @@
                                     </div>
                                 </div>
 
+                                @if($showBlockActionConfirmModal && $confirmingBlockId === $detailBlock->id)
+                                    @php
+                                        $inlineActionLabel = match($confirmingBlockAction) {
+                                            'structure' => 'Estructurar a Tratamiento',
+                                            'screenplay' => 'Convertir a Guión Literario',
+                                            'shots' => 'Desglosar en Planos Técnicos',
+                                            default => 'Procesar con IA',
+                                        };
+                                        $inlineUser = auth()->user() ?? $project->user;
+                                        $inlineTokensAvail = $inlineUser ? $inlineUser->getTokensAvailableToday() : 0;
+                                        $inlineHasEnough = $inlineTokensAvail >= $estimatedBlockActionTokens;
+                                        $inlineRemaining = max(0, $inlineTokensAvail - $estimatedBlockActionTokens);
+                                    @endphp
+                                    <div class="p-4 rounded-xl bg-amber-50/90 dark:bg-slate-900 border-2 border-amber-400 dark:border-amber-500/70 shadow-lg space-y-3">
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-base">⚡</span>
+                                                <div>
+                                                    <h4 class="text-xs font-bold text-slate-900 dark:text-white">Confirmar Acción de IA: {{ $inlineActionLabel }}</h4>
+                                                    <p class="text-[11px] text-slate-600 dark:text-slate-400">Bloque #{{ $confirmingBlockOrder }} · Coste estimado ~{{ number_format($estimatedBlockActionTokens, 0, ',', '.') }} tokens (disponibles: {{ number_format($inlineTokensAvail, 0, ',', '.') }} → tras ejecución: ~{{ number_format($inlineRemaining, 0, ',', '.') }})</p>
+                                                </div>
+                                            </div>
+                                            <button wire:click="cancelBlockAction" type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-sm cursor-pointer">✕</button>
+                                        </div>
+
+                                        @if(! $inlineHasEnough)
+                                            <div class="p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300">
+                                                ⚠️ No dispones de suficientes tokens diarios para ejecutar esta acción.
+                                            </div>
+                                        @endif
+
+                                        <div class="flex items-center justify-end gap-2">
+                                            <button wire:click="cancelBlockAction"
+                                                    type="button"
+                                                    class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition cursor-pointer">
+                                                Cancelar
+                                            </button>
+                                            <button wire:click="confirmBlockAction"
+                                                    wire:loading.attr="disabled"
+                                                    @if(! $inlineHasEnough) disabled @endif
+                                                    type="button"
+                                                    class="px-3.5 py-1.5 rounded-lg text-xs font-bold {{ $inlineHasEnough ? 'bg-amber-500 hover:bg-amber-400 text-slate-950' : 'bg-slate-300 text-slate-500 cursor-not-allowed' }} shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                                                <span wire:loading.remove wire:target="confirmBlockAction">Confirmar y Ejecutar</span>
+                                                <span wire:loading wire:target="confirmBlockAction" class="flex items-center gap-1.5">
+                                                    <span class="animate-spin text-xs">⏳</span>
+                                                    <span>Ejecutando con IA...</span>
+                                                </span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                @endif
+
                                 <!-- Vista de Texto según la etapa en el Drawer (Estilo homogéneo unificado) -->
                                 @if($detailActiveTab === 'raw')
                                     <div class="p-5 rounded-xl bg-indigo-50/20 dark:bg-slate-950/70 border border-indigo-200/50 dark:border-indigo-900/40 space-y-2 shadow-2xs">

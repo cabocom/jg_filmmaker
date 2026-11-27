@@ -1,5 +1,5 @@
     <!-- ================= MODAL CONFIRMAR COSTE EN TOKENS PARA ACCIÓN DE BLOQUE INDIVIDUAL ================= -->
-    @if($showBlockActionConfirmModal)
+    @if($showBlockActionConfirmModal && empty($detailBlockId))
         <template x-teleport="body">
         <div class="fixed inset-0 overflow-y-auto"
              style="z-index: 99999;"
